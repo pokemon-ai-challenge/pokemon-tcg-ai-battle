@@ -18,6 +18,10 @@ pokemon-tcg-ai-battle/
 ### `data/`
 
 コンペが提供するカードデータです。デッキ構築時の参照に使用します。
+ファイルサイズが大きいため本リポジトリには含まれていません。
+
+**Kaggle のコンペページからダウンロードして `data/` に配置してください。**
+[https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/data](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/data)
 
 | ファイル | 内容 |
 |----------|------|
@@ -25,8 +29,6 @@ pokemon-tcg-ai-battle/
 | `Card_ID List_JP.pdf` | カード一覧 (日本語版) |
 | `EN_Card_Data.csv` | カードデータ (英語) |
 | `JP_Card_Data.csv` | カードデータ (日本語) |
-
-詳細は [data/README.md](data/README.md) を参照してください。
 
 ### `sample_submission/`
 

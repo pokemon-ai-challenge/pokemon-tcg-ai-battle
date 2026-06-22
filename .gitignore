@@ -26,6 +26,9 @@ cardlist_referenced/pdf_card_editor/projects/
 # Large PDF files (exceed GitHub 100MB limit)
 cardlist_referenced/*.pdf
 
+# Competition-provided data (download from Kaggle)
+data/
+
 # Claude Code internal settings
 .claude/
 
