@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc.*
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Streamlit
+*.stderr.log
+*.stdout.log
+.streamlit/secrets.toml
+
+# Tool caches / temp
+.cache/
+*.bak
+*.tmp
+
+# pdf_card_editor: user project data (generated locally, not shared)
+cardlist_referenced/pdf_card_editor/projects/
+
+# Large PDF files (exceed GitHub 100MB limit)
+cardlist_referenced/*.pdf
+
+# Claude Code internal settings
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
