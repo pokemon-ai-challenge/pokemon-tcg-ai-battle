@@ -27,7 +27,8 @@ cardlist_referenced/pdf_card_editor/projects/
 cardlist_referenced/*.pdf
 
 # Competition-provided data (download from Kaggle)
-data/
+data/*
+!data/README.md
 
 # Claude Code internal settings
 .claude/
