@@ -1088,7 +1088,13 @@ def _sort_cards(card_df: pd.DataFrame, sort_key: str, group_by_label: bool) -> p
     return working.sort_values(sort_columns, ascending=ascending, kind="stable").drop(columns=["label_sort"], errors="ignore")
 
 
-def _format_deck_option(deck_id: str, deck_catalog: dict[str, str], *, strip_prefix: str = "") -> str:
+def _format_deck_option(
+    deck_id: str,
+    deck_catalog: dict[str, str],
+    *,
+    strip_prefix: str = "",
+    deck_tier: dict[str, int] | None = None,
+) -> str:
     if deck_id == "すべて":
         return "すべてのデッキ"
     deck_name = str(deck_catalog.get(deck_id, "")).strip()
@@ -1099,8 +1105,10 @@ def _format_deck_option(deck_id: str, deck_catalog: dict[str, str], *, strip_pre
         stripped = deck_name[len(strip_prefix):].strip()
         if stripped:
             deck_name = stripped
-    # 表示は読みやすい名前を主に。重複しても区別できるよう短いIDを末尾に添える。
-    return f"{deck_name}（{deck_id[:4]}）"
+    # Tier 情報が渡された場合は先頭に "T1: " のように表示する。
+    tier = deck_tier.get(deck_id) if deck_tier else None
+    tier_prefix = f"T{tier}: " if tier else ""
+    return f"{tier_prefix}{deck_name}（{deck_id[:4]}）"
 
 
 def _format_label_filter_option(label_value: str) -> str:
@@ -1131,6 +1139,12 @@ CARD_PAGE_SIZE_OPTIONS = [24, 48, 96]
 THUMB_WIDTH = 180
 TIER_RANKING_URL = "https://pokeka-win-decks.jp/tier-ranking"
 TIER_SITE_BASE = "https://pokeka-win-decks.jp"
+TORECAMAP_BASE = "https://torecamap.co.jp"
+TORECAMAP_ENV_URL = "https://torecamap.co.jp/column/pokemon-environment/"
+TORECAMAP_MIN_USAGE_PCT = 50.0  # この採用率(%)以上のカードをデッキ採用とみなす
+TORECAMAP_MAX_RECIPES_PER_DECK = 2  # アーキタイプごとに取得する公式デッキレシピの最大件数
+OFFICIAL_DECK_BASE = "https://www.pokemon-card.com"
+_TIER_CACHE_SCHEMA = "v4"  # スキーマ変更時にインクリメントして古いキャッシュを無効化
 SORT_OPTIONS = [
     ("card_id", "カードID順"),
     ("name", "カード名順"),
@@ -1368,7 +1382,7 @@ TIER_FETCH_WORKERS = 8
 def _tier_cache_path() -> Path:
     cache_dir = Path(__file__).resolve().parent / ".cache" / "tier_ranking"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir / f"{date.today().isoformat()}.json"
+    return cache_dir / f"{date.today().isoformat()}-{_TIER_CACHE_SCHEMA}.json"
 
 
 def _load_tier_cache() -> dict | None:
@@ -1499,6 +1513,234 @@ def _extract_recipe_meta_label(html: str, archetype_label: str) -> str:
     return label or archetype_label
 
 
+def _simplify_torecamap_deck_name(label: str) -> str:
+    """torecamap のページタイトルや環境ページのリンクテキストからデッキのコア名を取り出す。
+    "【ポケカ】ドラパルトexデッキの優勝デッキレシピ" → "ドラパルトex"
+    "【ポケカ】イワパレスデッキ解説&amp;デッキレシピまとめ" → "イワパレス"
+    "ドラパルトexデッキの詳しくはこちら" → "ドラパルトex"
+    """
+    name = label.strip()
+    name = re.sub(r"&amp;", "&", name)
+    name = re.sub(r"&[a-zA-Z#\d]+;", "", name)
+    name = re.sub(r"^【[^】]*】\s*", "", name)
+    m = re.search(r"デッキ", name)
+    if m and m.start() > 0:
+        name = name[: m.start()].strip()
+    return name or label
+
+
+def _extract_torecamap_deck_slugs(html: str) -> list[tuple[str, str, int]]:
+    """torecamap 環境ページから (slug, デッキ名, Tier番号) のリストを返す。"""
+    results: list[tuple[str, str, int]] = []
+    seen: set[str] = set()
+    current_tier = 99
+
+    tokens = re.split(r"(<h[23][^>]*>.*?</h[23]>)", html, flags=re.IGNORECASE | re.DOTALL)
+    for token in tokens:
+        tier_m = re.search(r"Tier\s*(\d+)", token[:500], re.IGNORECASE)
+        if tier_m:
+            current_tier = int(tier_m.group(1))
+            continue
+        for m in re.finditer(
+            r'<a\s[^>]*href=["\'](?:https://torecamap\.co\.jp)?/column/([a-z0-9][a-z0-9\-]*)/["\'][^>]*>\s*([^<]+?)\s*</a>',
+            token,
+            re.IGNORECASE,
+        ):
+            slug = m.group(1).strip()
+            name = re.sub(r"\s+", " ", m.group(2)).strip()
+            if not slug or slug in seen or slug == "pokemon-environment":
+                continue
+            seen.add(slug)
+            results.append((slug, name, current_tier))
+    return results
+
+
+def _extract_torecamap_card_usage(html: str) -> list[tuple[str, float]]:
+    """torecamap デッキページの「よく使われるカード」テーブルから (カード名, 使用率%) を返す。"""
+    cards: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for row_html in re.findall(r"<tr\b[^>]*>(.*?)</tr>", html, re.IGNORECASE | re.DOTALL):
+        pct_m = re.search(r"(\d+(?:\.\d+)?)\s*%", row_html)
+        if not pct_m:
+            continue
+        pct = float(pct_m.group(1))
+        if pct <= 0:
+            continue
+        for td in re.findall(r"<td[^>]*>(.*?)</td>", row_html, re.IGNORECASE | re.DOTALL):
+            name = re.sub(r"<[^>]+>", "", td).strip()
+            name = re.sub(r"&[a-zA-Z#\d]+;", "", name).strip()
+            if not name or re.fullmatch(r"[\d.,\s%↗↘→±+\-×\s]+", name):
+                continue
+            if not re.search(r"[　-鿿＀-￯\w]", name):
+                continue
+            if name not in seen:
+                seen.add(name)
+                cards.append((name, pct))
+            break
+    return cards
+
+
+def _extract_torecamap_deck_codes(html: str) -> list[str]:
+    """torecamap デッキページから pokemon-card.com のデッキコードを抽出する。"""
+    codes = re.findall(
+        r'pokemon-card\.com/deck/(?:confirm|deck)\.html/deckID/([A-Za-z0-9]{6}-[A-Za-z0-9]{6}-[A-Za-z0-9]{6})',
+        html,
+    )
+    seen: set[str] = set()
+    unique: list[str] = []
+    for c in codes:
+        if c not in seen:
+            seen.add(c)
+            unique.append(c)
+    return unique
+
+
+def _fetch_official_deck_recipe(deck_code: str) -> dict[str, int] | None:
+    """pokemon-card.com のデッキページからカード名と枚数を取得する。
+    返り値は {カード名: 枚数}。取得失敗時は None。
+    """
+    url = f"{OFFICIAL_DECK_BASE}/deck/deck.html/deckID/{deck_code}"
+    try:
+        html = _tier_http_get(url)
+    except Exception:
+        return None
+
+    # PCGDECK.searchItemNameAlt[{id}]='{name}' → IDからカード名へのマッピング
+    id_to_name: dict[str, str] = {}
+    for m in re.finditer(r"PCGDECK\.searchItemNameAlt\[(\d+)\]\s*=\s*'([^']+)'", html):
+        id_to_name[m.group(1)] = m.group(2)
+    if not id_to_name:
+        return None
+
+    # hidden フィールド: deck_pke/gds/tool/tech/sup/sta/ene に "{cardID}_{count}_1-..." 形式で格納
+    recipe: dict[str, int] = {}
+    for field in ("deck_pke", "deck_gds", "deck_tool", "deck_tech", "deck_sup", "deck_sta", "deck_ene"):
+        fm = re.search(rf'name="{field}"\s+id="{field}"\s+value="([^"]*)"', html)
+        if not fm or not fm.group(1):
+            continue
+        for entry in fm.group(1).split("-"):
+            parts = entry.split("_")
+            if len(parts) < 2:
+                continue
+            name = id_to_name.get(parts[0])
+            if not name:
+                continue
+            try:
+                count = int(parts[1])
+            except ValueError:
+                continue
+            recipe[name] = recipe.get(name, 0) + count
+
+    return recipe if recipe else None
+
+
+def _fetch_torecamap_data(progress=None) -> dict:
+    """torecamap の環境ページとデッキページを巡回し採用カード情報を集計する。
+    返り値は _fetch_tier_adopted_cards と同じスキーマ（deck_recipes を含む）。
+    """
+    env_html = _tier_http_get(TORECAMAP_ENV_URL)
+    slug_entries = _extract_torecamap_deck_slugs(env_html)
+    total = len(slug_entries)
+    if progress:
+        progress(0, total)
+
+    cards: dict[str, dict] = {}
+    deck_catalog: dict[str, str] = {}
+    deck_archetype: dict[str, str] = {}
+    deck_url: dict[str, str] = {}
+    deck_tier: dict[str, int] = {}
+    deck_recipes: dict[str, dict] = {}
+    deck_count = 0
+    done = 0
+
+    def _fetch_one(entry: tuple[str, str, int]):
+        slug, display_name, entry_tier = entry
+        url = f"{TORECAMAP_BASE}/column/{slug}/"
+        try:
+            html = _tier_http_get(url)
+        except Exception:
+            return None
+        # og:title はサイト名("ポケカ"等)が入るため <title> タグを使う
+        title_m = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+        if title_m:
+            page_title = re.sub(r"\s*[｜|].*$", "", title_m.group(1)).strip()
+            name = _simplify_torecamap_deck_name(page_title) if page_title else display_name
+        else:
+            name = display_name
+        card_usage = _extract_torecamap_card_usage(html)
+        # 5 枚未満はデッキページではなく製品・ランキングページと判断してスキップ
+        if len(card_usage) < 5:
+            return None
+        # 公式サイトのデッキコードを抽出してレシピを取得する
+        # ページにはアーキタイプ以外のデッキコード（対戦相手など）も含まれるため、
+        # アーキタイプのメインカードが採用されているレシピのみ採用する
+        deck_codes = _extract_torecamap_deck_codes(html)
+        archetype_norm = _normalize_card_name(name)
+        recipes: dict[str, dict[str, int]] = {}
+        for code in deck_codes[:20]:  # 最大20件を確認して正しいレシピを探す
+            if len(recipes) >= TORECAMAP_MAX_RECIPES_PER_DECK:
+                break
+            recipe = _fetch_official_deck_recipe(code)
+            if not recipe:
+                continue
+            # アーキタイプ名に対応するカードがレシピに含まれているか確認
+            if any(_normalize_card_name(c) == archetype_norm for c in recipe):
+                recipes[code] = recipe
+        return (slug, name, card_usage, url, recipes, entry_tier)
+
+    with ThreadPoolExecutor(max_workers=TIER_FETCH_WORKERS) as executor:
+        futures = [executor.submit(_fetch_one, entry) for entry in slug_entries]
+        for future in as_completed(futures):
+            done += 1
+            if progress and (done % 4 == 0 or done == total):
+                progress(done, total)
+            result = future.result()
+            if not result:
+                continue
+            slug, name, card_usage, deck_page_url, recipes, entry_tier = result
+            simplified_name = _simplify_torecamap_deck_name(name)
+            deck_catalog[slug] = name
+            deck_archetype[slug] = simplified_name
+            deck_url[slug] = deck_page_url
+            deck_tier[slug] = entry_tier
+            deck_count += 1
+            for card_name, pct in card_usage:
+                if pct < TORECAMAP_MIN_USAGE_PCT:
+                    continue
+                norm = _normalize_card_name(card_name)
+                if not norm:
+                    continue
+                card_entry = cards.setdefault(norm, {"name": card_name, "decks": 0, "deck_labels": [], "deck_ids": []})
+                card_entry["decks"] += 1
+                if simplified_name not in card_entry["deck_labels"]:
+                    card_entry["deck_labels"].append(simplified_name)
+                if slug not in card_entry["deck_ids"]:
+                    card_entry["deck_ids"].append(slug)
+            # 各デッキコードのレシピを deck_recipes に追加
+            for code, raw_recipe in recipes.items():
+                norm_cards: dict[str, dict] = {}
+                for card_name, quantity in raw_recipe.items():
+                    norm = _normalize_card_name(card_name)
+                    if norm:
+                        norm_cards[norm] = {"name": card_name, "quantity": quantity}
+                if norm_cards:
+                    deck_recipes[code] = {"label": simplified_name, "cards": norm_cards}
+                    deck_catalog[code] = simplified_name
+                    deck_archetype[code] = simplified_name
+                    deck_url[code] = deck_page_url
+                    deck_tier[code] = entry_tier
+
+    return {
+        "deck_count": deck_count,
+        "deck_catalog": deck_catalog,
+        "deck_archetype": deck_archetype,
+        "deck_url": deck_url,
+        "deck_tier": deck_tier,
+        "cards": cards,
+        "deck_recipes": deck_recipes,
+    }
+
+
 def _fetch_tier_adopted_cards(progress=None, *, force: bool = False) -> dict:
     """Tierランキング上位デッキを巡回し、各デッキで採用されているカード名・枚数を集計する。
     - 当日のディスクキャッシュがあれば即時返す（force=Trueで無視）。
@@ -1524,12 +1766,18 @@ def _fetch_tier_adopted_cards(progress=None, *, force: bool = False) -> dict:
         raise RuntimeError("requests が必要です。`pip install requests` を実行してください。") from exc
 
     tier_html = _tier_http_get(TIER_RANKING_URL)
-    slugs: list[str] = []
-    seen: set[str] = set()
-    for slug in re.findall(r"/all-deck/([^\"'#?]+)", tier_html):
-        if slug not in seen:
-            seen.add(slug)
-            slugs.append(slug)
+    # h2/h3 で区切られた Tier セクションごとにスラグを収集する
+    slug_tier_map: dict[str, int] = {}
+    _current_tier = 99
+    for token in re.split(r"(<h[23][^>]*>.*?</h[23]>)", tier_html, flags=re.IGNORECASE | re.DOTALL):
+        tm = re.search(r"Tier\s*(\d+)", token[:500], re.IGNORECASE)
+        if tm:
+            _current_tier = int(tm.group(1))
+            continue
+        for slug in re.findall(r"/all-deck/([^\"'#?]+)", token):
+            if slug not in slug_tier_map:
+                slug_tier_map[slug] = _current_tier
+    slugs: list[str] = list(slug_tier_map.keys())
 
     # Phase A: 各アーキタイプページを並行取得し、ラベルとレシピURL一覧を得る
     archetypes: dict[str, tuple[str, list[str]]] = {}
@@ -1551,18 +1799,22 @@ def _fetch_tier_adopted_cards(progress=None, *, force: bool = False) -> dict:
             archetypes[slug] = (label, paths)
 
     # レシピジョブを作成（deck_id でアーキタイプ横断の重複を排除）
+    # deck_id → Tier の事前マップ（Phase B で参照）
+    _deck_id_tier: dict[str, int] = {}
     jobs: list[tuple[str, str, str]] = []  # (deck_id, path, archetype_label)
     seen_ids: set[str] = set()
     for slug in slugs:
         if slug not in archetypes:
             continue
         label, paths = archetypes[slug]
+        slug_tier = slug_tier_map.get(slug, 99)
         for path in paths:
             deck_id = path.rsplit("/", 1)[-1]
             if not deck_id or deck_id in seen_ids:
                 continue
             seen_ids.add(deck_id)
             jobs.append((deck_id, path, label))
+            _deck_id_tier[deck_id] = slug_tier
 
     total = len(jobs)
     if progress:
@@ -1586,6 +1838,7 @@ def _fetch_tier_adopted_cards(progress=None, *, force: bool = False) -> dict:
     deck_catalog: dict[str, str] = {}
     deck_archetype: dict[str, str] = {}
     deck_url: dict[str, str] = {}
+    deck_tier: dict[str, int] = {}
     deck_recipes: dict[str, dict] = {}
     deck_count = 0
     done = 0
@@ -1604,6 +1857,8 @@ def _fetch_tier_adopted_cards(progress=None, *, force: bool = False) -> dict:
             deck_catalog[deck_id] = meta_label
             deck_archetype[deck_id] = label  # アーキタイプ(ラベル) ↔ デッキ(レシピ) の対応
             deck_url[deck_id] = deck_page_url  # 元サイトのレシピページURL
+            if deck_id in _deck_id_tier:
+                deck_tier[deck_id] = _deck_id_tier[deck_id]
             deck_recipe_entry = deck_recipes.setdefault(deck_id, {"label": meta_label, "cards": {}})
             seen_norm: set[str] = set()
             for raw, quantity in recipe_cards:
@@ -1619,13 +1874,43 @@ def _fetch_tier_adopted_cards(progress=None, *, force: bool = False) -> dict:
                     entry["deck_ids"].append(deck_id)
                 deck_recipe_entry["cards"][norm] = {"name": raw, "quantity": int(quantity)}
 
-    result_data = {
+    pokeka_result: dict = {
         "deck_count": deck_count,
         "deck_catalog": deck_catalog,
         "deck_archetype": deck_archetype,
         "deck_url": deck_url,
+        "deck_tier": deck_tier,
         "cards": cards,
         "deck_recipes": deck_recipes,
+    }
+
+    # torecamap からも採用カード情報を取得してマージする
+    try:
+        torecamap_result = _fetch_torecamap_data()
+    except Exception:
+        torecamap_result = {"deck_count": 0, "deck_catalog": {}, "deck_archetype": {}, "deck_url": {}, "deck_tier": {}, "cards": {}, "deck_recipes": {}}
+
+    merged_cards: dict[str, dict] = dict(pokeka_result["cards"])
+    for norm, info in torecamap_result["cards"].items():
+        if norm in merged_cards:
+            for lbl in info["deck_labels"]:
+                if lbl not in merged_cards[norm]["deck_labels"]:
+                    merged_cards[norm]["deck_labels"].append(lbl)
+            for did in info["deck_ids"]:
+                if did not in merged_cards[norm]["deck_ids"]:
+                    merged_cards[norm]["deck_ids"].append(did)
+            merged_cards[norm]["decks"] += info["decks"]
+        else:
+            merged_cards[norm] = dict(info)
+
+    result_data = {
+        "deck_count": pokeka_result["deck_count"] + torecamap_result["deck_count"],
+        "deck_catalog": {**pokeka_result["deck_catalog"], **torecamap_result["deck_catalog"]},
+        "deck_archetype": {**pokeka_result["deck_archetype"], **torecamap_result["deck_archetype"]},
+        "deck_url": {**pokeka_result["deck_url"], **torecamap_result["deck_url"]},
+        "deck_tier": {**pokeka_result["deck_tier"], **torecamap_result["deck_tier"]},
+        "cards": merged_cards,
+        "deck_recipes": {**pokeka_result["deck_recipes"], **torecamap_result["deck_recipes"]},
     }
     _store_tier_cache(result_data)
     return result_data
@@ -1683,6 +1968,11 @@ def _import_tier_cards(
         str(deck_id).strip(): str(url).strip()
         for deck_id, url in data.get("deck_url", {}).items()
         if str(deck_id).strip() and str(url).strip()
+    }
+    pdf_state["deck_tier"] = {
+        str(deck_id).strip(): int(t)
+        for deck_id, t in data.get("deck_tier", {}).items()
+        if str(deck_id).strip()
     }
     pdf_state["deck_card_quantities"] = {}
     _strip_legacy_deck_ids(pdf_state)
@@ -1821,7 +2111,7 @@ def _render_card_screen(
 
     with st.expander("🏆 Tier上位デッキの採用カードを取り込む", expanded=False):
         st.caption(
-            "pokeka-win-decks.jp のTierランキング上位デッキで採用されているカードを照合し、"
+            "pokeka-win-decks.jp と torecamap.co.jp の両Tierランキングで採用されているカードを照合し、"
             "作業リストにまとめて追加します。取り込み時に、採用デッキ名ラベルも自動で付きます。"
         )
         ctrl = st.columns([2.0, 1.0, 1.0], gap="medium")
@@ -1851,9 +2141,11 @@ def _render_card_screen(
     # Streamlit は「その実行で描画されなかったウィジェット」のキーをセッションから破棄するため、
     # 印刷/作業リストタブへ移動して戻ると絞り込みが初期化されてしまう。
     # 専用の保存領域に退避し、カード画面に戻ったとき（キーが消えていれば）復元する。
+    deck_tier_now: dict[str, int] = pdf_state.get("deck_tier", {})
     _filter_specs = [
         (f"search_{fingerprint}", None),
         (f"labelfilter_{fingerprint}", ["すべて", *known_labels]),
+        (f"tierfilter_{fingerprint}", None),
         (f"deckfilter_{fingerprint}", None),
         (f"sort_{fingerprint}", SORT_OPTIONS),
         (f"pagesize_{fingerprint}", CARD_PAGE_SIZE_OPTIONS),
@@ -1866,7 +2158,7 @@ def _render_card_screen(
                 st.session_state[_wk] = _restored
 
     with st.container(key="filterbar"):
-        top = st.columns([2.4, 1.0, 1.45, 1.0, 0.75], gap="medium")
+        top = st.columns([2.4, 1.0, 0.7, 1.45, 1.0, 0.75], gap="medium")
         search_text = top[0].text_input(
             "検索",
             placeholder="🔍 カード名・ラベル・番号・IDで検索",
@@ -1878,11 +2170,27 @@ def _render_card_screen(
             format_func=_format_label_filter_option,
             key=f"labelfilter_{fingerprint}",
         )
+        # Tier フィルタ：deck_tier_now に基づき利用可能な Tier 一覧を構築
+        deck_archetype = pdf_state.get("deck_archetype", {})
+        deck_catalog_now = pdf_state.get("deck_catalog", {})
+        available_tiers = sorted({
+            t for did, t in deck_tier_now.items()
+            if did in deck_catalog_now
+        })
+        tier_options = ["全Tier"] + [f"T{t}" for t in available_tiers]
+        tier_filter_key = f"tierfilter_{fingerprint}"
+        active_tier = str(st.session_state.get(tier_filter_key, "全Tier"))
+        if active_tier not in tier_options:
+            st.session_state[tier_filter_key] = "全Tier"
+            active_tier = "全Tier"
+        tier_filter = top[2].selectbox(
+            "Tier",
+            tier_options,
+            key=tier_filter_key,
+        )
         # ラベル(アーキタイプ)→デッキ(レシピ) の階層で絞り込む。
         # アーキタイプ↔デッキの明示マップ(deck_archetype)があれば、それを使って
         # 「選んだラベルに属するデッキだけ」を候補にする（共有カード経由の混入を防ぐ）。
-        deck_archetype = pdf_state.get("deck_archetype", {})
-        deck_catalog_now = pdf_state.get("deck_catalog", {})
         if label_filter != "すべて" and deck_archetype:
             target_norm = _normalize_card_name(label_filter)
             known_deck_ids = sorted(
@@ -1903,25 +2211,30 @@ def _render_card_screen(
                     if str(deck_id).strip()
                 }
             )
+        # Tier フィルタが選択されている場合は絞り込む
+        if tier_filter != "全Tier" and deck_tier_now:
+            selected_tier_num = int(tier_filter[1:])  # "T1" → 1
+            known_deck_ids = [d for d in known_deck_ids if deck_tier_now.get(d) == selected_tier_num]
         deck_filter_key = f"deckfilter_{fingerprint}"
         active_deck_filter = str(st.session_state.get(deck_filter_key, "すべて"))
         if active_deck_filter not in {"すべて", *known_deck_ids}:
             st.session_state[deck_filter_key] = "すべて"
-        deck_filter = top[2].selectbox(
+        deck_filter = top[3].selectbox(
             "デッキ番号",
             ["すべて"] + known_deck_ids,
             format_func=lambda value: _format_deck_option(
                 value,
                 deck_catalog_now,
                 strip_prefix=(deck_archetype.get(value, "") if label_filter != "すべて" else ""),
+                deck_tier=deck_tier_now if tier_filter == "全Tier" else None,
             ),
             key=deck_filter_key,
         )
-        sort_choice = top[3].selectbox(
+        sort_choice = top[4].selectbox(
             "並び順", SORT_OPTIONS, format_func=lambda item: item[1], key=f"sort_{fingerprint}"
         )
         page_size = int(
-            top[4].selectbox("表示数", CARD_PAGE_SIZE_OPTIONS, key=f"pagesize_{fingerprint}")
+            top[5].selectbox("表示数", CARD_PAGE_SIZE_OPTIONS, key=f"pagesize_{fingerprint}")
         )
 
         # 現在の絞り込み状態を退避（他タブへ移動して戻ったときに復元するため）
