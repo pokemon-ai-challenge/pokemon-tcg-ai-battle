@@ -15,6 +15,7 @@ def random_agent(obs_dict: dict) -> list[int]:
     obs: Observation = to_observation_class(obs_dict)
     if obs.select is None:
         return read_deck_csv()
+    # Pick any legal action uniformly at random as a simple baseline opponent.
     return random.sample(range(len(obs.select.option)), obs.select.maxCount)
 
 
@@ -60,6 +61,7 @@ def play_one_game(
                     print(f"finished: result={obs.current.result}, steps={steps}")
                 return obs.current.result
 
+            # The simulator tells us which side must act next.
             acting_player = (
                 obs.current.yourIndex if obs.current is not None else 0
             )
@@ -109,6 +111,7 @@ def main() -> None:
     args = parse_args()
     deck0 = read_deck_csv()
     deck1 = read_deck_csv()
+    # Swap only the opponent policy; player0 is always the implementation in main.py.
     player1 = agent if args.opponent == "self" else random_agent
 
     results = Counter()
@@ -117,6 +120,7 @@ def main() -> None:
         results[result] += 1
         print(f"game {game_index}/{args.games}: result={result}")
 
+    # result=0 means player0 won, result=1 means player1 won.
     print("summary:", dict(sorted(results.items())))
 
 

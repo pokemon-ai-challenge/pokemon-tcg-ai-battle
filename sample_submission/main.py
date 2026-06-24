@@ -39,13 +39,15 @@ def agent(obs_dict: dict) -> list[int]:
     # return random.sample(list(range(len(obs.select.option))), obs.select.maxCount)  # select randomly
 
 def choose_action(obs:Observation) -> list[int]:
-    
     select = obs.select
-    
+
     # メインフェーズでは専用の行動選択ロジックを使う
     if select.context == SelectContext.MAIN:
         chosen = choose_main_action(obs)
     else:
+        # TODO:
+        # ほかの場合分けの追加も行う
+
         # それ以外の選択では、まず必要最低限の合法手を探す
         chosen = choose_minimum_required(select)
 
@@ -73,23 +75,31 @@ def choose_main_action(obs: Observation) -> list[int]:
             attach_options.append(i)
         elif option.type == OptionType.EVOLVE:
             evolve_options.append(i)
-
         elif option.type == OptionType.ABILITY:
             ability_options.append(i)
-
         elif option.type == OptionType.ATTACK:
             attack_options.append(i)
-
         elif option.type == OptionType.END:
             end_options.append(i)
 
         # TODO: 
         # ここから「どの種類の行動を優先するか」を決める
         
+        # まだエネルギーを付けていないなら、まずつける
+        if not state.energyAttached and attach_options:
+            return [attach_options[0]]
+
+        # 進化できるなら進化する
+        if evolve_options:
+            return [evolve_options[0]]
+
+        # 特性を使えるなら使う
+        if ability_options:
+            return [ability_options[0]]
+
         # 攻撃できるなら攻撃する
         if attack_options:
             return[attack_options[0]]
-
 
         # ほかに有力な行動がなければターンを終了する
         if end_options :
@@ -97,10 +107,10 @@ def choose_main_action(obs: Observation) -> list[int]:
 
         return [0]
 
-
 def choose_minimum_required(select: SelectData) -> list[int]:
     # 必要最低限の数，候補の先頭から選ぶ
     return list(range(select.minCount))
+
 
 def validate_choice(select, chosen: list[int]) -> None:
     # 選択個数の確認
@@ -112,6 +122,6 @@ def validate_choice(select, chosen: list[int]) -> None:
     # 同じインデックスを重複して選択していないか確認
     if len(chosen) != len(set(chosen)):
         raise ValueError("Duplicate select elements are not allowed.")
-    
+
     if not all(0 <= i < len(select.option) for i in chosen):
         raise ValueError("Each selected index must be within the option range.")
