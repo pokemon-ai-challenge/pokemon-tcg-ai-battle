@@ -38,7 +38,7 @@ pokemon-tcg-ai-battle/
 - `deck.csv` — 使用するデッキ (カード ID を 60 枚分記載)
 - `cg/` — コンペ提供のゲームエンジン (変更不要)
 
-詳細は [sample_submission/README.md](sample_submission/README.md) を参照してください。
+詳細は [sample_submission/README.md](sample_submission/README.md) を参照してください。シミュレーター API ドキュメントは [cabt API docs](https://matsuoinstitute.github.io/cabt/)、公式ルールとの差分メモは [Kaggle Discussion 708586](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/discussion/708586) です。
 
 ### `cardlist_referenced/`
 
@@ -52,12 +52,13 @@ pokemon-tcg-ai-battle/
 
 ## クイックスタート
 
-### エージェントをローカルで動かす
+### 提出エージェントを編集する
 
 ```powershell
 cd sample_submission
-python app.py
 ```
+
+`main.py` が提出エージェントの本体です。`agent(obs_dict)` に行動ロジックを書き、`deck.csv` に使用する 60 枚のカード ID を記載してください。
 
 ### カードリストツールを起動する
 
