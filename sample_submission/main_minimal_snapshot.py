@@ -1,3 +1,10 @@
+"""Minimal snapshot of main.py kept as a reference copy.
+
+This file is not the active submission entrypoint.
+Keep editing `main.py` for actual agent development, and use this file only
+as a readable baseline for comparison or rollback.
+"""
+
 import os
 import random
 

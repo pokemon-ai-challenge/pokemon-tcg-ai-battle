@@ -55,6 +55,8 @@ PRINT_SHEET_OPTIONS = ["auto", "1", "2", "4", "6", "8", "9"]
 PROJECTS_DIR = Path(__file__).resolve().parent / "projects"
 PROJECT_FILE_NAME = "project.json"
 PROJECT_VERSION = 1
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DECK_CSV_OUTPUT_PATH = REPO_ROOT / "sample_submission" / "deck.csv"
 
 
 def _merge_labels_for_card(labels: dict[int, list[str]], card_id: int, raw_labels: object) -> bool:
@@ -336,6 +338,35 @@ def _default_project_output_path(project_file: str | Path, suffix: str) -> Path:
     output_dir = project_path.parent / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir / f"{project_name}.{suffix}.pdf"
+
+
+def _resolve_deck_csv_output_path(raw_output_path: str | Path | None) -> Path:
+    fallback_path = DEFAULT_DECK_CSV_OUTPUT_PATH.expanduser().resolve()
+    raw_text = "" if raw_output_path is None else str(raw_output_path).strip()
+
+    if not raw_text:
+        return fallback_path
+
+    candidate = Path(raw_text).expanduser()
+    raw_ends_with_separator = raw_text.endswith(("\\", "/"))
+    candidate_name = candidate.name.strip()
+    looks_like_directory = (
+        raw_ends_with_separator
+        or candidate_name in {"", ".", ".."}
+        or (candidate.exists() and candidate.is_dir())
+    )
+
+    if looks_like_directory:
+        candidate = candidate / fallback_path.name
+    elif candidate.suffix.lower() != ".csv":
+        candidate = candidate.with_suffix(".csv")
+
+    resolved = candidate.resolve()
+    if resolved.exists() and resolved.is_dir():
+        resolved = (resolved / fallback_path.name).resolve()
+    if resolved.name.strip() in {"", ".", ".."}:
+        raise ValueError("保存先には CSV ファイル名を含めてください。")
+    return resolved
 
 
 @st.cache_data(show_spinner=False)
@@ -1007,6 +1038,40 @@ def _deck_recipe_summary(pdf_state: dict, deck_id: str) -> tuple[int, int]:
     if not recipe:
         return (0, 0)
     return (len(recipe), sum(int(quantity) for quantity in recipe.values() if int(quantity) > 0))
+
+
+def _expand_deck_card_ids(pdf_state: dict, deck_id: str) -> list[int]:
+    recipe = _normalize_deck_card_quantities(pdf_state.get("deck_card_quantities", {})).get(str(deck_id).strip(), {})
+    deck_card_ids: list[int] = []
+    for card_id, quantity in recipe.items():
+        qty = int(quantity)
+        if qty <= 0:
+            continue
+        deck_card_ids.extend([int(card_id)] * qty)
+    return deck_card_ids
+
+
+def _build_deck_csv_text(pdf_state: dict, deck_id: str) -> str:
+    deck_card_ids = _expand_deck_card_ids(pdf_state, deck_id)
+    if not deck_card_ids:
+        raise ValueError("このデッキはまだカード枚数を解決できていないため、deck.csv を作成できません。")
+    if len(deck_card_ids) != 60:
+        raise ValueError(
+            f"このデッキは現在 {len(deck_card_ids)} 枚として解決されています。deck.csv にするには 60 枚ちょうど必要です。"
+        )
+    return "\n".join(str(card_id) for card_id in deck_card_ids) + "\n"
+
+
+def _deck_csv_download_name(pdf_state: dict, deck_id: str) -> str:
+    deck_name = str(pdf_state.get("deck_catalog", {}).get(deck_id, deck_id)).strip() or deck_id
+    return f"{_sanitize_project_name(deck_name)}-{str(deck_id).strip() or 'deck'}.csv"
+
+
+def _write_deck_csv_file(raw_output_path: str | Path | None, deck_csv_text: str) -> Path:
+    output_path = _resolve_deck_csv_output_path(raw_output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(deck_csv_text, encoding="utf-8")
+    return output_path
 
 
 def _add_deck_to_print_queue(pdf_state: dict, deck_id: str) -> tuple[int, int]:
@@ -2142,6 +2207,9 @@ def _render_card_screen(
     # 印刷/作業リストタブへ移動して戻ると絞り込みが初期化されてしまう。
     # 専用の保存領域に退避し、カード画面に戻ったとき（キーが消えていれば）復元する。
     deck_tier_now: dict[str, int] = pdf_state.get("deck_tier", {})
+    deck_output_key = f"deck_output_path_{fingerprint}"
+    if not str(st.session_state.get(deck_output_key, "")).strip():
+        st.session_state[deck_output_key] = str(DEFAULT_DECK_CSV_OUTPUT_PATH)
     _filter_specs = [
         (f"search_{fingerprint}", None),
         (f"labelfilter_{fingerprint}", ["すべて", *known_labels]),
@@ -2290,6 +2358,56 @@ def _render_card_screen(
                     f" {added_kinds}種 / {added_cards}枚 を反映しています。",
                 )
                 st.rerun()
+        try:
+            deck_csv_text = _build_deck_csv_text(pdf_state, deck_filter)
+            deck_csv_error = ""
+        except ValueError as exc:
+            deck_csv_text = ""
+            deck_csv_error = str(exc)
+        deck_csv_output_error = ""
+        try:
+            deck_csv_output_path = _resolve_deck_csv_output_path(st.session_state.get(deck_output_key, ""))
+        except ValueError as exc:
+            deck_csv_output_path = None
+            deck_csv_output_error = str(exc)
+        with st.container(border=True):
+            st.markdown("<div class='section-title'>deck.csv を作る</div>", unsafe_allow_html=True)
+            st.caption(
+                "1行に1つのカードIDを書いた 60 行のCSVとして保存します。"
+                "既定の保存先は sample_submission/deck.csv です。"
+            )
+            with st.expander("保存先を変更", expanded=False):
+                st.text_input("保存先", key=deck_output_key)
+                st.caption("フォルダだけを入れた場合は、その場所に deck.csv として保存します。")
+            if deck_csv_output_path is not None:
+                st.caption(f"出力先: {deck_csv_output_path}")
+            if deck_csv_output_error:
+                st.warning(deck_csv_output_error)
+            if deck_csv_error:
+                st.warning(deck_csv_error)
+            export_cols = st.columns(2, gap="small")
+            if export_cols[0].button(
+                "💾 deck.csv を保存",
+                type="primary",
+                use_container_width=True,
+                key=f"save_deck_csv_{fingerprint}_{deck_filter}",
+                disabled=bool(deck_csv_error or deck_csv_output_error),
+            ):
+                try:
+                    saved_path = _write_deck_csv_file(st.session_state.get(deck_output_key, ""), deck_csv_text)
+                except Exception as exc:
+                    st.error(f"deck.csv の保存に失敗しました: {exc}")
+                else:
+                    st.success(f"deck.csv を保存しました: {saved_path}")
+            export_cols[1].download_button(
+                "⬇ deck.csv をダウンロード",
+                data=deck_csv_text.encode("utf-8"),
+                file_name=_deck_csv_download_name(pdf_state, deck_filter),
+                mime="text/csv",
+                use_container_width=True,
+                disabled=bool(deck_csv_error),
+                key=f"download_deck_csv_{fingerprint}_{deck_filter}",
+            )
 
     filtered_df = _sort_cards(_filter_cards(card_df, search_text, label_filter, deck_filter), sort_choice[0], False)
     visible_df = _order_cards_for_display(filtered_df, pdf_state["work_list_card_ids"])
