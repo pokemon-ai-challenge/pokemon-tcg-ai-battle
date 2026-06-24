@@ -55,6 +55,8 @@ PRINT_SHEET_OPTIONS = ["auto", "1", "2", "4", "6", "8", "9"]
 PROJECTS_DIR = Path(__file__).resolve().parent / "projects"
 PROJECT_FILE_NAME = "project.json"
 PROJECT_VERSION = 1
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DECK_CSV_OUTPUT_PATH = REPO_ROOT / "sample_submission" / "deck.csv"
 
 
 def _merge_labels_for_card(labels: dict[int, list[str]], card_id: int, raw_labels: object) -> bool:
@@ -237,6 +239,122 @@ def _normalize_deck_card_quantities(raw_store: object) -> dict[str, dict[int, in
     return normalized
 
 
+def _coerce_positive_int_list(raw_values: object) -> list[int]:
+    values: list[int] = []
+    seen: set[int] = set()
+    if not isinstance(raw_values, (list, tuple, set)):
+        return values
+    for raw_value in raw_values:
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if value <= 0 or value in seen:
+            continue
+        seen.add(value)
+        values.append(value)
+    values.sort()
+    return values
+
+
+def _normalize_deck_card_resolutions(raw_store: object) -> dict[str, dict[str, int]]:
+    normalized: dict[str, dict[str, int]] = {}
+    if not isinstance(raw_store, dict):
+        return normalized
+
+    for raw_deck_id, raw_mapping in raw_store.items():
+        deck_id = str(raw_deck_id).strip()
+        if not deck_id or not isinstance(raw_mapping, dict):
+            continue
+        resolved: dict[str, int] = {}
+        for raw_name, raw_card_id in raw_mapping.items():
+            norm_name = str(raw_name).strip()
+            try:
+                card_id = int(raw_card_id)
+            except (TypeError, ValueError):
+                continue
+            if norm_name and card_id > 0:
+                resolved[norm_name] = card_id
+        if resolved:
+            normalized[deck_id] = resolved
+    return normalized
+
+
+def _normalize_deck_csv_ambiguities(raw_store: object) -> dict[str, list[dict[str, object]]]:
+    normalized: dict[str, list[dict[str, object]]] = {}
+    if not isinstance(raw_store, dict):
+        return normalized
+
+    for raw_deck_id, raw_entries in raw_store.items():
+        deck_id = str(raw_deck_id).strip()
+        if not deck_id or not isinstance(raw_entries, list):
+            continue
+        items: list[dict[str, object]] = []
+        for raw_entry in raw_entries:
+            if not isinstance(raw_entry, dict):
+                continue
+            norm_name = str(raw_entry.get("norm_name", "")).strip()
+            name = str(raw_entry.get("name", "")).strip() or norm_name
+            try:
+                quantity = int(raw_entry.get("quantity", 0))
+            except (TypeError, ValueError):
+                quantity = 0
+            candidate_ids = _coerce_positive_int_list(raw_entry.get("candidate_ids", []))
+            if norm_name and name and quantity > 0 and candidate_ids:
+                items.append(
+                    {
+                        "norm_name": norm_name,
+                        "name": name,
+                        "quantity": quantity,
+                        "candidate_ids": candidate_ids,
+                    }
+                )
+        if items:
+            normalized[deck_id] = items
+    return normalized
+
+
+def _sanitize_deck_resolution_state(pdf_state: dict, valid_card_ids: set[int]) -> None:
+    pdf_state["deck_csv_ambiguities"] = {
+        deck_id: [
+            {
+                "norm_name": str(entry.get("norm_name", "")).strip(),
+                "name": str(entry.get("name", "")).strip(),
+                "quantity": int(entry.get("quantity", 0)),
+                "candidate_ids": [card_id for card_id in _coerce_positive_int_list(entry.get("candidate_ids", [])) if card_id in valid_card_ids],
+            }
+            for entry in entries
+            if str(entry.get("norm_name", "")).strip()
+            and int(entry.get("quantity", 0)) > 0
+            and any(card_id in valid_card_ids for card_id in _coerce_positive_int_list(entry.get("candidate_ids", [])))
+        ]
+        for deck_id, entries in _normalize_deck_csv_ambiguities(pdf_state.get("deck_csv_ambiguities", {})).items()
+    }
+    pdf_state["deck_csv_ambiguities"] = {
+        deck_id: entries for deck_id, entries in pdf_state["deck_csv_ambiguities"].items() if entries
+    }
+    ambiguity_candidates = {
+        deck_id: {
+            str(entry.get("norm_name", "")).strip(): {
+                int(card_id) for card_id in entry.get("candidate_ids", []) if int(card_id) in valid_card_ids
+            }
+            for entry in entries
+        }
+        for deck_id, entries in pdf_state["deck_csv_ambiguities"].items()
+    }
+    pdf_state["deck_card_resolutions"] = {
+        deck_id: {
+            norm_name: int(card_id)
+            for norm_name, card_id in mapping.items()
+            if int(card_id) in ambiguity_candidates.get(deck_id, {}).get(str(norm_name).strip(), set())
+        }
+        for deck_id, mapping in _normalize_deck_card_resolutions(pdf_state.get("deck_card_resolutions", {})).items()
+    }
+    pdf_state["deck_card_resolutions"] = {
+        deck_id: mapping for deck_id, mapping in pdf_state["deck_card_resolutions"].items() if mapping
+    }
+
+
 def _project_source_pdf_path(project_file: str | Path, payload: dict) -> Path:
     project_path = Path(project_file).expanduser().resolve()
     source_rel = str(payload.get("source_pdf_path", "source.pdf")).strip() or "source.pdf"
@@ -338,9 +456,64 @@ def _default_project_output_path(project_file: str | Path, suffix: str) -> Path:
     return output_dir / f"{project_name}.{suffix}.pdf"
 
 
+def _resolve_deck_csv_output_path(raw_output_path: str | Path | None) -> Path:
+    fallback_path = DEFAULT_DECK_CSV_OUTPUT_PATH.expanduser().resolve()
+    raw_text = "" if raw_output_path is None else str(raw_output_path).strip()
+
+    if not raw_text:
+        return fallback_path
+
+    candidate = Path(raw_text).expanduser()
+    raw_ends_with_separator = raw_text.endswith(("\\", "/"))
+    candidate_name = candidate.name.strip()
+    looks_like_directory = (
+        raw_ends_with_separator
+        or candidate_name in {"", ".", ".."}
+        or (candidate.exists() and candidate.is_dir())
+    )
+
+    if looks_like_directory:
+        candidate = candidate / fallback_path.name
+    elif candidate.suffix.lower() != ".csv":
+        candidate = candidate.with_suffix(".csv")
+
+    resolved = candidate.resolve()
+    if resolved.exists() and resolved.is_dir():
+        resolved = (resolved / fallback_path.name).resolve()
+    if resolved.name.strip() in {"", ".", ".."}:
+        raise ValueError("保存先には CSV ファイル名を含めてください。")
+    return resolved
+
+
 @st.cache_data(show_spinner=False)
 def cached_catalog(pdf_path: str):
     return load_pdf_catalog(pdf_path)
+
+
+@st.cache_data(show_spinner=False)
+def _load_jp_card_reference() -> dict[int, dict[str, str]]:
+    csv_path = REPO_ROOT / "data" / "JP_Card_Data.csv"
+    if not csv_path.exists():
+        return {}
+
+    frame = pd.read_csv(csv_path, dtype=str, encoding="utf-8").fillna("")
+    if "カード ID" not in frame.columns:
+        return {}
+
+    reference: dict[int, dict[str, str]] = {}
+    for row in frame.to_dict(orient="records"):
+        try:
+            card_id = int(str(row.get("カード ID", "")).strip())
+        except (TypeError, ValueError):
+            continue
+        reference[card_id] = {
+            "name": str(row.get("カード名", "")).strip(),
+            "expansion": str(row.get("エキスパンションマーク", "")).strip(),
+            "collection_no": str(row.get("コレクション番号", "")).strip(),
+            "hp": str(row.get("HP", "")).strip(),
+            "move_name": str(row.get("ワザ名", "")).strip(),
+        }
+    return reference
 
 
 @st.cache_resource(show_spinner=False)
@@ -501,6 +674,8 @@ def main() -> None:
         pdf_state["deck_archetype"] = {}
         pdf_state["deck_url"] = {}
         pdf_state["deck_card_quantities"] = {}
+        pdf_state["deck_card_resolutions"] = {}
+        pdf_state["deck_csv_ambiguities"] = {}
 
     if active_project_payload is not None:
         project_state = _normalize_project_state(active_project_payload)
@@ -514,6 +689,7 @@ def main() -> None:
         for deck_id, deck_name in pdf_state.get("deck_catalog", {}).items()
         if str(deck_id).strip()
     }
+    card_reference = _load_jp_card_reference()
 
     card_df = pd.DataFrame(
         [
@@ -529,6 +705,8 @@ def main() -> None:
                 ),
                 "expansion": card.expansion,
                 "collection_no": card.collection_no or "-",
+                "hp": card_reference.get(card.card_id, {}).get("hp", ""),
+                "move_name": card_reference.get(card.card_id, {}).get("move_name", ""),
                 "target_page": card.target_page,
             }
             for card in catalog.cards
@@ -549,10 +727,26 @@ def main() -> None:
         + " "
         + card_df["collection_no"].astype(str)
         + " "
+        + card_df["hp"].astype(str)
+        + " "
+        + card_df["move_name"].astype(str)
+        + " "
         + card_df["target_page"].astype(str)
     ).str.casefold()
     card_ids = [int(card_id) for card_id in card_df["card_id"]]
     valid_card_ids = set(card_ids)
+    card_lookup = {
+        int(row["card_id"]): {
+            "card_id": int(row["card_id"]),
+            "name": str(row["name"]),
+            "expansion": str(row["expansion"]),
+            "collection_no": str(row["collection_no"]),
+            "hp": str(row.get("hp", "")),
+            "move_name": str(row.get("move_name", "")),
+            "target_page": int(row["target_page"]),
+        }
+        for row in card_df.to_dict(orient="records")
+    }
 
     if active_project_payload is not None:
         pdf_state["card_deck_ids"] = {
@@ -576,6 +770,7 @@ def main() -> None:
         pdf_state["deck_card_quantities"] = {
             deck_id: recipe for deck_id, recipe in pdf_state["deck_card_quantities"].items() if recipe
         }
+        _sanitize_deck_resolution_state(pdf_state, valid_card_ids)
         pdf_state["print_excluded_card_ids"] = {
             int(card_id)
             for card_id in project_state["print_excluded_card_ids"]
@@ -616,6 +811,7 @@ def main() -> None:
         pdf_state["deck_card_quantities"] = {
             deck_id: recipe for deck_id, recipe in pdf_state["deck_card_quantities"].items() if recipe
         }
+        _sanitize_deck_resolution_state(pdf_state, valid_card_ids)
         pdf_state["print_excluded_card_ids"] = {
             int(card_id) for card_id in pdf_state.get("print_excluded_card_ids", set()) if int(card_id) in valid_card_ids
         }
@@ -670,7 +866,7 @@ def main() -> None:
     elif screen == SCREEN_PRINT:
         _render_print_screen(card_df, pdf_path_value, fingerprint, pdf_state, labels, print_output_key)
     else:
-        _render_card_screen(card_df, pdf_path_value, fingerprint, pdf_state, labels)
+        _render_card_screen(card_df, pdf_path_value, fingerprint, pdf_state, labels, card_lookup)
 
 
 def _ensure_app_state() -> None:
@@ -803,6 +999,8 @@ def _get_pdf_state(fingerprint: str) -> dict:
             "deck_archetype": {},
             "deck_url": {},
             "deck_card_quantities": {},
+            "deck_card_resolutions": {},
+            "deck_csv_ambiguities": {},
             "deck_data_loaded": False,
             "print_excluded_card_ids": set(),
             "print_quantities": {},
@@ -839,6 +1037,8 @@ def _get_pdf_state(fingerprint: str) -> dict:
         if str(deck_id).strip() and str(url).strip()
     }
     state["deck_card_quantities"] = _normalize_deck_card_quantities(state.get("deck_card_quantities", {}))
+    state["deck_card_resolutions"] = _normalize_deck_card_resolutions(state.get("deck_card_resolutions", {}))
+    state["deck_csv_ambiguities"] = _normalize_deck_csv_ambiguities(state.get("deck_csv_ambiguities", {}))
     state["print_quantities"] = {
         int(card_id): int(quantity)
         for card_id, quantity in state.get("print_quantities", {}).items()
@@ -1002,15 +1202,123 @@ def _add_to_print_queue(pdf_state: dict, ordered_selected_ids: list[int]) -> Non
             pdf_state["print_quantities"][card_id] = 1
 
 
+def _resolve_deck_recipe(pdf_state: dict, deck_id: str) -> tuple[dict[int, int], list[dict[str, object]]]:
+    deck_id_text = str(deck_id).strip()
+    recipe = _normalize_deck_card_quantities(pdf_state.get("deck_card_quantities", {})).get(deck_id_text, {})
+    resolved_recipe = {
+        int(card_id): int(quantity)
+        for card_id, quantity in recipe.items()
+        if int(quantity) > 0
+    }
+    ambiguities = _normalize_deck_csv_ambiguities(pdf_state.get("deck_csv_ambiguities", {})).get(deck_id_text, [])
+    selections = _normalize_deck_card_resolutions(pdf_state.get("deck_card_resolutions", {})).get(deck_id_text, {})
+    unresolved: list[dict[str, object]] = []
+
+    for entry in ambiguities:
+        norm_name = str(entry.get("norm_name", "")).strip()
+        quantity = int(entry.get("quantity", 0))
+        candidate_ids = [int(card_id) for card_id in entry.get("candidate_ids", []) if int(card_id) > 0]
+        selected_card_id = selections.get(norm_name)
+        if quantity <= 0 or not candidate_ids:
+            continue
+        if selected_card_id in candidate_ids:
+            resolved_recipe[int(selected_card_id)] = resolved_recipe.get(int(selected_card_id), 0) + quantity
+            continue
+        unresolved.append(
+            {
+                "norm_name": norm_name,
+                "name": str(entry.get("name", "")).strip() or norm_name,
+                "quantity": quantity,
+                "candidate_ids": candidate_ids,
+            }
+        )
+
+    return (resolved_recipe, unresolved)
+
+
+def _format_unresolved_deck_cards(unresolved: list[dict[str, object]]) -> str:
+    names: list[str] = []
+    for entry in unresolved:
+        name = str(entry.get("name", "")).strip() or str(entry.get("norm_name", "")).strip()
+        quantity = int(entry.get("quantity", 0))
+        if not name or quantity <= 0:
+            continue
+        names.append(f"{name} x{quantity}")
+    return "、".join(names)
+
+
+def _format_deck_resolution_candidate(card_id: int, card_lookup: dict[int, dict[str, object]]) -> str:
+    info = card_lookup.get(int(card_id), {})
+    bits = [f"ID {int(card_id)}"]
+    expansion = str(info.get("expansion", "")).strip()
+    collection_no = str(info.get("collection_no", "")).strip()
+    hp = str(info.get("hp", "")).strip()
+    move_name = str(info.get("move_name", "")).strip()
+    target_page = info.get("target_page")
+    if expansion or collection_no:
+        bits.append(" ".join(bit for bit in (expansion, collection_no) if bit))
+    if hp:
+        bits.append(f"HP{hp}")
+    if move_name and move_name != "n/a":
+        bits.append(move_name)
+    if isinstance(target_page, int):
+        bits.append(f"p{target_page}")
+    return " / ".join(bits)
+
+
 def _deck_recipe_summary(pdf_state: dict, deck_id: str) -> tuple[int, int]:
-    recipe = _normalize_deck_card_quantities(pdf_state.get("deck_card_quantities", {})).get(str(deck_id).strip(), {})
+    recipe, _ = _resolve_deck_recipe(pdf_state, deck_id)
     if not recipe:
         return (0, 0)
     return (len(recipe), sum(int(quantity) for quantity in recipe.values() if int(quantity) > 0))
 
 
+def _expand_deck_card_ids(pdf_state: dict, deck_id: str) -> list[int]:
+    recipe, unresolved = _resolve_deck_recipe(pdf_state, deck_id)
+    if unresolved:
+        raise ValueError(
+            "同名カードの候補が複数あります。"
+            f"{_format_unresolved_deck_cards(unresolved)} を確認して、候補IDを選んでください。"
+        )
+    deck_card_ids: list[int] = []
+    for card_id, quantity in recipe.items():
+        qty = int(quantity)
+        if qty <= 0:
+            continue
+        deck_card_ids.extend([int(card_id)] * qty)
+    return deck_card_ids
+
+
+def _build_deck_csv_text(pdf_state: dict, deck_id: str) -> str:
+    deck_card_ids = _expand_deck_card_ids(pdf_state, deck_id)
+    if not deck_card_ids:
+        raise ValueError("このデッキはまだカード枚数を解決できていないため、deck.csv を作成できません。")
+    if len(deck_card_ids) != 60:
+        raise ValueError(
+            f"このデッキは現在 {len(deck_card_ids)} 枚として解決されています。deck.csv にするには 60 枚ちょうど必要です。"
+        )
+    return "\n".join(str(card_id) for card_id in deck_card_ids) + "\n"
+
+
+def _deck_csv_download_name(pdf_state: dict, deck_id: str) -> str:
+    deck_name = str(pdf_state.get("deck_catalog", {}).get(deck_id, deck_id)).strip() or deck_id
+    return f"{_sanitize_project_name(deck_name)}-{str(deck_id).strip() or 'deck'}.csv"
+
+
+def _write_deck_csv_file(raw_output_path: str | Path | None, deck_csv_text: str) -> Path:
+    output_path = _resolve_deck_csv_output_path(raw_output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(deck_csv_text, encoding="utf-8")
+    return output_path
+
+
 def _add_deck_to_print_queue(pdf_state: dict, deck_id: str) -> tuple[int, int]:
-    recipe = _normalize_deck_card_quantities(pdf_state.get("deck_card_quantities", {})).get(str(deck_id).strip(), {})
+    recipe, unresolved = _resolve_deck_recipe(pdf_state, deck_id)
+    if unresolved:
+        raise ValueError(
+            "同名カードの候補が複数あるため、このデッキはまだ印刷キューへ追加できません。"
+            "「元サイトでこのデッキを開く」で確認し、候補IDを選んでください。"
+        )
     added_kinds = 0
     added_cards = 0
     for card_id, quantity in recipe.items():
@@ -1975,12 +2283,15 @@ def _import_tier_cards(
         if str(deck_id).strip()
     }
     pdf_state["deck_card_quantities"] = {}
+    pdf_state["deck_card_resolutions"] = {}
+    pdf_state["deck_csv_ambiguities"] = {}
     _strip_legacy_deck_ids(pdf_state)
     for deck_id, recipe in data.get("deck_recipes", {}).items():
         deck_id_text = str(deck_id).strip()
         if not deck_id_text:
             continue
         resolved_recipe: dict[int, int] = {}
+        ambiguous_entries: list[dict[str, object]] = []
         for norm_name, card_info in dict(recipe.get("cards", {})).items():
             ids = catalog_norm.get(str(norm_name), [])
             if not ids:
@@ -1991,10 +2302,23 @@ def _import_tier_cards(
                 quantity = 0
             if quantity <= 0:
                 continue
-            for card_id in ids:
-                resolved_recipe[int(card_id)] = max(int(quantity), int(resolved_recipe.get(int(card_id), 0)))
+            unique_ids = sorted({int(card_id) for card_id in ids})
+            if len(unique_ids) == 1:
+                card_id = unique_ids[0]
+                resolved_recipe[card_id] = resolved_recipe.get(card_id, 0) + int(quantity)
+                continue
+            ambiguous_entries.append(
+                {
+                    "norm_name": str(norm_name).strip(),
+                    "name": str(dict(card_info).get("name", "")).strip() or str(norm_name).strip(),
+                    "quantity": int(quantity),
+                    "candidate_ids": unique_ids,
+                }
+            )
         if resolved_recipe:
             pdf_state["deck_card_quantities"][deck_id_text] = resolved_recipe
+        if ambiguous_entries:
+            pdf_state["deck_csv_ambiguities"][deck_id_text] = ambiguous_entries
     for norm, info in data["cards"].items():
         ids = catalog_norm.get(norm)
         if ids:
@@ -2099,6 +2423,7 @@ def _render_card_screen(
     fingerprint: str,
     pdf_state: dict,
     labels: dict[int, list[str]],
+    card_lookup: dict[int, dict[str, object]],
 ) -> None:
     st.markdown("<div class='page-title'>カード一覧</div>", unsafe_allow_html=True)
 
@@ -2142,6 +2467,9 @@ def _render_card_screen(
     # 印刷/作業リストタブへ移動して戻ると絞り込みが初期化されてしまう。
     # 専用の保存領域に退避し、カード画面に戻ったとき（キーが消えていれば）復元する。
     deck_tier_now: dict[str, int] = pdf_state.get("deck_tier", {})
+    deck_output_key = f"deck_output_path_{fingerprint}"
+    if not str(st.session_state.get(deck_output_key, "")).strip():
+        st.session_state[deck_output_key] = str(DEFAULT_DECK_CSV_OUTPUT_PATH)
     _filter_specs = [
         (f"search_{fingerprint}", None),
         (f"labelfilter_{fingerprint}", ["すべて", *known_labels]),
@@ -2256,13 +2584,23 @@ def _render_card_screen(
         st.caption(" / ".join(deck_summary_parts))
 
     if deck_filter != "すべて":
-        deck_kinds, deck_total_cards = _deck_recipe_summary(pdf_state, deck_filter)
+        resolved_recipe, unresolved_ambiguities = _resolve_deck_recipe(pdf_state, deck_filter)
+        deck_kinds = len(resolved_recipe)
+        deck_total_cards = sum(int(quantity) for quantity in resolved_recipe.values() if int(quantity) > 0)
+        unresolved_total_cards = sum(int(entry.get("quantity", 0)) for entry in unresolved_ambiguities)
         deck_page_url = str(pdf_state.get("deck_url", {}).get(deck_filter, "")).strip()
         deck_cols = st.columns([1.2, 1.4, 1.4], gap="small")
         deck_cols[0].caption(
-            f"選択中デッキ: {deck_kinds}種 / {deck_total_cards}枚"
-            if deck_kinds
-            else "選択中デッキ: 枚数情報なし"
+            (
+                f"選択中デッキ: 解決済み {deck_kinds}種 / {deck_total_cards}枚"
+                f" ・ 未確定 {len(unresolved_ambiguities)}種 / {unresolved_total_cards}枚"
+            )
+            if unresolved_ambiguities
+            else (
+                f"選択中デッキ: {deck_kinds}種 / {deck_total_cards}枚"
+                if deck_kinds
+                else "選択中デッキ: 枚数情報なし"
+            )
         )
         if deck_page_url:
             deck_cols[1].link_button(
@@ -2276,20 +2614,108 @@ def _render_card_screen(
             "🖨 このデッキを印刷に追加",
             use_container_width=True,
             key=f"add_deck_print_{fingerprint}_{deck_filter}",
-            disabled=deck_kinds == 0,
+            disabled=deck_kinds == 0 or bool(unresolved_ambiguities),
         ):
-            added_kinds, added_cards = _add_deck_to_print_queue(pdf_state, deck_filter)
-            if added_cards <= 0:
-                st.warning("このデッキから印刷に追加できるカードがありませんでした。")
+            try:
+                added_kinds, added_cards = _add_deck_to_print_queue(pdf_state, deck_filter)
+            except ValueError as exc:
+                st.warning(str(exc))
             else:
-                _save_card_state(pdf_path, labels, pdf_state["work_list_card_ids"])
-                _persist_active_project_state(pdf_path, labels, pdf_state)
-                st.session_state["tier_import_result"] = (
-                    "success",
-                    f"{_format_deck_option(deck_filter, pdf_state.get('deck_catalog', {}))} を印刷キューへ追加しました。"
-                    f" {added_kinds}種 / {added_cards}枚 を反映しています。",
+                if added_cards <= 0:
+                    st.warning("このデッキから印刷に追加できるカードがありませんでした。")
+                else:
+                    _save_card_state(pdf_path, labels, pdf_state["work_list_card_ids"])
+                    _persist_active_project_state(pdf_path, labels, pdf_state)
+                    st.session_state["tier_import_result"] = (
+                        "success",
+                        f"{_format_deck_option(deck_filter, pdf_state.get('deck_catalog', {}))} を印刷キューへ追加しました。"
+                        f" {added_kinds}種 / {added_cards}枚 を反映しています。",
+                    )
+                    st.rerun()
+        deck_csv_output_error = ""
+        try:
+            deck_csv_output_path = _resolve_deck_csv_output_path(st.session_state.get(deck_output_key, ""))
+        except ValueError as exc:
+            deck_csv_output_path = None
+            deck_csv_output_error = str(exc)
+        with st.container(border=True):
+            st.markdown("<div class='section-title'>deck.csv を作る</div>", unsafe_allow_html=True)
+            st.caption(
+                "1行に1つのカードIDを書いた 60 行のCSVとして保存します。"
+                "既定の保存先は sample_submission/deck.csv です。"
+            )
+            if unresolved_ambiguities:
+                st.warning(
+                    "同名カードの候補が複数あります。"
+                    "「元サイトでこのデッキを開く」で確認しながら、下で使うIDを選んでください。"
                 )
-                st.rerun()
+                resolution_store = pdf_state.setdefault("deck_card_resolutions", {})
+                deck_resolution_store = resolution_store.setdefault(str(deck_filter).strip(), {})
+                for entry in unresolved_ambiguities:
+                    norm_name = str(entry.get("norm_name", "")).strip()
+                    candidate_ids = [int(card_id) for card_id in entry.get("candidate_ids", []) if int(card_id) > 0]
+                    if not norm_name or not candidate_ids:
+                        continue
+                    current_value = deck_resolution_store.get(norm_name)
+                    options = [""] + [str(card_id) for card_id in candidate_ids]
+                    selected_value = st.selectbox(
+                        f"{str(entry.get('name', '')).strip() or norm_name} x{int(entry.get('quantity', 0))}",
+                        options,
+                        index=(options.index(str(current_value)) if current_value is not None and str(current_value) in options else 0),
+                        format_func=lambda value: (
+                            "候補IDを選んでください"
+                            if value == ""
+                            else _format_deck_resolution_candidate(int(value), card_lookup)
+                        ),
+                        key=f"deckresolve_{fingerprint}_{deck_filter}_{norm_name}",
+                    )
+                    if selected_value == "":
+                        deck_resolution_store.pop(norm_name, None)
+                    else:
+                        deck_resolution_store[norm_name] = int(selected_value)
+                if not deck_resolution_store:
+                    resolution_store.pop(str(deck_filter).strip(), None)
+                resolved_recipe, unresolved_ambiguities = _resolve_deck_recipe(pdf_state, deck_filter)
+                deck_kinds = len(resolved_recipe)
+                deck_total_cards = sum(int(quantity) for quantity in resolved_recipe.values() if int(quantity) > 0)
+            try:
+                deck_csv_text = _build_deck_csv_text(pdf_state, deck_filter)
+                deck_csv_error = ""
+            except ValueError as exc:
+                deck_csv_text = ""
+                deck_csv_error = str(exc)
+            with st.expander("保存先を変更", expanded=False):
+                st.text_input("保存先", key=deck_output_key)
+                st.caption("フォルダだけを入れた場合は、その場所に deck.csv として保存します。")
+            if deck_csv_output_path is not None:
+                st.caption(f"出力先: {deck_csv_output_path}")
+            if deck_csv_output_error:
+                st.warning(deck_csv_output_error)
+            if deck_csv_error:
+                st.warning(deck_csv_error)
+            export_cols = st.columns(2, gap="small")
+            if export_cols[0].button(
+                "💾 deck.csv を保存",
+                type="primary",
+                use_container_width=True,
+                key=f"save_deck_csv_{fingerprint}_{deck_filter}",
+                disabled=bool(deck_csv_error or deck_csv_output_error),
+            ):
+                try:
+                    saved_path = _write_deck_csv_file(st.session_state.get(deck_output_key, ""), deck_csv_text)
+                except Exception as exc:
+                    st.error(f"deck.csv の保存に失敗しました: {exc}")
+                else:
+                    st.success(f"deck.csv を保存しました: {saved_path}")
+            export_cols[1].download_button(
+                "⬇ deck.csv をダウンロード",
+                data=deck_csv_text.encode("utf-8"),
+                file_name=_deck_csv_download_name(pdf_state, deck_filter),
+                mime="text/csv",
+                use_container_width=True,
+                disabled=bool(deck_csv_error),
+                key=f"download_deck_csv_{fingerprint}_{deck_filter}",
+            )
 
     filtered_df = _sort_cards(_filter_cards(card_df, search_text, label_filter, deck_filter), sort_choice[0], False)
     visible_df = _order_cards_for_display(filtered_df, pdf_state["work_list_card_ids"])
