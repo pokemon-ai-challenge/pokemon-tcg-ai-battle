@@ -11,12 +11,41 @@
 
 `cg/` はコンペ提供のゲームエンジンです。原則として変更しません。
 
-## 先に見ておく参照先
+---
 
-- シミュレーター API ドキュメント: [cabt API docs](https://matsuoinstitute.github.io/cabt/)
-- シミュレーターと公式ルールの差分: [Kaggle Discussion 708586](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/discussion/708586)
+## 提出手順
 
-このコンペでは Kaggle 環境向けのポケモンTCGバトルシミュレーター上で対戦が進みます。各ターンで `logs`、`current`、`select.option` などの観測が渡され、エージェントは選んだ選択肢のインデックスを返します。
+提出時に実行されるプログラムは `main.py` です。  
+対戦エンジンは `main.py` 内の `agent(obs_dict)` を呼び出します。  
+`deck.csv` は初回のデッキ返却で使い、`cg/` は実行に必要なゲームエンジンです。
+
+提出用アーカイブ `submission.tar.gz` には、次の3つを入れます。
+
+```text
+submission.tar.gz
+├── main.py
+├── deck.csv
+└── cg/
+```
+
+PowerShell で作る場合は、`sample_submission` フォルダで次を実行します。
+
+```powershell
+tar -czvf submission.tar.gz main.py deck.csv cg
+```
+
+作成後は、中身を確認します。
+
+```powershell
+tar -tzf submission.tar.gz
+```
+
+`main.py` がアーカイブ直下にあり、`sample_submission/main.py` のように1段深く入っていないことを確認してください。
+
+その後、Kaggle の Simulation コンペページを開きます。  
+https://www.kaggle.com/competitions/pokemon-tcg-ai-battle
+
+`Submit Agent` から `submission.tar.gz` を選択し、提出します。
 
 ---
 
