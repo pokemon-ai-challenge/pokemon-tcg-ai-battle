@@ -30,6 +30,9 @@ cardlist_referenced/*.pdf
 data/*
 !data/README.md
 
+# Local submission bundle
+sample_submission/submission.tar.gz
+
 # Claude Code internal settings
 .claude/
 
