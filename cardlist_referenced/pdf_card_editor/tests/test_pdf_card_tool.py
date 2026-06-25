@@ -20,7 +20,12 @@ from pdf_card_tool import (
     save_label_store,
 )
 
-SAMPLE_PDF_PATH = Path(r"C:\dev\pokemon-tcg-ai-battle\cardlist_refercterd\Card_ID List_JP_original.pdf")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SAMPLE_PDF_CANDIDATES = (
+    REPO_ROOT / "data" / "Card_ID List_JP.pdf",
+    REPO_ROOT / "cardlist_referenced" / "Card_ID List_JP_original.pdf",
+)
+SAMPLE_PDF_PATH = next((path for path in SAMPLE_PDF_CANDIDATES if path.exists()), SAMPLE_PDF_CANDIDATES[0])
 TEST_OUTPUT_ROOT = Path(__file__).resolve().parents[1] / ".tmp_test_outputs"
 
 
@@ -57,14 +62,15 @@ class PdfCardToolTests(unittest.TestCase):
         save_label_store(SAMPLE_PDF_PATH, {1: "草", 2: "炎", 3: ""})
         labels = load_label_store(SAMPLE_PDF_PATH)
 
-        self.assertEqual(labels, {1: "草", 2: "炎"})
+        self.assertEqual(labels, {1: ["草"], 2: ["炎"]})
 
     def test_card_state_store_roundtrip(self) -> None:
         save_card_state_store(SAMPLE_PDF_PATH, {1: "alpha", 2: "", 3: "beta"}, [3, 1, 3])
         state = load_card_state_store(SAMPLE_PDF_PATH)
 
-        self.assertEqual(state.labels, {1: "alpha", 3: "beta"})
-        self.assertEqual(state.excluded_card_ids, frozenset({1, 3}))
+        self.assertEqual(state.labels, {1: ["alpha"], 3: ["beta"]})
+        self.assertEqual(state.work_list_card_ids, frozenset({1, 3}))
+        self.assertEqual(state.excluded_card_ids, frozenset())
 
     def test_build_filtered_pdf_rewrites_links(self) -> None:
         TEST_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)

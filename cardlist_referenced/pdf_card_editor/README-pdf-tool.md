@@ -92,6 +92,8 @@
 
 `cardlist_referenced/pdf_card_editor/`
 
+カード一覧 PDF / CSV はリポジトリ直下の `data/` を参照します。既定では `data/Card_ID List_JP.pdf` を自動で開きます。
+
 主なファイル:
 
 - `app.py`
@@ -125,6 +127,16 @@ streamlit run app.py
 - `launch_pdf_card_editor.vbs`
 
 必要に応じて、この起動ファイルへのショートカットをデスクトップに置くと、クリックだけで起動できます。
+
+## 事前に必要なデータ
+
+GitHub 上のこのツールを使うときは、`cardlist_referenced/` 直下に PDF を置く必要はありません。  
+Kaggle から取得した以下を `data/` に置けば動作します。
+
+- `Card_ID List_JP.pdf`
+- `Card_ID List_EN.pdf`
+- `JP_Card_Data.csv`
+- `EN_Card_Data.csv`
 
 ## 基本的な使い方
 
