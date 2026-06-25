@@ -7,16 +7,26 @@
 ## フォルダ構成
 
 ```
-cardlist_refercterd/
-├── Card_ID List_JP_16.pdf            # カード一覧 PDF (16 枚/ページ表示)
-├── Card_ID List_JP_original.pdf      # カード一覧 PDF (オリジナル)
-├── ルカリオデッキ.pdf                  # デッキ例
+cardlist_referenced/
 └── pdf_card_editor/                  # カード PDF 管理ツール (Streamlit アプリ)
+```
+
+参照元のカード PDF / CSV は、このフォルダではなくリポジトリ直下の `data/` を使います。
+
+```text
+data/
+├── Card_ID List_JP.pdf
+├── Card_ID List_EN.pdf
+├── JP_Card_Data.csv
+└── EN_Card_Data.csv
 ```
 
 ## pdf_card_editor
 
 ポケモンカード PDF を閲覧・絞り込み・印刷用に管理する Streamlit アプリです。
+
+既定では `../data/Card_ID List_JP.pdf` を自動で探して開きます。  
+過去の `cardlist_referenced/` 直下の PDF も候補として読めますが、GitHub 上では `data/` に置くだけで動く前提にそろえています。
 
 ### 主な機能
 

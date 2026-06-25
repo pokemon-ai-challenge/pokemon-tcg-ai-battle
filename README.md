@@ -68,6 +68,8 @@ pip install -r pdf_tool_requirements.txt
 streamlit run app.py
 ```
 
+このツールは `data/Card_ID List_JP.pdf` を既定で参照します。`cardlist_referenced/` 側へ PDF を追加配置しなくても動きます。
+
 ---
 
 ## コンペ概要

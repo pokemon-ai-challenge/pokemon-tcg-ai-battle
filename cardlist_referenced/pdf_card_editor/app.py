@@ -48,14 +48,37 @@ save_card_state_store = _pdf_card_tool.save_card_state_store
 normalize_label_list = _pdf_card_tool.normalize_label_list
 label_text = _pdf_card_tool.label_text
 
-DEFAULT_PDF_PATH = str(Path(__file__).resolve().parent.parent / "Card_ID List_JP_original.pdf")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = REPO_ROOT / "data"
+LEGACY_CARDLIST_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_PDF_CANDIDATE_NAMES = (
+    "Card_ID List_JP.pdf",
+    "Card_ID List_EN.pdf",
+    "Card_ID List_JP_original.pdf",
+    "Card_ID List_JP_16.pdf",
+)
+
+
+def _resolve_default_pdf_path() -> Path:
+    search_roots = (
+        DATA_DIR,
+        LEGACY_CARDLIST_DIR,
+    )
+    for root in search_roots:
+        for name in DEFAULT_PDF_CANDIDATE_NAMES:
+            candidate = root / name
+            if candidate.exists():
+                return candidate
+    return DATA_DIR / DEFAULT_PDF_CANDIDATE_NAMES[0]
+
+
+DEFAULT_PDF_PATH = str(_resolve_default_pdf_path())
 CARD_TABLE_HEIGHT = 840
 PREVIEW_MAX_WIDTH = 320
 PRINT_SHEET_OPTIONS = ["auto", "1", "2", "4", "6", "8", "9"]
 PROJECTS_DIR = Path(__file__).resolve().parent / "projects"
 PROJECT_FILE_NAME = "project.json"
 PROJECT_VERSION = 1
-REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DECK_CSV_OUTPUT_PATH = REPO_ROOT / "sample_submission" / "deck.csv"
 
 
@@ -957,6 +980,8 @@ def _mount_unsaved_changes_guard(*, enabled: bool, message: str) -> None:
 
 def _discover_pdf_candidates(default_pdf_path: str) -> list[str]:
     roots = {
+        DATA_DIR,
+        LEGACY_CARDLIST_DIR,
         Path(default_pdf_path).expanduser().parent,
         Path(__file__).resolve().parent,
     }
