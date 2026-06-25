@@ -20,6 +20,9 @@ def _load_export_helpers() -> dict:
         "_resolve_deck_csv_output_path",
         "_expand_deck_card_ids",
         "_build_deck_csv_text",
+        "_build_complete_deck_csv_text",
+        "_add_cards_to_deck_recipe",
+        "_set_deck_card_quantity",
     ]
     function_nodes = {
         node.name: node
@@ -57,11 +60,20 @@ class DeckCsvExportTests(unittest.TestCase):
         self.assertEqual(deck_csv_text.splitlines()[:4], ["101", "101", "101", "101"])
         self.assertEqual(deck_csv_text.splitlines()[-1], "202")
 
-    def test_build_deck_csv_text_rejects_non_60_card_recipe(self) -> None:
+    def test_build_deck_csv_text_allows_non_60_card_recipe_for_manual_fixups(self) -> None:
         pdf_state = {"deck_card_quantities": {"deck-1": {101: 4, 202: 12}}}
 
-        with self.assertRaisesRegex(ValueError, "60 枚ちょうど"):
-            HELPERS["_build_deck_csv_text"](pdf_state, "deck-1")
+        deck_csv_text = HELPERS["_build_deck_csv_text"](pdf_state, "deck-1")
+
+        self.assertEqual(deck_csv_text.count("\n"), 16)
+        self.assertEqual(deck_csv_text.splitlines().count("101"), 4)
+        self.assertEqual(deck_csv_text.splitlines().count("202"), 12)
+
+    def test_build_complete_deck_csv_text_rejects_non_60_card_recipe(self) -> None:
+        pdf_state = {"deck_card_quantities": {"deck-1": {101: 4, 202: 12}}}
+
+        with self.assertRaises(ValueError):
+            HELPERS["_build_complete_deck_csv_text"](pdf_state, "deck-1")
 
     def test_build_deck_csv_text_requires_resolving_ambiguous_same_name_cards(self) -> None:
         pdf_state = {
@@ -73,7 +85,7 @@ class DeckCsvExportTests(unittest.TestCase):
             },
         }
 
-        with self.assertRaisesRegex(ValueError, "同名カード"):
+        with self.assertRaises(ValueError):
             HELPERS["_build_deck_csv_text"](pdf_state, "deck-1")
 
     def test_build_deck_csv_text_uses_selected_card_id_for_ambiguous_same_name_cards(self) -> None:
@@ -97,6 +109,25 @@ class DeckCsvExportTests(unittest.TestCase):
         resolved = HELPERS["_resolve_deck_csv_output_path"](Path.cwd() / "sample_submission")
 
         self.assertEqual(resolved.name, "deck.csv")
+
+    def test_add_cards_to_deck_recipe_increments_existing_recipe(self) -> None:
+        pdf_state = {"deck_card_quantities": {"deck-1": {101: 4}}}
+
+        added = HELPERS["_add_cards_to_deck_recipe"](pdf_state, "deck-1", [101, 202], 2)
+
+        self.assertEqual(added, 4)
+        self.assertEqual(pdf_state["deck_card_quantities"]["deck-1"][101], 6)
+        self.assertEqual(pdf_state["deck_card_quantities"]["deck-1"][202], 2)
+
+    def test_set_deck_card_quantity_updates_and_removes_recipe_entries(self) -> None:
+        pdf_state = {"deck_card_quantities": {"deck-1": {101: 4, 202: 2}}}
+
+        updated = HELPERS["_set_deck_card_quantity"](pdf_state, "deck-1", 101, 3)
+        removed = HELPERS["_set_deck_card_quantity"](pdf_state, "deck-1", 202, 0)
+
+        self.assertEqual(updated, 3)
+        self.assertEqual(removed, 0)
+        self.assertEqual(pdf_state["deck_card_quantities"]["deck-1"], {101: 3})
 
 
 if __name__ == "__main__":

@@ -113,10 +113,24 @@
 
 ### 方法1: Streamlit で起動
 
+以下のコマンドは `cardlist_referenced\pdf_card_editor` フォルダ内で実行する前提です。
+
 ```powershell
-python -m pip install -r pdf_tool_requirements.txt
-streamlit run app.py
+python -m pip install -r .\pdf_tool_requirements.txt
+streamlit run .\app.py
 ```
+
+初回起動時に `Welcome to Streamlit!` と `Email:` が表示された場合は、空欄のまま `Enter` を押せば起動を続けられます。
+
+リポジトリ直下 `C:\dev\pokemon-tcg-ai-battle` から始める場合は、先に移動してから実行します。
+
+```powershell
+cd .\cardlist_referenced\pdf_card_editor
+python -m pip install -r .\pdf_tool_requirements.txt
+streamlit run .\app.py
+```
+
+この手順でも、初回だけ同じ `Email:` プロンプトが出ることがあります。空欄のまま `Enter` で大丈夫です。
 
 ### 方法2: 起動ファイルを使う
 
@@ -125,6 +139,10 @@ streamlit run app.py
 - `launch_pdf_card_editor.cmd`
 - `launch_pdf_card_editor.ps1`
 - `launch_pdf_card_editor.vbs`
+
+`launch_pdf_card_editor.vbs` は非表示で起動しますが、内部では Streamlit の起動完了を待ってからブラウザを開きます。初回や重い環境では 30 秒ほど待つことがあります。
+
+起動に失敗した場合はポップアップでエラー内容と `streamlit.stdout.log` / `streamlit.stderr.log` の場所を表示します。コンソールの表示も含めて確認したい場合は `launch_pdf_card_editor.cmd` を使ってください。
 
 必要に応じて、この起動ファイルへのショートカットをデスクトップに置くと、クリックだけで起動できます。
 
