@@ -31,7 +31,9 @@ data/*
 !data/README.md
 
 # Local submission bundle
+submission.tar.gz
 sample_submission/submission.tar.gz
+tmp_submit_check/
 
 # Claude Code internal settings
 .claude/
