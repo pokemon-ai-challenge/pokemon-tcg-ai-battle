@@ -40,6 +40,8 @@ pokemon-tcg-ai-battle/
 
 詳細は [sample_submission/README.md](sample_submission/README.md) を参照してください。シミュレーター API ドキュメントは [cabt API docs](https://matsuoinstitute.github.io/cabt/)、公式ルールとの差分メモは [Kaggle Discussion 708586](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/discussion/708586) です。
 
+Git / GitHub の初心者向け手順は [GIT_WORKFLOW.md](GIT_WORKFLOW.md) にまとめています。
+
 ### `cardlist_referenced/`
 
 カードリストの参照・印刷を補助するローカルツール群です。提出物とは無関係です。
