@@ -11,6 +11,8 @@
 
 `cg/` はコンペ提供のゲームエンジンです。原則として変更しません。
 
+開発の中長期方針は [docs/ai-development-roadmap.md](docs/ai-development-roadmap.md) にまとめています。
+
 ---
 
 ## 提出手順
@@ -177,7 +179,45 @@ from cg.api import search_begin, search_step, search_release, search_end
 
 ## ローカルで対戦を確認する場合
 
-ローカルで対戦を開始・進行・可視化したい場合のみ、`cg.game` を使います。
+まずは、同梱しているローカル確認用スクリプトを使うのが簡単です。
+
+### 1ゲームだけ動かす
+
+`local_test.py` は、自分の `main.py` を使って同じ `deck.csv` 同士で 1 ゲーム回す最小確認用です。
+
+```powershell
+python local_test.py
+```
+
+- `battle_start(...)` の開始エラー
+- `agent(obs_dict)` が最後まで合法手を返せるか
+- 対戦が最後まで進むか
+
+をざっくり確認できます。
+
+### 複数試合やランダム対戦で確認する
+
+`local_test_advanced.py` は、試合数・相手方針・詳細ログを切り替えられる確認用スクリプトです。
+
+```powershell
+# 自分同士で3試合
+python local_test_advanced.py --games 3
+
+# ランダム相手に10試合
+python local_test_advanced.py --games 10 --opponent random
+
+# 1手ごとの選択も表示
+python local_test_advanced.py --games 1 --verbose
+```
+
+- `--opponent self`：両プレイヤーとも `main.agent`
+- `--opponent random`：相手は合法手からランダム選択
+- `--games N`：N 試合まとめて実行
+- `--verbose`：各ターンの選択内容を表示
+
+### 内部で使っている API
+
+上のスクリプトは内部で `cg.game` を使っています。
 
 ```python
 from cg.game import battle_start, battle_select, battle_finish, visualize_data
@@ -187,5 +227,7 @@ from cg.game import battle_start, battle_select, battle_finish, visualize_data
 - `battle_select(select_list)`：選択肢インデックスを渡して1手進める
 - `visualize_data()`：表示用の対戦データを取得する
 - `battle_finish()`：対戦を終了してメモリを解放する
+
+独自の検証スクリプトを書きたい場合だけ、これらを直接使う想定です。
 
 `cg.sim`、`cg.utils`、`libcg.so` / `cg.dll` は内部実装のため、通常は直接使用・変更しません。
