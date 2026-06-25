@@ -34,6 +34,7 @@ data/*
 submission.tar.gz
 sample_submission/submission.tar.gz
 tmp_submit_check/
+.tmp_readme_push/
 
 # Claude Code internal settings
 .claude/
