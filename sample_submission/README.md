@@ -222,6 +222,38 @@ python local_test_advanced.py --games 1 --verbose
 
 上のスクリプトは内部で `cg.game` を使っています。
 
+まずは `sample_submission` フォルダに移動してから実行します。`main.py` は相対パスで `deck.csv` を読むため、別フォルダで実行すると失敗しやすいです。
+
+```powershell
+cd C:\dev\pokemon-tcg-ai-battle\sample_submission
+```
+
+### 最小の動作確認
+
+`local_test.py` は、現在の `main.py` を使って 1 試合だけ回す最小の確認用スクリプトです。
+
+```powershell
+python .\local_test.py
+```
+
+`errorType` と `result` が表示されます。
+
+### 複数試合や比較
+
+`local_test_advanced.py` は、複数試合の実行や `random` 相手との比較に使います。
+
+```powershell
+python .\local_test_advanced.py
+python .\local_test_advanced.py --opponent self --games 10
+python .\local_test_advanced.py --opponent random --games 100
+python .\local_test_advanced.py --opponent random --games 10 --verbose
+```
+
+- `--opponent self` は `main.py` 同士で対戦します
+- `--opponent random` はランダム行動の相手と対戦します
+- `--games N` は N 試合まとめて実行します
+- `--verbose` は各ターンの選択内容も表示します
+
 ```python
 from cg.game import battle_start, battle_select, battle_finish, visualize_data
 ```

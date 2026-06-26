@@ -208,6 +208,9 @@ def _normalize_project_state(payload: dict) -> dict:
         for deck_id, deck_name in payload.get("deck_catalog", {}).items()
         if str(deck_id).strip() and str(deck_name).strip()
     }
+    deck_card_quantities = _normalize_deck_card_quantities(payload.get("deck_card_quantities", {}))
+    deck_card_resolutions = _normalize_deck_card_resolutions(payload.get("deck_card_resolutions", {}))
+    deck_csv_ambiguities = _normalize_deck_csv_ambiguities(payload.get("deck_csv_ambiguities", {}))
     work_list_card_ids = {
         int(card_id)
         for card_id in payload.get("work_list_card_ids", [])
@@ -232,6 +235,9 @@ def _normalize_project_state(payload: dict) -> dict:
         "labels": labels,
         "card_deck_ids": card_deck_ids,
         "deck_catalog": deck_catalog,
+        "deck_card_quantities": deck_card_quantities,
+        "deck_card_resolutions": deck_card_resolutions,
+        "deck_csv_ambiguities": deck_csv_ambiguities,
         "work_list_card_ids": work_list_card_ids,
         "print_quantities": print_quantities,
         "print_order": print_order,
@@ -392,6 +398,9 @@ def _save_project_payload(
     labels: dict[int, list[str]],
     card_deck_ids: dict[int, list[str]],
     deck_catalog: dict[str, str],
+    deck_card_quantities: dict[str, dict[int, int]],
+    deck_card_resolutions: dict[str, dict[str, int]],
+    deck_csv_ambiguities: dict[str, list[dict[str, object]]],
     work_list_card_ids: set[int],
     print_excluded_card_ids: set[int],
     print_quantities: dict[int, int],
@@ -421,6 +430,40 @@ def _save_project_payload(
             for deck_id, deck_name in deck_catalog.items()
             if str(deck_id).strip() and str(deck_name).strip()
         },
+        "deck_card_quantities": {
+            str(deck_id).strip(): {
+                str(int(card_id)): int(quantity)
+                for card_id, quantity in dict(recipe).items()
+                if int(quantity) > 0
+            }
+            for deck_id, recipe in _normalize_deck_card_quantities(deck_card_quantities).items()
+            if str(deck_id).strip()
+        },
+        "deck_card_resolutions": {
+            str(deck_id).strip(): {
+                str(norm_name).strip(): int(card_id)
+                for norm_name, card_id in dict(mapping).items()
+                if str(norm_name).strip() and int(card_id) > 0
+            }
+            for deck_id, mapping in _normalize_deck_card_resolutions(deck_card_resolutions).items()
+            if str(deck_id).strip()
+        },
+        "deck_csv_ambiguities": {
+            str(deck_id).strip(): [
+                {
+                    "norm_name": str(entry.get("norm_name", "")).strip(),
+                    "name": str(entry.get("name", "")).strip() or str(entry.get("norm_name", "")).strip(),
+                    "quantity": int(entry.get("quantity", 0)),
+                    "candidate_ids": _coerce_positive_int_list(entry.get("candidate_ids", [])),
+                }
+                for entry in entries
+                if str(entry.get("norm_name", "")).strip()
+                and int(entry.get("quantity", 0)) > 0
+                and _coerce_positive_int_list(entry.get("candidate_ids", []))
+            ]
+            for deck_id, entries in _normalize_deck_csv_ambiguities(deck_csv_ambiguities).items()
+            if str(deck_id).strip()
+        },
         "work_list_card_ids": sorted(int(card_id) for card_id in work_list_card_ids),
         "print_excluded_card_ids": sorted(int(card_id) for card_id in print_excluded_card_ids),
         "print_quantities": {
@@ -441,6 +484,9 @@ def _create_project_from_pdf(
     labels: dict[int, list[str]],
     card_deck_ids: dict[int, list[str]],
     deck_catalog: dict[str, str],
+    deck_card_quantities: dict[str, dict[int, int]],
+    deck_card_resolutions: dict[str, dict[str, int]],
+    deck_csv_ambiguities: dict[str, list[dict[str, object]]],
     work_list_card_ids: set[int],
     print_excluded_card_ids: set[int],
     print_quantities: dict[int, int],
@@ -462,6 +508,9 @@ def _create_project_from_pdf(
         labels=labels,
         card_deck_ids=card_deck_ids,
         deck_catalog=deck_catalog,
+        deck_card_quantities=deck_card_quantities,
+        deck_card_resolutions=deck_card_resolutions,
+        deck_csv_ambiguities=deck_csv_ambiguities,
         work_list_card_ids=work_list_card_ids,
         print_excluded_card_ids=print_excluded_card_ids,
         print_quantities=print_quantities,
@@ -742,8 +791,6 @@ def main() -> None:
         + " "
         + card_df["name"].astype(str)
         + " "
-        + card_df["label"].astype(str)
-        + " "
         + card_df["deck_text"].astype(str)
         + " "
         + card_df["expansion"].astype(str)
@@ -774,12 +821,12 @@ def main() -> None:
     if active_project_payload is not None:
         pdf_state["card_deck_ids"] = {
             int(card_id): normalize_label_list(deck_ids)
-            for card_id, deck_ids in pdf_state.get("card_deck_ids", {}).items()
+            for card_id, deck_ids in project_state["card_deck_ids"].items()
             if int(card_id) in valid_card_ids and normalize_label_list(deck_ids)
         }
         pdf_state["deck_catalog"] = {
             str(deck_id).strip(): str(deck_name).strip()
-            for deck_id, deck_name in pdf_state.get("deck_catalog", {}).items()
+            for deck_id, deck_name in project_state["deck_catalog"].items()
             if str(deck_id).strip() and str(deck_name).strip()
         }
         pdf_state["deck_card_quantities"] = {
@@ -788,11 +835,13 @@ def main() -> None:
                 for card_id, quantity in recipe.items()
                 if int(card_id) in valid_card_ids and int(quantity) > 0
             }
-            for deck_id, recipe in _normalize_deck_card_quantities(pdf_state.get("deck_card_quantities", {})).items()
+            for deck_id, recipe in project_state["deck_card_quantities"].items()
         }
         pdf_state["deck_card_quantities"] = {
             deck_id: recipe for deck_id, recipe in pdf_state["deck_card_quantities"].items() if recipe
         }
+        pdf_state["deck_card_resolutions"] = project_state["deck_card_resolutions"]
+        pdf_state["deck_csv_ambiguities"] = project_state["deck_csv_ambiguities"]
         _sanitize_deck_resolution_state(pdf_state, valid_card_ids)
         pdf_state["print_excluded_card_ids"] = {
             int(card_id)
@@ -1318,6 +1367,13 @@ def _build_deck_csv_text(pdf_state: dict, deck_id: str) -> str:
     deck_card_ids = _expand_deck_card_ids(pdf_state, deck_id)
     if not deck_card_ids:
         raise ValueError("このデッキはまだカード枚数を解決できていないため、deck.csv を作成できません。")
+    return "\n".join(str(card_id) for card_id in deck_card_ids) + "\n"
+
+
+def _build_complete_deck_csv_text(pdf_state: dict, deck_id: str) -> str:
+    deck_card_ids = _expand_deck_card_ids(pdf_state, deck_id)
+    if not deck_card_ids:
+        raise ValueError("このデッキはまだカード枚数を解決できていないため、deck.csv を作成できません。")
     if len(deck_card_ids) != 60:
         raise ValueError(
             f"このデッキは現在 {len(deck_card_ids)} 枚として解決されています。deck.csv にするには 60 枚ちょうど必要です。"
@@ -1361,6 +1417,50 @@ def _add_deck_to_print_queue(pdf_state: dict, deck_id: str) -> tuple[int, int]:
     return (added_kinds, added_cards)
 
 
+def _add_cards_to_deck_recipe(pdf_state: dict, deck_id: str, card_ids: list[int], quantity: int = 1) -> int:
+    deck_id_text = str(deck_id).strip()
+    if not deck_id_text:
+        return 0
+    qty = int(quantity)
+    if qty <= 0:
+        return 0
+
+    recipe_store = pdf_state.setdefault("deck_card_quantities", {})
+    recipe = dict(_normalize_deck_card_quantities(recipe_store).get(deck_id_text, {}))
+    added = 0
+    for raw_card_id in card_ids:
+        card_id = int(raw_card_id)
+        if card_id <= 0:
+            continue
+        recipe[card_id] = int(recipe.get(card_id, 0)) + qty
+        added += qty
+    if added <= 0:
+        return 0
+    recipe_store[deck_id_text] = recipe
+    return added
+
+
+def _set_deck_card_quantity(pdf_state: dict, deck_id: str, card_id: int, quantity: int) -> int:
+    deck_id_text = str(deck_id).strip()
+    target_card_id = int(card_id)
+    if not deck_id_text or target_card_id <= 0:
+        return 0
+
+    recipe_store = pdf_state.setdefault("deck_card_quantities", {})
+    recipe = dict(_normalize_deck_card_quantities(recipe_store).get(deck_id_text, {}))
+    next_quantity = max(0, int(quantity))
+    if next_quantity > 0:
+        recipe[target_card_id] = next_quantity
+    else:
+        recipe.pop(target_card_id, None)
+
+    if recipe:
+        recipe_store[deck_id_text] = recipe
+    else:
+        recipe_store.pop(deck_id_text, None)
+    return next_quantity
+
+
 def _remove_from_print_queue(pdf_state: dict, card_ids: set[int]) -> None:
     for card_id in list(card_ids):
         pdf_state["print_quantities"].pop(card_id, None)
@@ -1378,11 +1478,18 @@ def _work_checkbox_key(fingerprint: str, card_id: int) -> str:
     return f"work_select_{fingerprint}_{card_id}"
 
 
-def _filter_cards(card_df: pd.DataFrame, search_text: str, label_filter: str, deck_filter: str = "すべて") -> pd.DataFrame:
+def _filter_cards(
+    card_df: pd.DataFrame,
+    search_text: str,
+    label_filter: str,
+    deck_filter: str = "すべて",
+    *,
+    deck_only: bool = False,
+) -> pd.DataFrame:
     working = card_df
     if label_filter != "すべて":
         working = working.loc[working["label_list"].map(lambda items: label_filter in normalize_label_list(items))]
-    if deck_filter != "すべて":
+    if deck_only and deck_filter != "すべて":
         working = working.loc[working["deck_list"].map(lambda items: deck_filter in normalize_label_list(items))]
     needle = search_text.strip().casefold()
     if not needle:
@@ -1397,7 +1504,6 @@ def _filter_cards(card_df: pd.DataFrame, search_text: str, label_filter: str, de
                 [
                     str(row["card_id"]),
                     str(row["name"]),
-                    str(row["label"]),
                     str(row.get("deck_text", "")),
                     str(row["expansion"]),
                     str(row["collection_no"]),
@@ -1496,8 +1602,11 @@ def _save_existing_project(active_project: str, labels: dict[int, list[str]], pd
             project_name=str(payload.get("project_name", Path(active_project).parent.name)),
             source_pdf_path=source_pdf_path,
             labels=labels,
-            card_deck_ids={},
-            deck_catalog={},
+            card_deck_ids=dict(pdf_state.get("card_deck_ids", {})),
+            deck_catalog=dict(pdf_state.get("deck_catalog", {})),
+            deck_card_quantities=dict(pdf_state.get("deck_card_quantities", {})),
+            deck_card_resolutions=dict(pdf_state.get("deck_card_resolutions", {})),
+            deck_csv_ambiguities=dict(pdf_state.get("deck_csv_ambiguities", {})),
             work_list_card_ids=set(pdf_state["work_list_card_ids"]),
             print_excluded_card_ids=set(pdf_state.get("print_excluded_card_ids", set())),
             print_quantities=dict(pdf_state["print_quantities"]),
@@ -1518,8 +1627,11 @@ def _create_project_action(pdf_path: str, name: str, labels: dict[int, list[str]
             pdf_path,
             name,
             labels=labels,
-            card_deck_ids={},
-            deck_catalog={},
+            card_deck_ids=dict(pdf_state.get("card_deck_ids", {})),
+            deck_catalog=dict(pdf_state.get("deck_catalog", {})),
+            deck_card_quantities=dict(pdf_state.get("deck_card_quantities", {})),
+            deck_card_resolutions=dict(pdf_state.get("deck_card_resolutions", {})),
+            deck_csv_ambiguities=dict(pdf_state.get("deck_csv_ambiguities", {})),
             work_list_card_ids=set(pdf_state["work_list_card_ids"]),
             print_excluded_card_ids=set(pdf_state.get("print_excluded_card_ids", set())),
             print_quantities=dict(pdf_state["print_quantities"]),
@@ -2256,6 +2368,29 @@ def _import_tier_cards(
     labels: dict[int, list[str]],
     min_decks: int,
 ) -> None:
+    preserved_work_list_card_ids = {
+        int(card_id) for card_id in pdf_state.get("work_list_card_ids", set()) if str(card_id).strip()
+    }
+    preserved_print_excluded_card_ids = {
+        int(card_id) for card_id in pdf_state.get("print_excluded_card_ids", set()) if str(card_id).strip()
+    }
+    preserved_print_quantities = {
+        int(card_id): int(quantity)
+        for card_id, quantity in dict(pdf_state.get("print_quantities", {})).items()
+        if int(quantity) > 0
+    }
+    preserved_print_order = [
+        int(card_id)
+        for card_id in pdf_state.get("print_order", [])
+        if int(card_id) in preserved_print_quantities
+    ]
+
+    def _restore_queue_state() -> None:
+        pdf_state["work_list_card_ids"] = set(preserved_work_list_card_ids)
+        pdf_state["print_excluded_card_ids"] = set(preserved_print_excluded_card_ids)
+        pdf_state["print_quantities"] = dict(preserved_print_quantities)
+        pdf_state["print_order"] = list(preserved_print_order)
+
     progress_bar = st.progress(0.0, text="Tierランキングを取得中...")
 
     def _report(done: int, total: int) -> None:
@@ -2363,6 +2498,7 @@ def _import_tier_cards(
             unmatched.append(info["name"])
 
     if not matched_ids:
+        _restore_queue_state()
         st.session_state["tier_import_result"] = (
             "warning",
             f"{data['deck_count']}デッキを解析しましたが、条件に合う一致カードがありませんでした。",
@@ -2370,14 +2506,13 @@ def _import_tier_cards(
         st.rerun()
         return
 
-    before = len(pdf_state["work_list_card_ids"])
-    pdf_state["work_list_card_ids"].update(matched_ids)
-    added = len(pdf_state["work_list_card_ids"]) - before
-    _save_card_state(pdf_path, labels, pdf_state["work_list_card_ids"])
+    _restore_queue_state()
     unmatched_note = f" / 未一致 {len(unmatched)}種" if unmatched else ""
     st.session_state["tier_import_result"] = (
         "success",
-        f"{data['deck_count']}デッキを解析。{len(matched_names)}種が一致し、作業リストに {added}枚 追加、ラベルを {labels_added}枚、デッキ番号を {deck_refs_added}枚 更新しました。{unmatched_note}",
+        f"{data['deck_count']}デッキを解析。{len(matched_names)}種が一致し、ラベルを {labels_added}枚、デッキ番号を {deck_refs_added}枚 更新しました。"
+        " 取り込み時に作業リストや印刷キューへは追加していません。カード画面でデッキを選び、必要なカードだけ追加してください。"
+        f"{unmatched_note}",
     )
     st.rerun()
 
@@ -2500,6 +2635,7 @@ def _render_card_screen(
         (f"labelfilter_{fingerprint}", ["すべて", *known_labels]),
         (f"tierfilter_{fingerprint}", None),
         (f"deckfilter_{fingerprint}", None),
+        (f"deckonly_{fingerprint}", None),
         (f"sort_{fingerprint}", SORT_OPTIONS),
         (f"pagesize_{fingerprint}", CARD_PAGE_SIZE_OPTIONS),
     ]
@@ -2514,7 +2650,7 @@ def _render_card_screen(
         top = st.columns([2.4, 1.0, 0.7, 1.45, 1.0, 0.75], gap="medium")
         search_text = top[0].text_input(
             "検索",
-            placeholder="🔍 カード名・ラベル・番号・IDで検索",
+            placeholder="🔍 カード名・番号・IDで検索",
             key=f"search_{fingerprint}",
         )
         label_filter = top[1].selectbox(
@@ -2591,6 +2727,14 @@ def _render_card_screen(
         )
 
         # 現在の絞り込み状態を退避（他タブへ移動して戻ったときに復元するため）
+        deck_only = False
+        if deck_filter != "縺吶∋縺ｦ":
+            deck_only = st.checkbox(
+                "デッキ内のみ表示",
+                value=bool(st.session_state.get(f"deckonly_{fingerprint}", False)),
+                key=f"deckonly_{fingerprint}",
+                help="オフのままなら、追加先デッキを選んだまま全カードから不足分を探せます。",
+            )
         for _wk, _ in _filter_specs:
             if _wk in st.session_state:
                 _filter_saved[_wk] = st.session_state[_wk]
@@ -2657,6 +2801,103 @@ def _render_card_screen(
                         f" {added_kinds}種 / {added_cards}枚 を反映しています。",
                     )
                     st.rerun()
+        with st.expander("デッキ編集", expanded=False):
+            st.markdown("<div class='section-title'>現在のデッキ内容</div>", unsafe_allow_html=True)
+            st.caption("枚数調整や削除はここでまとめて行えます。カード検索と追加はこの下の一覧から進めてください。")
+            if resolved_recipe:
+                recipe_items = sorted(
+                    resolved_recipe.items(),
+                    key=lambda item: (
+                        str(card_lookup.get(int(item[0]), {}).get("name", "")).casefold(),
+                        int(item[0]),
+                    ),
+                )
+                """
+                with st.form(f"deck_edit_form_{fingerprint}_{deck_filter}", clear_on_submit=False):
+                    for card_id, quantity in recipe_items:
+                    info = card_lookup.get(int(card_id), {})
+                    row_cols = st.columns([4.2, 1.0], gap="small")
+                    row_title = str(info.get("name", "")).strip() or f"ID {int(card_id)}"
+                    row_meta = " ".join(
+                        bit
+                        for bit in (
+                            f"ID {int(card_id)}",
+                            str(info.get("expansion", "")).strip(),
+                            str(info.get("collection_no", "")).strip(),
+                        )
+                        if bit
+                    )
+                    row_cols[0].markdown(f"**{row_title}**  \n<span class='muted'>{row_meta}</span>", unsafe_allow_html=True)
+                    next_quantity = int(
+                        row_cols[1].number_input(
+                            "枚数",
+                            min_value=0,
+                            max_value=60,
+                            value=int(quantity),
+                            step=1,
+                            key=f"deck_qty_{fingerprint}_{deck_filter}_{int(card_id)}",
+                            label_visibility="collapsed",
+                        )
+                    )
+                    if next_quantity != int(quantity):
+                        _set_deck_card_quantity(pdf_state, deck_filter, int(card_id), next_quantity)
+                        _persist_active_project_state(pdf_path, labels, pdf_state)
+                        st.rerun()
+                    apply_deck_edit = st.form_submit_button("デッキ編集を反映", type="primary", use_container_width=True)
+                        "削除",
+                        use_container_width=True,
+                        key=f"deck_remove_{fingerprint}_{deck_filter}_{int(card_id)}",
+                    ):
+                        _set_deck_card_quantity(pdf_state, deck_filter, int(card_id), 0)
+                        _persist_active_project_state(pdf_path, labels, pdf_state)
+                        st.rerun()
+                """
+                with st.form(f"deck_edit_form_clean_{fingerprint}_{deck_filter}", clear_on_submit=False):
+                    for card_id, quantity in recipe_items:
+                        info = card_lookup.get(int(card_id), {})
+                        row_cols = st.columns([4.2, 1.0], gap="small")
+                        row_title = str(info.get("name", "")).strip() or f"ID {int(card_id)}"
+                        row_meta = " ".join(
+                            bit
+                            for bit in (
+                                f"ID {int(card_id)}",
+                                str(info.get("expansion", "")).strip(),
+                                str(info.get("collection_no", "")).strip(),
+                            )
+                            if bit
+                        )
+                        row_cols[0].markdown(f"**{row_title}**  \n<span class='muted'>{row_meta}</span>", unsafe_allow_html=True)
+                        row_cols[1].number_input(
+                            "枚数",
+                            min_value=0,
+                            max_value=60,
+                            value=int(quantity),
+                            step=1,
+                            key=f"deck_qty_{fingerprint}_{deck_filter}_{int(card_id)}",
+                            label_visibility="collapsed",
+                        )
+                    apply_deck_edit = st.form_submit_button("デッキ編集を反映", type="primary", use_container_width=True)
+                if apply_deck_edit:
+                    changed_cards = 0
+                    for card_id, quantity in recipe_items:
+                        widget_key = f"deck_qty_{fingerprint}_{deck_filter}_{int(card_id)}"
+                        next_quantity = int(st.session_state.get(widget_key, quantity))
+                        if next_quantity != int(quantity):
+                            _set_deck_card_quantity(pdf_state, deck_filter, int(card_id), next_quantity)
+                            changed_cards += 1
+                    if changed_cards > 0:
+                        _persist_active_project_state(pdf_path, labels, pdf_state)
+                        st.session_state["tier_import_result"] = (
+                            "success",
+                            f"{_format_deck_option(deck_filter, pdf_state.get('deck_catalog', {}))} の {changed_cards}種を更新しました。",
+                        )
+                    else:
+                        st.session_state["tier_import_result"] = ("info", "デッキ編集に変更はありませんでした。")
+                    st.rerun()
+            else:
+                st.info("まだこのデッキに確定済みのカードがありません。カード一覧から追加して作り始められます。")
+            if unresolved_ambiguities:
+                st.warning("同名カードの候補が未解決の分は、下の deck.csv セクションでカード ID を選んでから編集してください。")
         deck_csv_output_error = ""
         try:
             deck_csv_output_path = _resolve_deck_csv_output_path(st.session_state.get(deck_output_key, ""))
@@ -2709,6 +2950,18 @@ def _render_card_screen(
             except ValueError as exc:
                 deck_csv_text = ""
                 deck_csv_error = str(exc)
+            if not deck_csv_error and deck_total_cards != 60:
+                if deck_total_cards < 60:
+                    st.warning(
+                        f"この deck.csv は現在 {deck_total_cards} 枚です。不足 {60 - deck_total_cards} 枚のままでも保存やダウンロードはできますが、"
+                        "そのままでは提出できません。カード画面でこのデッキを選んだまま不足分を選び、"
+                        "「追加」→「選択デッキに追加」で補ってください。保存後に sample_submission/deck.csv を直接直しても大丈夫です。"
+                    )
+                else:
+                    st.warning(
+                        f"この deck.csv は現在 {deck_total_cards} 枚です。超過 {deck_total_cards - 60} 枚のままでも保存やダウンロードはできますが、"
+                        "提出用にするには 60 枚へ戻す必要があります。カード画面のデッキ調整か、保存後の sample_submission/deck.csv 修正で整えてください。"
+                    )
             with st.expander("保存先を変更", expanded=False):
                 st.text_input("保存先", key=deck_output_key)
                 st.caption("フォルダだけを入れた場合は、その場所に deck.csv として保存します。")
@@ -2742,14 +2995,31 @@ def _render_card_screen(
                 key=f"download_deck_csv_{fingerprint}_{deck_filter}",
             )
 
-    filtered_df = _sort_cards(_filter_cards(card_df, search_text, label_filter, deck_filter), sort_choice[0], False)
+    card_list_label_filter = "すべて" if search_text.strip() else label_filter
+    filtered_df = _sort_cards(
+        _filter_cards(card_df, search_text, card_list_label_filter, deck_filter, deck_only=deck_only),
+        sort_choice[0],
+        False,
+    )
     visible_df = _order_cards_for_display(filtered_df, pdf_state["work_list_card_ids"])
     all_card_ids = [int(card_id) for card_id in card_df["card_id"]]
     visible_card_ids = [int(card_id) for card_id in filtered_df["card_id"]]
     total_visible = len(visible_df)
 
-    total_pages = max(1, (total_visible + page_size - 1) // page_size)
     page_key = f"cardpage_{fingerprint}"
+    filter_signature_key = f"card_filter_signature_{fingerprint}"
+    filter_signature = (search_text, label_filter, tier_filter, deck_filter, deck_only, sort_choice[0], page_size)
+    if st.session_state.get(filter_signature_key) != filter_signature:
+        st.session_state[page_key] = 1
+        st.session_state[filter_signature_key] = filter_signature
+    if deck_filter != "すべて":
+        st.caption("カード検索はここからです。候補を探して選択したら、`追加` から選択中デッキへ入れられます。")
+    if search_text.strip():
+        if label_filter != "すべて":
+            st.caption("検索中はカード一覧へのラベル絞り込みを外しています。デッキ候補の選択だけに使われます。")
+        st.caption(f"検索結果: {total_visible} 件")
+
+    total_pages = max(1, (total_visible + page_size - 1) // page_size)
     st.session_state.setdefault(page_key, 1)
     st.session_state[page_key] = min(max(1, int(st.session_state[page_key])), total_pages)
     page_num = int(st.session_state[page_key])
@@ -2758,7 +3028,7 @@ def _render_card_screen(
     page_df = visible_df.iloc[start:end]
 
     _render_selection_toolbar(
-        pdf_path, fingerprint, pdf_state, labels, all_card_ids, visible_card_ids, known_labels
+        pdf_path, fingerprint, pdf_state, labels, all_card_ids, visible_card_ids, known_labels, deck_filter
     )
 
     page_cols = st.columns([1.0, 3.0, 1.0], gap="small")
@@ -2883,6 +3153,7 @@ def _render_selection_toolbar(
     all_card_ids: list[int],
     visible_card_ids: list[int],
     known_labels: list[str],
+    deck_filter: str,
 ) -> None:
     selected = pdf_state["work_selected_card_ids"]
     count = len(selected)
@@ -2935,6 +3206,38 @@ def _render_selection_toolbar(
             st.rerun()
 
     with cols[2].popover("➕ 追加", use_container_width=True, disabled=count == 0):
+        active_deck_id = str(deck_filter).strip()
+        if active_deck_id and active_deck_id != "すべて":
+            st.caption(f"{_format_deck_option(active_deck_id, pdf_state.get('deck_catalog', {}))} に追加")
+            deck_add_quantity = int(
+                st.number_input(
+                    "選択中カードごとの追加枚数",
+                    min_value=1,
+                    max_value=60,
+                    value=1,
+                    step=1,
+                    key=f"deck_add_qty_{fingerprint}_{active_deck_id}",
+                )
+            )
+            if st.button(
+                "🧩 選択デッキに追加",
+                use_container_width=True,
+                key=f"add_deck_recipe_{fingerprint}_{active_deck_id}",
+            ):
+                added = _add_cards_to_deck_recipe(pdf_state, active_deck_id, sorted(selected), deck_add_quantity)
+                if added <= 0:
+                    st.warning("デッキに追加できるカードが選ばれていません。")
+                else:
+                    _persist_active_project_state(pdf_path, labels, pdf_state)
+                    st.session_state["tier_import_result"] = (
+                        "success",
+                        f"{_format_deck_option(active_deck_id, pdf_state.get('deck_catalog', {}))} に {added}枚 追加しました。"
+                        " deck.csv の警告を見ながら 60 枚に調整してください。",
+                    )
+                    st.rerun()
+            st.divider()
+        else:
+            st.caption("デッキを選ぶと、選択中のカードをそのデッキへ直接追加できます。")
         if st.button("📋 作業リストに追加", use_container_width=True, key=f"add_wl_{fingerprint}"):
             pdf_state["work_list_card_ids"].update(selected)
             _save_card_state(pdf_path, labels, pdf_state["work_list_card_ids"])
