@@ -12,6 +12,7 @@
 `cg/` はコンペ提供のゲームエンジンです。原則として変更しません。
 
 開発の中長期方針は [docs/ai-development-roadmap.md](docs/ai-development-roadmap.md) にまとめています。
+現在のコードの呼び出し関係やフォルダの役割は [docs/code-structure-map.md](docs/code-structure-map.md) にまとめています。
 
 ---
 
