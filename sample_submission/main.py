@@ -45,9 +45,51 @@ log = logging.getLogger(__name__)
 # ハイパーパラメータ
 # ─────────────────────────────────────────────────────────────────────────────
 
-TIME_BUDGET_SEC = 3.0   # MAIN 1 決定あたりの探索時間上限 (秒)
+# ── 時間管理 ──────────────────────────────────────────────────────────────
+# 制限時間はゲーム全体で 10 分 (600 秒)。これを「我々が 1 ゲームで使ってよい
+# 総計算時間」とみなし、その範囲内で 1 手あたりにできる限り時間をかける。
+#
+#   GAME_TIME_CAP : 1 ゲームで使う総時間の上限 (600秒 - 安全マージン60秒)
+#   TIME_BUDGET_SEC: 1 手の探索時間の上限（以前の 3.0s から大幅増）
+#   PER_MOVE_MIN  : 1 手の探索時間の下限（終盤でも最低限は探索する）
+#   RESERVE_DIV   : 残り時間を「想定残り手数」で割って 1 手の予算を決める除数。
+#                   大きいほど 1 手を節約し、長い試合でも枯渇しにくい。
+#
+# 計測（diag_timing.py）では 1 ゲームで探索が走る決定は対ランダムで約 33 回、
+# 長い接戦の自己対戦では player あたり 70〜120 回程度。
+# 下の動的予算は「累積使用時間が GAME_TIME_CAP を絶対に超えない」ことを
+# 数学的に保証する（budget <= remaining/RESERVE_DIV < remaining のため）。
+GAME_TIME_CAP   = 540.0   # 1 ゲームで使う総探索時間の上限 (秒)
+TIME_BUDGET_SEC = 10.0    # 1 手あたりの探索時間の上限 (秒) ← 旧 3.0s の 3 倍以上
+PER_MOVE_MIN    = 1.0     # 1 手あたりの探索時間の下限 (秒)
+RESERVE_DIV     = 40.0    # 残り時間を割る想定残り手数
+
 ROLLOUT_DEPTH   = 30    # ロールアウトの最大ステップ数
 MAX_CANDIDATES  = 12    # 1 回の MAIN 選択で試す候補行動の上限
+
+# 1 ゲームでこれまでに探索へ費やした累積時間（デッキ宣言時にリセット）
+_GAME_TIME_USED = 0.0
+# 直近に観測したターン数（新ゲーム検出用）。ターンが巻き戻ったらリセット。
+_LAST_TURN = -1
+
+
+def _decision_budget() -> float:
+    """
+    この 1 手に割り当てる探索時間（秒）を返す。
+
+    残り時間を想定残り手数で割って 1 手の予算を決める。
+    早い段階では TIME_BUDGET_SEC（上限）まで使い、ゲームが進んで
+    残り時間が減ると自動的に 1 手の予算を絞る。これにより:
+      - 序盤〜中盤は 1 手に最大限の時間をかけて精度を上げる
+      - 終盤でも最低 PER_MOVE_MIN は確保し、手が枯渇しない
+      - 累積時間が GAME_TIME_CAP を超えない（タイムアウト回避）
+    """
+    remaining = GAME_TIME_CAP - _GAME_TIME_USED
+    if remaining <= PER_MOVE_MIN:
+        return max(0.0, remaining)          # 残りわずか: 残り時間ちょうどまで
+    budget = remaining / RESERVE_DIV
+    budget = max(PER_MOVE_MIN, min(TIME_BUDGET_SEC, budget))
+    return min(budget, remaining)           # 絶対に残りを超えない
 
 # ─────────────────────────────────────────────────────────────────────────────
 # デッキ構成定義 (Dragapult ex デッキ)
@@ -849,7 +891,7 @@ def agent(obs_dict: dict) -> list[int]:
         → Munkidori / Chi-Yu 発動時に最適なターゲットを選択
       - MAIN フェーズで特性を攻撃より先に使う（ダメカン先積み戦術）
     """
-    global _MY_DECK, _OPP_SEEN
+    global _MY_DECK, _OPP_SEEN, _GAME_TIME_USED, _LAST_TURN
     _load_databases()
 
     obs: Observation = to_observation_class(obs_dict)
@@ -859,7 +901,18 @@ def agent(obs_dict: dict) -> list[int]:
         deck      = read_deck_csv()
         _MY_DECK  = deck[:]
         _OPP_SEEN = []
+        _GAME_TIME_USED = 0.0          # ゲーム開始: 時間予算をリセット
+        _LAST_TURN = -1
         return deck
+
+    # 新ゲーム検出: ターンが巻き戻ったら時間予算をリセット
+    # （デッキを battle_start に直接渡すローカルテスト等で必要）
+    if obs.current is not None:
+        turn = obs.current.turn
+        if turn < _LAST_TURN:
+            _GAME_TIME_USED = 0.0
+            _OPP_SEEN = []
+        _LAST_TURN = turn
 
     if not _MY_DECK:
         _MY_DECK = read_deck_csv()
@@ -893,6 +946,9 @@ def agent(obs_dict: dict) -> list[int]:
         pred_opp_active = [basics[0]] if basics else pred_opp_deck[:1]
 
     # ─── Flat Monte Carlo Search ─────────────────────────────────────────
+    # この 1 手に割り当てる時間を動的に決定（累積が GAME_TIME_CAP を超えない）
+    budget = _decision_budget()
+    t_start = time.time()
     try:
         root = search_begin(
             obs,
@@ -900,7 +956,7 @@ def agent(obs_dict: dict) -> list[int]:
             pred_opp_deck, pred_opp_prize, pred_opp_hand,
             pred_opp_active,
         )
-        deadline = time.time() + TIME_BUDGET_SEC
+        deadline = t_start + budget
         action   = _flat_mc(root.searchId, root.observation, my_idx, deadline)
         search_end()
         return action
@@ -912,3 +968,7 @@ def agent(obs_dict: dict) -> list[int]:
         except Exception:
             pass
         return _heuristic(obs)
+
+    finally:
+        # 実際に消費した時間を累積（成功・失敗・例外いずれの経路でも必ず計上）
+        _GAME_TIME_USED += time.time() - t_start
