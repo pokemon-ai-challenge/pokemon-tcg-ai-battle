@@ -147,6 +147,76 @@ git merge master
 
 ---
 
+## 共有ブランチからさらに作業ブランチを切る
+
+作業によっては、`master` から直接ブランチを切るのではなく、
+チームの共有ブランチを親にして、さらに個別の作業ブランチを切ることがあります。
+
+たとえば `develop/nagata` がチームの共有ブランチなら、
+そのブランチを最新にしてから、そこを親として自分の作業ブランチを作ります。
+
+```powershell
+git switch develop/nagata
+git pull origin develop/nagata
+git switch -c feature/nagata-improve-search
+```
+
+見方:
+
+- `develop/nagata` は、チームで共有して使う親ブランチの例です
+- `feature/nagata-improve-search` は、その親ブランチから切った個別作業ブランチです
+- この作業ブランチの変更は、まず `master` ではなく `develop/nagata` に戻す想定です
+
+---
+
+## 親ブランチが更新されたら取り込む
+
+共有ブランチ（`develop/nagata` など）が更新されたら、
+自分の子ブランチにもその更新を取り込みます。
+
+```powershell
+git switch develop/nagata
+git pull origin develop/nagata
+git switch feature/nagata-improve-search
+git merge develop/nagata
+```
+
+見方:
+
+- 先に親ブランチを最新にします
+- そのあと `git merge develop/nagata` で、子ブランチへ最新を取り込みます
+- コンフリクトが出たら、該当ファイルを直してから改めてコミットします
+
+---
+
+## 子ブランチの変更を共有ブランチへ戻す
+
+共有ブランチから切った作業ブランチは、
+作業が終わったらまずその共有ブランチへ戻します。
+
+たとえば `feature/nagata-improve-search` を `develop/nagata` に戻すなら、
+基本は GitHub 上で Pull Request を作るやり方が分かりやすくて安全です。
+
+その場合は、GitHub で次の向きの Pull Request を作ります。
+
+- 取り込み先: `develop/nagata`
+- 作業ブランチ: `feature/nagata-improve-search`
+
+作業ブランチを GitHub に上げるコマンド:
+
+```powershell
+git switch feature/nagata-improve-search
+git push -u origin feature/nagata-improve-search
+```
+
+見方:
+
+- GitHub 上では、`master` ではなく `develop/nagata` を取り込み先にします
+- 共有ブランチへ戻すときは、Web 上で差分を確認しながらマージするほうが安全です
+- チームで確認したい作業は、ローカルで直接マージするより Pull Request のほうが向いています
+
+---
+
 ## ブランチ名の付け方
 
 このリポジトリでは、作業ブランチは `feature/...` を基本にすると分かりやすいです。
