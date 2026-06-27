@@ -35,6 +35,8 @@ submission.tar.gz
 sample_submission/submission.tar.gz
 tmp_submit_check/
 .tmp_readme_push/
+battle_review_viewer/replays/*.json
+!battle_review_viewer/replays/.gitkeep
 
 # Claude Code internal settings
 .claude/

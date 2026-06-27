@@ -27,17 +27,18 @@
 submission.tar.gz
 ├── main.py
 ├── deck.csv
-└── cg/
+├── cg/
+└── src/
 ```
 
 PowerShell で作る場合は、リポジトリ直下から次を実行します。
 
 ```powershell
 cd sample_submission
-tar -czvf submission.tar.gz main.py deck.csv cg
+tar -czvf submission.tar.gz main.py deck.csv cg src
 ```
 
-`sample_submission` フォルダに移動してから実行することで、`main.py`、`deck.csv`、`cg/` を正しい位置からまとめられます。
+`sample_submission` フォルダに移動してから実行することで、`main.py`、`deck.csv`、`cg/`、`src/` を正しい位置からまとめられます。
 
 作成後は、同じフォルダで中身を確認します。
 
