@@ -7,11 +7,8 @@ from src.knowledge.card_cache import load_card_data
 
 # ---------------------------------------------------------------------------
 # Skill.text のキーワードでサポーター・グッズの種別を判定する。
-# カード名リストは持たず、効果テキストだけで分類するため、
-# 未知のカードにも対応できる。
 # ---------------------------------------------------------------------------
 
-# 手札枚数の段階ごとの加点。base に足す。
 _DRAW_SCORE_BONUS = {
     "emergency": 30,   # 0〜2枚: 緊急 → 最優先でドロー
     "normal":    15,   # 3〜4枚: 普通 → 積極的に使う
@@ -19,13 +16,13 @@ _DRAW_SCORE_BONUS = {
     # 7枚以上はドロー目的では発動しない
 }
 
-# サポーターの種別ごとの追加点。draw > search > discard_draw の順で優先される。
 _SUPPORTER_TYPE_BONUS = {
     "draw":                10,   # 純粋ドロー（シロナ・ホップ等）
     "search":               5,   # サーチ系（ネジキ・ポフィン等）
     "discard_draw":         0,   # 手札捨て/戻しドロー（博士の研究・マリィ等）
-    "discard_draw_penalty": -20, # 先に使えるカードがある場合の減点
-    "other":                0,   # ボスの指令等（ここでは提案しない）
+    "draw_to_x":            0,   # 手札をX枚まで引く（ポケモン研究者等）
+    "discard_draw_penalty": -40, # 先に使えるカードがある場合の減点（discard_draw / draw_to_x 共通）
+    "other":                0,
 }
 
 
@@ -33,18 +30,30 @@ def _classify_supporter_text(text: str) -> str:
     """サポーターの効果テキストから種別を返す。
 
     Returns:
-        "discard_draw"  : 手札を捨てて/山に戻してドロー（博士の研究・マリィ等）
-        "draw"          : 純粋なドロー（シロナ・ホップ等）
-        "search"        : 山札からサーチ（ネジキ・ポフィン等）
-        "other"         : 上記以外（ボスの指令等）
+        "discard_draw" : 手札を捨てて/山に戻してドロー（博士の研究・マリィ等）
+        "draw_to_x"    : 手札が X 枚になるまでドロー（ポケモン研究者等）
+                         → 手札が多いと効果が薄いので discard_draw と同様に扱う
+        "draw"         : 純粋なドロー（シロナ・ホップ等）
+        "search"       : 山札からサーチ（ネジキ・ポフィン等）
+        "other"        : 上記以外（ボスの指令等）
     """
     t = text.lower()
-    has_draw = "draw" in t
+    has_draw   = "draw" in t
     has_discard = "discard" in t or "shuffle" in t
-    has_search = "search" in t or "look at" in t
+    has_search  = "search" in t or "look at" in t
+
+    # 「手札をX枚になるまで引く」パターン
+    # "until you have", "so that you have", "up to X cards in your hand" などで検出
+    has_draw_to_x = (
+        ("until you have" in t or "so that you have" in t or "up to" in t)
+        and "hand" in t
+        and has_draw
+    )
 
     if has_draw and has_discard:
         return "discard_draw"
+    if has_draw_to_x:
+        return "draw_to_x"
     if has_draw:
         return "draw"
     if has_search:
@@ -56,14 +65,23 @@ def _classify_item_text(text: str) -> str:
     """グッズの効果テキストから種別を返す。
 
     Returns:
-        "search" : 山札からポケモン等を持ってくる（ボール系等）
-        "draw"   : 手札を増やす（ポケギア等）
-        "other"  : 上記以外
+        "search"       : 山札からポケモン等を持ってくる（ボール系等）
+        "draw"         : 手札を増やす（ポケギア等）
+        "draw_to_x"    : 手札がX枚になるまでドロー
+        "other"        : 上記以外
     """
     t = text.lower()
+    has_draw = "draw" in t
+    has_draw_to_x = (
+        ("until you have" in t or "so that you have" in t or "up to" in t)
+        and "hand" in t
+        and has_draw
+    )
     if "search" in t or "look at" in t:
         return "search"
-    if "draw" in t:
+    if has_draw_to_x:
+        return "draw_to_x"
+    if has_draw:
         return "draw"
     return "other"
 
@@ -89,11 +107,6 @@ def _get_card_skill_text(option_index: int, obs: Observation) -> str | None:
 
 
 def _get_supporter_kind(option_index: int, obs: Observation) -> str:
-    """supporter_play 内の選択肢の種別を返す。
-
-    Returns:
-        "discard_draw" | "draw" | "search" | "other"
-    """
     text = _get_card_skill_text(option_index, obs)
     if text is None:
         return "other"
@@ -101,11 +114,6 @@ def _get_supporter_kind(option_index: int, obs: Observation) -> str:
 
 
 def _get_item_kind(option_index: int, obs: Observation) -> str:
-    """item_play 内の選択肢の種別を返す。
-
-    Returns:
-        "search" | "draw" | "other"
-    """
     text = _get_card_skill_text(option_index, obs)
     if text is None:
         return "other"
@@ -120,24 +128,37 @@ def _hand_bonus(hand_count: int) -> int | None:
         return _DRAW_SCORE_BONUS["normal"]
     if hand_count <= 6:
         return _DRAW_SCORE_BONUS["enough"]
-    return None  # 7枚以上: ドロー目的では使わない
+    return None
 
 
 def _has_usable_non_draw_cards(obs: Observation, buckets: MainOptionBuckets) -> bool:
-    """手札に、進化・グッズ・ポケモン展開など「先に使うべきカード」があるか。
+    """手札に「先に使うべきカード」があるか。
 
-    手札を捨てる/戻すドロー系（discard_draw）を使う前に確認し、
-    True なら discard_draw のスコアを下げて後回しにする。
+    discard_draw / draw_to_x を使う前に確認し、True ならスコアを下げる。
+    item_play はドロー系グッズ（ボール・ポケギア等）も含むため、
+    手札に「ドロー目的以外のグッズ」があるかをテキストで絞り込む。
     """
+    has_non_draw_items = False
+    for idx in buckets.item_play:
+        kind = _get_item_kind(idx, obs)
+        if kind not in ("draw", "draw_to_x", "search"):
+            # 効果がドロー・サーチ以外のグッズが1枚でもあれば真
+            has_non_draw_items = True
+            break
+
     return bool(
         buckets.pokemon_play
         or buckets.evolve
-        or buckets.item_play
+        or has_non_draw_items
         or buckets.tool_play
         or buckets.stadium_play
         or buckets.ability
         or buckets.attach
     )
+
+
+# discard_draw / draw_to_x の両方に減点を適用するカテゴリ集合
+_LOSS_ON_HAND_KINDS: frozenset[str] = frozenset({"discard_draw", "draw_to_x"})
 
 
 def propose_draw_or_search_action(
@@ -147,14 +168,14 @@ def propose_draw_or_search_action(
     """手札状況に応じて、ドロー・サーチ系カードを優先候補として返す。
 
     優先順位（スコアが高い順）:
-        1. ドロー系サポーター（純粋ドロー: シロナ・ホップ等）
+        1. 純粋ドロー系サポーター（シロナ・ホップ等）
         2. サーチ系サポーター（ネジキ・ポフィン等）
-        3. 手札捨て/戻し系サポーター（博士の研究・マリィ等）
-           ただし先に使えるカードがある場合はスコアを下げる
+        3. 手札捨て/戻し系・X枚までドロー系サポーター
+           （博士の研究・マリィ・ポケモン研究者等）
+           → 先に使えるカードがある場合はスコアを下げる
         4. ドロー・サーチ系グッズ（ボール系・ポケギア等）
 
-    ボスの指令など非ドロー系サポーターはここでは扱わない（スコア提案しない）。
-    手札 7 枚以上の場合はドロー目的では提案しない。
+    手札 7 枚以上の場合は提案しない。
     """
     if obs.current is None:
         return None
@@ -164,13 +185,11 @@ def propose_draw_or_search_action(
 
     hand_bonus = _hand_bonus(hand_count)
     if hand_bonus is None:
-        return None  # 手札が十分なのでドロー提案をしない
+        return None
 
     base = MAIN_ACTION_BASE_WEIGHTS["draw_or_search"]
 
-    # --- サポーターを種別で走査し、最も優先度の高いものを選ぶ ---
-    # 優先度: draw > search > discard_draw > other（other は提案しない）
-    KIND_PRIORITY = {"draw": 3, "search": 2, "discard_draw": 1, "other": 0}
+    KIND_PRIORITY = {"draw": 3, "search": 2, "discard_draw": 1, "draw_to_x": 1, "other": 0}
 
     best_supporter_index: int | None = None
     best_supporter_kind: str = "other"
@@ -184,13 +203,13 @@ def propose_draw_or_search_action(
             best_supporter_kind = kind
             best_priority = priority
             if kind == "draw":
-                break  # 最高優先度が見つかれば即確定
+                break
 
     if best_supporter_index is not None and best_supporter_kind != "other":
         type_bonus = _SUPPORTER_TYPE_BONUS.get(best_supporter_kind, 0)
 
-        # discard_draw（手札捨て/戻し系）は先に使えるカードがあればスコアを下げる
-        if best_supporter_kind == "discard_draw" and _has_usable_non_draw_cards(obs, buckets):
+        # discard_draw と draw_to_x は先に使えるカードがあればスコアを下げる
+        if best_supporter_kind in _LOSS_ON_HAND_KINDS and _has_usable_non_draw_cards(obs, buckets):
             type_bonus += _SUPPORTER_TYPE_BONUS["discard_draw_penalty"]
 
         score = base + hand_bonus + type_bonus
@@ -200,15 +219,5 @@ def propose_draw_or_search_action(
             label=f"draw_or_search_supporter_{best_supporter_kind}",
         )
 
-    # --- グッズからドロー・サーチ系を探す ---
-    for idx in buckets.item_play:
-        kind = _get_item_kind(idx, obs)
-        if kind in ("search", "draw"):
-            score = base + hand_bonus - 5  # サポーターより若干低め
-            return MainActionProposal(
-                action=[idx],
-                score=score,
-                label=f"draw_or_search_item_{kind}",
-            )
 
     return None

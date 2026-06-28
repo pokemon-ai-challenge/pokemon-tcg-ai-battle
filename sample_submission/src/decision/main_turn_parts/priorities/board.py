@@ -25,6 +25,80 @@ def _get_attack_data() -> dict[int, Attack]:
         _attack_cache = {a.attackId: a for a in all_attack()}
     return _attack_cache
 
+def _has_usable_non_draw_cards(obs: Observation, buckets: MainOptionBuckets) -> bool:
+    """手札に「先に使うべきカード」があるか。
+
+    discard_draw / draw_to_x を使う前に確認し、True ならスコアを下げる。
+    item_play はドロー系グッズ（ボール・ポケギア等）も含むため、
+    手札に「ドロー目的以外のグッズ」があるかをテキストで絞り込む。
+    """
+    has_non_draw_items = False
+    for idx in buckets.item_play:
+        kind = _get_item_kind(idx, obs)
+        if kind not in ("draw", "draw_to_x", "search"):
+            # 効果がドロー・サーチ以外のグッズが1枚でもあれば真
+            has_non_draw_items = True
+            break
+
+    return bool(
+        buckets.pokemon_play
+        or buckets.evolve
+        or has_non_draw_items
+        or buckets.tool_play
+        or buckets.stadium_play
+        or buckets.ability
+        or buckets.attach
+    )
+
+def _get_item_kind(option_index: int, obs: Observation) -> str:
+    text = _get_card_skill_text(option_index, obs)
+    if text is None:
+        return "other"
+    return _classify_item_text(text)
+
+def _classify_item_text(text: str) -> str:
+    """グッズの効果テキストから種別を返す。
+
+    Returns:
+        "search"       : 山札からポケモン等を持ってくる（ボール系等）
+        "draw"         : 手札を増やす（ポケギア等）
+        "draw_to_x"    : 手札がX枚になるまでドロー
+        "other"        : 上記以外
+    """
+    t = text.lower()
+    has_draw = "draw" in t
+    has_draw_to_x = (
+        ("until you have" in t or "so that you have" in t or "up to" in t)
+        and "hand" in t
+        and has_draw
+    )
+    if "search" in t or "look at" in t:
+        return "search"
+    if has_draw_to_x:
+        return "draw_to_x"
+    if has_draw:
+        return "draw"
+    return "other"
+
+
+def _get_card_skill_text(option_index: int, obs: Observation) -> str | None:
+    """手札の option_index 番目のカードの最初の Skill テキストを返す。"""
+    if obs.current is None or obs.select is None:
+        return None
+
+    option = obs.select.option[option_index]
+    your_index = obs.current.yourIndex
+    hand = obs.current.players[your_index].hand
+    if hand is None or option.index is None or option.index >= len(hand):
+        return None
+
+    hand_card = hand[option.index]
+    card_data = _get_card_data().get(hand_card.id)
+    if card_data is None or not card_data.skills:
+        return None
+
+    return card_data.skills[0].text
+
 
 # ---------------------------------------------------------------------------
 # 効果テキスト判定ユーティリティ
@@ -253,6 +327,25 @@ def propose_board_item_action(
             score=MAIN_ACTION_BASE_WEIGHTS["stadium"] + 10,
             label="stadium",
         )
+    
+        # --- ドロー・サーチ系グッズ ---
+    for idx in buckets.item_play:
+        # kind を判定する関数は draw.py から移すか共通化する
+        kind = _get_item_kind(idx, obs)
+        if kind in ("search", "draw", "draw_to_x"):
+            score = MAIN_ACTION_BASE_WEIGHTS["board_item"] + 5
+
+            if (
+                kind == "draw_to_x"
+                and _has_usable_non_draw_cards(obs, buckets)
+            ):
+                score -= 40
+
+            return MainActionProposal(
+                action=[idx],
+                score=score,
+                label=f"board_item_{kind}",
+            )
 
     # --- その他グッズ ---
     if buckets.item_play:
