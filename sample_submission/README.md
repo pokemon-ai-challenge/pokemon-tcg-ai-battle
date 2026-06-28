@@ -12,6 +12,7 @@
 `cg/` はコンペ提供のゲームエンジンです。原則として変更しません。
 
 開発の中長期方針は [docs/ai-development-roadmap.md](docs/ai-development-roadmap.md) にまとめています。
+現在のコードの呼び出し関係やフォルダの役割は [docs/code-structure-map.md](docs/code-structure-map.md) にまとめています。
 
 ---
 
@@ -21,28 +22,31 @@
 対戦エンジンは `main.py` 内の `agent(obs_dict)` を呼び出します。  
 `deck.csv` は初回のデッキ返却で使い、`cg/` は実行に必要なゲームエンジンです。
 
-提出用アーカイブ `submission.tar.gz` には、次の3つを入れます。
+提出用アーカイブ `submission.tar.gz` には、次のものを入れます。
 
 ```text
 submission.tar.gz
 ├── main.py
 ├── deck.csv
-└── cg/
+├── cg/
+└── src/
 ```
 
-PowerShell で作る場合は、リポジトリ直下から次を実行します。
+同梱対象は [submission_manifest.txt](submission_manifest.txt) で管理します。  
+追加の実行時ファイルやフォルダが必要になったら、このファイルに追記してください。不要なものを外したい場合は `!src/tests` のように `!` 付きで除外できます。
+
+提出アーカイブは、リポジトリ直下から次を実行すると作成できます。
 
 ```powershell
-cd sample_submission
-tar -czvf submission.tar.gz main.py deck.csv cg
+python sample_submission/build_submission.py
 ```
 
-`sample_submission` フォルダに移動してから実行することで、`main.py`、`deck.csv`、`cg/` を正しい位置からまとめられます。
+`sample_submission/submission.tar.gz` が更新され、マニフェストに書かれた内容がアーカイブ直下に入ります。
 
 作成後は、同じフォルダで中身を確認します。
 
 ```powershell
-tar -tzf submission.tar.gz
+tar -tzf sample_submission/submission.tar.gz
 ```
 
 `main.py` がアーカイブ直下にあり、`sample_submission/main.py` のように1段深く入っていないことを確認してください。
@@ -50,7 +54,7 @@ tar -tzf submission.tar.gz
 その後、Kaggle の Simulation コンペページを開きます。  
 https://www.kaggle.com/competitions/pokemon-tcg-ai-battle
 
-`Submit Agent` から `submission.tar.gz` を選択し、提出します。
+`Submit Agent` から `sample_submission/submission.tar.gz` を選択し、提出します。
 
 ---
 
