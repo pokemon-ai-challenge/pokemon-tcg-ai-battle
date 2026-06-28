@@ -5,6 +5,7 @@ from src.knowledge.deck_profiles import (
     get_attack_effect_profile,
     get_energy_profile,
     get_item_profile,
+    get_pokemon_profile,
     pokemon_active_role_bonus,
     get_stadium_profile,
     get_supporter_profile,
@@ -42,6 +43,20 @@ def test_pokemon_role_bonus_is_available_to_non_attack_evaluators():
 
     assert pokemon_active_role_bonus(678) > 0
     assert mega_score > generic_score
+
+
+def test_pair_profiles_capture_partner_and_draw_engine_rules():
+    lunatone = get_pokemon_profile(675)
+    solrock = get_pokemon_profile(676)
+
+    assert lunatone is not None
+    assert lunatone.partner_card_ids == frozenset({676})
+    assert lunatone.draw_support_bonus > 0
+    assert lunatone.hand_discard_energy_type_for_draw == EnergyType.FIGHTING
+
+    assert solrock is not None
+    assert solrock.partner_card_ids == frozenset({675})
+    assert solrock.partner_required is True
 
 
 def test_non_pokemon_profiles_cover_current_deck_cards():

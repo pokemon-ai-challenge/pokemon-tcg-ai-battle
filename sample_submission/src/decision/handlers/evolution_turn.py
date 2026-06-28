@@ -3,7 +3,7 @@ from collections import Counter
 from cg.api import Attack, CardData, EnergyType, Observation, Pokemon, SelectContext, all_attack, all_card_data
 
 from src.decision.fallback import choose_random_legal_action
-from src.decision.switch_eval import resolve_option_target
+from src.decision.evaluation.switch_eval import resolve_option_target
 
 
 _CARD_DATA = {card.cardId: card for card in all_card_data()}

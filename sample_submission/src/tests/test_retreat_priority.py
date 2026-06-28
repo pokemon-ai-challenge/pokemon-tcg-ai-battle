@@ -15,7 +15,7 @@ from cg.api import (
     State,
 )
 
-from src.decision import switch_eval
+from src.decision.evaluation import switch_eval
 from src.decision.main_turn_parts.buckets import MainOptionBuckets
 from src.decision.main_turn_parts.priorities.retreat import propose_retreat_action
 from src.decision.router import choose_action

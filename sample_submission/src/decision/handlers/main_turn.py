@@ -26,14 +26,14 @@ def choose_main_action(obs: Observation) -> list[int]:
 
     # 各担当の処理は「今やりたい行動候補」と重みを返す。
     proposals = [
-        propose_draw_or_search_action(obs, buckets),
-        propose_pokemon_or_evolve_action(obs, buckets),
-        propose_board_item_action(obs, buckets),
-        propose_ability_action(obs, buckets),
-        propose_energy_action(obs, buckets),
-        propose_retreat_action(obs, buckets),
-        propose_attack_action(obs, buckets),
-        propose_end_action(obs, buckets),
+        propose_draw_or_search_action(obs, buckets),    # 福田
+        propose_pokemon_or_evolve_action(obs, buckets), # 福田
+        propose_board_item_action(obs, buckets),        # 福田
+        propose_ability_action(obs, buckets),           # 福田
+        propose_energy_action(obs, buckets),            # 長島
+        propose_retreat_action(obs, buckets),           # 長島
+        propose_attack_action(obs, buckets),            # 長島
+        propose_end_action(obs, buckets),               # 長島
     ]
 
     best = choose_best_proposal(proposals)

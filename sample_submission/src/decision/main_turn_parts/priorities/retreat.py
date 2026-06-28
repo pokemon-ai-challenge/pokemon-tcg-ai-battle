@@ -3,7 +3,7 @@ from cg.api import Observation
 from src.decision.main_turn_parts.buckets import MainOptionBuckets
 from src.decision.main_turn_parts.proposals import MainActionProposal
 from src.decision.main_turn_parts.weights import MAIN_ACTION_BASE_WEIGHTS
-from src.decision.switch_eval import choose_best_retreat_option
+from src.decision.evaluation.switch_eval import choose_best_retreat_option
 
 
 def propose_retreat_action(

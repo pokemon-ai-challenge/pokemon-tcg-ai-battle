@@ -1,10 +1,10 @@
 from cg.api import AreaType, EnergyType, SelectContext, SelectType
 
-from src.decision.main_turn import choose_main_action
+from src.decision.handlers.main_turn import choose_main_action
 from src.decision.main_turn_parts import buckets as main_buckets
 from src.decision.main_turn_parts import energy_eval
 from src.decision.main_turn_parts.priorities import attack as attack_priority
-from src.decision import switch_eval
+from src.decision.evaluation import switch_eval
 from src.tests.helpers_decision import (
     ability_option,
     attack,

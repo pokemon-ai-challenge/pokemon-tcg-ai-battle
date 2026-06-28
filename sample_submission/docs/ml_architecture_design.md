@@ -1,30 +1,51 @@
 # ポケモンカードゲームAI 機械学習統合アーキテクチャ設計書
 
+> **改訂メモ（2026-06-28）:** 本設計書は当初「Flat MCS + ランダムロールアウト」を既存実装と仮定して
+> 書かれていたが、現行の `sample_submission` 実装は **探索を持たない 1 手読みのルールベース proposal 方式**である。
+> このギャップを解消するため、§1 の現状認識・Phase 構成・`evaluate()` の API 名を現行コードに合わせて改訂した。
+> 目標アーキテクチャ（情報推論 + ISMCTS + 評価関数 / NN）は不変。**具体的な移行手順は `docs/ml_integration_plan.md` を参照。**
+
 ## 1. 現状分析と設計思想
 
-### 現在の構成
+### 現在の構成（実コードベース）
 
 ```
-Flat MCS + ランダムロールアウト + ルールベースフォールバック + evaluate()
+Observation
+  → router.py（SelectContext で振り分け）
+    → main_turn.py（各 priorities/*.py が MainActionProposal(action, score, label) を提案）
+      → choose_best_proposal（score 最大を 1 つ選ぶ。探索・ロールアウトは無し）
 ```
 
-**主要な問題点（PDF調査より）:**
-- ランダムロールアウトがシナジー依存型ゲームと乖離 → Q値が信頼不能
-- 深さ30手制限 ≈ 実質1.5〜2ターン先しか見えない
-- `evaluate()` への100%依存（ノイズだらけのシミュレーション終端を評価）
-- Strategy Fusion（速攻 vs コントロール双方の悪手平均を選択）
+- **探索エンジンは未導入**（MCTS / Flat MCS は存在しない）。
+- **ロールアウトも存在しない**（ランダム・ヒューリスティック問わず）。
+- **全局面評価 `evaluate(state) -> float` は未実装**。`src/decision/evaluation/` にあるのは
+  行動単位の特徴量ヘルパ（`attacker_priority_score`, `is_likely_knocked_out_next_turn` 等）であり、
+  盤面全体の勝率評価ではない。
+- 相手・自分の非公開情報の推定器も未導入（`cg.api.search_begin/step` は API として存在するが未使用）。
+- デッキ知識は `src/knowledge/meta_decks.py` に採用率付きで整備済み（後述の推定器の土台になる）。
+
+### 探索を導入する際に避けるべき既知の落とし穴（PDF調査より）
+
+現状コードには探索が無いため、以下は「現在の不具合」ではなく **これから探索を載せる際に踏んではいけない罠**として記録する。
+
+- ランダムロールアウトはシナジー依存型ゲームと乖離する → Q値が信頼できなくなる（だから最初からヒューリスティックロールアウトを使う）
+- 深さ制限が浅い（例: 30手 ≈ 1.5〜2ターン）と先が読めない → 動的深さ制御が要る
+- 終端評価（`evaluate()`）への 100% 依存はノイズを増幅する → 評価関数の質を先に上げる
+- Flat MCS は Strategy Fusion（速攻 vs コントロール双方に中途半端な手）を招く → 最初から ISMCTS を採る
 
 ### 設計の基本方針
 
 > **「探索の質（シミュレーションのリアリティ）を極限まで高める」**  
 > **「不完全情報の不確実性を、推論で積極的に狭める」**
 
-時間制約（10分）・計算資源制約（CPU/RAM）を前提に、
-以下の優先順位でコンポーネントを段階的に統合する。
+時間制約（10分）・計算資源制約（CPU/RAM）を前提に、現行のルールベース実装を土台として
+以下の優先順位でコンポーネントを段階的に「追加」する（既存の proposal 方式は壊さず並走させる）。
 
 ```
-Phase A（今すぐ）: 情報推論基盤 + Heuristic Rollout + evaluate強化
-Phase B（1ヶ月）: ISMCTS + 相手デッキ推定統合
+Phase A（今すぐ）: 情報推論基盤（推定器）+ 全局面 evaluate() + TimeManager
+                   ※ 現行ルールベースは温存。探索はまだ載せない。
+Phase B（1ヶ月）: ISMCTS 導入。ロールアウト方策には既存 priorities/*.py を再利用。
+                   推定器を決定化（Determinization）に統合。
 Phase C（研究枠）: Policy/Value Network + 模倣学習による蒸留
 ```
 
@@ -115,17 +136,32 @@ class OpponentDeckEstimator:
         """ボスの指令保有推定確率（ベンチリスク評価に使用）"""
 ```
 
-#### データ
+#### データ（既に実装済み）
+
+デッキ知識は **既に `src/knowledge/meta_decks.py` に整備済み**であり、設計当初に想定していた
+`{name: [60枚ID]}` という単純な dict より**リッチな構造**を持つ。`OpponentDeckEstimator` はこれを
+新規に作り直さず、そのまま土台として使う。
 
 ```python
-# meta_decks.py に主要デッキレシピを定義（60枚リスト）
-META_DECKS = {
-    "メガルカリオex": [...],
-    "フーディンex": [...],
-    "リザードンex": [...],
-    # ... 現環境のTier A〜B デッキを網羅
-}
+# src/knowledge/meta_decks.py（抜粋・既存）
+@dataclass(frozen=True)
+class MetaDeckEntry:
+    archetype_id: str
+    rep_card_ids: tuple[int, ...]          # 代表デッキ60枚
+    key_cards: tuple[int, ...]             # アーキタイプ識別シグネチャ
+    card_inclusion_rate: dict[int, float]  # Card ID → 採用デッキ割合
+    card_avg_copies: dict[int, float]      # Card ID → 平均採用枚数
+    def is_reliable_for_estimation(self) -> bool: ...
+    def probable_card_ids(self, min_inclusion=0.5) -> list[int]: ...
+
+# 現環境の Tier 1〜2 を網羅（dragapult_ex / hydrapple_ex / olivine_ex /
+# takelraiko_ex / megarucario_ex / orgepon_bullet / hatterene / crustle ...）
+REALWORLD_META: dict[str, MetaDeckEntry] = { "dragapult_ex": ..., ... }
+get_all_meta_decks() -> dict[str, MetaDeckEntry]
 ```
+
+→ `OpponentDeckEstimator` は `get_all_meta_decks()` を読み込み、`key_cards` / `card_inclusion_rate`
+を尤度に使ったベイズ更新を載せるだけでよい。
 
 **拡張（Phase C）:** ルールベース分類 → Transformer デッキ分類器に置換し、
 Tech カード（環境外採用）を含むデッキでも精度を担保。
@@ -184,15 +220,17 @@ class SelfStateEstimator:
 
 ## 4. 探索エンジンレイヤー（ISMCTS）
 
-### 4-1. Heuristic Rollout（Phase A: 最優先）
+### 4-1. Heuristic Rollout（Phase B の構成要素）
 
-ランダムロールアウトを廃止し、既存のルールベースロジックで代替する。
-Q値の信頼性が劇的に向上し、導入コストが最低で効果が最大。
+> 注: 現行コードにはロールアウトが存在しないため「ランダム→ヒューリスティックへの置換」ではなく、
+> **ISMCTS を載せると同時に、最初からヒューリスティックロールアウトを実装する**。
+> プレイアウト方策はゼロから書かず、**既存の `src/decision/main_turn_parts/priorities/*.py` を再利用**する
+> （= 現行のルールベース agent がそのままロールアウト方策になる）。導入コストが最低で効果が最大。
 
 ```python
 def heuristic_rollout(state) -> float:
     """
-    ランダムではなく、ルールベース優先順位でプレイアウトを進める:
+    ランダムではなく、既存 priorities の優先順位でプレイアウトを進める:
     1. 倒せる相手ポケモンがいれば攻撃
     2. 進化できるなら進化
     3. エネルギーを貼れるなら貼る
@@ -260,40 +298,54 @@ class TimeManager:
 
 ### 5-1. Phase A: ルールベース強化 evaluate()
 
+> **API 整合メモ:** 旧版の疑似コードは実 API（`cg/api.py`）と一致していなかったため修正した。
+> - `Pokemon.hp_remaining` は存在しない → 現在 HP は `Pokemon.hp`、最大は `Pokemon.maxHp`。
+> - 場のエネルギー数は `Pokemon.energies`（`list[EnergyType]`）の長さで数える。
+> - 進化段階は `Pokemon.preEvolution` や `CardData.stage1/stage2` から判定する。
+> - `prize` は「残りサイド」なので `6 - len(prize)` は「取った枚数」（初期 6 枚前提でよい）。
+> - 評価対象の型に注意: `Observation.current` は `State` だが、探索中に `search_step` が返すのは
+>   `SearchState`（別型）。Phase B で探索へ組み込む際は、評価関数がどちらの型を受けるか統一すること。
+> - `is_likely_knocked_out_next_turn`（`evaluation/board_features.py`、既存）が
+>   「相手の脅威打点 vs 自陣 HP」を既に概算しているので、生存リスク評価はこれを再利用できる。
+
 ```python
-def evaluate(state: State, my_idx: int, opponent_estimator: OpponentDeckEstimator) -> float:
+def evaluate(state, my_idx: int, opponent_estimator: OpponentDeckEstimator) -> float:
     me = state.players[my_idx]
     opp = state.players[1 - my_idx]
-    
+
     score = 0.0
-    
-    # --- サイド差分（最重要: 重み大） ---
+
+    # --- サイド差分（最重要: 重み大）。prize は残りサイドなので 6-残り=取得済み ---
     my_prizes_taken = 6 - len(me.prize)
     opp_prizes_taken = 6 - len(opp.prize)
     score += (my_prizes_taken - opp_prizes_taken) * 200
-    
-    # --- 盤面リソース ---
-    score += sum(p.hp_remaining for p in me.active + me.bench if p) * 0.5
-    score -= sum(p.hp_remaining for p in opp.active + opp.bench if p) * 0.5
-    score += count_energy_on_field(me) * 10
-    
-    # --- セットアップ評価（進化ラインの完成度） ---
+
+    # --- 盤面リソース（HP は Pokemon.hp、エネは Pokemon.energies） ---
+    in_play_me = [p for p in me.active + me.bench if p]
+    in_play_opp = [p for p in opp.active + opp.bench if p]
+    score += sum(p.hp for p in in_play_me) * 0.5
+    score -= sum(p.hp for p in in_play_opp) * 0.5
+    score += sum(len(p.energies) for p in in_play_me) * 10
+
+    # --- セットアップ評価（進化ラインの完成度。preEvolution / stage から算出） ---
     score += evolution_readiness_score(me) * 50
-    
-    # --- 山札圧縮度 ---
-    # デッキが薄い = リソースを手札/場に引き出せている
+
+    # --- 山札圧縮度（デッキが薄い = リソースを手札/場に引き出せている） ---
     score += max(0, 30 - me.deckCount) * 2
-    
-    # --- 生存リスク評価（相手の推定最大打点 vs 自陣HP） ---
+
+    # --- 生存リスク評価（相手の推定最大打点 vs 自陣 HP） ---
     opp_max_damage = opponent_estimator.get_max_damage()
-    for pokemon in me.active + me.bench:
-        if pokemon and pokemon.hp_remaining <= opp_max_damage:
-            # ボスの指令確率を考慮してペナルティ
-            boss_prob = opponent_estimator.get_boss_probability()
-            score -= 80 * boss_prob if pokemon in me.bench else 40
-    
+    boss_prob = opponent_estimator.get_boss_probability()
+    for pokemon in in_play_me:
+        if pokemon.hp <= opp_max_damage:
+            is_bench = pokemon in me.bench
+            score -= 80 * boss_prob if is_bench else 40
+
     return score
 ```
+
+> `evolution_readiness_score()` 等の補助関数は新規に実装する
+> （`src/decision/evaluation/` に追加し、`board_features.py` のヘルパを再利用する）。
 
 ### 5-2. Phase C: Policy/Value Network
 
@@ -353,20 +405,24 @@ class ComputationCache:
 
 ### Phase A: 今すぐ実装（1週間）
 
+> 現行のルールベース proposal 方式は温存したまま「追加」する。探索はまだ載せない。
+> ロールアウトは Phase B（ISMCTS）で初めて登場する（現状ロールアウト自体が無いため）。
+
 | 優先度 | タスク | 期待効果 | 難易度 |
 |--------|--------|----------|--------|
-| 🔴最高 | ランダムロールアウト → Heuristic Rollout に変更 | Q値の信頼性が劇的向上 | 中 |
-| 🔴最高 | `evaluate()` にサイド差・エネ枚数・セットアップ度を追加 | 評価精度向上 | 低 |
+| 🔴最高 | 全局面 `evaluate(state)->float` を**新規実装**（サイド差・HP・エネ枚数・セットアップ度） | 盤面評価の土台ができる | 低 |
+| 🟠高 | `OpponentDeckEstimator` 実装（既存 `meta_decks.py` を土台にベイズ更新） | 決定化品質向上 | 中 |
 | 🟠高 | `SelfStateEstimator` 実装（残り山札・サイド推定） | 自分の状態把握 | 中 |
-| 🟠高 | `OpponentDeckEstimator` 実装（ルールベース版） | 決定化品質向上 | 中 |
 | 🟡中 | `TimeManager` 実装（動的時間配分） | タイムアウト防止 | 低 |
+| 🟡中 | 推定器の状態をターン跨ぎで保持する `runtime_state` シングルトン | 推定の継続性 | 低 |
 
 ### Phase B: 1ヶ月で実装（探索高度化）
 
 | 優先度 | タスク | 期待効果 | 難易度 |
 |--------|--------|----------|--------|
-| 🔴最高 | Flat MCS → ISMCTS への移行 | Strategy Fusion 解消・深い戦略読み | 高 |
-| 🔴最高 | デッキ推定を ISMCTS の決定化に統合 | シミュレーション精度が飛躍的に向上 | 高 |
+| 🔴最高 | ISMCTS を**新規導入**（`search_begin/step` を利用、proposal 方式とフラグで並走） | Strategy Fusion 回避・深い戦略読み | 高 |
+| 🔴最高 | Heuristic Rollout 実装（既存 `priorities/*.py` をプレイアウト方策に再利用） | Q値の信頼性確保 | 中 |
+| 🔴最高 | デッキ推定（Phase A の推定器）を ISMCTS の決定化に統合 | シミュレーション精度が飛躍的に向上 | 高 |
 | 🟠高 | B1 Heuristic による事前枝刈り | 計算量削減・深さ向上 | 中 |
 | 🟠高 | 相手の次ターン火力予測・サイドレース評価を `evaluate()` に追加 | より戦略的な評価 | 中 |
 | 🟡中 | `ComputationCache` 実装 | 再評価コスト削減 | 低 |
@@ -431,8 +487,9 @@ Attention 機構で関係性を捉える Transformer が適している。
 ISMCTS の出力を教師データとした模倣学習（教師あり学習）は収束が早く、
 CPU のみで軽量 NN を推論可能なため本番制約に適合する。
 
-### なぜ ISMCTS か（Flat MCS ではなく）
-Flat MCS は「全シミュレーション結果の平均」を取るため、
-相手が速攻 / コントロールの2通りある場合に**どちらにも中途半端な手（Strategy Fusion）**を選ぶ。
-ISMCTS は同一 Information Set のノードを共有管理するため、
-この問題を構造的に回避できる。Hearthstone 等 TCG での実績もある。
+### なぜ ISMCTS か（素朴な Flat MCS を経由せず）
+現行は探索を持たないため、探索導入時に素朴な Flat MCS から始める選択肢もあるが採らない。
+Flat MCS は「全シミュレーション結果の平均」を取るため、相手が速攻 / コントロールの2通りある場合に
+**どちらにも中途半端な手（Strategy Fusion）**を選んでしまう。
+ISMCTS は同一 Information Set のノードを共有管理するためこの問題を構造的に回避できる。
+最初から ISMCTS を実装する。Hearthstone 等 TCG での実績もある。

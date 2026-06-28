@@ -1,18 +1,18 @@
 from cg.api import Observation, SelectContext
 
-from src.decision.attack_turn import choose_attack_action
-from src.decision.card_move_turn import choose_card_move_action
-from src.decision.count_turn import choose_count_action
-from src.decision.damage_target_turn import choose_damage_target_action
-from src.decision.effect_choice_turn import choose_effect_choice_action
-from src.decision.energy_tool_turn import choose_energy_tool_action
-from src.decision.evolution_turn import choose_evolution_action
 from src.decision.fallback import choose_random_legal_action
-from src.decision.main_turn import choose_main_action
-from src.decision.setup_turn import choose_setup_action
-from src.decision.special_condition_turn import choose_special_condition_action
-from src.decision.switch_turn import choose_switch_action
-from src.decision.yes_no_turn import choose_yes_no_action
+from src.decision.handlers.attack_turn import choose_attack_action
+from src.decision.handlers.card_move_turn import choose_card_move_action
+from src.decision.handlers.count_turn import choose_count_action
+from src.decision.handlers.damage_target_turn import choose_damage_target_action
+from src.decision.handlers.effect_choice_turn import choose_effect_choice_action
+from src.decision.handlers.energy_tool_turn import choose_energy_tool_action
+from src.decision.handlers.evolution_turn import choose_evolution_action
+from src.decision.handlers.main_turn import choose_main_action
+from src.decision.handlers.setup_turn import choose_setup_action
+from src.decision.handlers.special_condition_turn import choose_special_condition_action
+from src.decision.handlers.switch_turn import choose_switch_action
+from src.decision.handlers.yes_no_turn import choose_yes_no_action
 
 
 def choose_action(obs: Observation) -> list[int]:
@@ -21,6 +21,8 @@ def choose_action(obs: Observation) -> list[int]:
         raise ValueError("obs.select must not be None during turn decisions.")
 
     # まずは現在どの文脈の選択なのかを見る。
+    # MAIN や ATTACK で行動を決めたあとも、追加の対象選択やサーチ先選択が必要なら
+    # 別の SelectContext で再度ここに入ってくる。
     context = obs.select.context
 
     # メインフェーズ中の行動選択。
@@ -41,7 +43,8 @@ def choose_action(obs: Observation) -> list[int]:
     }:
         return choose_switch_action(obs)
 
-    # ベンチ・場・手札・山札・サイドなど、移動先を選ぶ処理。(TODO:長島)
+    # Supporter や Item の後続で発生する、手札・山札・サイド・トラッシュ移動や
+    # ベンチ/場への配置先を選ぶ処理。(TODO:長島)
     if context in {
         SelectContext.TO_BENCH,
         SelectContext.TO_FIELD,
@@ -55,7 +58,7 @@ def choose_action(obs: Observation) -> list[int]:
     }:
         return choose_card_move_action(obs)
 
-    # ダメカン・ダメージ・回復など、対象のポケモンを選ぶ処理。(TODO:長島
+    # ワザや効果の後続で発生する、ダメカン・ダメージ・回復などの対象選択。(TODO:長島)
     if context in {
         SelectContext.DAMAGE_COUNTER,
         SelectContext.DAMAGE_COUNTER_ANY,
@@ -92,7 +95,7 @@ def choose_action(obs: Observation) -> list[int]:
     }:
         return choose_energy_tool_action(obs)
 
-    # 特性や効果の順番、使用不可にするワザなどの選択。(TODO:福田)
+    # 特性や効果の順番、使用不可にするワザなどの後続選択。(TODO:福田)
     if context in {
         SelectContext.SKILL_ORDER,
         SelectContext.DISABLE_ATTACK,

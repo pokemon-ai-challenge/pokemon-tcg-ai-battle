@@ -11,7 +11,7 @@ from cg.api import (
     State,
 )
 
-from src.decision.attack_turn import choose_attack_action
+from src.decision.handlers.attack_turn import choose_attack_action
 from src.decision.main_turn_parts.buckets import MainOptionBuckets
 from src.decision.main_turn_parts.priorities import attack as attack_priority
 
@@ -240,7 +240,7 @@ def test_attack_phase_breaks_same_score_ties_by_lower_option_index(monkeypatch):
 
 def test_attack_phase_falls_back_when_no_attack_option_exists(monkeypatch):
     monkeypatch.setattr(
-        "src.decision.attack_turn.choose_random_legal_action",
+        "src.decision.handlers.attack_turn.choose_random_legal_action",
         lambda obs: [0],
     )
 

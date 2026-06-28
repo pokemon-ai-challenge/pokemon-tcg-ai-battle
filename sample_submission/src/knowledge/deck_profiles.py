@@ -9,6 +9,14 @@ class PokemonProfile:
 
     active_role_bonus: int = 0
     bench_setup_bonus: int = 0
+    partner_card_ids: frozenset[int] = field(default_factory=frozenset)
+    partner_bonus: int = 0
+    partner_required: bool = False
+    preferred_bench_count: int = 99
+    max_useful_copies: int = 99
+    backup_copy_bonus: int = 0
+    hand_discard_energy_type_for_draw: EnergyType | None = None
+    draw_support_bonus: int = 0
 
 
 @dataclass(frozen=True)
@@ -89,12 +97,40 @@ POKEMON_PROFILES: dict[int, PokemonProfile] = {
     # Hariyama: 中盤以降の高打点要員。
     674: PokemonProfile(active_role_bonus=12),
     # Solrock: 条件付きだが場に出ると打点要員になれる。
-    676: PokemonProfile(active_role_bonus=6),
+    676: PokemonProfile(
+        active_role_bonus=6,
+        partner_card_ids=frozenset({675}),
+        partner_bonus=11,
+        partner_required=True,
+        preferred_bench_count=1,
+        max_useful_copies=1,
+        backup_copy_bonus=5,
+    ),
     # Lunatone: Solrock の成立を支える補助寄り。
-    675: PokemonProfile(active_role_bonus=3, bench_setup_bonus=6),
+    675: PokemonProfile(
+        active_role_bonus=3,
+        bench_setup_bonus=6,
+        partner_card_ids=frozenset({676}),
+        partner_bonus=12,
+        preferred_bench_count=1,
+        max_useful_copies=1,
+        backup_copy_bonus=6,
+        hand_discard_energy_type_for_draw=EnergyType.FIGHTING,
+        draw_support_bonus=9,
+    ),
     # Riolu / Makuhita: 進化元として最低限の価値を持たせる。
-    677: PokemonProfile(active_role_bonus=2, bench_setup_bonus=4),
-    673: PokemonProfile(active_role_bonus=2, bench_setup_bonus=3),
+    677: PokemonProfile(
+        active_role_bonus=2,
+        bench_setup_bonus=4,
+        preferred_bench_count=2,
+        max_useful_copies=2,
+    ),
+    673: PokemonProfile(
+        active_role_bonus=2,
+        bench_setup_bonus=3,
+        preferred_bench_count=2,
+        max_useful_copies=2,
+    ),
 }
 
 

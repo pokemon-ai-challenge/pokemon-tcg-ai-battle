@@ -1,36 +1,59 @@
-# router.py の MAIN / ATTACK 評価メモ
+# router.py の MAIN / ATTACK 評価メモと後続分岐
 
-`sample_submission/src/decision/router.py` から見た、現在実装されている `MAIN` と `ATTACK` の評価フローをまとめたメモです。
+`sample_submission/src/decision/router.py` から見た、現在実装されている `MAIN` と `ATTACK` の評価フローと、その後に発生する代表的な後続分岐の入口をまとめたメモです。
 
 - 対象は「今の実装で実際に行っていること」のみ
 - `MAIN` は「どの行動カテゴリを採用するか」と「そのカテゴリ内でどの候補を選ぶか」の 2 段階
 - `ATTACK` は `MAIN` の攻撃評価をそのまま再利用している
+- `MAIN` や `ATTACK` でカードやワザを決めたあと、追加の対象選択やサーチ先選択が必要なら、別の `SelectContext` で再度 `router.py` に入る
 
 ---
 
 ## 関連ファイル構成
 
-`MAIN` / `ATTACK` を追うときに主に見るファイルは次のとおりです。
+`src/` 配下の現在の構成は次のとおりです（`__init__.py` / `__pycache__` / `tests/` は省略）。
 
 ```text
 sample_submission/src/
-├── agent.py
-├── router-evaluation-map.md
-├── decision/
-│   ├── router.py
-│   ├── main_turn.py
-│   ├── attack_turn.py
-│   ├── switch_eval.py
-│   ├── evaluation/
-│   │   ├── attack_features.py
-│   │   ├── board_features.py
-│   │   └── energy_requirements.py
-│   └── main_turn_parts/
-│       ├── buckets.py
-│       ├── proposals.py
-│       ├── weights.py
-│       ├── energy_eval.py
-│       └── priorities/
+├── agent.py                       # main.py からの入口。初回はデッキ、通常時は router へ
+├── router-evaluation-map.md       # このメモ
+├── decision/                      # 「何を選ぶか」を決める層
+│   ├── router.py                  # obs.select.context を見て担当ハンドラへ振り分ける
+│   ├── fallback.py                # 合法手から無難に選ぶ最終フォールバック
+│   ├── handlers/                  # SelectContext ごとの入口（薄いディスパッチャ）
+│   │   ├── main_turn.py           #   MAIN: 行動カテゴリ比較の本体
+│   │   ├── attack_turn.py         #   ATTACK: 攻撃候補の比較
+│   │   ├── setup_turn.py          #   初期配置（バトル場・ベンチ）
+│   │   ├── switch_turn.py         #   入れ替え・きぜつ後の復帰
+│   │   ├── evolution_turn.py      #   進化・退化の対象選択
+│   │   ├── energy_tool_turn.py    #   エネ/どうぐの付け替え・トラッシュ
+│   │   ├── effect_choice_turn.py  #   特性/効果の順番、封じるワザ
+│   │   ├── damage_target_turn.py  #   ダメージ/ダメカン/回復の対象
+│   │   ├── count_turn.py          #   枚数・個数の数値選択
+│   │   ├── special_condition_turn.py #   状態異常の付与/回復対象
+│   │   ├── yes_no_turn.py         #   Yes/No 系の分岐
+│   │   └── card_move_turn.py      #   カード移動系を card_move/ へ振り分ける
+│   ├── card_move/                 # カード移動先（手札/山札/サイド/トラッシュ/場）の選択ロジック
+│   │   ├── common.py              #   移動候補の共通解析・ユーティリティ
+│   │   ├── bench_field.py         #   TO_BENCH / TO_FIELD
+│   │   ├── hand_like.py           #   TO_HAND
+│   │   ├── hidden_zone.py         #   TO_DECK / TO_DECK_BOTTOM / TO_PRIZE
+│   │   ├── discard.py             #   DISCARD
+│   │   ├── not_move_or_look.py    #   NOT_MOVE / LOOK
+│   │   ├── to_deck.py             #   山札へ戻す系の評価補助
+│   │   └── to_hand_eval.py        #   手札に加える価値の評価
+│   ├── evaluation/                # 盤面・攻撃・エネを数値化する低レベル評価プリミティブ
+│   │   ├── attack_features.py     #   ワザ情報の解決・打点算出
+│   │   ├── attack_profiles.py     #   既知ワザの効果プロファイル参照
+│   │   ├── board_features.py      #   アタッカー評価・危険度などの盤面特徴
+│   │   ├── energy_requirements.py #   必要エネと不足分の計算
+│   │   └── switch_eval.py         #   入れ替え/逃げ先の評価（retreat/switch 共通）
+│   └── main_turn_parts/           # MAIN ハンドラの内部実装
+│       ├── buckets.py             #   option を行動カテゴリに仕分け
+│       ├── proposals.py           #   提案データ構造と最良提案の選択
+│       ├── weights.py             #   カテゴリ間比較の基本重み
+│       ├── energy_eval.py         #   エネ貼り先の評価
+│       └── priorities/            #   カテゴリごとの「今やるべきか」提案
 │           ├── draw.py
 │           ├── board.py
 │           ├── ability.py
@@ -38,10 +61,34 @@ sample_submission/src/
 │           ├── retreat.py
 │           ├── attack.py
 │           └── end_turn.py
-└── knowledge/
-    ├── card_cache.py
-    └── deck_profiles.py
+└── knowledge/                     # カードの静的知識（状態に依存しない参照データ）
+    ├── card_cache.py              #   CardData / Attack のロードとキャッシュ
+    ├── deck_profiles.py           #   ポケモン/ワザ/カードのプロファイル
+    └── meta_decks.py              #   環境デッキ定義
 ```
+
+### 各フォルダ/サブパッケージにまとめているもの
+
+- `decision/handlers/`
+  - **「いま何を選ばせているか」(`SelectContext`) ごとの入口**を集約。
+  - 各 `*_turn.py` は薄いディスパッチャで、実際の評価は `card_move/` `evaluation/` `main_turn_parts/` などへ委譲する。
+  - `router.py` はここのハンドラへ振り分けるだけ。新しい `SelectContext` を扱うときは、まずここに入口を足す。
+- `decision/card_move/`
+  - **カードの「移動先」を選ぶ処理のファミリ**（手札・山札・サイド・トラッシュ・ベンチ/場）。
+  - もともと `decision/` 直下に `card_move_*` として散らばっていたものを 1 パッケージに集約。`card_move_turn.py`（振り分け）は `handlers/` 側に置く。
+- `decision/evaluation/`
+  - **状態を数値スコアに変換する低レベル部品**。打点・必要エネ・盤面の危険度・逃げ先評価など。
+  - 特定の `SelectContext` に依存せず、`handlers/` や `card_move/` や `main_turn_parts/` から共通して呼ばれる。
+- `decision/main_turn_parts/`
+  - **MAIN ハンドラ専用の内部実装**。カテゴリ仕分け（`buckets`）・重み（`weights`）・提案（`priorities/`, `proposals`）・エネ評価（`energy_eval`）。
+  - `handlers/main_turn.py` から使われる。MAIN の挙動を変えるときの主戦場。
+- `knowledge/`
+  - **盤面状態に依存しないカードの静的知識**。カードデータのキャッシュ、プロファイル、環境デッキ。
+  - `decision/` 配下の各所から参照される、最下層の参照データ。
+
+> 依存の向きは原則「上位 → 下位」で一方向。
+> `handlers/` → (`card_move/`, `main_turn_parts/`, `evaluation/`, `knowledge/`, `fallback`) → `evaluation/` → `knowledge/`。
+> 逆向き（`evaluation/` から `handlers/` を import するなど）は作らない。
 
 ---
 
@@ -53,8 +100,10 @@ sample_submission/src/
 main.py
   -> src/agent.py
     -> src/decision/router.py
-      -> MAIN のとき    src/decision/main_turn.py
-      -> ATTACK のとき  src/decision/attack_turn.py
+      -> MAIN のとき    src/decision/handlers/main_turn.py
+         -> 必要なら後続の SelectContext で router.py に戻る
+      -> ATTACK のとき  src/decision/handlers/attack_turn.py
+         -> 必要なら後続の SelectContext で router.py に戻る
 ```
 
 `router.py` は `obs.select.context` を見て分岐します。
@@ -64,7 +113,37 @@ main.py
 - `SelectContext.ATTACK`
   - `choose_attack_action(obs)` を呼ぶ
 
-このメモではこの 2 つだけを扱います。
+このメモでは `MAIN` / `ATTACK` の評価を中心に扱い、後続分岐は「どこへ流れるか」の入口だけ補足します。
+
+---
+
+## MAIN / ATTACK の後に来る代表的な分岐
+
+`MAIN` で Supporter / Item / Tool / Ability を使ったあとや、`ATTACK` を選んだあとに追加選択が必要なら、次のような `SelectContext` で再度 `router.py` が呼ばれます。
+
+- サーチ先や戻し先、見たカードの処理
+  - `TO_HAND` / `TO_DECK` / `TO_DECK_BOTTOM` / `TO_PRIZE` / `DISCARD` / `LOOK` / `NOT_MOVE`
+  - `decision/handlers/card_move_turn.py`
+- ベンチ・場に出す先の選択
+  - `TO_BENCH` / `TO_FIELD`
+  - `decision/handlers/card_move_turn.py`
+- ダメージ先や回復先などの対象選択
+  - `DAMAGE_COUNTER` / `DAMAGE_COUNTER_ANY` / `DAMAGE` / `REMOVE_DAMAGE_COUNTER` / `HEAL` / `EFFECT_TARGET`
+  - `decision/handlers/damage_target_turn.py`
+- 特性や効果の順番、封じるワザの選択
+  - `SKILL_ORDER` / `DISABLE_ATTACK`
+  - `decision/handlers/effect_choice_turn.py`
+- エネルギーやどうぐの付け替え先
+  - `ATTACH_FROM` / `ATTACH_TO` / `DETACH_FROM` / `DISCARD_ENERGY_CARD` / `DISCARD_TOOL_CARD` / `SWITCH_ENERGY_CARD` / `DISCARD_CARD_OR_ATTACHED_CARD` / `DISCARD_ENERGY` / `TO_HAND_ENERGY` / `TO_DECK_ENERGY` / `SWITCH_ENERGY`
+  - `decision/handlers/energy_tool_turn.py`
+- 枚数やダメカン個数の選択
+  - `DRAW_COUNT` / `DAMAGE_COUNTER_COUNT` / `REMOVE_DAMAGE_COUNTER_COUNT`
+  - `decision/handlers/count_turn.py`
+
+補足:
+
+- ここで挙げた後続分岐は、`MAIN` / `ATTACK` のようなカテゴリ比較ではなく、「その追加選択でどれを選ぶか」を処理する担当です。
+- まだ TODO が多いハンドラもあり、現状は `choose_random_legal_action(obs)` に落ちるものがあります。
 
 ---
 
@@ -317,7 +396,7 @@ Ability の内容比較はまだしていません。
 ファイル:
 
 - `decision/main_turn_parts/priorities/retreat.py`
-- `decision/switch_eval.py`
+- `decision/evaluation/switch_eval.py`
 
 まず次の条件なら提案しません。
 
@@ -479,7 +558,7 @@ KO できない攻撃は、次の順です。
 
 ファイル:
 
-- `decision/attack_turn.py`
+- `decision/handlers/attack_turn.py`
 - `decision/main_turn_parts/priorities/attack.py`
 
 `ATTACK` コンテキストでは `choose_attack_action(obs)` が呼ばれます。

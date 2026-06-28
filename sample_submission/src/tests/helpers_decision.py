@@ -92,6 +92,7 @@ def build_observation(
     bench: list[Pokemon] | None = None,
     hand: list[Card] | None = None,
     energy_attached: bool = False,
+    effect: Card | None = None,
 ) -> Observation:
     select = SelectData(
         type=select_type,
@@ -103,7 +104,7 @@ def build_observation(
         option=options,
         deck=None,
         contextCard=None,
-        effect=None,
+        effect=effect,
     )
     current = State(
         turn=3,
@@ -181,6 +182,10 @@ def pokemon_card(
     retreat_cost: int = 1,
     ex: bool = False,
     skills: list[Skill] | None = None,
+    basic: bool = True,
+    stage1: bool = False,
+    stage2: bool = False,
+    evolves_from: str | None = None,
 ) -> CardData:
     return CardData(
         cardId=card_id,
@@ -191,14 +196,14 @@ def pokemon_card(
         weakness=None,
         resistance=None,
         energyType=energy_type,
-        basic=True,
-        stage1=False,
-        stage2=False,
+        basic=basic,
+        stage1=stage1,
+        stage2=stage2,
         ex=ex,
         megaEx=False,
         tera=False,
         aceSpec=False,
-        evolvesFrom=None,
+        evolvesFrom=evolves_from,
         skills=[] if skills is None else skills,
         attacks=attacks,
     )
@@ -214,6 +219,52 @@ def energy_card(card_id: int, energy_type: EnergyType) -> CardData:
         weakness=None,
         resistance=None,
         energyType=energy_type,
+        basic=False,
+        stage1=False,
+        stage2=False,
+        ex=False,
+        megaEx=False,
+        tera=False,
+        aceSpec=False,
+        evolvesFrom=None,
+        skills=[],
+        attacks=[],
+    )
+
+
+def supporter_card(card_id: int) -> CardData:
+    return CardData(
+        cardId=card_id,
+        name=f"Supporter {card_id}",
+        cardType=CardType.SUPPORTER,
+        retreatCost=0,
+        hp=0,
+        weakness=None,
+        resistance=None,
+        energyType=EnergyType.COLORLESS,
+        basic=False,
+        stage1=False,
+        stage2=False,
+        ex=False,
+        megaEx=False,
+        tera=False,
+        aceSpec=False,
+        evolvesFrom=None,
+        skills=[],
+        attacks=[],
+    )
+
+
+def item_card(card_id: int) -> CardData:
+    return CardData(
+        cardId=card_id,
+        name=f"Item {card_id}",
+        cardType=CardType.ITEM,
+        retreatCost=0,
+        hp=0,
+        weakness=None,
+        resistance=None,
+        energyType=EnergyType.COLORLESS,
         basic=False,
         stage1=False,
         stage2=False,

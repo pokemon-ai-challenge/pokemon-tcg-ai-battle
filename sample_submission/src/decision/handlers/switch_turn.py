@@ -1,7 +1,7 @@
 from cg.api import Observation
 
 from src.decision.fallback import choose_random_legal_action
-from src.decision.switch_eval import choose_best_switch_option
+from src.decision.evaluation.switch_eval import choose_best_switch_option
 
 
 def choose_switch_action(obs: Observation) -> list[int]:
