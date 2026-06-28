@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $appRoot = Split-Path -Parent $PSCommandPath
-$streamlitPath = Join-Path $appRoot ".venv\Scripts\streamlit.exe"
+$pythonPath = Join-Path $appRoot ".venv\Scripts\python.exe"
 $stdoutLog = Join-Path $appRoot "streamlit.stdout.log"
 $stderrLog = Join-Path $appRoot "streamlit.stderr.log"
 $port = 8501
@@ -44,8 +44,8 @@ function Get-LogTail {
 }
 
 try {
-    if (-not (Test-Path $streamlitPath)) {
-        throw "Streamlit launcher was not found: $streamlitPath"
+    if (-not (Test-Path $pythonPath)) {
+        throw "Python launcher was not found: $pythonPath"
     }
 
     $listener = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -53,8 +53,10 @@ try {
         Set-Content -Path $stdoutLog -Value "" -Encoding UTF8
         Set-Content -Path $stderrLog -Value "" -Encoding UTF8
 
-        $streamlitProcess = Start-Process -FilePath $streamlitPath `
+        $streamlitProcess = Start-Process -FilePath $pythonPath `
             -ArgumentList @(
+                "-m",
+                "streamlit",
                 "run",
                 "app.py",
                 "--server.headless", "true",
@@ -70,8 +72,9 @@ try {
         $deadline = (Get-Date).AddSeconds($startupTimeoutSeconds)
         do {
             if ($streamlitProcess.HasExited) {
+                $stdoutTail = Get-LogTail -path $stdoutLog
                 $stderrTail = Get-LogTail -path $stderrLog
-                throw "Streamlit exited before startup completed. ExitCode=$($streamlitProcess.ExitCode)`n`nLast stderr lines:`n$stderrTail"
+                throw "Streamlit exited before startup completed. ExitCode=$($streamlitProcess.ExitCode)`n`nLast stdout lines:`n$stdoutTail`n`nLast stderr lines:`n$stderrTail"
             }
 
             Start-Sleep -Milliseconds $pollIntervalMilliseconds

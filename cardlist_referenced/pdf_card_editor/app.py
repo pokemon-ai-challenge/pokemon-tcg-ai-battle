@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import mimetypes
+import os
 import re
 import shutil
 import threading
@@ -1850,10 +1851,33 @@ def _store_tier_cache(data: dict) -> None:
 def _tier_http_get(url: str) -> str:
     import requests  # 遅延 import（未導入環境でもアプリ自体は起動できるように）
 
-    resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (card-print-tool)"}, timeout=25)
-    resp.raise_for_status()
-    resp.encoding = "utf-8"
-    return resp.text
+    def _has_broken_loopback_proxy() -> bool:
+        broken_proxy_values = {
+            "http://127.0.0.1:9",
+            "https://127.0.0.1:9",
+            "http://localhost:9",
+            "https://localhost:9",
+        }
+        for key in ("HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy"):
+            value = str(os.environ.get(key, "")).strip().lower()
+            if value in broken_proxy_values:
+                return True
+        return False
+
+    def _fetch(*, trust_env: bool) -> str:
+        session = requests.Session()
+        session.trust_env = trust_env
+        resp = session.get(url, headers={"User-Agent": "Mozilla/5.0 (card-print-tool)"}, timeout=25)
+        resp.raise_for_status()
+        resp.encoding = "utf-8"
+        return resp.text
+
+    try:
+        return _fetch(trust_env=True)
+    except requests.exceptions.ProxyError:
+        if not _has_broken_loopback_proxy():
+            raise
+        return _fetch(trust_env=False)
 
 
 def _extract_deck_label(slug: str, html: str) -> str:

@@ -1,31 +1,18 @@
-from cg.api import Observation, OptionType
+from cg.api import Observation
 
 from src.decision.fallback import choose_random_legal_action
-from src.knowledge.card_cache import load_attack_data
+from src.decision.main_turn_parts.priorities.attack import choose_best_attack_option
 
 
 def choose_attack_action(obs: Observation) -> list[int]:
-    """Choose the usable attack with the highest printed damage."""
+    """ATTACK 文脈では、共通の攻撃評価をそのまま使う。"""
     if obs.select is None:
         raise ValueError("obs.select must not be None in attack phase.")
 
-    attack_damage_by_id = {
-        attack.attackId: attack.damage for attack in load_attack_data()
-    }
-
-    best_option_index: int | None = None
-    best_damage = -1
-
-    for option_index, option in enumerate(obs.select.option):
-        if option.type != OptionType.ATTACK or option.attackId is None:
-            continue
-
-        damage = attack_damage_by_id.get(option.attackId, -1)
-        if damage > best_damage:
-            best_damage = damage
-            best_option_index = option_index
-
+    # MAIN 中の attack 候補評価と同じ基準にそろえて、挙動をぶらさない。
+    best_option_index = choose_best_attack_option(obs)
     if best_option_index is not None:
         return [best_option_index]
 
+    # 念のため攻撃候補が取れなかったときだけ既存フォールバックへ落とす。
     return choose_random_legal_action(obs)
