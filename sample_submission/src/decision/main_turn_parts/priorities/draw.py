@@ -25,6 +25,9 @@ _SUPPORTER_TYPE_BONUS = {
     "other":                0,
 }
 
+# 進化ペアが揃っているときの追加ペナルティ（手札から進化後を失うリスク）
+_EVOLUTION_PAIR_DISCARD_PENALTY = -20
+
 
 def _classify_supporter_text(text: str) -> str:
     """サポーターの効果テキストから種別を返す。
@@ -38,12 +41,11 @@ def _classify_supporter_text(text: str) -> str:
         "other"        : 上記以外（ボスの指令等）
     """
     t = text.lower()
-    has_draw   = "draw" in t
+    has_draw    = "draw" in t
     has_discard = "discard" in t or "shuffle" in t
     has_search  = "search" in t or "look at" in t
 
     # 「手札をX枚になるまで引く」パターン
-    # "until you have", "so that you have", "up to X cards in your hand" などで検出
     has_draw_to_x = (
         ("until you have" in t or "so that you have" in t or "up to" in t)
         and "hand" in t
@@ -62,14 +64,7 @@ def _classify_supporter_text(text: str) -> str:
 
 
 def _classify_item_text(text: str) -> str:
-    """グッズの効果テキストから種別を返す。
-
-    Returns:
-        "search"       : 山札からポケモン等を持ってくる（ボール系等）
-        "draw"         : 手札を増やす（ポケギア等）
-        "draw_to_x"    : 手札がX枚になるまでドロー
-        "other"        : 上記以外
-    """
+    """グッズの効果テキストから種別を返す。"""
     t = text.lower()
     has_draw = "draw" in t
     has_draw_to_x = (
@@ -132,17 +127,11 @@ def _hand_bonus(hand_count: int) -> int | None:
 
 
 def _has_usable_non_draw_cards(obs: Observation, buckets: MainOptionBuckets) -> bool:
-    """手札に「先に使うべきカード」があるか。
-
-    discard_draw / draw_to_x を使う前に確認し、True ならスコアを下げる。
-    item_play はドロー系グッズ（ボール・ポケギア等）も含むため、
-    手札に「ドロー目的以外のグッズ」があるかをテキストで絞り込む。
-    """
+    """手札に「先に使うべきカード」があるか。"""
     has_non_draw_items = False
     for idx in buckets.item_play:
         kind = _get_item_kind(idx, obs)
         if kind not in ("draw", "draw_to_x", "search"):
-            # 効果がドロー・サーチ以外のグッズが1枚でもあれば真
             has_non_draw_items = True
             break
 
@@ -155,6 +144,46 @@ def _has_usable_non_draw_cards(obs: Observation, buckets: MainOptionBuckets) -> 
         or buckets.ability
         or buckets.attach
     )
+
+
+def _count_evolution_pairs_on_bench(obs: Observation) -> int:
+    """ベンチにいる進化前ポケモンに対して、手札に進化後カードが何枚あるかを返す。
+
+    board.py の同名関数と同じロジックだが、draw.py は board.py に依存しないため
+    ここに独立して定義する。
+    CardData.evolvesFrom でつながりを確認する。
+    """
+    if obs.current is None:
+        return 0
+
+    card_data_list = load_card_data()
+    card_data_by_id = {c.cardId: c for c in card_data_list}
+
+    your_index = obs.current.yourIndex
+    player = obs.current.players[your_index]
+    hand = player.hand
+    if hand is None:
+        return 0
+
+    bench_ids = {poke.id for poke in player.bench if poke is not None}
+    if not bench_ids:
+        return 0
+
+    pair_count = 0
+    for hand_card in hand:
+        card = card_data_by_id.get(hand_card.id)
+        if card is None:
+            continue
+        if hasattr(card, 'evolvesFrom') and card.evolvesFrom:
+            for bench_id in bench_ids:
+                bench_card = card_data_by_id.get(bench_id)
+                if bench_card is None:
+                    continue
+                if bench_card.name and card.evolvesFrom.lower() in bench_card.name.lower():
+                    pair_count += 1
+                    break
+
+    return pair_count
 
 
 # discard_draw / draw_to_x の両方に減点を適用するカテゴリ集合
@@ -173,6 +202,7 @@ def propose_draw_or_search_action(
         3. 手札捨て/戻し系・X枚までドロー系サポーター
            （博士の研究・マリィ・ポケモン研究者等）
            → 先に使えるカードがある場合はスコアを下げる
+           → ベンチに進化前・手札に進化後ペアがある場合はさらにスコアを下げる
         4. ドロー・サーチ系グッズ（ボール系・ポケギア等）
 
     手札 7 枚以上の場合は提案しない。
@@ -208,9 +238,18 @@ def propose_draw_or_search_action(
     if best_supporter_index is not None and best_supporter_kind != "other":
         type_bonus = _SUPPORTER_TYPE_BONUS.get(best_supporter_kind, 0)
 
-        # discard_draw と draw_to_x は先に使えるカードがあればスコアを下げる
-        if best_supporter_kind in _LOSS_ON_HAND_KINDS and _has_usable_non_draw_cards(obs, buckets):
-            type_bonus += _SUPPORTER_TYPE_BONUS["discard_draw_penalty"]
+        if best_supporter_kind in _LOSS_ON_HAND_KINDS:
+            # 先に使えるカードがあるとペナルティ
+            if _has_usable_non_draw_cards(obs, buckets):
+                type_bonus += _SUPPORTER_TYPE_BONUS["discard_draw_penalty"]
+
+            # さらに、ベンチに進化前・手札に進化後のペアがある場合は
+            # 手札から進化後カードを失うリスクがあるのでペナルティを追加
+            # （例: リオルがベンチにいてルカリオEXが手札にある状態で博士の研究を使うと
+            #        ルカリオEXを手札から失う可能性がある）
+            evolution_pairs = _count_evolution_pairs_on_bench(obs)
+            if evolution_pairs > 0:
+                type_bonus += _EVOLUTION_PAIR_DISCARD_PENALTY * min(evolution_pairs, 2)
 
         score = base + hand_bonus + type_bonus
         return MainActionProposal(
@@ -218,6 +257,5 @@ def propose_draw_or_search_action(
             score=score,
             label=f"draw_or_search_supporter_{best_supporter_kind}",
         )
-
 
     return None
