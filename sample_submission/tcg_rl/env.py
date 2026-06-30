@@ -46,6 +46,7 @@ class PokemonTCGEnv(gym.Env):
         max_steps: int = 2000,
         max_engine_steps: int = 4000,
         reward_shaping: bool = False,
+        turn_penalty: float = 0.0,
     ):
         super().__init__()
         self.learner_deck = list(learner_deck)
@@ -56,6 +57,8 @@ class PokemonTCGEnv(gym.Env):
         self.max_steps = max_steps
         self.max_engine_steps = max_engine_steps
         self.reward_shaping = reward_shaping
+        # small negative reward per game turn elapsed (discourages stalling)
+        self.turn_penalty = turn_penalty
 
         self.observation_space = spaces.Box(
             low=-1.0, high=2.0, shape=(OBS_DIM,), dtype=np.float32
@@ -67,6 +70,7 @@ class PokemonTCGEnv(gym.Env):
         self.steps = 0
         self._battle_active = False
         self._prev_prize_diff = 0
+        self._prev_turn = 0
 
     # ----------------------------------------------------------------- masks
     def action_masks(self) -> np.ndarray:
@@ -92,6 +96,7 @@ class PokemonTCGEnv(gym.Env):
         self.buffer = []
         self.steps = 0
         self._prev_prize_diff = self._prize_diff()
+        self._prev_turn = self._turn()
 
         obs, terminal, winner = self._advance_to_learner()
         if terminal:
@@ -144,6 +149,10 @@ class PokemonTCGEnv(gym.Env):
             return encode_obs(nobs, self.buffer), reward, True, False, {"winner": winner}
 
         reward = self._shaping_reward() if self.reward_shaping else 0.0
+        if self.turn_penalty:
+            cur_turn = self._turn()
+            reward -= self.turn_penalty * max(0, cur_turn - self._prev_turn)
+            self._prev_turn = cur_turn
         truncated = self.steps >= self.max_steps
         return encode_obs(nobs, self.buffer), reward, False, truncated, {}
 
@@ -200,6 +209,11 @@ class PokemonTCGEnv(gym.Env):
             if i not in self.buffer:
                 return i
         return STOP_ACTION
+
+    def _turn(self) -> int:
+        obs = to_observation_class(self.obs_dict)
+        st = obs.current
+        return int(st.turn) if st is not None else 0
 
     def _prize_diff(self) -> int:
         obs = to_observation_class(self.obs_dict)

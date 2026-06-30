@@ -33,11 +33,15 @@ data/*
 # Local submission bundle
 submission.tar.gz
 sample_submission/submission.tar.gz
+sample_submission/submission*.tar.gz
 tmp_submit_check/
 .tmp_readme_push/
 
 # RL training checkpoints (large torch zips); ship only policy.npz
 sample_submission/models/
+sample_submission/models_rs/
+# Experimental policy export (promoted into policy.npz when adopted)
+sample_submission/policy_rs.npz
 *.tensorboard
 runs/
 

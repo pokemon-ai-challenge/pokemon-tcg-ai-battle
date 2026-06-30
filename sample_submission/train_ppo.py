@@ -53,7 +53,7 @@ def mask_fn(env) -> np.ndarray:
 class OpponentManager:
     """Provides an opponent callable per episode based on training progress."""
 
-    def __init__(self, deck, mode: str, use_mc: bool):
+    def __init__(self, deck, mode: str, use_mc: bool, mc_budget: float = 0.0):
         self.deck = deck
         self.mode = mode
         self.step = 0
@@ -62,7 +62,9 @@ class OpponentManager:
         self._mc_fn = None
         if use_mc or mode in ("mc", "curriculum"):
             from tcg_rl.opponents import make_mc_opponent
-            self._mc_fn = make_mc_opponent(time_budget=0.0)  # fast heuristic opponent
+            # time_budget>0 makes the MC opponent actually search (stronger, punishes
+            # passive play); 0.0 was a fast but weak heuristic.
+            self._mc_fn = make_mc_opponent(time_budget=mc_budget)
 
     def set_snapshot(self, model: MaskablePPO):
         from tcg_rl.opponents import make_selfplay_opponent
@@ -171,6 +173,31 @@ class EvalCallback(BaseCallback):
         return True
 
 
+class CheckpointExport(BaseCallback):
+    """Periodically save the live model and export it to policy npz, so an
+    interrupted run still leaves a recent, deployable artifact."""
+
+    def __init__(self, save_path: str, out_path: str, freq: int):
+        super().__init__()
+        self.save_path = save_path
+        self.out_path = out_path
+        self.freq = freq
+        self._last = 0
+
+    def _on_step(self) -> bool:
+        if self.freq and self.num_timesteps - self._last >= self.freq:
+            self._last = self.num_timesteps
+            zip_path = self.save_path + ".zip"
+            self.model.save(zip_path)
+            try:
+                from export_policy import export
+                export(zip_path, self.out_path)
+                print(f"[checkpoint] step={self.num_timesteps} exported {self.out_path}")
+            except Exception as e:
+                print(f"[checkpoint] export failed: {e}")
+        return True
+
+
 # --------------------------------------------------------------------------- #
 # Main
 # --------------------------------------------------------------------------- #
@@ -186,8 +213,14 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--ent-coef", type=float, default=0.01)
     ap.add_argument("--reward-shaping", action="store_true")
+    ap.add_argument("--mc-budget", type=float, default=0.0,
+                    help="MC opponent search time budget per move (s); >0 = stronger")
+    ap.add_argument("--turn-penalty", type=float, default=0.0,
+                    help="small negative reward per game turn elapsed (anti-stall)")
     ap.add_argument("--eval-freq", type=int, default=20_000)
     ap.add_argument("--eval-games", type=int, default=30)
+    ap.add_argument("--checkpoint-freq", type=int, default=20_000,
+                    help="save+export the live policy every N steps (0=off)")
     ap.add_argument("--snapshot-freq", type=int, default=20_000)
     ap.add_argument("--model-dir", default="models")
     ap.add_argument("--out", default="policy.npz")
@@ -199,9 +232,11 @@ def main() -> None:
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    manager = OpponentManager(deck, args.opponent, args.use_mc)
+    manager = OpponentManager(deck, args.opponent, args.use_mc, args.mc_budget)
     env = ActionMasker(
-        PokemonTCGEnv(deck, opponent_provider=manager, reward_shaping=args.reward_shaping),
+        PokemonTCGEnv(deck, opponent_provider=manager,
+                      reward_shaping=args.reward_shaping,
+                      turn_penalty=args.turn_penalty),
         mask_fn,
     )
 
@@ -234,6 +269,7 @@ def main() -> None:
     callbacks = [
         CurriculumCallback(manager, args.snapshot_freq),
         EvalCallback(deck, args.eval_freq, args.eval_games, save_path),
+        CheckpointExport(save_path, args.out, args.checkpoint_freq),
     ]
 
     model.learn(total_timesteps=args.timesteps, callback=callbacks, progress_bar=False)

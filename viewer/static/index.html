@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ポケカ対戦ビジュアライザ</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>ポケカ 対戦ビジュアライザ</h1>
+    <button id="btn-home" class="ghost" hidden>← 設定に戻る</button>
+  </header>
+
+  <!-- ===================== セットアップ画面 ===================== -->
+  <section id="setup" class="setup">
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="ai">AI 同士の対戦を観戦</button>
+      <button class="mode-tab" data-mode="human">人間 vs AI で対戦</button>
+    </div>
+
+    <!-- AI vs AI -->
+    <div id="setup-ai" class="setup-panel">
+      <div class="vs-grid">
+        <div class="side-card">
+          <div class="side-title">プレイヤー1（先攻）</div>
+          <label>AI <select id="ai0"></select></label>
+          <label>デッキ <select id="deck0"></select></label>
+        </div>
+        <div class="vs-label">VS</div>
+        <div class="side-card">
+          <div class="side-title">プレイヤー2（後攻）</div>
+          <label>AI <select id="ai1"></select></label>
+          <label>デッキ <select id="deck1"></select></label>
+        </div>
+      </div>
+      <button id="btn-start-ai" class="primary">対戦を実行</button>
+      <p class="hint" id="ai-hint"></p>
+    </div>
+
+    <!-- Human vs AI -->
+    <div id="setup-human" class="setup-panel" hidden>
+      <div class="vs-grid">
+        <div class="side-card">
+          <div class="side-title">あなた</div>
+          <label>手番
+            <select id="human-side">
+              <option value="0">先攻</option>
+              <option value="1">後攻</option>
+            </select>
+          </label>
+          <label>デッキ <select id="human-deck"></select></label>
+        </div>
+        <div class="vs-label">VS</div>
+        <div class="side-card">
+          <div class="side-title">相手 AI</div>
+          <label>AI <select id="human-ai"></select></label>
+          <label>デッキ <select id="ai-deck"></select></label>
+        </div>
+      </div>
+      <button id="btn-start-human" class="primary">対戦を開始</button>
+      <p class="hint">あなたの番になったら、右の「選択肢」から手を選んでください。</p>
+    </div>
+  </section>
+
+  <!-- ===================== 対戦画面 ===================== -->
+  <section id="game" class="game" hidden>
+    <div class="board-wrap">
+      <div id="result-banner" class="result-banner" hidden></div>
+      <div class="board">
+        <div id="player-top" class="player-area opponent"></div>
+        <div class="midline">
+          <div id="stadium-slot" class="stadium-slot"></div>
+          <div id="turn-info" class="turn-info"></div>
+        </div>
+        <div id="player-bottom" class="player-area self"></div>
+      </div>
+    </div>
+
+    <aside class="sidebar">
+      <!-- 再生コントロール（AI観戦時） -->
+      <div id="replay-controls" class="panel replay" hidden>
+        <div class="panel-title">再生</div>
+        <div class="replay-btns">
+          <button data-act="first" title="先頭">⏮</button>
+          <button data-act="prev" title="前へ">◀</button>
+          <button id="btn-play" data-act="play" title="自動再生">▶ 再生</button>
+          <button data-act="next" title="次へ">▶</button>
+          <button data-act="last" title="末尾">⏭</button>
+        </div>
+        <input type="range" id="scrubber" min="0" value="0" />
+        <div class="replay-meta">
+          <span id="step-label">0 / 0</span>
+          <label class="speed">速度
+            <select id="speed">
+              <option value="1200">遅い</option>
+              <option value="600" selected>標準</option>
+              <option value="250">速い</option>
+              <option value="80">最速</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- 選択肢パネル -->
+      <div class="panel options">
+        <div class="panel-title" id="options-title">選択肢</div>
+        <div id="options-list" class="options-list"></div>
+        <div id="human-controls" class="human-controls" hidden>
+          <span id="select-hint" class="select-hint"></span>
+          <button id="btn-submit" class="primary small" disabled>決定</button>
+        </div>
+      </div>
+
+      <!-- AIの手（人間対戦時） -->
+      <div id="ai-moves" class="panel ai-moves" hidden>
+        <div class="panel-title">相手AIの行動</div>
+        <div id="ai-moves-list" class="ai-moves-list"></div>
+      </div>
+
+      <!-- ログ -->
+      <div class="panel logs">
+        <div class="panel-title">ログ</div>
+        <div id="log-list" class="log-list"></div>
+      </div>
+    </aside>
+  </section>
+
+  <div id="loading" class="loading" hidden><div class="spinner"></div><span id="loading-text">対戦を実行中…</span></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

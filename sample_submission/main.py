@@ -14,8 +14,13 @@ Decision flow per call:
 import os
 import sys
 
-# Make the submission folder importable regardless of the working directory
-_HERE = os.path.dirname(os.path.abspath(__file__))
+# Make the submission folder importable regardless of the working directory.
+# Kaggle runs main.py via exec(), so __file__ may be undefined; fall back to the
+# known agent directory in that case.
+try:
+    _HERE = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    _HERE = "/kaggle_simulations/agent"
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
