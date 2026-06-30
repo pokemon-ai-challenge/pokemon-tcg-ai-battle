@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+import json
+import re
 import unittest
 from pathlib import Path
 
@@ -15,6 +17,10 @@ def _load_export_helpers() -> dict:
         "_coerce_positive_int_list",
         "_normalize_deck_card_resolutions",
         "_normalize_deck_csv_ambiguities",
+        "_merge_string_values_for_card",
+        "_extract_kaggle_replay_decks",
+        "_import_kaggle_replay_decks",
+        "_is_kaggle_replay_deck_id",
         "_resolve_deck_recipe",
         "_format_unresolved_deck_cards",
         "_resolve_deck_csv_output_path",
@@ -30,8 +36,19 @@ def _load_export_helpers() -> dict:
         if isinstance(node, ast.FunctionDef) and node.name in target_names
     }
     namespace = {
+        "json": json,
+        "re": re,
         "Path": Path,
         "DEFAULT_DECK_CSV_OUTPUT_PATH": Path(r"C:\dev\pokemon-tcg-ai-battle\sample_submission\deck.csv"),
+        "normalize_label_list": lambda values: (
+            []
+            if values is None
+            else (
+                [str(value).strip() for value in values if str(value).strip()]
+                if isinstance(values, (list, tuple, set))
+                else ([str(values).strip()] if str(values).strip() else [])
+            )
+        ),
     }
     for name in target_names:
         module = ast.Module(body=[function_nodes[name]], type_ignores=[])
@@ -128,6 +145,78 @@ class DeckCsvExportTests(unittest.TestCase):
         self.assertEqual(updated, 3)
         self.assertEqual(removed, 0)
         self.assertEqual(pdf_state["deck_card_quantities"]["deck-1"], {101: 3})
+
+    def test_extract_kaggle_replay_decks_reads_two_visualize_actions(self) -> None:
+        payload = {
+            "info": {"EpisodeId": 82760003, "TeamNames": ["Alpha", "Beta"]},
+            "steps": [
+                [
+                    {
+                        "visualize": [
+                            {
+                                "action": [
+                                    [101, 101, 202],
+                                    [303, "303", 404],
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            ],
+        }
+
+        decks = HELPERS["_extract_kaggle_replay_decks"](json.dumps(payload))
+
+        self.assertEqual(
+            [deck["deck_id"] for deck in decks],
+            ["kaggle-replay-82760003-p0", "kaggle-replay-82760003-p1"],
+        )
+        self.assertEqual(decks[0]["name"], "Kaggle Replay P0: Alpha")
+        self.assertEqual(decks[0]["recipe"], {101: 2, 202: 1})
+        self.assertEqual(decks[1]["recipe"], {303: 2, 404: 1})
+
+    def test_import_kaggle_replay_decks_registers_catalog_and_membership(self) -> None:
+        pdf_state = {
+            "deck_catalog": {},
+            "deck_archetype": {},
+            "deck_url": {},
+            "deck_tier": {},
+            "deck_card_quantities": {},
+            "deck_card_resolutions": {"old": {"name": 999}},
+            "deck_csv_ambiguities": {"old": [{"norm_name": "x", "name": "x", "quantity": 1, "candidate_ids": [1]}]},
+            "card_deck_ids": {},
+        }
+        replay_decks = [
+            {
+                "deck_id": "kaggle-replay-p0",
+                "name": "Kaggle Replay P0: Alpha",
+                "recipe": {101: 2, 202: 1, 9999: 1},
+            },
+            {
+                "deck_id": "kaggle-replay-p1",
+                "name": "Kaggle Replay P1: Beta",
+                "recipe": {303: 3},
+            },
+        ]
+
+        imported_decks, imported_cards, missing = HELPERS["_import_kaggle_replay_decks"](
+            pdf_state,
+            replay_decks,
+            {101, 202, 303},
+        )
+
+        self.assertEqual((imported_decks, imported_cards), (2, 7))
+        self.assertEqual(missing, [9999])
+        self.assertTrue(pdf_state["deck_data_loaded"])
+        self.assertEqual(pdf_state["deck_catalog"]["kaggle-replay-p0"], "Kaggle Replay P0: Alpha")
+        self.assertEqual(pdf_state["deck_archetype"]["kaggle-replay-p1"], "Kaggle Replay")
+        self.assertEqual(pdf_state["deck_card_quantities"]["kaggle-replay-p0"], {101: 2, 202: 1, 9999: 1})
+        self.assertEqual(pdf_state["card_deck_ids"][101], ["kaggle-replay-p0"])
+
+    def test_is_kaggle_replay_deck_id_classifies_replay_ids_only(self) -> None:
+        self.assertTrue(HELPERS["_is_kaggle_replay_deck_id"]("kaggle-replay-82760003-p0"))
+        self.assertFalse(HELPERS["_is_kaggle_replay_deck_id"]("tier-deck-1"))
+        self.assertFalse(HELPERS["_is_kaggle_replay_deck_id"](""))
 
 
 if __name__ == "__main__":

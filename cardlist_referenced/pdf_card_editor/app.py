@@ -344,6 +344,138 @@ def _normalize_deck_csv_ambiguities(raw_store: object) -> dict[str, list[dict[st
     return normalized
 
 
+def _extract_kaggle_replay_decks(raw_payload: object) -> list[dict[str, object]]:
+    if isinstance(raw_payload, (str, bytes, bytearray)):
+        payload = json.loads(raw_payload)
+    else:
+        payload = raw_payload
+    if not isinstance(payload, dict):
+        raise ValueError("Kaggle replay JSON must be an object.")
+
+    team_names = payload.get("info", {}).get("TeamNames", [])
+    if not isinstance(team_names, list):
+        team_names = []
+    episode_id = str(payload.get("info", {}).get("EpisodeId", "")).strip()
+    if not episode_id:
+        episode_id = str(payload.get("id", "")).strip()
+    episode_key = re.sub(r"[^0-9A-Za-z_-]+", "-", episode_id).strip("-") or "unknown"
+
+    steps = payload.get("steps", [])
+    if not isinstance(steps, list) or not steps or not isinstance(steps[0], list) or not steps[0]:
+        raise ValueError("Replay JSON does not contain step data.")
+
+    first_agent_step = steps[0][0]
+    if not isinstance(first_agent_step, dict):
+        raise ValueError("Replay JSON first step is not readable.")
+
+    raw_decks: object = None
+    visualize_items = first_agent_step.get("visualize", [])
+    if isinstance(visualize_items, list):
+        for item in visualize_items:
+            if isinstance(item, dict) and isinstance(item.get("action"), list):
+                raw_decks = item.get("action")
+                break
+
+    if raw_decks is None:
+        action = first_agent_step.get("action")
+        if isinstance(action, list) and len(action) == 2 and all(isinstance(deck, list) for deck in action):
+            raw_decks = action
+
+    if not isinstance(raw_decks, list) or len(raw_decks) < 2:
+        raise ValueError("Replay JSON does not expose two initial deck lists.")
+
+    extracted: list[dict[str, object]] = []
+    for player_index, raw_deck in enumerate(raw_decks[:2]):
+        if not isinstance(raw_deck, list):
+            continue
+        recipe: dict[int, int] = {}
+        for raw_card_id in raw_deck:
+            try:
+                card_id = int(raw_card_id)
+            except (TypeError, ValueError):
+                continue
+            if card_id <= 0:
+                continue
+            recipe[card_id] = int(recipe.get(card_id, 0)) + 1
+        if not recipe:
+            continue
+        player_name = str(team_names[player_index]).strip() if player_index < len(team_names) else ""
+        if not player_name:
+            player_name = f"Player {player_index}"
+        deck_id = f"kaggle-replay-{episode_key}-p{player_index}"
+        extracted.append(
+            {
+                "deck_id": deck_id,
+                "name": f"Kaggle Replay P{player_index}: {player_name}",
+                "player_index": player_index,
+                "player_name": player_name,
+                "recipe": recipe,
+            }
+        )
+
+    if len(extracted) < 2:
+        raise ValueError("Replay JSON did not yield two usable decks.")
+    return extracted
+
+
+def _import_kaggle_replay_decks(pdf_state: dict, replay_decks: list[dict[str, object]], valid_card_ids: set[int]) -> tuple[int, int, list[int]]:
+    if not replay_decks:
+        return (0, 0, [])
+
+    pdf_state["deck_data_loaded"] = True
+    deck_catalog = pdf_state.setdefault("deck_catalog", {})
+    deck_archetype = pdf_state.setdefault("deck_archetype", {})
+    deck_url = pdf_state.setdefault("deck_url", {})
+    deck_tier = pdf_state.setdefault("deck_tier", {})
+    deck_card_quantities = pdf_state.setdefault("deck_card_quantities", {})
+    deck_card_resolutions = pdf_state.setdefault("deck_card_resolutions", {})
+    deck_csv_ambiguities = pdf_state.setdefault("deck_csv_ambiguities", {})
+    card_deck_ids = pdf_state.setdefault("card_deck_ids", {})
+
+    imported_decks = 0
+    imported_cards = 0
+    missing_card_ids: set[int] = set()
+    for deck in replay_decks:
+        deck_id = str(deck.get("deck_id", "")).strip()
+        deck_name = str(deck.get("name", "")).strip()
+        recipe_raw = deck.get("recipe", {})
+        if not deck_id or not deck_name or not isinstance(recipe_raw, dict):
+            continue
+        recipe: dict[int, int] = {}
+        for raw_card_id, raw_quantity in recipe_raw.items():
+            try:
+                card_id = int(raw_card_id)
+                quantity = int(raw_quantity)
+            except (TypeError, ValueError):
+                continue
+            if card_id <= 0 or quantity <= 0:
+                continue
+            recipe[card_id] = recipe.get(card_id, 0) + quantity
+            if card_id not in valid_card_ids:
+                missing_card_ids.add(card_id)
+        if not recipe:
+            continue
+
+        deck_catalog[deck_id] = deck_name
+        deck_archetype[deck_id] = "Kaggle Replay"
+        deck_url.pop(deck_id, None)
+        deck_tier.pop(deck_id, None)
+        deck_card_quantities[deck_id] = recipe
+        deck_card_resolutions.pop(deck_id, None)
+        deck_csv_ambiguities.pop(deck_id, None)
+        for card_id in recipe:
+            if card_id in valid_card_ids:
+                _merge_string_values_for_card(card_deck_ids, card_id, [deck_id])
+        imported_decks += 1
+        imported_cards += sum(recipe.values())
+
+    return (imported_decks, imported_cards, sorted(missing_card_ids))
+
+
+def _is_kaggle_replay_deck_id(deck_id: str) -> bool:
+    return str(deck_id).strip().startswith("kaggle-replay-")
+
+
 def _sanitize_deck_resolution_state(pdf_state: dict, valid_card_ids: set[int]) -> None:
     pdf_state["deck_csv_ambiguities"] = {
         deck_id: [
@@ -2541,6 +2673,75 @@ def _import_tier_cards(
     st.rerun()
 
 
+def _render_kaggle_replay_import(
+    card_df: pd.DataFrame,
+    pdf_path: str,
+    pdf_state: dict,
+    labels: dict[int, list[str]],
+) -> None:
+    with st.expander("Kaggle replay JSON からデッキを取り込む", expanded=False):
+        st.caption(
+            "Kaggle の episode JSON を指定すると、リプレイに記録された2人分の初期デッキを取り込みます。"
+            "取り込んだデッキは通常のデッキ選択から選べるので、deck.csv 出力や印刷キュー追加に使えます。"
+        )
+        uploaded = st.file_uploader(
+            "replay JSON",
+            type=["json"],
+            key="kaggle_replay_json_upload",
+            accept_multiple_files=False,
+        )
+        replay_path_text = st.text_input(
+            "ローカルJSONパス",
+            placeholder=r"C:\Users\syoug\Downloads\82760003.json",
+            key="kaggle_replay_json_path",
+        )
+        raw_payload: bytes | str | None = None
+        if uploaded is not None:
+            raw_payload = uploaded.getvalue()
+        elif replay_path_text.strip():
+            replay_path = Path(replay_path_text.strip()).expanduser()
+            if replay_path.exists() and replay_path.is_file():
+                raw_payload = replay_path.read_text(encoding="utf-8")
+            else:
+                st.warning("指定された replay JSON が見つかりません。")
+                return
+        if raw_payload is None:
+            return
+
+        try:
+            replay_decks = _extract_kaggle_replay_decks(raw_payload)
+        except Exception as exc:
+            st.warning(f"replay JSON を読めませんでした: {exc}")
+            return
+
+        valid_card_ids = {int(card_id) for card_id in card_df["card_id"]}
+        summary_lines: list[str] = []
+        for deck in replay_decks:
+            recipe = deck.get("recipe", {})
+            total_cards = sum(int(quantity) for quantity in recipe.values()) if isinstance(recipe, dict) else 0
+            summary_lines.append(f"- {deck.get('name')}: {len(recipe) if isinstance(recipe, dict) else 0}種 / {total_cards}枚")
+        st.markdown("\n".join(summary_lines))
+
+        if st.button("この2人のデッキを取り込む", type="primary", use_container_width=True, key="import_kaggle_replay_decks"):
+            imported_decks, imported_cards, missing_card_ids = _import_kaggle_replay_decks(
+                pdf_state,
+                replay_decks,
+                valid_card_ids,
+            )
+            if imported_decks <= 0:
+                st.warning("取り込めるデッキが見つかりませんでした。")
+                return
+            _persist_active_project_state(pdf_path, labels, pdf_state)
+            missing_note = f" / PDFにないID: {', '.join(str(card_id) for card_id in missing_card_ids)}" if missing_card_ids else ""
+            st.session_state["tier_import_result"] = (
+                "success",
+                f"Kaggle replay から {imported_decks}デッキ / {imported_cards}枚を取り込みました。{missing_note}",
+            )
+            st.session_state["preferred_deck_source"] = "Kaggle replay JSON"
+            st.session_state["preferred_deck_filter"] = str(replay_decks[0].get("deck_id", "")).strip()
+            st.rerun()
+
+
 def _render_sidebar(
     pdf_path: str,
     candidate_paths: list[str],
@@ -2638,6 +2839,8 @@ def _render_card_screen(
         if ctrl[2].button("既存ラベルを整理", use_container_width=True, key=f"label_cleanup_{fingerprint}"):
             _run_label_cleanup(pdf_path, labels, pdf_state, card_df["name"])
 
+    _render_kaggle_replay_import(card_df, pdf_path, pdf_state, labels)
+
     known_labels = sorted(
         {
             str(label).strip()
@@ -2656,6 +2859,7 @@ def _render_card_screen(
         st.session_state[deck_output_key] = str(DEFAULT_DECK_CSV_OUTPUT_PATH)
     _filter_specs = [
         (f"search_{fingerprint}", None),
+        (f"decksource_{fingerprint}", ["Tier / 通常", "Kaggle replay JSON", "すべて"]),
         (f"labelfilter_{fingerprint}", ["すべて", *known_labels]),
         (f"tierfilter_{fingerprint}", None),
         (f"deckfilter_{fingerprint}", None),
@@ -2671,18 +2875,33 @@ def _render_card_screen(
                 st.session_state[_wk] = _restored
 
     with st.container(key="filterbar"):
-        top = st.columns([2.4, 1.0, 0.7, 1.45, 1.0, 0.75], gap="medium")
+        preferred_source = st.session_state.pop("preferred_deck_source", "")
+        deck_source_key = f"decksource_{fingerprint}"
+        if preferred_source:
+            st.session_state[deck_source_key] = preferred_source
+        if st.session_state.get(deck_source_key) not in {"Tier / 通常", "Kaggle replay JSON", "すべて"}:
+            st.session_state[deck_source_key] = "Tier / 通常"
+        top = st.columns([2.0, 1.05, 1.0, 0.7, 1.45, 1.0, 0.75], gap="medium")
         search_text = top[0].text_input(
             "検索",
             placeholder="🔍 カード名・番号・IDで検索",
             key=f"search_{fingerprint}",
         )
-        label_filter = top[1].selectbox(
+        deck_source = top[1].selectbox(
+            "デッキ取得元",
+            ["Tier / 通常", "Kaggle replay JSON", "すべて"],
+            key=deck_source_key,
+        )
+        json_source_only = deck_source == "Kaggle replay JSON"
+        label_filter = top[2].selectbox(
             "ラベル",
             ["すべて"] + known_labels,
             format_func=_format_label_filter_option,
             key=f"labelfilter_{fingerprint}",
+            disabled=json_source_only,
         )
+        if json_source_only:
+            label_filter = "すべて"
         # Tier フィルタ：deck_tier_now に基づき利用可能な Tier 一覧を構築
         deck_archetype = pdf_state.get("deck_archetype", {})
         deck_catalog_now = pdf_state.get("deck_catalog", {})
@@ -2696,15 +2915,24 @@ def _render_card_screen(
         if active_tier not in tier_options:
             st.session_state[tier_filter_key] = "全Tier"
             active_tier = "全Tier"
-        tier_filter = top[2].selectbox(
+        tier_filter = top[3].selectbox(
             "Tier",
             tier_options,
             key=tier_filter_key,
+            disabled=json_source_only,
         )
+        if json_source_only:
+            tier_filter = "全Tier"
         # ラベル(アーキタイプ)→デッキ(レシピ) の階層で絞り込む。
         # アーキタイプ↔デッキの明示マップ(deck_archetype)があれば、それを使って
         # 「選んだラベルに属するデッキだけ」を候補にする（共有カード経由の混入を防ぐ）。
-        if label_filter != "すべて" and deck_archetype:
+        if json_source_only:
+            known_deck_ids = sorted(
+                deck_id
+                for deck_id in deck_catalog_now
+                if _is_kaggle_replay_deck_id(deck_id)
+            )
+        elif label_filter != "すべて" and deck_archetype:
             target_norm = _normalize_card_name(label_filter)
             known_deck_ids = sorted(
                 deck_id
@@ -2724,15 +2952,20 @@ def _render_card_screen(
                     if str(deck_id).strip()
                 }
             )
+        if deck_source == "Tier / 通常":
+            known_deck_ids = [deck_id for deck_id in known_deck_ids if not _is_kaggle_replay_deck_id(deck_id)]
         # Tier フィルタが選択されている場合は絞り込む
-        if tier_filter != "全Tier" and deck_tier_now:
+        if tier_filter != "全Tier" and deck_tier_now and not json_source_only:
             selected_tier_num = int(tier_filter[1:])  # "T1" → 1
             known_deck_ids = [d for d in known_deck_ids if deck_tier_now.get(d) == selected_tier_num]
         deck_filter_key = f"deckfilter_{fingerprint}"
+        preferred_deck_filter = st.session_state.pop("preferred_deck_filter", "")
+        if preferred_deck_filter in known_deck_ids:
+            st.session_state[deck_filter_key] = preferred_deck_filter
         active_deck_filter = str(st.session_state.get(deck_filter_key, "すべて"))
         if active_deck_filter not in {"すべて", *known_deck_ids}:
             st.session_state[deck_filter_key] = "すべて"
-        deck_filter = top[3].selectbox(
+        deck_filter = top[4].selectbox(
             "デッキ番号",
             ["すべて"] + known_deck_ids,
             format_func=lambda value: _format_deck_option(
@@ -2743,11 +2976,11 @@ def _render_card_screen(
             ),
             key=deck_filter_key,
         )
-        sort_choice = top[4].selectbox(
+        sort_choice = top[5].selectbox(
             "並び順", SORT_OPTIONS, format_func=lambda item: item[1], key=f"sort_{fingerprint}"
         )
         page_size = int(
-            top[5].selectbox("表示数", CARD_PAGE_SIZE_OPTIONS, key=f"pagesize_{fingerprint}")
+            top[6].selectbox("表示数", CARD_PAGE_SIZE_OPTIONS, key=f"pagesize_{fingerprint}")
         )
 
         # 現在の絞り込み状態を退避（他タブへ移動して戻ったときに復元するため）
