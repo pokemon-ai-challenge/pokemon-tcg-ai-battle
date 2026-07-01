@@ -1,3 +1,8 @@
+/* The HTML `hidden` attribute must always win over class display rules
+   (e.g. `.loading { display:flex }`); without this, hidden overlays such as
+   #loading stay visible on page load and show "対戦を実行中…" with no match. */
+[hidden] { display: none !important; }
+
 :root {
   --bg: #0f1220;
   --bg2: #171a2b;

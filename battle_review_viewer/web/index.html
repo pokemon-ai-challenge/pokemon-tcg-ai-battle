@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Battle Review Viewer</title>
+  <link rel="stylesheet" href="/web/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <p class="eyebrow">ローカルリプレイレビュー</p>
+      <h1>Battle Review Viewer</h1>
+      <p class="sub">実機リプレイ風の盤面で、ローカル対戦を1手ずつ見返せます。視点は Player 0 固定、手番側をハイライトします。</p>
+    </div>
+    <div class="replay-pick">
+      <label>リプレイ</label>
+      <select id="replay-select"></select>
+      <button id="btn-reload" class="btn">リスト更新</button>
+      <button id="btn-lang" class="btn">EN</button>
+    </div>
+  </header>
+
+  <section class="newmatch">
+    <div class="nm-title">新規対戦を実行 <span class="muted nm-hint">AIとデッキを選んで対戦→リプレイ生成</span></div>
+    <div class="nm-grid">
+      <label class="nm-field p0">自分 (P0) AI<select id="nm-p0-ai"></select></label>
+      <label class="nm-field p0">自分 (P0) デッキ<select id="nm-p0-deck"></select></label>
+      <label class="nm-field p1">相手 (P1) AI<select id="nm-p1-ai"></select></label>
+      <label class="nm-field p1">相手 (P1) デッキ<select id="nm-p1-deck"></select></label>
+      <button id="nm-run" class="btn accent">対戦を実行</button>
+    </div>
+    <p id="nm-status" class="nm-status"></p>
+  </section>
+
+  <section class="toolbar">
+    <div class="transport">
+      <button id="btn-prev" class="btn">◀ 前へ</button>
+      <button id="btn-next" class="btn">次へ ▶</button>
+      <button id="btn-auto" class="btn accent">自動再生</button>
+    </div>
+    <div class="scrub">
+      <span class="muted">フレーム</span>
+      <input id="scrubber" type="range" min="0" max="0" value="0" />
+      <span id="frame-info" class="frame-info">0 / 0</span>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="tg-images" checked /> カード画像</label>
+      <label><input type="checkbox" id="tg-opphand" checked /> 相手の手札を公開</label>
+      <label><input type="checkbox" id="tg-prize" checked /> サイドの中身を公開</label>
+    </div>
+  </section>
+
+  <main class="layout">
+    <!-- ================= 芝盤面 ================= -->
+    <div class="board">
+      <div class="hand-strip" id="opp-hand-strip">
+        <div class="hand-label">相手の手札 <span class="pill" id="opp-hand-count">0</span></div>
+        <div class="hand-cards" id="opp-hand"></div>
+      </div>
+
+      <div class="field opp" id="field-opp">
+        <div class="side-tag"><span class="who" id="opp-name">Player 1（相手）</span>
+          <span class="badge" id="opp-first" hidden>先攻</span>
+          <span class="badge result" id="opp-result" hidden></span>
+        </div>
+        <div class="field-row">
+          <div class="stacks left">
+            <div class="stack"><span class="stack-label">山札</span><span class="stack-n" id="opp-deck">0</span></div>
+            <div class="stack"><span class="stack-label">トラッシュ</span><span class="stack-n" id="opp-discard">0</span></div>
+          </div>
+          <div class="mons">
+            <div class="bench" id="opp-bench"></div>
+            <div class="active" id="opp-active"></div>
+          </div>
+          <div class="stacks right">
+            <div class="prize" id="opp-prize"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="center-band">
+        <div class="stadium" id="stadium"><span>スタジアム</span><div id="stadium-card">なし</div></div>
+        <div class="turn-ring">
+          <div class="turn-n" id="turn-n">ターン 0</div>
+          <div class="turn-phase" id="turn-phase">-</div>
+        </div>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="field me" id="field-me">
+        <div class="field-row">
+          <div class="stacks left">
+            <div class="prize" id="me-prize"></div>
+          </div>
+          <div class="mons">
+            <div class="active" id="me-active"></div>
+            <div class="bench" id="me-bench"></div>
+          </div>
+          <div class="stacks right">
+            <div class="stack"><span class="stack-label">山札</span><span class="stack-n" id="me-deck">0</span></div>
+            <div class="stack"><span class="stack-label">トラッシュ</span><span class="stack-n" id="me-discard">0</span></div>
+          </div>
+        </div>
+        <div class="side-tag"><span class="who" id="me-name">Player 0（自分）</span>
+          <span class="badge" id="me-first" hidden>先攻</span>
+          <span class="badge result" id="me-result" hidden></span>
+        </div>
+      </div>
+
+      <div class="hand-strip me" id="me-hand-strip">
+        <div class="hand-label">自分の手札 (Player 0) <span class="pill" id="me-hand-count">0</span></div>
+        <div class="hand-cards" id="me-hand"></div>
+      </div>
+    </div>
+
+    <!-- ================= 右パネル ================= -->
+    <aside class="panels">
+      <div class="panel">
+        <h2>リプレイ概要</h2>
+        <dl class="summary" id="summary"></dl>
+      </div>
+      <div class="panel">
+        <h2>選んだ行動</h2>
+        <div id="chosen" class="chosen">-</div>
+      </div>
+      <div class="panel options-panel">
+        <h2>選択肢一覧</h2>
+        <div id="options" class="options"></div>
+      </div>
+      <div class="panel">
+        <h2>ログ</h2>
+        <div id="log" class="log"></div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="card-pop" class="card-pop" hidden><img id="card-pop-img" alt="" /></div>
+
+  <script src="/web/app.js"></script>
+</body>
+</html>

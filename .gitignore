@@ -37,6 +37,9 @@ sample_submission/submission*.tar.gz
 tmp_submit_check/
 .tmp_readme_push/
 
+# Battle Review Viewer: generated replay JSON (keep the folder via .gitkeep)
+battle_review_viewer/replays/*.json
+
 # RL training checkpoints (large torch zips); ship only policy.npz
 sample_submission/models/
 sample_submission/models_rs/
