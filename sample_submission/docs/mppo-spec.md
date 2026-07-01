@@ -123,7 +123,10 @@
 - `agent(obs_dict)`:
   - `obs.select is None`（初回・実機のみ）→ `read_deck_csv()`。
   - それ以外 → `tcg_rl.features.encode_obs` + `tcg_rl.mlp_numpy` で buffer ループし `list[int]` を返す。
-- **torch があれば優先利用、無ければ numpy**（`try: import torch`）。出力は同一。
+- **推論は numpy のみ**（torch を import しない）。numpy が torch 出力を再現するため依存ゼロ。
+- **Kaggle 実行対応**: Kaggle は `main.py` を `exec()` で動かすため `__file__` が未定義になり得る。
+  `try/except NameError` で `_HERE = "/kaggle_simulations/agent"` にフォールバックして import パス・
+  `policy.npz`/`deck.csv` 解決を保証（`_candidate_paths` 経由）。
 - 例外時フォールバック: 推論で何か失敗したら**合法な最小手**（先頭から minCount 個 / END 相当）を返し、絶対に落ちない。
 
 ### 提出パッケージに必要なファイル（重要）
@@ -160,6 +163,12 @@ sample_submission/
 └─ docs/
    ├─ mppo-spec.md         # 本書
    └─ mppo-explained.md    # 初心者向け解説 + 課題
+
+（リポジトリ直下に別ツール）
+viewer/                    # 対戦ビジュアライザ（ブラウザ観戦・人間vsAI）[提出無関係・標準ライブラリ+numpy]
+  ├─ server.py / engine.py / agents.py / decks.py / describe.py
+  ├─ decks/                # 観戦用デッキCSVを置く
+  └─ static/               # フロント（HTML/CSS/JS、ビルド不要）
 ```
 
 ---
@@ -217,3 +226,33 @@ sample_submission/
 - ボス・入れ替え等の妨害リソース残量
 - ドラパルト特有の勝ち筋（ベンチ狙撃・2-2-2 サイドプラン）
 MC 評価改善は PPO の**学習相手の質**を上げる効果もある（強い相手＝良いカリキュラム）。
+
+---
+
+## 10. 現在の状況・更新履歴
+
+### 10.1 ブランチ状態
+- ローカル `mPPO` と `origin/mPPO` は同期済み（最新 `4c35739`）。
+- 別マシンでの作業をマージで取り込み済み（fast-forward、競合なし）。
+
+### 10.2 マージで入った変更（`dd37bfb` → `4c35739`）
+- **`main.py`**: Kaggle の `exec()` 実行で `__file__` 未定義になる問題を修正（§5 参照）。**numpy 推論のまま**。
+- **`tcg_rl/env.py`**: `turn_penalty`（1ゲームターン経過ごとの微小マイナス報酬）を追加。
+  消極的プレイ（引き分け/長期化狙い）を抑制する。既定 0.0（OFF）。
+- **`train_ppo.py`**: CLI/コールバックを拡張。
+  - `--mc-budget <秒>`: **MC 相手の1手あたり探索時間**。`>0` で MC が実際に `search` する（強い相手）。
+    `0.0` は従来の高速ヒューリスティック相手。
+  - `--turn-penalty <float>`: 上記の anti-stall 報酬を env に渡す。
+  - `--checkpoint-freq <N>`: `CheckpointExport` コールバックが N step ごとに
+    モデル保存＋`policy.npz` エクスポート。**学習を中断しても最新の提出物が残る**。
+- **`policy.npz`**: 再学習済みの重みに更新（次元・I/F は不変なので numpy 推論はそのまま動く）。
+- **`viewer/`（新規・提出無関係）**: ブラウザで対戦を観戦／人間 vs AI ができるローカル Web ツール。
+  - 標準ライブラリ + numpy のみ（追加依存なし）。`python viewer/server.py` で起動。
+  - 提出物と同じ `agent_fn(obs_dict)->list[int]` で AI を登録（`agents.py`）。`mppo` も観戦可能。
+  - 注意: cg エンジンは**1対戦ずつ直列**（§2 のグローバル制約と同根）。
+
+### 10.3 今後の作業候補（未着手）
+- `--mc-budget>0` での MC 探索相手を混ぜた長時間カリキュラム学習。
+- `turn_penalty` の効果検証（勝率と平均ターン数のトレードオフ）。
+- §9 の `evaluate()` 改良（viewer で挙動を目視確認しながら）。
+- 学習の中断再開（`--resume`）と `SubprocVecEnv` 並列化。

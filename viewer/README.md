@@ -45,7 +45,18 @@ python3 viewer/engine.py --smoke --ai0 mppo --ai1 heuristic
 
 ## AI を追加する
 
-`agents.py` の末尾でレジストリに登録するだけです。エージェントは提出物と同じ
+### 方法A（おすすめ）: `viewer/ai/` に置くだけ（コード編集不要）
+`viewer/ai/` に **`main.py` を含むフォルダ**（提出物と同じ形）か、**`agent()` を定義した単体 `.py`**
+を置くと、サーバ再起動で自動的に一覧へ出ます。各AIは**別プロセスで実行**されるため、
+別々のAIが `main`/`cg`/`tcg_rl` で衝突しません。詳細は [`ai/README.md`](ai/README.md)。
+
+```
+viewer/ai/my_ai/main.py     # agent(obs_dict)->list[int]（policy.npz等も同梱可）
+viewer/ai/my_ai.py          # 単体ファイルでもOK
+```
+
+### 方法B: `agents.py` に手書き登録（同プロセス実行・軽い）
+`agents.py` の末尾でレジストリに登録します。エージェントは提出物と同じ
 `agent_fn(obs_dict) -> list[int]` のインターフェース。
 
 ```python

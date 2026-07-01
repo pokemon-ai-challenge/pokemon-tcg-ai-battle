@@ -194,3 +194,114 @@ register(AgentSpec("random", "ランダム", build_random,
                    note="合法手から一様ランダム"))
 register(AgentSpec("montecarlo", "モンテカルロ探索", build_montecarlo, slow=True,
                    note="search APIでロールアウト。1手が遅い"))
+
+
+# --------------------------------------------------------------------------- #
+# External agents: DROP-IN folder (no code edit required)
+#
+# Put an agent under viewer/ai/ and it appears automatically on next server
+# start. Two accepted shapes:
+#   viewer/ai/<name>/main.py   -- submission-style folder (may bundle its own
+#                                 policy.npz / tcg_rl / cg / deck.csv)
+#   viewer/ai/<name>.py        -- single file defining agent(obs_dict)->list[int]
+# Each runs in its OWN process (ai_worker.py) so multiple agents never collide
+# on the shared module names main / cg / tcg_rl. See viewer/ai/README.md.
+# --------------------------------------------------------------------------- #
+_AI_DIR = os.path.join(_HERE, "ai")
+_WORKER = os.path.join(_HERE, "ai_worker.py")
+
+
+class _ExternalWorker:
+    """Lazily-spawned subprocess speaking the ai_worker.py JSON protocol."""
+
+    def __init__(self, target_path: str):
+        self.target = target_path
+        self.proc = None
+
+    def _ensure(self) -> None:
+        if self.proc is not None and self.proc.poll() is None:
+            return
+        import subprocess
+
+        env = dict(os.environ, PYTHONIOENCODING="utf-8")
+        self.proc = subprocess.Popen(
+            [sys.executable, _WORKER, self.target],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=None, text=True, encoding="utf-8", bufsize=1, env=env,
+        )
+        self.proc.stdout.readline()  # consume the {"ready": ...} handshake line
+
+    def request(self, obs_dict: dict):
+        self._ensure()
+        self.proc.stdin.write(json.dumps({"obs": obs_dict}, ensure_ascii=True) + "\n")
+        self.proc.stdin.flush()
+        line = self.proc.stdout.readline()
+        if not line:
+            raise RuntimeError("external agent worker closed")
+        return json.loads(line).get("action")
+
+    def close(self) -> None:
+        if self.proc is None:
+            return
+        try:
+            if self.proc.stdin and not self.proc.stdin.closed:
+                self.proc.stdin.close()
+        except Exception:
+            pass
+        try:
+            if self.proc.poll() is None:
+                self.proc.terminate()
+        except Exception:
+            pass
+
+
+def _build_external(target_path: str) -> BuildFn:
+    def build() -> AgentFn:
+        import weakref
+
+        worker = _ExternalWorker(target_path)
+
+        def agent_fn(obs_dict: dict) -> list[int]:
+            obs = to_observation_class(obs_dict)
+            if obs.select is None:
+                return []
+            try:
+                action = worker.request(obs_dict)
+            except Exception:
+                return _min_legal(obs)
+            if not _validate(obs, action):
+                return _min_legal(obs)
+            return action
+
+        # Terminate the worker when this match's agent is garbage-collected.
+        weakref.finalize(agent_fn, worker.close)
+        return agent_fn
+
+    return build
+
+
+def discover_external(ai_dir: str = _AI_DIR) -> None:
+    """Register every drop-in agent found under viewer/ai/."""
+    if not os.path.isdir(ai_dir):
+        return
+    for entry in sorted(os.listdir(ai_dir)):
+        if entry.startswith((".", "_")):
+            continue
+        full = os.path.join(ai_dir, entry)
+        target, ident = None, None
+        if os.path.isdir(full) and os.path.exists(os.path.join(full, "main.py")):
+            target, ident = full, entry
+        elif entry.endswith(".py"):
+            target, ident = full, entry[:-3]
+        if target is None:
+            continue
+        if ident in REGISTRY:            # never clobber a built-in id
+            ident = f"ext_{ident}"
+        register(AgentSpec(ident, ident, _build_external(target), slow=True,
+                           note=f"外部AI（別プロセス実行）: ai/{entry}"))
+
+
+# json is used by _ExternalWorker; import at module level for clarity.
+import json  # noqa: E402
+
+discover_external()
