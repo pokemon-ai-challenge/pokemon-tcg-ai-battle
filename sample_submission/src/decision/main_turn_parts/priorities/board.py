@@ -11,6 +11,9 @@ from src.decision.main_turn_parts.weights import MAIN_ACTION_BASE_WEIGHTS
 _card_cache: dict[int, CardData] | None = None
 _attack_cache: dict[int, Attack] | None = None
 
+# 山札切れ防止: 自分の山札残り枚数がこの値以下なら、ドロー・サーチ系グッズを使わない
+_DECK_COUNT_SAFE_THRESHOLD = 10
+
 
 def _get_card_data() -> dict[int, CardData]:
     global _card_cache
@@ -26,6 +29,22 @@ def _get_attack_data() -> dict[int, Attack]:
     return _attack_cache
 
 
+def _deck_count_too_low(obs: Observation) -> bool:
+    """自分の山札残り枚数が安全閾値以下かを判定する。
+
+    山札が0枚の状態でドローフェーズを迎えると敗北になるため、
+    残り枚数が少ないときはドロー・サーチ系グッズの使用を避ける。
+    """
+    if obs.current is None:
+        return False
+    your_index = obs.current.yourIndex
+    player = obs.current.players[your_index]
+    deck_count = getattr(player, "deckCount", None)
+    if deck_count is None:
+        return False
+    return deck_count <= _DECK_COUNT_SAFE_THRESHOLD
+
+
 # ---------------------------------------------------------------------------
 # グッズ・どうぐのテキスト分類ユーティリティ
 # ---------------------------------------------------------------------------
@@ -34,7 +53,8 @@ def _classify_item_text(text: str) -> str:
     """グッズの効果テキストから種別を返す。
 
     Returns:
-        "search"       : 山札からポケモン等を持ってくる（ボール系等）
+        "discard_search_pokemon" : 手札を捨ててポケモンをサーチする（ハイパーボール等）
+        "search"       : 山札からポケモン等を持ってくる（その他のボール系等）
         "draw"         : 手札を増やす（ポケギア等）
         "draw_to_x"    : 手札がX枚になるまでドロー
         "other"        : 上記以外
@@ -46,7 +66,15 @@ def _classify_item_text(text: str) -> str:
         and "hand" in t
         and has_draw
     )
-    if "search" in t or "look at" in t:
+    has_discard = "discard" in t
+    has_search = "search" in t or "look at" in t
+    has_pokemon = "pokémon" in t or "pokemon" in t
+
+    # ハイパーボール（Ultra Ball）型: 手札を捨てて山札からポケモンをサーチする
+    # 「discard」+「search」+「pokemon」を全て含むケースを専用扱いにする
+    if has_discard and has_search and has_pokemon:
+        return "discard_search_pokemon"
+    if has_search:
         return "search"
     if has_draw_to_x:
         return "draw_to_x"
@@ -146,6 +174,26 @@ def _tool_damage_bonus_amount(skill_text: str) -> int:
     return 0
 
 
+def _is_pokemon_switch_tool(skill_text: str) -> bool:
+    """「ポケモン入れ替え」のような、自分のバトルポケモンを強制的に
+    ベンチと入れ替える系のグッズ・どうぐのテキストか判定する。
+
+    例: "Switch this Pokemon with 1 of your Benched Pokemon" のようなテキスト。
+    にげる（retreat）コストとは無関係に入れ替えるカードを想定する。
+    ダメージ加算系や、相手ポケモンを入れ替えさせる効果（ボスの指令等）は除外する。
+    """
+    t = skill_text.lower()
+    if "switch" not in t:
+        return False
+    # 相手のポケモンを動かす効果（ボスの指令等）は対象外
+    if "opponent" in t:
+        return False
+    # 自分のベンチポケモンと入れ替える文言を確認
+    if "benched pokemon" in t or "bench" in t:
+        return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 # 前ターンの攻撃ログから「次ターン技不可」状態かを判定
 # ---------------------------------------------------------------------------
@@ -236,6 +284,64 @@ def _bench_has_higher_damage_pokemon(obs: Observation) -> bool:
     return False
 
 
+def _bench_pokemon_can_ko_opponent_active(obs: Observation) -> bool:
+    """ベンチのいずれかのポケモンが、今出せる最大打点で相手activeをKOできるか。
+
+    「ポケモン入れ替え」のような自分のポケモンを入れ替える道具を
+    使う価値があるかどうかの判定に使う。
+    """
+    if obs.current is None:
+        return False
+
+    your_index = obs.current.yourIndex
+    opp_index = 1 - your_index
+    player = obs.current.players[your_index]
+    opp_player = obs.current.players[opp_index]
+
+    if not opp_player.active or opp_player.active[0] is None:
+        return False
+
+    opp_active = opp_player.active[0]
+    opp_hp = getattr(opp_active, "remainingHp", None)
+    if opp_hp is None:
+        opp_hp = getattr(opp_active, "hp", None)
+    if opp_hp is None:
+        return False
+
+    for bench_poke in player.bench:
+        bench_dmg = _max_damage_of_pokemon(bench_poke.id, bench_poke.energies)
+        if bench_dmg >= opp_hp:
+            return True
+    return False
+
+
+def _active_can_ko_opponent_active(obs: Observation) -> bool:
+    """現在のバトルポケモンが、今出せる最大打点で相手activeをKOできるか。"""
+    if obs.current is None:
+        return False
+
+    your_index = obs.current.yourIndex
+    opp_index = 1 - your_index
+    player = obs.current.players[your_index]
+    opp_player = obs.current.players[opp_index]
+
+    if not player.active or player.active[0] is None:
+        return False
+    if not opp_player.active or opp_player.active[0] is None:
+        return False
+
+    active = player.active[0]
+    opp_active = opp_player.active[0]
+    opp_hp = getattr(opp_active, "remainingHp", None)
+    if opp_hp is None:
+        opp_hp = getattr(opp_active, "hp", None)
+    if opp_hp is None:
+        return False
+
+    active_dmg = _max_damage_of_pokemon(active.id, active.energies)
+    return active_dmg >= opp_hp
+
+
 # ---------------------------------------------------------------------------
 # 進化ペア検出（ベンチの進化前 ↔ 手札の進化後）
 # ---------------------------------------------------------------------------
@@ -302,6 +408,191 @@ def _has_evolution_pair_at_risk(obs: Observation, buckets: MainOptionBuckets) ->
     進化ペアが1つでも揃っていれば True を返す。
     """
     return _count_evolution_pairs_on_bench(obs) > 0
+
+
+# ---------------------------------------------------------------------------
+# ハイパーボール（discard_search_pokemon 型）専用の使用判定
+# ---------------------------------------------------------------------------
+#
+# ハイパーボールは「手札を2枚捨てて、山札からポケモンを1枚サーチする」効果。
+# 欲しいポケモンがいないのに使うと、ただ手札を2枚失うだけになるため、
+# 以下の「欲しいポケモンパターン」のいずれかに合致するときだけ使用候補とする。
+#
+#   パターン1: ソルロック/ルナトーン補完
+#     場（active + bench）に片方がいて、手札にもう片方がいない
+#     → もう片方をサーチする価値がある
+#
+#   パターン2: リオル → ルカリオ補完
+#     場にリオルがいて、手札にルカリオがいない
+#     → ルカリオをサーチする価値がある
+#
+#   パターン3: ルカリオ → リオル補完
+#     手札にルカリオがいて、場にリオルがいない
+#     → 進化台座としてリオルをサーチする価値がある
+#
+# ルカリオは「1体立てればいい」性質のカードなので、
+# 手札が少ない（4枚以下）など、すでに展開が足りている状況では使わない。
+#
+# 捨てる2枚にルカリオを巻き込まない判断は、ハイパーボールを「使うか」の
+# 判定では行えない（DISCARD の対象選択は別の SelectContext で行われるため）。
+# 「使うべきか」の判定はここで行い、捨て対象の選択は
+# decision/handlers/card_move/discard.py 側で
+# 「進化ペアとなる手札カードは捨て候補から除外する」処理を別途行うこと。
+
+_LUNATONE_NAME = "lunatone"
+_SOLROCK_NAME = "solrock"
+_RIOLU_NAME = "riolu"
+_LUCARIO_NAME = "lucario"
+
+
+def _hand_card_names(obs: Observation) -> list[str]:
+    """自分の手札にあるカード名のリスト（小文字化）を返す。"""
+    if obs.current is None:
+        return []
+    card_data = _get_card_data()
+    your_index = obs.current.yourIndex
+    hand = obs.current.players[your_index].hand
+    if hand is None:
+        return []
+    names = []
+    for c in hand:
+        card = card_data.get(c.id)
+        if card is not None and card.name:
+            names.append(card.name.lower())
+    return names
+
+
+def _board_card_names(obs: Observation) -> list[str]:
+    """自分の場（active + bench）にあるポケモンのカード名リスト（小文字化）を返す。"""
+    if obs.current is None:
+        return []
+    card_data = _get_card_data()
+    your_index = obs.current.yourIndex
+    player = obs.current.players[your_index]
+    names = []
+    if player.active:
+        for p in player.active:
+            if p is not None:
+                card = card_data.get(p.id)
+                if card is not None and card.name:
+                    names.append(card.name.lower())
+    for p in player.bench:
+        if p is not None:
+            card = card_data.get(p.id)
+            if card is not None and card.name:
+                names.append(card.name.lower())
+    return names
+
+
+def _name_in_list(target: str, names: list[str]) -> bool:
+    """target という文字列を含むカード名が names の中にあるか判定する。"""
+    return any(target in n for n in names)
+
+
+def _wants_solrock_lunatone_pair(obs: Observation) -> bool:
+    """ソルロック / ルナトーンの補完パターンに該当するか。
+
+    場に片方がいて、手札にもう片方がいない場合に True。
+    """
+    board_names = _board_card_names(obs)
+    hand_names = _hand_card_names(obs)
+
+    has_lunatone_on_board = _name_in_list(_LUNATONE_NAME, board_names)
+    has_solrock_on_board = _name_in_list(_SOLROCK_NAME, board_names)
+    has_lunatone_in_hand = _name_in_list(_LUNATONE_NAME, hand_names)
+    has_solrock_in_hand = _name_in_list(_SOLROCK_NAME, hand_names)
+
+    # 場にルナトーンがいて手札にソルロックがない → ソルロックが欲しい
+    if has_lunatone_on_board and not has_solrock_in_hand:
+        return True
+    # 場にソルロックがいて手札にルナトーンがない → ルナトーンが欲しい
+    if has_solrock_on_board and not has_lunatone_in_hand:
+        return True
+    return False
+
+
+def _wants_lucario_for_riolu(obs: Observation) -> bool:
+    """場にリオルがいて手札にルカリオがいないパターンに該当するか。"""
+    board_names = _board_card_names(obs)
+    hand_names = _hand_card_names(obs)
+
+    has_riolu_on_board = _name_in_list(_RIOLU_NAME, board_names)
+    has_lucario_in_hand = _name_in_list(_LUCARIO_NAME, hand_names)
+
+    return has_riolu_on_board and not has_lucario_in_hand
+
+
+def _wants_riolu_for_lucario(obs: Observation) -> bool:
+    """手札にルカリオがいて場にリオルがいないパターンに該当するか。
+
+    ルカリオを進化させる土台（リオル）が場にないので、リオルをサーチしたい。
+    """
+    board_names = _board_card_names(obs)
+    hand_names = _hand_card_names(obs)
+
+    has_lucario_in_hand = _name_in_list(_LUCARIO_NAME, hand_names)
+    has_riolu_on_board = _name_in_list(_RIOLU_NAME, board_names)
+
+    return has_lucario_in_hand and not has_riolu_on_board
+
+
+def _has_wanted_pokemon_target(obs: Observation) -> bool:
+    """ハイパーボールでサーチしたい「欲しいポケモン」が存在する状況か。
+
+    ソルロック/ルナトーン補完、リオル→ルカリオ補完、
+    ルカリオ→リオル補完のいずれかに該当すれば True。
+    """
+    return (
+        _wants_solrock_lunatone_pair(obs)
+        or _wants_lucario_for_riolu(obs)
+        or _wants_riolu_for_lucario(obs)
+    )
+
+
+def _lucario_already_settled(obs: Observation) -> bool:
+    """ルカリオがすでに十分整っている（これ以上サーチに投資する価値が薄い）状況か。
+
+    ルカリオは「1体立てればいい」性質のため、
+    手札が少ない（4枚以下）状況でハイパーボールをさらに使ってまで
+    ルカリオ関連を探しに行く必要はないと判断する。
+
+    この判定は「リオル→ルカリオ」「ルカリオ→リオル」パターンの
+    どちらかが真のときにのみ意味を持つ（呼び出し側で絞り込む）。
+    """
+    if obs.current is None:
+        return False
+    your_index = obs.current.yourIndex
+    hand_count = obs.current.players[your_index].handCount
+    return hand_count <= 4
+
+
+def _should_use_discard_search_pokemon(obs: Observation) -> bool:
+    """ハイパーボール（discard_search_pokemon 型）を使うべきかを判定する。
+
+    使う条件: 欲しいポケモンパターンに該当する
+    使わない条件:
+        - 欲しいポケモンが何もない（無駄撃ちになる）
+        - リオル/ルカリオ関連のパターンのみで、かつ
+          手札が少なく（4枚以下）すでにルカリオ展開が十分な状況
+          （ソルロック/ルナトーンパターンが別途あればそちらは有効）
+    """
+    wants_solrock_lunatone = _wants_solrock_lunatone_pair(obs)
+    wants_lucario_side = _wants_lucario_for_riolu(obs) or _wants_riolu_for_lucario(obs)
+
+    if not wants_solrock_lunatone and not wants_lucario_side:
+        # 欲しいポケモンが一つもない → 使わない
+        return False
+
+    if wants_solrock_lunatone:
+        # ソルロック/ルナトーン側の需要があるなら、手札枚数に関わらず使ってよい
+        return True
+
+    # ここに来るのは「リオル/ルカリオ側のみ」需要があるケース
+    if _lucario_already_settled(obs):
+        # 手札が少なく、ルカリオ展開はもう十分 → 使わない
+        return False
+
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -415,6 +706,38 @@ def _find_retreat_tool_index(obs: Observation, buckets: MainOptionBuckets) -> in
     return None
 
 
+def _find_pokemon_switch_tool_index(obs: Observation, buckets: MainOptionBuckets) -> int | None:
+    """tool_play / item_play の中から「ポケモン入れ替え」グッズの option_index を返す。
+
+    にげるコスト軽減どうぐとは異なり、「ポケモン入れ替え」は
+    にげるコストを消費せず強制的にベンチと入れ替えるグッズ・どうぐを想定する。
+    tool_play（持ち物）と item_play（グッズ）の両方を確認する
+    （カードによってどちらの分類になるか実装依存のため）。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+
+    your_index = obs.current.yourIndex
+    hand = obs.current.players[your_index].hand
+    if hand is None:
+        return None
+
+    card_data = _get_card_data()
+
+    for idx in list(buckets.tool_play) + list(buckets.item_play):
+        option = obs.select.option[idx]
+        if option.index is None or option.index >= len(hand):
+            continue
+        hand_card = hand[option.index]
+        card = card_data.get(hand_card.id)
+        if card is None:
+            continue
+        for skill in card.skills:
+            if _is_pokemon_switch_tool(skill.text):
+                return idx
+    return None
+
+
 # ---------------------------------------------------------------------------
 # propose 関数
 # ---------------------------------------------------------------------------
@@ -472,14 +795,24 @@ def propose_board_item_action(
 
     優先順位:
         1. 「次ターン技不可」状態 + ベンチに高打点がいる → にげるコスト軽減どうぐ
+        1.5. 「ポケモン入れ替え」（基本的に使わない。例外条件を満たすときのみ使う）
+             条件: 前ターンにメガブレイブ（次ターン技不可）を使った
+                   かつ 現在のactiveの最大打点では相手activeをKOできない
+                   かつ ベンチのいずれかが今出せる最大打点なら相手activeをKOできる
         2. スタジアム（場に出ていなければ即置く）
         3. ドロー・サーチ系グッズ（ただし進化ペアがあるときは後回し）
+           ★ 山札残り枚数が10枚以下のときはこのカテゴリを丸ごとスキップする
+           ★ discard_search_pokemon 型（ハイパーボール等）は欲しいポケモンが
+              いないときは候補から除外する（_should_use_discard_search_pokemon）
         4. その他グッズ
         5. ダメージ加算どうぐ（KO に必要なときのみ優先、不要なら大幅減点）
         6. その他どうぐ
     """
     if obs.current is None:
         return None
+
+    # 山札切れガード: 残り枚数が少ないときはドロー・サーチ系グッズを候補から除外する
+    deck_too_low = _deck_count_too_low(obs)
 
     # --- 1. にげるコスト軽減どうぐ（メガブレイブ後の交代準備）---
     if (
@@ -495,6 +828,22 @@ def propose_board_item_action(
                 label="retreat_tool_for_swap",
             )
 
+    # --- 1.5. ポケモン入れ替え（基本的に使わない。KOに必要なときだけ使う）---
+    # 「メガブレイブ等で次ターン技不可」になった状態で、
+    # 今のactiveでは相手をKOできず、ベンチの誰かなら今すぐKOできるなら使う。
+    if (
+        _active_used_cant_use_attack(obs)
+        and not _active_can_ko_opponent_active(obs)
+        and _bench_pokemon_can_ko_opponent_active(obs)
+    ):
+        switch_tool_idx = _find_pokemon_switch_tool_index(obs, buckets)
+        if switch_tool_idx is not None:
+            return MainActionProposal(
+                action=[switch_tool_idx],
+                score=MAIN_ACTION_BASE_WEIGHTS["tool"] + 35,
+                label="pokemon_switch_for_ko",
+            )
+
     # --- 2. スタジアム（場に出ていなければ置く）---
     if buckets.stadium_play and not obs.current.stadium:
         return MainActionProposal(
@@ -507,25 +856,39 @@ def propose_board_item_action(
     evolution_pairs = _count_evolution_pairs_on_bench(obs)
 
     # --- 3. ドロー・サーチ系グッズ ---
-    for idx in buckets.item_play:
-        kind = _get_item_kind(idx, obs)
-        if kind in ("search", "draw", "draw_to_x"):
-            score = MAIN_ACTION_BASE_WEIGHTS["board_item"] + 5
+    # 山札が少ないときはこのカテゴリ自体を評価しない（敗北回避を最優先）
+    if not deck_too_low:
+        for idx in buckets.item_play:
+            kind = _get_item_kind(idx, obs)
 
-            # draw_to_x は他にやることがあると損
-            if kind == "draw_to_x" and _has_usable_non_draw_cards(obs, buckets):
-                score -= 40
+            # ハイパーボール型: 欲しいポケモンがいないなら候補にしない
+            if kind == "discard_search_pokemon":
+                if not _should_use_discard_search_pokemon(obs):
+                    continue
+                score = MAIN_ACTION_BASE_WEIGHTS["board_item"] + 5
+                return MainActionProposal(
+                    action=[idx],
+                    score=score,
+                    label="board_item_discard_search_pokemon",
+                )
 
-            # 進化ペアが揃っている状態でドロー系グッズを先に使うと
-            # 手札から進化後カードが流れるリスクがある（search はOK）
-            if kind in ("draw", "draw_to_x") and evolution_pairs > 0:
-                score -= evolution_pairs * 10
+            if kind in ("search", "draw", "draw_to_x"):
+                score = MAIN_ACTION_BASE_WEIGHTS["board_item"] + 5
 
-            return MainActionProposal(
-                action=[idx],
-                score=score,
-                label=f"board_item_{kind}",
-            )
+                # draw_to_x は他にやることがあると損
+                if kind == "draw_to_x" and _has_usable_non_draw_cards(obs, buckets):
+                    score -= 40
+
+                # 進化ペアが揃っている状態でドロー系グッズを先に使うと
+                # 手札から進化後カードが流れるリスクがある（search はOK）
+                if kind in ("draw", "draw_to_x") and evolution_pairs > 0:
+                    score -= evolution_pairs * 10
+
+                return MainActionProposal(
+                    action=[idx],
+                    score=score,
+                    label=f"board_item_{kind}",
+                )
 
     # --- 4. その他グッズ ---
     if buckets.item_play:
