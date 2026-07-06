@@ -1,8 +1,0 @@
-# Paths to include in the Kaggle submission archive.
-# Entries are resolved relative to this file's directory.
-
-main.py
-deck.csv
-cg
-src
-!src/tests
