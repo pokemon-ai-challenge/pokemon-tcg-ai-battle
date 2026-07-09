@@ -15,6 +15,63 @@
 
 ---
 
+## フォルダ構成
+
+`sample_submission` 配下は、提出に必須な最小構成と、ローカル開発用の AI モジュール群に分けて整理しています。
+
+```text
+sample_submission/
+├── main.py                  # Kaggle 提出時のエントリーポイント
+├── deck.csv                 # 使用する60枚デッキ
+├── cg/                      # コンペ提供エンジン（提出に含める）
+├── ptcg_ai/
+│   ├── core/                # AI 全体の入口、config 読み込み、モジュール切り替え
+│   ├── action_selection/    # 最終行動選択、fallback、legal action 確認、選択ルーター
+│   ├── rule_based/          # 手書きルールベース AI
+│   ├── search/              # リーサル探索、MCTS、ISMCTS、rollout などの探索系
+│   ├── opponent_modeling/   # 相手に関する情報の記録・推定
+│   ├── hidden_information/  # 自分や相手の非公開情報の推定
+│   ├── board_evaluation/    # 盤面評価、行動評価、サイド価値、テンポ評価
+│   ├── state_view/          # Observation を AI 向けの形に変換
+│   ├── learning/            # 強化学習や機械学習モデルの推論・学習
+│   └── shared/              # 複数機能で使う共通処理
+├── configs/                 # AI 構成を切り替える設定
+├── tests/                   # 単体テスト、import 確認、ローカルシミュレーション
+├── docs/                    # 開発メモ、設計メモ
+└── results/                 # 実験結果や比較結果の置き場
+```
+
+### ディレクトリの責務
+
+- `ptcg_ai/core/`
+  AI 全体の入口、config 読み込み、モジュール切り替えなどを置きます。
+- `ptcg_ai/action_selection/`
+  最終的な行動選択、fallback、legal action 確認、行動選択ルーターなどを置きます。
+- `ptcg_ai/rule_based/`
+  手書きルールベース AI を置きます。
+- `ptcg_ai/search/`
+  リーサル探索、MCTS、ISMCTS、rollout などの探索系を置きます。
+- `ptcg_ai/opponent_modeling/`
+  相手に関する情報の記録・推定を置きます。
+- `ptcg_ai/hidden_information/`
+  自分の山札・サイドや相手側も含む非公開情報の推定を置きます。
+- `ptcg_ai/board_evaluation/`
+  盤面評価、行動評価、サイド取得価値、テンポ評価などを置きます。
+- `ptcg_ai/state_view/`
+  コンペの `Observation` を AI 側で扱いやすい形に変換する処理を置きます。
+- `ptcg_ai/learning/`
+  強化学習や機械学習モデルの推論・学習関連を置きます。
+- `ptcg_ai/shared/`
+  複数の機能で使う共通処理を置きます。
+- `configs/`
+  AI 構成を切り替えるための config を置きます。
+- `tests/`
+  単体テストや import 確認用のテストを置きます。
+- `results/`
+  実験結果や比較結果を記録します。まだない場合は必要になったタイミングで作成します。
+
+---
+
 ## 提出手順
 
 提出時に実行されるプログラムは `main.py` です。  
@@ -189,7 +246,7 @@ from cg.api import search_begin, search_step, search_release, search_end
 `local_test.py` は、自分の `main.py` を使って同じ `deck.csv` 同士で 1 ゲーム回す最小確認用です。
 
 ```powershell
-python local_test.py
+python .\tests\local_sim\test_local_game.py
 ```
 
 - `battle_start(...)` の開始エラー
@@ -204,13 +261,13 @@ python local_test.py
 
 ```powershell
 # 自分同士で3試合
-python local_test_advanced.py --games 3
+python .\tests\local_sim\test_local_game_advanced.py --games 3
 
 # ランダム相手に10試合
-python local_test_advanced.py --games 10 --opponent random
+python .\tests\local_sim\test_local_game_advanced.py --games 10 --opponent random
 
 # 1手ごとの選択も表示
-python local_test_advanced.py --games 1 --verbose
+python .\tests\local_sim\test_local_game_advanced.py --games 1 --verbose
 ```
 
 - `--opponent self`：両プレイヤーとも `main.agent`
@@ -233,7 +290,7 @@ cd C:\dev\pokemon-tcg-ai-battle\sample_submission
 `local_test.py` は、現在の `main.py` を使って 1 試合だけ回す最小の確認用スクリプトです。
 
 ```powershell
-python .\local_test.py
+python .\tests\local_sim\test_local_game.py
 ```
 
 `errorType` と `result` が表示されます。
@@ -243,10 +300,10 @@ python .\local_test.py
 `local_test_advanced.py` は、複数試合の実行や `random` 相手との比較に使います。
 
 ```powershell
-python .\local_test_advanced.py
-python .\local_test_advanced.py --opponent self --games 10
-python .\local_test_advanced.py --opponent random --games 100
-python .\local_test_advanced.py --opponent random --games 10 --verbose
+python .\tests\local_sim\test_local_game_advanced.py
+python .\tests\local_sim\test_local_game_advanced.py --opponent self --games 10
+python .\tests\local_sim\test_local_game_advanced.py --opponent random --games 100
+python .\tests\local_sim\test_local_game_advanced.py --opponent random --games 10 --verbose
 ```
 
 - `--opponent self` は `main.py` 同士で対戦します
