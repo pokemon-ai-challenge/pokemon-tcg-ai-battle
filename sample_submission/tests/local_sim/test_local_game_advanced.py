@@ -1,7 +1,15 @@
 import argparse
 import random
+import sys
 from collections import Counter
+from pathlib import Path
 from typing import Callable
+
+
+SAMPLE_SUBMISSION_ROOT = Path(__file__).resolve().parents[2]
+if str(SAMPLE_SUBMISSION_ROOT) not in sys.path:
+    sys.path.insert(0, str(SAMPLE_SUBMISSION_ROOT))
+
 
 from cg.api import Observation, to_observation_class
 from cg.game import battle_finish, battle_select, battle_start
@@ -62,9 +70,7 @@ def play_one_game(
                 return obs.current.result
 
             # The simulator tells us which side must act next.
-            acting_player = (
-                obs.current.yourIndex if obs.current is not None else 0
-            )
+            acting_player = obs.current.yourIndex if obs.current is not None else 0
             acting_agent = player0 if acting_player == 0 else player1
             action = acting_agent(obs_dict)
             validate_action(obs, action)
