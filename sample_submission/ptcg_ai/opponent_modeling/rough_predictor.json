@@ -1,0 +1,1801 @@
+{
+  "role_weights": {
+    "anchor": 10,
+    "evolution_line": 5,
+    "core": 4,
+    "flex": 2,
+    "energy": 2,
+    "generic": 0
+  },
+  "ace_spec_bonus": 1.3,
+  "role_reason_templates": {
+    "anchor": "{name}: デッキの主軸カード",
+    "evolution_line": "{name}: 進化ライン（進化元・中間形態を含む）",
+    "core": "{name}: このデッキでよく採用されるカード",
+    "flex": "{name}: 構築によって採用されるカード",
+    "energy": "{name}: デッキ専用のエネルギー/加速ツール",
+    "generic": "{name}: 汎用カード（判定根拠にしない）"
+  },
+  "archetypes": {
+    "mega_lucario_ex": {
+      "display_name": "メガルカリオex",
+      "cards": [
+        {
+          "name": "メガルカリオex",
+          "card_id": [
+            678
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "names": [
+            "ソルロック",
+            "ルナトーン"
+          ],
+          "card_ids": [
+            676,
+            675
+          ],
+          "role": "core",
+          "reason": "メガルカリオexの固定サーチギミック（セット採用）"
+        },
+        {
+          "name": "マキシマムベルト",
+          "card_id": [
+            1158
+          ],
+          "role": "core",
+          "ace_spec": true,
+          "reason": "採用率約71%のエーススペック（他候補の可能性も残る）"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "リオル",
+            "card_id": [
+              333,
+              677,
+              974
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "パワープロテイン",
+            "card_id": [
+              1141
+            ]
+          },
+          {
+            "name": "マクノシタ",
+            "card_id": [
+              673
+            ]
+          },
+          {
+            "name": "ハリテヤマ",
+            "card_id": [
+              674
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "ファイトゴング",
+            "card_id": [
+              1142
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "ロック【闘】エネルギー",
+            "card_id": [
+              20
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "FIGHTING",
+          "role": "energy",
+          "reason": "闘タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "alakazam": {
+      "display_name": "フーディン",
+      "cards": [
+        {
+          "name": "フーディン",
+          "card_id": [
+            245,
+            743
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "ふしぎなアメ",
+          "card_id": [
+            1079
+          ],
+          "role": "core",
+          "reason": "2進化デッキで重要な展開補助カード（2進化系デッキで共通、フーディン限定の証拠としてはやや弱め）"
+        },
+        {
+          "name": "リッチエネルギー",
+          "card_id": [
+            13
+          ],
+          "role": "flex",
+          "ace_spec": true,
+          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "ケーシィ",
+            "card_id": [
+              109,
+              741
+            ]
+          },
+          {
+            "name": "ユンゲラー",
+            "card_id": [
+              742
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "シェイミ",
+            "card_id": [
+              45,
+              343,
+              1013
+            ]
+          },
+          {
+            "name": "ノコッチ",
+            "card_id": [
+              65,
+              305
+            ]
+          },
+          {
+            "name": "ノココッチ",
+            "card_id": [
+              66
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "改造ハンマー",
+            "card_id": [
+              1081
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "テレパス【超】エネルギー",
+            "card_id": [
+              19
+            ]
+          },
+          {
+            "name": "ワンダーパッチ",
+            "card_id": [
+              1146
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "PSYCHIC",
+          "role": "energy",
+          "reason": "超タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {
+        "nokokocchi": {
+          "display_name": "ノココッチ型",
+          "cards": []
+        },
+        "togekiss": {
+          "display_name": "トゲキッス型",
+          "cards": []
+        }
+      },
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "dragapult_ex": {
+      "display_name": "ドラパルトex",
+      "cards": [
+        {
+          "name": "ドラパルトex",
+          "card_id": [
+            121
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "ドラメシヤ",
+            "card_id": [
+              119
+            ]
+          },
+          {
+            "name": "ドロンチ",
+            "card_id": [
+              120
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "マシマシラ",
+            "card_id": [
+              112
+            ]
+          },
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          },
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "ふしぎなアメ",
+            "card_id": [
+              1079
+            ]
+          },
+          {
+            "name": "ヨノワール",
+            "card_id": [
+              133
+            ]
+          },
+          {
+            "name": "ヨマワル",
+            "card_id": [
+              131
+            ]
+          },
+          {
+            "name": "サマヨール",
+            "card_id": [
+              132
+            ]
+          },
+          {
+            "name": "シェイミ",
+            "card_id": [
+              45,
+              343,
+              1013
+            ]
+          },
+          {
+            "name": "リーリエのピッピex",
+            "card_id": [
+              272
+            ]
+          },
+          {
+            "name": "ノココッチ",
+            "card_id": [
+              66
+            ]
+          },
+          {
+            "name": "ノコッチ",
+            "card_id": [
+              65,
+              305
+            ]
+          },
+          {
+            "name": "ファイヤー",
+            "card_id": [
+              791
+            ]
+          },
+          {
+            "name": "アチャモ",
+            "card_id": [
+              324,
+              410
+            ]
+          },
+          {
+            "name": "バシャーモex",
+            "card_id": [
+              326
+            ]
+          },
+          {
+            "name": "ワカシャモ",
+            "card_id": [
+              325,
+              411
+            ]
+          },
+          {
+            "name": "イベルタル",
+            "card_id": [
+              689
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "PSYCHIC",
+          "role": "energy",
+          "reason": "採用される3色エネルギーの1色"
+        },
+        {
+          "type": "FIRE",
+          "role": "energy",
+          "reason": "採用される3色エネルギーの1色"
+        },
+        {
+          "type": "DARKNESS",
+          "role": "energy",
+          "reason": "採用される3色エネルギーの1色"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "kamitsuorochi_ex": {
+      "display_name": "カミツオロチex",
+      "cards": [
+        {
+          "name": "カミツオロチex",
+          "card_id": [
+            150
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "オーガポン みどりのめんex",
+          "card_id": [
+            96
+          ],
+          "role": "core",
+          "reason": "採用率は高いが、単体で別アーキタイプ（オーガポンみどりのめんex）の主軸にもなるため要注意"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "カミッチュ",
+            "card_id": [
+              93,
+              347,
+              921
+            ]
+          },
+          {
+            "name": "カジッチュ",
+            "card_id": [
+              42,
+              92,
+              149,
+              346
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "メガニウム",
+            "card_id": [
+              710
+            ]
+          },
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          },
+          {
+            "name": "ベイリーフ",
+            "card_id": [
+              709,
+              918
+            ]
+          },
+          {
+            "name": "カプ・ブルル",
+            "card_id": [
+              920
+            ]
+          },
+          {
+            "name": "チコリータ",
+            "card_id": [
+              708,
+              917
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "セレビィ",
+            "card_id": [
+              655
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "活力の森",
+            "card_id": [
+              1261
+            ]
+          },
+          {
+            "name": "むしとりセット",
+            "card_id": [
+              1094
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "GRASS",
+          "role": "energy",
+          "reason": "草タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "oliva_ex": {
+      "display_name": "オリーヴァex",
+      "cards": [
+        {
+          "name": "オリーヴァex",
+          "card_id": [
+            404
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "オーガポン みどりのめんex",
+          "card_id": [
+            96
+          ],
+          "role": "core",
+          "reason": "採用率は高いが、単体で別アーキタイプ（オーガポンみどりのめんex）の主軸にもなるため要注意"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "オリーニョ",
+            "card_id": [
+              403
+            ]
+          },
+          {
+            "name": "ミニーブ",
+            "card_id": [
+              402
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "メガニウム",
+            "card_id": [
+              710
+            ]
+          },
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          },
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "ベイリーフ",
+            "card_id": [
+              709,
+              918
+            ]
+          },
+          {
+            "name": "チコリータ",
+            "card_id": [
+              708,
+              917
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "ヨルノズク",
+            "card_id": [
+              173
+            ]
+          },
+          {
+            "name": "ホーホー",
+            "card_id": [
+              64,
+              172,
+              250
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "活力の森",
+            "card_id": [
+              1261
+            ]
+          },
+          {
+            "name": "むしとりセット",
+            "card_id": [
+              1094
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "GRASS",
+          "role": "energy",
+          "reason": "草タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "takeruraiko_ex": {
+      "display_name": "タケルライコex",
+      "cards": [
+        {
+          "name": "タケルライコex",
+          "card_id": [
+            63
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "オーガポン みどりのめんex",
+          "card_id": [
+            96
+          ],
+          "role": "core",
+          "reason": "採用率は高いが、単体で別アーキタイプ（オーガポンみどりのめんex）の主軸にもなるため要注意"
+        },
+        {
+          "name": "タケルライコ",
+          "card_id": [
+            171
+          ],
+          "role": "flex",
+          "reason": "ex版ではない通常版。アンカーのタケルライコexとは別カードとして扱う"
+        }
+      ],
+      "role_cards": {
+        "core": [
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "ラティアスex",
+            "card_id": [
+              184
+            ]
+          },
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          },
+          {
+            "name": "テツノイサハex",
+            "card_id": [
+              75
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "むしとりセット",
+            "card_id": [
+              1094
+            ]
+          },
+          {
+            "name": "コライドン",
+            "card_id": [
+              62,
+              226
+            ]
+          },
+          {
+            "name": "メガガルーラex",
+            "card_id": [
+              756
+            ]
+          },
+          {
+            "name": "リーリエのピッピex",
+            "card_id": [
+              272
+            ]
+          },
+          {
+            "name": "パオジアン",
+            "card_id": [
+              209,
+              1063
+            ]
+          },
+          {
+            "name": "ナゲツケサル",
+            "card_id": [
+              978
+            ]
+          },
+          {
+            "name": "コダック",
+            "card_id": [
+              858
+            ]
+          },
+          {
+            "name": "シアノ",
+            "card_id": [
+              1205
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "FIGHTING",
+          "role": "energy",
+          "reason": "闘タイプデッキの判断材料"
+        },
+        {
+          "type": "LIGHTNING",
+          "role": "energy",
+          "reason": "雷タイプデッキの判断材料"
+        },
+        {
+          "type": "GRASS",
+          "role": "energy",
+          "reason": "草タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "ogerpon_teal_ex": {
+      "display_name": "オーガポン みどりのめんex",
+      "cards": [
+        {
+          "name": "オーガポン みどりのめんex",
+          "card_id": [
+            96
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        }
+      ],
+      "role_cards": {
+        "core": [
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          },
+          {
+            "name": "ラティアスex",
+            "card_id": [
+              184
+            ]
+          },
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "リーリエのピッピex",
+            "card_id": [
+              272
+            ]
+          },
+          {
+            "name": "シアノ",
+            "card_id": [
+              1205
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "メガガルーラex",
+            "card_id": [
+              756
+            ]
+          },
+          {
+            "name": "パオジアン",
+            "card_id": [
+              209,
+              1063
+            ]
+          },
+          {
+            "name": "オーガポン いどのめんex",
+            "card_id": [
+              108
+            ]
+          },
+          {
+            "name": "プリズムエネルギー",
+            "card_id": [
+              16
+            ]
+          },
+          {
+            "name": "コダック",
+            "card_id": [
+              858
+            ]
+          },
+          {
+            "name": "ナゲツケサル",
+            "card_id": [
+              978
+            ]
+          },
+          {
+            "name": "マシマシラ",
+            "card_id": [
+              112
+            ]
+          },
+          {
+            "name": "テツノイサハ",
+            "card_id": [
+              27
+            ]
+          },
+          {
+            "name": "ロケット団のミミッキュ",
+            "card_id": [
+              434
+            ]
+          },
+          {
+            "name": "ガチグマ アカツキex",
+            "card_id": [
+              44
+            ]
+          },
+          {
+            "name": "ラブトロス",
+            "card_id": [
+              39
+            ]
+          },
+          {
+            "name": "ファイヤー",
+            "card_id": [
+              791
+            ]
+          },
+          {
+            "name": "メガアブソルex",
+            "card_id": [
+              687
+            ]
+          },
+          {
+            "name": "モモワロウex",
+            "card_id": [
+              141
+            ]
+          },
+          {
+            "name": "タケルライコex",
+            "card_id": [
+              63
+            ]
+          },
+          {
+            "name": "イベルタル",
+            "card_id": [
+              689
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "テレパス【超】エネルギー",
+            "card_id": [
+              19
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "GRASS",
+          "role": "energy",
+          "reason": "採用頻度が高いエネルギー色"
+        },
+        {
+          "type": "PSYCHIC",
+          "role": "energy",
+          "reason": "採用頻度が高いエネルギー色"
+        },
+        {
+          "type": "WATER",
+          "role": "energy",
+          "reason": "採用頻度が高いエネルギー色"
+        },
+        {
+          "type": "DARKNESS",
+          "role": "flex",
+          "reason": "自由度が高いデッキのため採用される可能性のある色"
+        },
+        {
+          "type": "FIRE",
+          "role": "flex",
+          "reason": "自由度が高いデッキのため採用される可能性のある色"
+        },
+        {
+          "type": "LIGHTNING",
+          "role": "flex",
+          "reason": "自由度が高いデッキのため採用される可能性のある色"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "n_zoroark_ex": {
+      "display_name": "Nのゾロアークex",
+      "cards": [
+        {
+          "name": "Nのゾロアークex",
+          "card_id": [
+            293
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "Nのゾロア",
+            "card_id": [
+              292
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "Nのゼクロム",
+            "card_id": [
+              906
+            ]
+          },
+          {
+            "name": "Nのポイントアップ",
+            "card_id": [
+              1113
+            ]
+          },
+          {
+            "name": "マシマシラ",
+            "card_id": [
+              112
+            ]
+          },
+          {
+            "name": "モモワロウex",
+            "card_id": [
+              141
+            ]
+          },
+          {
+            "name": "シアノ",
+            "card_id": [
+              1205
+            ]
+          },
+          {
+            "name": "Nの城",
+            "card_id": [
+              1253
+            ]
+          },
+          {
+            "name": "Nのダルマッカ",
+            "card_id": [
+              257
+            ]
+          },
+          {
+            "name": "Nのヒヒダルマ",
+            "card_id": [
+              258
+            ]
+          },
+          {
+            "name": "Nのレシラム",
+            "card_id": [
+              303
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          },
+          {
+            "name": "イベルタル",
+            "card_id": [
+              689
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "くさりもち",
+            "card_id": [
+              1162
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "DARKNESS",
+          "role": "energy",
+          "reason": "悪タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "omatsuri_ondo": {
+      "display_name": "おまつりおんど",
+      "cards": [
+        {
+          "name": "お祭り会場",
+          "card_id": [
+            1245
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード（スタジアム）"
+        }
+      ],
+      "role_cards": {
+        "core": [
+          {
+            "name": "バチンキー",
+            "card_id": [
+              90
+            ]
+          },
+          {
+            "name": "カミッチュ",
+            "card_id": [
+              93,
+              347,
+              921
+            ]
+          },
+          {
+            "name": "サルノリ",
+            "card_id": [
+              89
+            ]
+          },
+          {
+            "name": "トサキント",
+            "card_id": [
+              100
+            ]
+          },
+          {
+            "name": "シェイミ",
+            "card_id": [
+              45,
+              343,
+              1013
+            ]
+          },
+          {
+            "name": "アズマオウ",
+            "card_id": [
+              240
+            ]
+          },
+          {
+            "name": "カジッチュ",
+            "card_id": [
+              42,
+              92,
+              149,
+              346
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "コダック",
+            "card_id": [
+              858
+            ]
+          },
+          {
+            "name": "ベラカス",
+            "card_id": [
+              74
+            ]
+          },
+          {
+            "name": "シガロコ",
+            "card_id": [
+              73
+            ]
+          },
+          {
+            "name": "ゴリランダー",
+            "card_id": [
+              91
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "むしとりセット",
+            "card_id": [
+              1094
+            ]
+          },
+          {
+            "name": "活力の森",
+            "card_id": [
+              1261
+            ]
+          },
+          {
+            "name": "グロウ【草】エネルギー",
+            "card_id": [
+              18
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "GRASS",
+          "role": "energy",
+          "reason": "草タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "gekkouga_ex": {
+      "display_name": "ゲッコウガex",
+      "cards": [
+        {
+          "name": "ゲッコウガex",
+          "card_id": [
+            40
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "偉大な大樹",
+          "card_id": [
+            1249
+          ],
+          "role": "flex",
+          "ace_spec": true,
+          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "ゲコガシラ",
+            "card_id": [
+              34
+            ]
+          },
+          {
+            "name": "ケロマツ",
+            "card_id": [
+              33,
+              945
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "ふしぎなアメ",
+            "card_id": [
+              1079
+            ]
+          },
+          {
+            "name": "イグニッションエネルギー",
+            "card_id": [
+              17
+            ]
+          },
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "ノココッチ",
+            "card_id": [
+              66
+            ]
+          },
+          {
+            "name": "ノコッチ",
+            "card_id": [
+              65,
+              305
+            ]
+          },
+          {
+            "name": "ヨマワル",
+            "card_id": [
+              131
+            ]
+          },
+          {
+            "name": "サマヨール",
+            "card_id": [
+              132
+            ]
+          },
+          {
+            "name": "ヨノワール",
+            "card_id": [
+              133
+            ]
+          },
+          {
+            "name": "ノココッチex",
+            "card_id": [
+              306
+            ]
+          },
+          {
+            "name": "メガユキメノコex",
+            "card_id": [
+              861
+            ]
+          },
+          {
+            "name": "ユキワラシ",
+            "card_id": [
+              103,
+              860
+            ]
+          },
+          {
+            "name": "ラティアスex",
+            "card_id": [
+              184
+            ]
+          },
+          {
+            "name": "シェイミ",
+            "card_id": [
+              45,
+              343,
+              1013
+            ]
+          },
+          {
+            "name": "ドラパルトex",
+            "card_id": [
+              121
+            ]
+          },
+          {
+            "name": "ドロンチ",
+            "card_id": [
+              120
+            ]
+          },
+          {
+            "name": "ドラメシヤ",
+            "card_id": [
+              119
+            ]
+          },
+          {
+            "name": "コダック",
+            "card_id": [
+              858
+            ]
+          }
+        ],
+        "energy": []
+      },
+      "energy_types": [
+        {
+          "type": "WATER",
+          "role": "energy",
+          "reason": "水タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "shirona_garchomp_ex": {
+      "display_name": "シロナのガブリアスex",
+      "cards": [
+        {
+          "name": "シロナのガブリアスex",
+          "card_id": [
+            381
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "シロナのガバイト",
+            "card_id": [
+              380
+            ]
+          },
+          {
+            "name": "シロナのフカマル",
+            "card_id": [
+              379
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "シロナのロズレイド",
+            "card_id": [
+              342
+            ]
+          },
+          {
+            "name": "シロナのロゼリア",
+            "card_id": [
+              341
+            ]
+          },
+          {
+            "name": "シロナのパワーウエイト",
+            "card_id": [
+              1173
+            ]
+          },
+          {
+            "name": "シロナのミカルゲ",
+            "card_id": [
+              387
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "ふしぎなアメ",
+            "card_id": [
+              1079
+            ]
+          },
+          {
+            "name": "活力の森",
+            "card_id": [
+              1261
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "ファイトゴング",
+            "card_id": [
+              1142
+            ]
+          },
+          {
+            "name": "ロック【闘】エネルギー",
+            "card_id": [
+              20
+            ]
+          },
+          {
+            "name": "パワープロテイン",
+            "card_id": [
+              1141
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "FIGHTING",
+          "role": "energy",
+          "reason": "闘タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "toxtricity": {
+      "display_name": "ストリンダー",
+      "cards": [
+        {
+          "name": "ストリンダー",
+          "card_id": [
+            834
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "シークレットボックス",
+          "card_id": [
+            1092
+          ],
+          "role": "flex",
+          "ace_spec": true,
+          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "エレズン",
+            "card_id": [
+              833
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "マシマシラ",
+            "card_id": [
+              112
+            ]
+          },
+          {
+            "name": "モモワロウex",
+            "card_id": [
+              141
+            ]
+          },
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "メガアブソルex",
+            "card_id": [
+              687
+            ]
+          },
+          {
+            "name": "アラブルタケ",
+            "card_id": [
+              986
+            ]
+          },
+          {
+            "name": "モモワロウ",
+            "card_id": [
+              230,
+              898
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "シェイミ",
+            "card_id": [
+              45,
+              343,
+              1013
+            ]
+          },
+          {
+            "name": "イベルタル",
+            "card_id": [
+              689
+            ]
+          },
+          {
+            "name": "ロケット団のニューラ",
+            "card_id": [
+              464
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "DARKNESS",
+          "role": "energy",
+          "reason": "悪タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "yadoking": {
+      "display_name": "ヤドキング",
+      "cards": [
+        {
+          "name": "ヤドキング",
+          "card_id": [
+            163
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "プライムキャッチャー",
+          "card_id": [
+            1088
+          ],
+          "role": "flex",
+          "ace_spec": true,
+          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "ヤドン",
+            "card_id": [
+              162,
+              327
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "メタグロス",
+            "card_id": [
+              276
+            ]
+          },
+          {
+            "name": "ラティアスex",
+            "card_id": [
+              184
+            ]
+          },
+          {
+            "name": "キュレム",
+            "card_id": [
+              144
+            ]
+          },
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          },
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "リーリエのピッピex",
+            "card_id": [
+              272
+            ]
+          },
+          {
+            "name": "メガガルーラex",
+            "card_id": [
+              756
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "ムチュール",
+            "card_id": [
+              183
+            ]
+          },
+          {
+            "name": "コノヨザル",
+            "card_id": [
+              224,
+              439
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "ワンダーパッチ",
+            "card_id": [
+              1146
+            ]
+          },
+          {
+            "name": "テレパス【超】エネルギー",
+            "card_id": [
+              19
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "PSYCHIC",
+          "role": "energy",
+          "reason": "超タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "rocket_honchkrow": {
+      "display_name": "ロケット団のドンカラス",
+      "cards": [
+        {
+          "name": "ロケット団のドンカラス",
+          "card_id": [
+            891
+          ],
+          "role": "anchor",
+          "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "ミラクルインカム",
+          "card_id": [
+            1109
+          ],
+          "role": "flex",
+          "ace_spec": true,
+          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "ロケット団のヤミカラス",
+            "card_id": [
+              463
+            ]
+          }
+        ],
+        "core": [
+          {
+            "name": "ロケット団のフリーザー",
+            "card_id": [
+              414
+            ]
+          },
+          {
+            "name": "ロケット団のファクトリー",
+            "card_id": [
+              1257
+            ]
+          },
+          {
+            "name": "ロケット団のアテナ",
+            "card_id": [
+              1216
+            ]
+          },
+          {
+            "name": "ロケット団のランス",
+            "card_id": [
+              1220
+            ]
+          },
+          {
+            "name": "ロケット団のアポロ",
+            "card_id": [
+              1217
+            ]
+          },
+          {
+            "name": "ロケット団のサカキ",
+            "card_id": [
+              1218
+            ]
+          },
+          {
+            "name": "ロケット団のレシーバー",
+            "card_id": [
+              1134
+            ]
+          },
+          {
+            "name": "ロケット団エネルギー",
+            "card_id": [
+              15
+            ]
+          },
+          {
+            "name": "ロケット団のポリゴン",
+            "card_id": [
+              473
+            ]
+          },
+          {
+            "name": "ロケット団のポリゴン2",
+            "card_id": [
+              474
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "ロケット団のミミッキュ",
+            "card_id": [
+              434
+            ]
+          },
+          {
+            "name": "ロケット団のポリゴンZ",
+            "card_id": [
+              475
+            ]
+          },
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          }
+        ]
+      },
+      "energy_types": [],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    }
+  },
+  "generic_cards": [
+    {
+      "name": "アンフェアスタンプ",
+      "card_id": [
+        1080
+      ],
+      "reason": "複数アーキタイプで採用される汎用エーススペックのため判定根拠にしない"
+    },
+    {
+      "name": "スボミー",
+      "card_id": [
+        235
+      ],
+      "reason": "7アーキタイプ以上に分散して採用されるため判定根拠にしない（準汎用カード）"
+    }
+  ],
+  "unknown_threshold": {
+    "min_score": 6,
+    "min_score_gap": 2
+  },
+  "confidence_settings": {
+    "max_confidence": 0.95,
+    "min_confidence": 0.0
+  }
+}
