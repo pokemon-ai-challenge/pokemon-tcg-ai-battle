@@ -8,12 +8,15 @@
 ルールベース予測器を実装予定。
 
 - 実装計画・設計方針: [docs/plans/opponent-deck-predictor/plan.md](../../docs/plans/opponent-deck-predictor/plan.md)
+- 観測情報記録器の設計: [docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md](../../docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md)
 - 関連 Issue: #25（MVP 本体）, #26（特徴量 config）
 
-### 予定ファイル
-- `rough_predictor.py` — `predict(state, opponent_knowledge=None)` 本体
+### ファイル
+- `rough_predictor.py` — `predict(state, opponent_knowledge=None)` 本体（予定）
 - `rough_predictor.json` — デッキ特徴量・role・しきい値の config
-- `opponent_knowledge.py` — 観測済みカードの蓄積（後続）
+- `opponent_knowledge.py` — 実装済み。相手の公開情報（`observed_cards`）を `OpponentKnowledge` で蓄積し、
+  `get_prediction_features()` で `rough_predictor.py` 等に渡せる形にする。
+  設計の詳細・未確定事項は [opponent-knowledge-plan.md](../../docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md) を参照。
 
 ## config リファレンス（`rough_predictor.json`）
 
