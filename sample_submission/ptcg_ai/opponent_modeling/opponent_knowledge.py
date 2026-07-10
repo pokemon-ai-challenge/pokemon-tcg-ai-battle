@@ -84,6 +84,7 @@ class OpponentKnowledge:
         # Pokemon.energies（付属エネルギーの色）から集めた色ヒント。カード実体とは別に、
         # デッキのエネルギー色を推測する補助情報として保持する。
         self._energy_types_seen: set[int] = set()
+        self._pending_logs: list[Log] = []
 
     # ------------------------------------------------------------------
     # 記録
@@ -92,10 +93,15 @@ class OpponentKnowledge:
         """盤面スナップショットから、相手の公開カードを全て記録する。"""
         if self._opponent_index is None:
             self._opponent_index = 1 - state.yourIndex
+        if self._pending_logs:
+            self._replay_logs(self._pending_logs)
+            self._pending_logs.clear()
 
         # 今回のスキャンで見えなかったカードは、公開ゾーンから消えたとみなす
         # （手札/デッキ/サイドへ戻った、単にこのスナップショットに写っていない、等）。
         for record in self._by_serial.values():
+            record.current_zone = None
+        for record in self._no_serial.values():
             record.current_zone = None
 
         turn = state.turn
@@ -142,6 +148,12 @@ class OpponentKnowledge:
 
     def update_from_logs(self, logs: list[Log]) -> None:
         """logs（プレイ/進化/付与/移動など）から、公開された相手カードを記録する。"""
+        if self._opponent_index is None:
+            self._pending_logs.extend(logs)
+            return
+        self._replay_logs(logs)
+
+    def _replay_logs(self, logs: list[Log]) -> None:
         for log in logs:
             # 自分側のイベントは無視する（記録するのはあくまで相手のカードだけ）。
             if log.playerIndex is None or log.playerIndex != self._opponent_index:
@@ -245,12 +257,22 @@ class OpponentKnowledge:
         key = (card_id, zone)
         record = self._no_serial.get(key)
         if record is None:
+            record = self._find_reusable_no_serial(card_id)
+        if record is None:
             self._no_serial[key] = self._new_record(card_id, zone, turn, None)
             return
+        record.zones_seen.add(zone)
+        record.current_zone = zone
         if turn is not None:
             record.last_seen_turn = turn
             if record.first_seen_turn is None:
                 record.first_seen_turn = turn
+
+    def _find_reusable_no_serial(self, card_id: int) -> ObservedCard | None:
+        for record in self._no_serial.values():
+            if record.card_id == card_id:
+                return record
+        return None
 
     def _new_record(self, card_id: int, zone: str, turn: int | None, serial: int | None) -> ObservedCard:
         """card_id から名前・種別を引いて、初回観測時の ObservedCard を組み立てる。"""

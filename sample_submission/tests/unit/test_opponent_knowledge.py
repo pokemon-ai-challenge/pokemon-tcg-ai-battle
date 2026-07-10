@@ -201,3 +201,33 @@ def test_update_from_state_after_update_from_logs_wins_the_current_zone():
     knowledge.update_from_state(make_state(make_player_state(), opponent))
 
     assert knowledge.get_zone_cards() == {"bench": [knowledge.get_observed_cards()[0]]}
+
+
+def test_logs_before_first_state_are_replayed_after_opponent_index_is_known():
+    knowledge = OpponentKnowledge()
+    log = Log(type=LogType.PLAY, playerIndex=1, cardId=ITEM_CARD, serial=42)
+
+    knowledge.update_from_logs([log])
+    assert knowledge.get_observed_cards() == []
+
+    knowledge.update_from_state(make_state(make_player_state(), make_player_state()))
+
+    features = knowledge.get_prediction_features()
+    assert features["observed_card_ids"][ITEM_CARD] == 1
+
+
+def test_no_serial_card_moving_zones_reuses_existing_record():
+    knowledge = OpponentKnowledge(opponent_index=1)
+
+    knowledge.observe_card(ITEM_CARD, "revealed", turn=1, serial=None)
+    knowledge.update_from_state(make_state(make_player_state(), make_player_state(), turn=2))
+    knowledge.observe_card(ITEM_CARD, "discard", turn=2, serial=None)
+
+    records = knowledge.get_observed_cards()
+    assert len(records) == 1
+    assert records[0].zones_seen == {"revealed", "discard"}
+    assert records[0].current_zone == "discard"
+
+    features = knowledge.get_prediction_features()
+    assert features["observed_card_ids"][ITEM_CARD] == 1
+    assert features["zone_cards"]["discard"] == [records[0].name]
