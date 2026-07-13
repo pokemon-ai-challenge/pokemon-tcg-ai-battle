@@ -104,6 +104,10 @@ python .\battle_review_viewer\export_replay.py --opponent self --output .\battle
 
 ## Opponent Knowledge デバッグ機能
 
+> Optional: this debug layer is enabled only when
+> `sample_submission/ptcg_ai/opponent_modeling` exists. On a viewer-only branch,
+> replay export and live match still work; `opponentKnowledgeDebug` remains `null`.
+
 `export_replay.py` は player0（`sample_submission/main.py` のエージェント）視点で
 `sample_submission/ptcg_ai/opponent_modeling/opponent_knowledge.py` の `OpponentKnowledge` を動かし、
 各フレームに以下を埋め込みます（`opponentKnowledgeDebug` キー。player1 の手番のフレームは `null`）。
