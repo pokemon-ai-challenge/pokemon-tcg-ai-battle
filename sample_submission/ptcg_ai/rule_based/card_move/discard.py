@@ -11,14 +11,18 @@ knowledge.profile_registry.get_deck_plan().protected_card_ids（捨てたくな�
 
 from cg.api import SelectData, State
 
+from ptcg_ai.rule_based.card_move import common
 from ptcg_ai.shared import profile_registry
 
 
 def choose(select: SelectData, state: State) -> list[int]:
     """捨てるカード/エネルギー/どうぐの選択肢インデックスを返す。"""
-    raise NotImplementedError
+    return common.pick_top(select, lambda option: 0 if _is_protected(option, state) else 1)
 
 
-def _is_protected(card_id: int) -> bool:
+def _is_protected(option, state: State) -> bool:
     """get_deck_plan().protected_card_ids を参照し、捨てたくないカードかどうかを判定する。"""
-    raise NotImplementedError
+    card_id = common.resolve_card_id(option, state)
+    if card_id is None:
+        return False
+    return card_id in profile_registry.get_deck_plan().protected_card_ids

@@ -5,6 +5,7 @@
 必ずこの関数群を経由する（ptcg_ai/action_selection・ptcg_ai/rule_based 配下から decks/ を直接 import しない）。
 """
 
+from decks import active
 from decks.new_deck.deck_plan import DeckPlan
 from ptcg_ai.shared.profile_types import (
     AttackProfile,
@@ -23,34 +24,34 @@ def get_deck_plan() -> DeckPlan:
     ptcg_ai/action_selection・ptcg_ai/rule_based 配下がデッキ方針（opening_priority, protected_card_ids など）を必要とする場合、
     decks.active を直接 import せず、必ずこの関数を経由する。
     """
-    raise NotImplementedError
+    return active.deck_plan.PLAN
 
 
 def get_pokemon_profile(card_id: int) -> PokemonProfile | None:
     """decks.active.pokemon_profiles から card_id のプロファイルを引く。"""
-    raise NotImplementedError
+    return active.pokemon_profiles.PROFILES.get(card_id)
 
 
 def get_attack_profile(attack_id: int) -> AttackProfile | None:
     """decks.active.attack_profiles から attack_id のプロファイルを引く。"""
-    raise NotImplementedError
+    return active.attack_profiles.PROFILES.get(attack_id)
 
 
 def get_item_profile(card_id: int) -> ItemProfile | None:
-    raise NotImplementedError
+    return active.item_profiles.PROFILES.get(card_id)
 
 
 def get_supporter_profile(card_id: int) -> SupporterProfile | None:
-    raise NotImplementedError
+    return active.supporter_profiles.PROFILES.get(card_id)
 
 
 def get_tool_profile(card_id: int) -> ToolProfile | None:
-    raise NotImplementedError
+    return active.tool_profiles.PROFILES.get(card_id)
 
 
 def get_stadium_profile(card_id: int) -> StadiumProfile | None:
-    raise NotImplementedError
+    return active.stadium_profiles.PROFILES.get(card_id)
 
 
 def get_energy_profile(card_id: int) -> EnergyProfile | None:
-    raise NotImplementedError
+    return active.energy_profiles.PROFILES.get(card_id)
