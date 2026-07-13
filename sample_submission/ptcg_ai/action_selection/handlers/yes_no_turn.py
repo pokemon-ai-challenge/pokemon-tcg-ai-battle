@@ -15,4 +15,4 @@ from ptcg_ai.action_selection import fallback
 
 def handle(obs: Observation) -> list[int]:
     """未分類の YES_NO 系選択肢を処理する。判断できない場合は fallback に委譲する。"""
-    raise NotImplementedError
+    return fallback.safe_choice(obs)

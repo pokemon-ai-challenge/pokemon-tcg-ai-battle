@@ -9,7 +9,13 @@
 
 from cg.api import SelectData, State
 
+from ptcg_ai.rule_based.card_move import common
+
 
 def choose(select: SelectData, state: State) -> list[int]:
-    """NOT_MOVE / EFFECT_TARGET の選択肢インデックスを返す。"""
-    raise NotImplementedError
+    """NOT_MOVE / EFFECT_TARGET の選択肢インデックスを返す。
+
+    汎用的な効果対象で判断材料が乏しいため、安全側として先頭の選択肢から
+    minCount〜maxCount の範囲で選ぶ。
+    """
+    return common.pick_top(select, lambda option: 0.0)

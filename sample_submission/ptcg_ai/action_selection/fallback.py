@@ -13,8 +13,11 @@ from cg.api import Observation
 def safe_choice(obs: Observation) -> list[int]:
     """obs.select.minCount を満たす最小限の合法手を返す。
 
-    方針の目安（実装時に決める）:
-        - option を先頭から minCount 個選ぶなど、常に合法手の範囲に収まる選び方にする
-        - 可能なら「効果が薄い/安全側」の選択肢を優先する
+    先頭から minCount 個を選ぶだけの単純な実装。cg/api.py の保証
+    （0 <= minCount <= maxCount <= len(option)）により、常に合法手になる。
+    「何が最善か」を判断する材料が無い/信頼できない場面の最終防衛ラインなので、
+    複雑な評価はせず、まず合法手を返してゲームを止めないことを優先する。
     """
-    raise NotImplementedError
+    select = obs.select
+    count = min(max(select.minCount, 0), len(select.option))
+    return list(range(count))

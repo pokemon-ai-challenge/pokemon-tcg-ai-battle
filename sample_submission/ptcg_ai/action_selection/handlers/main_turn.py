@@ -15,4 +15,4 @@ def handle(obs: Observation) -> list[int]:
     """MAIN の選択肢（Option.type: PLAY/ATTACH/EVOLVE/ABILITY/DISCARD/RETREAT/ATTACK/END）
     の中から1手を決めて返す。実処理は main_turn_parts.proposals.decide に委譲する想定。
     """
-    raise NotImplementedError
+    return proposals.decide(obs)
