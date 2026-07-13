@@ -20,7 +20,10 @@ if str(SAMPLE_SUBMISSION_DIR) not in sys.path:
 from cg.api import Observation, to_observation_class  # noqa: E402
 from cg.game import battle_finish, battle_select, battle_start, visualize_data  # noqa: E402
 from main import agent, read_deck_csv  # noqa: E402
-from ptcg_ai.opponent_modeling.opponent_knowledge import OpponentKnowledge  # noqa: E402
+try:
+    from ptcg_ai.opponent_modeling.opponent_knowledge import OpponentKnowledge  # noqa: E402
+except Exception:  # noqa: BLE001 -- keep the viewer usable without the predictor branch
+    OpponentKnowledge = None
 try:
     from ptcg_ai.opponent_modeling.rough_predictor import predict as predict_deck  # noqa: E402
 except Exception:  # noqa: BLE001 -- 予測器が無い/壊れていてもリプレイ生成は続行する
@@ -134,7 +137,7 @@ def current_visual_frame() -> dict[str, Any]:
 
 
 def build_opponent_knowledge_debug(
-    knowledge: OpponentKnowledge,
+    knowledge: Any,
     real_state: Any,
     visual_current: dict[str, Any] | None,
 ) -> dict[str, Any]:
@@ -178,7 +181,7 @@ def run_match(player0: AgentFn, player1: AgentFn, deck0: list[int], deck1: list[
         raise RuntimeError(f"battle_start failed with errorType={start_data.errorType}")
 
     # player0(提出エージェント)が実際に受け取れる情報だけから、相手(seat=1)の観測を組み立てる。
-    knowledge = OpponentKnowledge(opponent_index=OPPONENT_SEAT)
+    knowledge = None if OpponentKnowledge is None else OpponentKnowledge(opponent_index=OPPONENT_SEAT)
 
     frames: list[dict[str, Any]] = []
     result = None
@@ -196,7 +199,7 @@ def run_match(player0: AgentFn, player1: AgentFn, deck0: list[int], deck1: list[
             # 呼び出し順が重要: logs は「この state に至るまでの出来事」なので先に処理し、
             # 盤面スキャン(update_from_state)を最後に当てて現在ゾーンを確定させる。
             debug_payload = None
-            if obs.current is not None and obs.current.yourIndex == 0:
+            if knowledge is not None and obs.current is not None and obs.current.yourIndex == 0:
                 knowledge.update_from_logs(obs.logs)
                 knowledge.update_from_state(obs.current)
                 debug_payload = build_opponent_knowledge_debug(knowledge, obs.current, current)

@@ -8,11 +8,12 @@
 ルールベース予測器を実装予定。
 
 - 実装計画・設計方針: [docs/plans/opponent-deck-predictor/plan.md](../../docs/plans/opponent-deck-predictor/plan.md)
+- MVP 方針メモ: [docs/plans/opponent-deck-predictor/mvp-strategy.md](../../docs/plans/opponent-deck-predictor/mvp-strategy.md)
 - 観測情報記録器の設計: [docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md](../../docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md)
 - 関連 Issue: #25（MVP 本体）, #26（特徴量 config）
 
 ### ファイル
-- `rough_predictor.py` — `predict(state, opponent_knowledge=None)` 本体（予定）
+- `rough_predictor.py` — `predict(state, opponent_knowledge=None)` 本体
 - `rough_predictor.json` — デッキ特徴量・role・しきい値の config
 - `opponent_knowledge.py` — 実装済み。相手の公開情報（`observed_cards`）を `OpponentKnowledge` で蓄積し、
   `get_prediction_features()` で `rough_predictor.py` 等に渡せる形にする。
@@ -35,14 +36,17 @@ combo で強くなるか、ではなく採用率で切るのが基本方針。
 | role | 重み | 意味・使いどころ | 例 |
 |------|-----:|------------------|----|
 | `anchor` | 10 | デッキの主軸カード。定義上そのデッキ。最も強い根拠。 | メガルカリオex, フーディン |
-| `evolution_line` | 5 | 進化ライン（進化元〜中間を統合）。各段は別エントリで持ち、複数段見えるほど累積で強くなる。 | リオル/ルカリオ, ケーシィ/ユンゲラー |
-| `core` | 4 | そのデッキにほぼ必ず入る固定ギミック・専用サポート。単体でも十分な根拠。 | ソルロック・ルナトーン, ふしぎなアメ |
-| `flex` | 2 | 入りうる（構築による）カード。目安は**採用率おおよそ10%以上**。弱めの根拠。 | 採用が分かれるサブアタッカー等 |
+| `signature` | 8 | 単体でもかなり強い専用寄りカード。anchorほど確定ではないが、1枚で候補を大きく絞れる。 | テツノイサハex, コライドンex |
+| `evolution_line` | 4 | 進化ライン（進化元〜中間を統合）。段ごとに確信度を上げたい場合は別エントリ、同じ根拠として扱いたい場合は `names` でセット化する。 | リオル, ケーシィ/ユンゲラー |
+| `core` | 3 | そのデッキにほぼ必ず入る固定ギミック・専用サポート。単体でも十分な根拠。 | ソルロック・ルナトーン, ふしぎなアメ |
+| `flex` | 1 | 入りうる（構築による）カード。目安は**採用率おおよそ10%以上**。弱めの根拠。 | 採用が分かれるサブアタッカー等 |
 | `energy` | 2 | デッキ色の判断材料。単体では確定材料にせず補助的に使う。 | 闘/超エネルギー |
+| `shared_anchor` | 7 | 近い複数デッキにまたがる強い主軸候補。単体で絞れるが確定ではない。 | オーガポン みどりのめんex |
+| `shared_line` | 5 | 近い複数デッキにまたがる進化支援ライン。単体ではそこそこ、進化元と合わさると強い。 | メガニウムライン |
 | `generic` | 0 | 多くのデッキに入る汎用カード。判定の根拠にしない（加点0）。 | ネストボール, 博士の研究 |
 
 > 数値はあくまで初期値。チューニングで上下してよい。順序の意図は
-> 「主軸 > 進化ライン > core > flex ≧ エネルギー > 汎用」。
+> 「主軸 > 専用寄りカード > 進化ライン > core > flex ≧ エネルギー > 汎用」。
 
 ### `core` / `flex` / 対象外の判断フロー
 
@@ -55,9 +59,9 @@ combo で強くなるか、ではなく採用率で切るのが基本方針。
 ### 同じカードが複数 archetype に登場する場合（Pokemon カードの共有）
 
 スコアリングは archetype ごとに独立計算されるため、同じ重みで複数 archetype の `core`/`flex` に
-入っていても**それらの間の相対順位は歪まない**（全員が同じだけ底上げされるだけ）。歪みうるのは
-`unknown_threshold.min_score` という絶対的な足切りラインの方だが、現状の重み設計（anchor=10, core=4,
-min_score=6）では共有カード1枚だけで閾値を超えることはなく、リスクは小さい。
+入っていても**それらの間の相対順位は歪まない**（全員が同じだけ底上げされるだけ）。
+現在は raw score そのものではなく `normalized_score = score / confident_score` と、
+`prediction_decision` のしきい値で `unknown` を判定する。
 
 判断基準は「**関係ない戦略・タイプのデッキにまで登場するか**」で見る:
 - 同じタイプ・同じ戦略系統のデッキ同士で共有される Pokemon（例: 闘タイプ複数デッキで共有される
@@ -82,9 +86,9 @@ min_score=6）では共有カード1枚だけで閾値を超えることはな�
   { "names": ["ソルロック", "ルナトーン"], "card_ids": [676, 675], "role": "core", "reason": "..." }
   ```
 
-> 進化ライン（リオル/ルカリオ等）はグループにせず**各段を別エントリ**にする。
-> 進化元と中間の両方が見えたら累積で加点したいため（＝実際にラインを組んでいる証拠）。
-> 一方ソルロック/ルナトーンのような「常にセット・片方だけは無い」組はグループ化して1回加点にする。
+> 同じ進化ラインを1つの根拠として扱いたい場合は、`names` でセット化するか、別エントリに
+> 同じ `line_key` を付ける。`line_key` が同じカードは、別roleでも最初の1回だけ加点する。
+> 例: `ノコッチ` / `ノココッチ`, `アチャモ` / `ワカシャモ` / `バシャーモex`。
 
 ### `card_id` の型（常に `list[int]` または `null`）
 
@@ -153,20 +157,22 @@ predict.py 実装時は `cards` と `role_cards`（展開後）をマージし�
 ### ACE SPEC カードの扱い（`ace_spec` フラグ + `ace_spec_bonus`）
 
 ACE SPEC はデッキ内に1枚しか入らないカード（`CardData.aceSpec`）。役割自体は既存の
-`role`（`core`/`flex` など）で表現し、**「その1枚を採用するという構築判断自体が強い根拠になる」**
-という追加情報だけをオーバーレイする。新しい role は作らず、直交フラグにする。
+`role`（`core`/`flex` など）で表現する。多くのデッキに入りうるため、`ace_spec` は
+「ACE SPEC として記録する」ための直交フラグで、原則として追加ボーナスにはしない。
+新しい role は作らない。
 
 ```json
 { "name": "（採用されているエーススペック名）", "card_id": null,
   "role": "core", "ace_spec": true, "reason": "..." }
 ```
 
-- 加点式: `role_weights[role]`、`ace_spec: true` の場合はさらに
-  top-level の `ace_spec_bonus`（初期値 1.3）を掛ける。
+- 加点式: `role_weights[role]`。`ace_spec: true` の場合も top-level の
+  `ace_spec_bonus` は初期値 `1.0` なので、追加倍率は掛からない。
 - `ace_spec` は単体カード（`name`）・グループ（`names`）どちらにも付けられる
   （型ごとに違うエーススペックを使う場合は、後述の `variants` 側に個別で持たせる方が自然）。
-- 採用率が分かっている場合は `core`（目安7割以上）、未確認の場合は `flex` で暫定登録する
-  （例: `マキシマムベルト` は採用率約71%のため `core`、採用率不明なものは `flex`）。
+- ACE SPEC は採用率が高くても最大 `flex` に留める（例: `マキシマムベルト`,
+  `リッチエネルギー`, `偉大な大樹`, `ネオアッパーエネルギー`, `シークレットボックス`,
+  `ミラクルインカム`）。
 - **複数 archetype で共有される ACE SPEC は「複数 archetype に登場する場合」のルールに従い
   `generic_cards` に移す**（例: `アンフェアスタンプ` は5 archetype全部に登場したため除外）。
 
@@ -194,7 +200,7 @@ ACE SPEC はデッキ内に1枚しか入らないカード（`CardData.aceSpec`�
 
 - **型 vs 別archetype の判断基準**: `anchor`（と基本 `evolution_line`）が同じなら型、
   `anchor` が違うなら別 archetype にする。
-- 型のスコアは archetype 本体のスコア・`unknown_threshold` の gap 判定には**使わない**。
+- 型のスコアは archetype 本体のスコア・`prediction_decision` の判定には**使わない**。
   まず archetype（大まかなデッキ）を確定させ、その後の補助情報として型固有カードの
   一致度から型を示す、という2段構成にする（このIssueの目的が「大まかな判定」のため）。
 - 現状は全 archetype とも `variants: {}`（空）。型ごとの専用カードが分かった時点で追記する。
@@ -226,15 +232,49 @@ ACE SPEC はデッキ内に1枚しか入らないカード（`CardData.aceSpec`�
 
 ### `combo_rules`（各 archetype 内, 原則使わない）
 
-特定カードが**揃って初めて意味を持つ**ときの追加加点。`all` のカードが全部見えていれば `bonus` を加算する。
+特定カードが**揃って初めて意味を持つ**ときの追加加点。`names` のカードが全部見えていれば
+`bonus` を加算する。`any_names` を指定した場合は、その中のどれか1枚が見えていればよい。
 
 > 「常にセットで採用される（片方だけは無い）」カード群は combo ではなく **`names` グループ**で表現する。
 > combo_rules は「別々に採用され得るが、揃うと別デッキの証拠になる」ような真の組み合わせだけに限定する。
-> 現状すべての archetype で不要なため空配列。
+> 2進化 anchor の `ふしぎなアメ + evolution_line` は top-level の `evolution_candy_combo` で共通生成する。
 
-### しきい値・confidence
+### `evolution_candy_combo`（top-level）
 
-- `unknown_threshold.min_score` — 最有力デッキがこのスコア未満なら `unknown`。
-- `unknown_threshold.min_score_gap` — 1位と2位の差がこれ未満なら判定が割れているとみなし `unknown`。
-- 各 archetype の `min_score` / `confident_score` — デッキ単位のしきい値・自信満点の基準スコア。
-- `confidence_settings.max_confidence` / `min_confidence` — confidence のクリップ範囲。
+`ふしぎなアメ` と `evolution_line` が両方定義されている archetype に、自動で
+`ふしぎなアメ + (進化元 or 中間進化)` の combo を足す。2進化 anchor では、進化元と
+ふしぎなアメが同時に見えた状態を anchor に近い強い根拠として扱う。
+
+### しきい値・判定状態
+
+- 各 archetype の `confident_score` — そのデッキを「十分見えた」とみなす基準スコア。
+- `prediction_decision.min_evidence_count` — 最有力候補の根拠数がこれ未満なら `insufficient_evidence`。
+- `prediction_decision.min_top_normalized_score` — 最有力候補の `normalized_score` がこれ未満なら `insufficient_evidence`。
+- `prediction_decision.min_normalized_margin` — 1位と2位の `normalized_score` 差がこれ未満なら `ambiguous`。
+
+### confident_score 調整進捗
+
+`rough_predictor.json` の archetype 順に、会話で方針を決めて `confident_score` と主要roleを見直したものにチェックを入れる。
+
+- [x] `mega_lucario_ex` — メガルカリオex
+- [x] `alakazam` — フーディン
+- [x] `dragapult_ex` — ドラパルトex
+- [x] `kamitsuorochi_ex` — カミツオロチex
+- [x] `oliva_ex` — オリーヴァex
+- [x] `takeruraiko_ex` — タケルライコex
+- [x] `ogerpon_teal_ex` — オーガポン みどりのめんex
+- [ ] `n_zoroark_ex` — Nのゾロアークex
+- [ ] `omatsuri_ondo` — おまつりおんど
+- [ ] `gekkouga_ex` — ゲッコウガex
+- [ ] `shirona_garchomp_ex` — シロナのガブリアスex
+- [ ] `toxtricity` — ストリンダー
+- [ ] `yadoking` — ヤドキング
+- [ ] `rocket_honchkrow` — ロケット団のドンカラス
+
+### 返り値の見方
+
+- `normalized_score = score / confident_score`。候補比較と `unknown` 判定に使う。
+- `match_rate` は `normalized_score` を `0.0..1.0` に丸めた画面表示用の到達率。
+- `status` は `confident` / `insufficient_evidence` / `ambiguous` / `no_candidate`。
+- `deck_type` が `unknown` でも `top_candidate` で現在の最有力候補を確認できる。
+- `confidence` は後方互換のために残している旧フィールドで、viewer では使わない。

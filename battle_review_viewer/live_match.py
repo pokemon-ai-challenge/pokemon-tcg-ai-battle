@@ -16,8 +16,11 @@ for candidate in (str(ROOT_DIR), str(SAMPLE_SUBMISSION_DIR)):
 
 try:
     from ptcg_ai.opponent_modeling.opponent_knowledge import OpponentKnowledge  # noqa: E402
-except ImportError:  # noqa: BLE001 -- テスト/実行文脈で path が未反映でも続行する
-    from sample_submission.ptcg_ai.opponent_modeling.opponent_knowledge import OpponentKnowledge  # noqa: E402
+except Exception:  # noqa: BLE001 -- keep live mode usable without the predictor branch
+    try:
+        from sample_submission.ptcg_ai.opponent_modeling.opponent_knowledge import OpponentKnowledge  # noqa: E402
+    except Exception:  # noqa: BLE001
+        OpponentKnowledge = None
 try:
     from .opponent_knowledge_diff import (  # noqa: E402
         collect_ground_truth,
@@ -109,7 +112,7 @@ class LiveMatchSession:
     deck1: list[int] = field(default_factory=list)
     action_history: list[dict[str, Any]] = field(default_factory=list)
     decision_frames: list[dict[str, Any]] = field(default_factory=list)
-    opponent_knowledge: OpponentKnowledge | None = None
+    opponent_knowledge: Any | None = None
 
     def start(
         self,
@@ -129,7 +132,9 @@ class LiveMatchSession:
             self.cpu_agent = make_cpu_self_agent(self.deck1) if self.cpu_policy == "self" else make_random_agent(self.deck1)
             self.action_history = []
             self.decision_frames = []
-            self.opponent_knowledge = OpponentKnowledge(opponent_index=OPPONENT_INDEX)
+            self.opponent_knowledge = (
+                None if OpponentKnowledge is None else OpponentKnowledge(opponent_index=OPPONENT_INDEX)
+            )
             self._start_battle_locked()
             self._advance_cpu_locked()
             return self._snapshot_locked()
@@ -179,6 +184,8 @@ class LiveMatchSession:
 
     def _build_opponent_knowledge_debug_locked(self) -> dict[str, Any] | None:
         if self.obs_dict is None:
+            return None
+        if OpponentKnowledge is None:
             return None
         obs = to_observation_class(self.obs_dict)
         if obs.current is None or obs.current.yourIndex != SELF_INDEX:

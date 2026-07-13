@@ -1,19 +1,34 @@
 {
   "role_weights": {
     "anchor": 10,
-    "evolution_line": 5,
-    "core": 4,
-    "flex": 2,
+    "signature": 8,
+    "evolution_line": 4,
+    "core": 3,
+    "flex": 1,
     "energy": 2,
+    "shared_anchor": 7,
+    "shared_line": 5,
     "generic": 0
   },
-  "ace_spec_bonus": 1.3,
+  "ace_spec_bonus": 1.0,
+  "evolution_candy_combo": {
+    "enabled": true,
+    "candy_names": [
+      "ふしぎなアメ"
+    ],
+    "bonus": 7.1,
+    "role": "combo",
+    "reason_template": "{candy} + {evolution}: 2進化anchorの進化元とふしぎなアメが同時に見えた強い根拠"
+  },
   "role_reason_templates": {
     "anchor": "{name}: デッキの主軸カード",
+    "signature": "{name}: 単体でもかなり強い専用寄りカード",
     "evolution_line": "{name}: 進化ライン（進化元・中間形態を含む）",
     "core": "{name}: このデッキでよく採用されるカード",
     "flex": "{name}: 構築によって採用されるカード",
     "energy": "{name}: デッキ専用のエネルギー/加速ツール",
+    "shared_anchor": "{name}: 複数の近い草デッキにまたがる強い主軸候補",
+    "shared_line": "{name}: 複数の近い草デッキにまたがる進化支援ライン",
     "generic": "{name}: 汎用カード（判定根拠にしない）"
   },
   "archetypes": {
@@ -45,9 +60,9 @@
           "card_id": [
             1158
           ],
-          "role": "core",
+          "role": "flex",
           "ace_spec": true,
-          "reason": "採用率約71%のエーススペック（他候補の可能性も残る）"
+          "reason": "採用率は高いが ACE SPEC は最大でも flex として扱う"
         }
       ],
       "role_cards": {
@@ -137,23 +152,22 @@
           ],
           "role": "flex",
           "ace_spec": true,
-          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+          "reason": "フーディンデッキでよく採用されるが ACE SPEC は最大でも flex として扱う"
         }
       ],
       "role_cards": {
         "evolution_line": [
           {
-            "name": "ケーシィ",
-            "card_id": [
+            "names": [
+              "ケーシィ",
+              "ユンゲラー"
+            ],
+            "card_ids": [
               109,
-              741
-            ]
-          },
-          {
-            "name": "ユンゲラー",
-            "card_id": [
+              741,
               742
-            ]
+            ],
+            "reason": "フーディンの進化ライン（ケーシィ/ユンゲラーは見えても1回分の根拠として扱う）"
           }
         ],
         "core": [
@@ -166,27 +180,26 @@
             ]
           },
           {
-            "name": "ノコッチ",
-            "card_id": [
+            "names": [
+              "ノコッチ",
+              "ノココッチ"
+            ],
+            "card_ids": [
               65,
-              305
-            ]
-          },
-          {
-            "name": "ノココッチ",
-            "card_id": [
+              305,
               66
-            ]
-          }
-        ],
-        "flex": [
+            ],
+            "reason": "ノコッチ/ノココッチはセット採用されやすいため1回分の core 根拠として扱う"
+          },
           {
             "name": "改造ハンマー",
             "card_id": [
               1081
-            ]
+            ],
+            "reason": "フーディンでの採用実績が強い妨害カード（他デッキにも入りうるため単体確定にはしない）"
           }
         ],
+        "flex": [],
         "energy": [
           {
             "name": "テレパス【超】エネルギー",
@@ -221,7 +234,7 @@
         }
       },
       "min_score": 6,
-      "confident_score": 12
+      "confident_score": 13
     },
     "dragapult_ex": {
       "display_name": "ドラパルトex",
@@ -252,6 +265,43 @@
         ],
         "core": [
           {
+            "name": "アチャモ",
+            "line_key": "blaziken_line",
+            "card_id": [
+              324,
+              410
+            ]
+          },
+          {
+            "name": "バシャーモex",
+            "line_key": "blaziken_line",
+            "card_id": [
+              326
+            ]
+          },
+          {
+            "name": "ワカシャモ",
+            "line_key": "blaziken_line",
+            "card_id": [
+              325,
+              411
+            ]
+          },
+          {
+            "name": "イベルタル",
+            "card_id": [
+              689
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "ふしぎなアメ",
+            "card_id": [
+              1079
+            ]
+          },
+          {
             "name": "マシマシラ",
             "card_id": [
               112
@@ -268,29 +318,24 @@
             "card_id": [
               140
             ]
-          }
-        ],
-        "flex": [
-          {
-            "name": "ふしぎなアメ",
-            "card_id": [
-              1079
-            ]
           },
           {
             "name": "ヨノワール",
+            "line_key": "dusknoir_line",
             "card_id": [
               133
             ]
           },
           {
             "name": "ヨマワル",
+            "line_key": "dusknoir_line",
             "card_id": [
               131
             ]
           },
           {
             "name": "サマヨール",
+            "line_key": "dusknoir_line",
             "card_id": [
               132
             ]
@@ -311,12 +356,14 @@
           },
           {
             "name": "ノココッチ",
+            "line_key": "dunsparce_line",
             "card_id": [
               66
             ]
           },
           {
             "name": "ノコッチ",
+            "line_key": "dunsparce_line",
             "card_id": [
               65,
               305
@@ -326,32 +373,6 @@
             "name": "ファイヤー",
             "card_id": [
               791
-            ]
-          },
-          {
-            "name": "アチャモ",
-            "card_id": [
-              324,
-              410
-            ]
-          },
-          {
-            "name": "バシャーモex",
-            "card_id": [
-              326
-            ]
-          },
-          {
-            "name": "ワカシャモ",
-            "card_id": [
-              325,
-              411
-            ]
-          },
-          {
-            "name": "イベルタル",
-            "card_id": [
-              689
             ]
           }
         ]
@@ -376,7 +397,7 @@
       "combo_rules": [],
       "variants": {},
       "min_score": 6,
-      "confident_score": 12
+      "confident_score": 11
     },
     "kamitsuorochi_ex": {
       "display_name": "カミツオロチex",
@@ -394,51 +415,42 @@
           "card_id": [
             96
           ],
-          "role": "core",
-          "reason": "採用率は高いが、単体で別アーキタイプ（オーガポンみどりのめんex）の主軸にもなるため要注意"
+          "role": "shared_anchor",
+          "reason": "オーガポンバレット/カミツオロチ/オリーヴァ系に絞れる強い共有主軸候補"
         }
       ],
       "role_cards": {
         "evolution_line": [
           {
-            "name": "カミッチュ",
-            "card_id": [
+            "names": [
+              "カミッチュ",
+              "カジッチュ"
+            ],
+            "card_ids": [
               93,
               347,
-              921
-            ]
-          },
-          {
-            "name": "カジッチュ",
-            "card_id": [
+              921,
               42,
               92,
               149,
               346
-            ]
+            ],
+            "reason": "カミツオロチの進化元（おまつりおんど系の可能性もあるため1回分の根拠）"
           }
         ],
         "core": [
           {
-            "name": "キチキギスex",
-            "card_id": [
-              140
-            ]
-          },
-          {
             "name": "メガニウム",
+            "line_key": "meganium_line",
+            "role": "shared_line",
             "card_id": [
               710
             ]
           },
           {
-            "name": "ニャースex",
-            "card_id": [
-              1071
-            ]
-          },
-          {
             "name": "ベイリーフ",
+            "line_key": "meganium_line",
+            "role": "shared_line",
             "card_id": [
               709,
               918
@@ -452,6 +464,8 @@
           },
           {
             "name": "チコリータ",
+            "line_key": "meganium_line",
+            "role": "shared_line",
             "card_id": [
               708,
               917
@@ -459,6 +473,18 @@
           }
         ],
         "flex": [
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "ニャースex",
+            "card_id": [
+              1071
+            ]
+          },
           {
             "name": "セレビィ",
             "card_id": [
@@ -491,7 +517,7 @@
       "combo_rules": [],
       "variants": {},
       "min_score": 6,
-      "confident_score": 12
+      "confident_score": 10
     },
     "oliva_ex": {
       "display_name": "オリーヴァex",
@@ -509,32 +535,53 @@
           "card_id": [
             96
           ],
-          "role": "core",
-          "reason": "採用率は高いが、単体で別アーキタイプ（オーガポンみどりのめんex）の主軸にもなるため要注意"
+          "role": "shared_anchor",
+          "reason": "オーガポンバレット/カミツオロチ/オリーヴァ系に絞れる強い共有主軸候補"
         }
       ],
       "role_cards": {
         "evolution_line": [
           {
-            "name": "オリーニョ",
-            "card_id": [
-              403
-            ]
-          },
-          {
-            "name": "ミニーブ",
-            "card_id": [
+            "names": [
+              "オリーニョ",
+              "ミニーブ"
+            ],
+            "card_ids": [
+              403,
               402
-            ]
+            ],
+            "reason": "オリーヴァの進化ライン（複数見えても1回分の根拠として扱う）"
           }
         ],
         "core": [
           {
             "name": "メガニウム",
+            "line_key": "meganium_line",
+            "role": "shared_line",
             "card_id": [
               710
             ]
           },
+          {
+            "name": "ベイリーフ",
+            "line_key": "meganium_line",
+            "role": "shared_line",
+            "card_id": [
+              709,
+              918
+            ]
+          },
+          {
+            "name": "チコリータ",
+            "line_key": "meganium_line",
+            "role": "shared_line",
+            "card_id": [
+              708,
+              917
+            ]
+          }
+        ],
+        "flex": [
           {
             "name": "ニャースex",
             "card_id": [
@@ -547,22 +594,6 @@
               140
             ]
           },
-          {
-            "name": "ベイリーフ",
-            "card_id": [
-              709,
-              918
-            ]
-          },
-          {
-            "name": "チコリータ",
-            "card_id": [
-              708,
-              917
-            ]
-          }
-        ],
-        "flex": [
           {
             "name": "ヨルノズク",
             "card_id": [
@@ -603,7 +634,7 @@
       "combo_rules": [],
       "variants": {},
       "min_score": 6,
-      "confident_score": 12
+      "confident_score": 10
     },
     "takeruraiko_ex": {
       "display_name": "タケルライコex",
@@ -629,22 +660,58 @@
           "card_id": [
             171
           ],
-          "role": "flex",
-          "reason": "ex版ではない通常版。アンカーのタケルライコexとは別カードとして扱う"
+          "role": "signature",
+          "reason": "ex版ほど確定的ではないが、タケルライコex系統を強く示すカード"
         }
       ],
       "role_cards": {
         "core": [
           {
-            "name": "キチキギスex",
+            "name": "パオジアン",
             "card_id": [
-              140
+              209,
+              1063
             ]
           },
           {
-            "name": "ラティアスex",
+            "name": "シアノ",
             "card_id": [
-              184
+              1205
+            ]
+          }
+        ],
+        "signature": [
+          {
+            "name": "テツノイサハex",
+            "card_id": [
+              75
+            ]
+          },
+          {
+            "name": "コライドン",
+            "card_id": [
+              62,
+              226
+            ]
+          },
+          {
+            "name": "コライドンex",
+            "card_id": [
+              979
+            ]
+          },
+          {
+            "name": "ナゲツケサル",
+            "card_id": [
+              978
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
             ]
           },
           {
@@ -654,24 +721,15 @@
             ]
           },
           {
-            "name": "テツノイサハex",
+            "name": "ラティアスex",
             "card_id": [
-              75
+              184
             ]
-          }
-        ],
-        "flex": [
+          },
           {
             "name": "むしとりセット",
             "card_id": [
               1094
-            ]
-          },
-          {
-            "name": "コライドン",
-            "card_id": [
-              62,
-              226
             ]
           },
           {
@@ -687,28 +745,9 @@
             ]
           },
           {
-            "name": "パオジアン",
-            "card_id": [
-              209,
-              1063
-            ]
-          },
-          {
-            "name": "ナゲツケサル",
-            "card_id": [
-              978
-            ]
-          },
-          {
             "name": "コダック",
             "card_id": [
               858
-            ]
-          },
-          {
-            "name": "シアノ",
-            "card_id": [
-              1205
             ]
           }
         ]
@@ -733,7 +772,7 @@
       "combo_rules": [],
       "variants": {},
       "min_score": 6,
-      "confident_score": 12
+      "confident_score": 11
     },
     "ogerpon_teal_ex": {
       "display_name": "オーガポン みどりのめんex",
@@ -743,22 +782,24 @@
           "card_id": [
             96
           ],
-          "role": "anchor",
-          "reason": "デッキの主軸カード"
+          "role": "shared_anchor",
+          "reason": "主軸カードだが、カミツオロチ/オリーヴァ/タケルライコ系にも入るため単体確定にはしない"
         }
       ],
       "role_cards": {
         "core": [
           {
+            "name": "シアノ",
+            "card_id": [
+              1205
+            ]
+          }
+        ],
+        "flex": [
+          {
             "name": "ニャースex",
             "card_id": [
               1071
-            ]
-          },
-          {
-            "name": "ラティアスex",
-            "card_id": [
-              184
             ]
           },
           {
@@ -768,19 +809,17 @@
             ]
           },
           {
+            "name": "ラティアスex",
+            "card_id": [
+              184
+            ]
+          },
+          {
             "name": "リーリエのピッピex",
             "card_id": [
               272
             ]
           },
-          {
-            "name": "シアノ",
-            "card_id": [
-              1205
-            ]
-          }
-        ],
-        "flex": [
           {
             "name": "メガガルーラex",
             "card_id": [
@@ -920,10 +959,33 @@
           "reason": "自由度が高いデッキのため採用される可能性のある色"
         }
       ],
-      "combo_rules": [],
+      "combo_rules": [
+        {
+          "names": [
+            "オーガポン みどりのめんex",
+            "オーガポン いどのめんex"
+          ],
+          "bonus": 6,
+          "role": "combo",
+          "reason": "みどりのめん + いどのめん: オーガポンバレット寄りの強い組み合わせ"
+        },
+        {
+          "names": [
+            "オーガポン みどりのめんex"
+          ],
+          "any_names": [
+            "リーリエのピッピex",
+            "ラティアスex",
+            "キチキギスex"
+          ],
+          "bonus": 6,
+          "role": "combo",
+          "reason": "みどりのめん + 汎用たねex: 草進化デッキでは同居しにくい強い組み合わせ"
+        }
+      ],
       "variants": {},
       "min_score": 6,
-      "confident_score": 12
+      "confident_score": 14
     },
     "n_zoroark_ex": {
       "display_name": "Nのゾロアークex",
@@ -1184,7 +1246,16 @@
           ],
           "role": "flex",
           "ace_spec": true,
-          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+          "reason": "ゲッコウガexで採用されがちなエーススペック（他デッキにも入りうるため flex）"
+        },
+        {
+          "name": "ネオアッパーエネルギー",
+          "card_id": [
+            10
+          ],
+          "role": "flex",
+          "ace_spec": true,
+          "reason": "ゲッコウガexで採用されがちなエーススペック（他デッキにも入りうるため flex）"
         }
       ],
       "role_cards": {
@@ -1215,15 +1286,15 @@
             "card_id": [
               17
             ]
-          },
+          }
+        ],
+        "flex": [
           {
             "name": "ニャースex",
             "card_id": [
               1071
             ]
-          }
-        ],
-        "flex": [
+          },
           {
             "name": "キチキギスex",
             "card_id": [
@@ -1232,12 +1303,14 @@
           },
           {
             "name": "ノココッチ",
+            "line_key": "dunsparce_line",
             "card_id": [
               66
             ]
           },
           {
             "name": "ノコッチ",
+            "line_key": "dunsparce_line",
             "card_id": [
               65,
               305
@@ -1245,36 +1318,42 @@
           },
           {
             "name": "ヨマワル",
+            "line_key": "dusknoir_line",
             "card_id": [
               131
             ]
           },
           {
             "name": "サマヨール",
+            "line_key": "dusknoir_line",
             "card_id": [
               132
             ]
           },
           {
             "name": "ヨノワール",
+            "line_key": "dusknoir_line",
             "card_id": [
               133
             ]
           },
           {
             "name": "ノココッチex",
+            "line_key": "dunsparce_line",
             "card_id": [
               306
             ]
           },
           {
             "name": "メガユキメノコex",
+            "line_key": "froslass_line",
             "card_id": [
               861
             ]
           },
           {
             "name": "ユキワラシ",
+            "line_key": "froslass_line",
             "card_id": [
               103,
               860
@@ -1296,18 +1375,21 @@
           },
           {
             "name": "ドラパルトex",
+            "line_key": "dragapult_line",
             "card_id": [
               121
             ]
           },
           {
             "name": "ドロンチ",
+            "line_key": "dragapult_line",
             "card_id": [
               120
             ]
           },
           {
             "name": "ドラメシヤ",
+            "line_key": "dragapult_line",
             "card_id": [
               119
             ]
@@ -1451,7 +1533,7 @@
           ],
           "role": "flex",
           "ace_spec": true,
-          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+          "reason": "ストリンダーで採用されがちなエーススペック（他デッキにも入りうるため flex）"
         }
       ],
       "role_cards": {
@@ -1477,12 +1559,6 @@
             ]
           },
           {
-            "name": "キチキギスex",
-            "card_id": [
-              140
-            ]
-          },
-          {
             "name": "メガアブソルex",
             "card_id": [
               687
@@ -1503,6 +1579,12 @@
           }
         ],
         "flex": [
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
           {
             "name": "シェイミ",
             "card_id": [
@@ -1576,17 +1658,19 @@
             ]
           },
           {
-            "name": "ラティアスex",
-            "card_id": [
-              184
-            ]
-          },
-          {
             "name": "キュレム",
             "card_id": [
               144
             ]
           },
+          {
+            "name": "メガガルーラex",
+            "card_id": [
+              756
+            ]
+          }
+        ],
+        "flex": [
           {
             "name": "ニャースex",
             "card_id": [
@@ -1600,19 +1684,17 @@
             ]
           },
           {
+            "name": "ラティアスex",
+            "card_id": [
+              184
+            ]
+          },
+          {
             "name": "リーリエのピッピex",
             "card_id": [
               272
             ]
           },
-          {
-            "name": "メガガルーラex",
-            "card_id": [
-              756
-            ]
-          }
-        ],
-        "flex": [
           {
             "name": "ムチュール",
             "card_id": [
@@ -1672,7 +1754,7 @@
           ],
           "role": "flex",
           "ace_spec": true,
-          "reason": "採用されるエーススペック（採用率未確認のため flex で暫定）"
+          "reason": "ロケット団のドンカラスで採用されがちなエーススペック（他デッキにも入りうるため flex）"
         }
       ],
       "role_cards": {
@@ -1790,12 +1872,9 @@
       "reason": "7アーキタイプ以上に分散して採用されるため判定根拠にしない（準汎用カード）"
     }
   ],
-  "unknown_threshold": {
-    "min_score": 6,
-    "min_score_gap": 2
-  },
-  "confidence_settings": {
-    "max_confidence": 0.95,
-    "min_confidence": 0.0
+  "prediction_decision": {
+    "min_evidence_count": 2,
+    "min_top_normalized_score": 1.0,
+    "min_normalized_margin": 0.2
   }
 }
