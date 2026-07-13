@@ -4,126 +4,359 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Battle Review Viewer</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260713g" />
   </head>
-  <body>
-    <main class="app-shell">
-      <section class="hero">
-        <div>
-          <p class="eyebrow">Local Replay Review</p>
-          <h1>Battle Review Viewer</h1>
-          <p class="hero-copy">
-            Kaggle の見返しやすさに寄せつつ、盤面と選択理由をローカルで追えるレビュー画面です。
-          </p>
-        </div>
-        <div class="hero-actions">
-          <label class="picker">
-            <span>Replay</span>
-            <select id="replaySelect"></select>
-          </label>
-          <button id="reloadButton" class="ghost">Reload List</button>
-        </div>
-      </section>
+  <body class="replay-mode">
+    <!-- ================= Top bar (slim, dark) ================= -->
+    <header class="topbar">
+      <div class="topbar-group left">
+        <span class="brand" id="eyebrowLabel">Battle Review</span>
+        <label class="picker">
+          <span id="modeLabel">Mode</span>
+          <select id="modeSelect">
+            <option value="replay">Replay</option>
+            <option value="live">Human vs CPU</option>
+          </select>
+        </label>
+        <label class="picker" id="replayPicker">
+          <span id="replayLabel">Replay</span>
+          <select id="replaySelect"></select>
+        </label>
+        <button id="newReplayButton" class="ghost">＋ 新規</button>
+        <label class="picker live-config" id="liveCpuPicker">
+          <span id="liveCpuLabel">CPU</span>
+          <select id="liveCpuSelect">
+            <option value="self">main.py CPU</option>
+            <option value="random">Random CPU</option>
+          </select>
+        </label>
+        <label class="picker live-config" id="livePlayerDeckPicker">
+          <span id="livePlayerDeckLabel">Your deck</span>
+          <select id="livePlayerDeckSelect"></select>
+        </label>
+        <label class="picker live-config" id="liveOpponentDeckPicker">
+          <span id="liveOpponentDeckLabel">CPU deck</span>
+          <select id="liveOpponentDeckSelect"></select>
+        </label>
+        <button id="liveStartButton" class="accent live-config">Start Live</button>
+        <button id="reloadButton" class="ghost">Refresh</button>
+      </div>
 
-      <section class="toolbar">
-        <div class="toolbar-group">
-          <button id="prevButton">Prev</button>
-          <button id="nextButton">Next</button>
-          <button id="autoplayButton" class="accent">Autoplay</button>
-        </div>
-        <div class="toolbar-group">
-          <label>
-            Frame
-            <input id="frameSlider" type="range" min="0" max="0" value="0" />
-          </label>
-        </div>
-        <div id="frameMeta" class="frame-meta"></div>
-      </section>
+      <div class="topbar-group center">
+        <button id="prevButton" class="ghost">Prev</button>
+        <button id="autoplayButton" class="accent">Autoplay</button>
+        <button id="nextButton" class="ghost">Next</button>
+        <label class="picker compact-picker">
+          <span id="speedLabel">Speed</span>
+          <select id="speedSelect">
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="2">2x</option>
+            <option value="4">4x</option>
+          </select>
+        </label>
+        <input id="frameSlider" type="range" min="0" max="0" value="0" />
+        <span id="frameMeta" class="frame-meta"></span>
+      </div>
 
-      <section class="layout">
-        <section class="board-panel">
-          <div class="board">
-            <div class="board-center-mark"></div>
+      <div class="topbar-group right panel-tabs">
+        <button class="tab-btn" data-panel-btn="summary">Info</button>
+        <button class="tab-btn" data-panel-btn="action">Action / Options</button>
+        <button class="tab-btn" data-panel-btn="logs">Logs</button>
+        <button class="tab-btn" data-panel-btn="debug">Debug</button>
+        <button class="tab-btn live-only" data-panel-btn="live">Live</button>
+        <button class="tab-btn icon" data-panel-btn="settings" title="Settings">⚙</button>
+        <button id="helpButton" class="tab-btn icon" title="How to use">?</button>
+        <button id="langToggleButton" class="ghost lang-toggle">EN</button>
+      </div>
+    </header>
 
-            <div class="player-lane opponent">
-              <div class="lane-side lane-left">
-                <div class="stat-card">
-                  <div class="stat-label">Opponent Deck</div>
-                  <div id="opponentDeckCount" class="stat-value">0</div>
+    <!-- ================= Board (full-bleed, dark) ================= -->
+    <main class="stage">
+      <div class="board">
+        <div id="effectOverlay" class="effect-overlay" hidden></div>
+        <div id="resultBanner" class="result-banner" hidden></div>
+
+        <!-- opponent corner tag -->
+        <div class="player-tag opponent-tag">
+          <span class="avatar opponent-avatar"></span>
+          <span id="opponentName" class="tag-name">あいて</span>
+          <span id="opponentOrder" class="order-badge"></span>
+          <span id="opponentResult" class="result-badge"></span>
+          <span id="opponentConditions" class="conditions"></span>
+        </div>
+
+        <!-- opponent fanned hand -->
+        <div class="hand-band opponent-hand-band">
+          <div id="opponentHand" class="hand-row fan"></div>
+          <span id="opponentHandCount" class="count-badge floating">0</span>
+        </div>
+
+        <div class="field">
+          <!-- opponent strip: deck | [bench(back) / active(front)] | prize -->
+          <div id="opponentStrip" class="player-strip opponent">
+            <div class="strip-grid">
+              <div class="deck-col">
+                <div id="opponentDeckZone" class="stat-card zone-card">
+                  <div class="zone-pile deck-pile"><span class="pile-back"></span></div>
+                  <span id="opponentDeckCount" class="stat-value">0</span>
                 </div>
-                <div class="stat-card">
-                  <div class="stat-label">Opponent Discard</div>
-                  <div id="opponentDiscardCount" class="stat-value">0</div>
+                <div id="opponentDiscardCard" class="stat-card zone-card clickable" title="Open discard pile">
+                  <div id="opponentDiscardPile" class="zone-pile discard-pile"></div>
+                  <span id="opponentDiscardCount" class="stat-value">0</span>
                 </div>
               </div>
-              <div class="lane-main">
-                <div id="opponentActive" class="active-slot"></div>
+              <div class="main-col">
                 <div id="opponentBench" class="bench-row"></div>
+                <div id="opponentActive" class="active-slot"></div>
               </div>
-              <div class="lane-side lane-right">
+              <div class="prize-wrap">
                 <div id="opponentPrize" class="prize-column"></div>
-              </div>
-            </div>
-
-            <div class="status-ribbon">
-              <div id="turnBadge" class="turn-badge">Turn ?</div>
-              <div id="contextBadge" class="context-badge">Context ?</div>
-            </div>
-
-            <div class="player-lane self">
-              <div class="lane-side lane-left">
-                <div class="stat-card">
-                  <div class="stat-label">Your Deck</div>
-                  <div id="selfDeckCount" class="stat-value">0</div>
-                </div>
-                <div class="stat-card">
-                  <div class="stat-label">Your Discard</div>
-                  <div id="selfDiscardCount" class="stat-value">0</div>
-                </div>
-              </div>
-              <div class="lane-main">
-                <div id="selfBench" class="bench-row"></div>
-                <div id="selfActive" class="active-slot"></div>
-              </div>
-              <div class="lane-side lane-right">
-                <div id="selfPrize" class="prize-column"></div>
               </div>
             </div>
           </div>
 
-          <section class="hand-panel">
-            <div class="panel-title-row">
-              <h2>Player 0 Hand</h2>
-              <span id="handCountBadge" class="count-badge">0 cards</span>
+          <!-- center divider with stadium -->
+          <div class="center-strip">
+            <div class="center-line"></div>
+            <div class="center-core">
+              <div class="stadium-wrap">
+                <div id="stadiumSlot" class="stadium-slot"></div>
+              </div>
+              <div class="center-badges">
+                <div id="turnBadge" class="turn-badge">Turn ?</div>
+                <div id="contextBadge" class="context-badge">-</div>
+                <div id="activeEffectsShelf" class="active-effects-shelf" hidden></div>
+              </div>
             </div>
-            <div id="selfHand" class="hand-row"></div>
-          </section>
-        </section>
+          </div>
 
-        <aside class="inspector">
-          <section class="info-card">
-            <h2>Replay Summary</h2>
-            <dl id="summaryList" class="summary-list"></dl>
-          </section>
+          <!-- self strip: prize | [active(front) / bench(back)] | deck -->
+          <div id="selfStrip" class="player-strip self">
+            <div class="strip-grid">
+              <div class="prize-wrap">
+                <div id="selfPrize" class="prize-column"></div>
+              </div>
+              <div class="main-col">
+                <div id="selfActive" class="active-slot"></div>
+                <div id="selfBench" class="bench-row"></div>
+              </div>
+              <div class="deck-col">
+                <div id="selfDeckZone" class="stat-card zone-card">
+                  <div class="zone-pile deck-pile"><span class="pile-back"></span></div>
+                  <span id="selfDeckCount" class="stat-value">0</span>
+                </div>
+                <div id="selfDiscardCard" class="stat-card zone-card clickable" title="Open discard pile">
+                  <div id="selfDiscardPile" class="zone-pile discard-pile"></div>
+                  <span id="selfDiscardCount" class="stat-value">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <section class="info-card">
-            <h2>Chosen Action</h2>
-            <div id="chosenAction" class="action-box">No action</div>
-          </section>
+        <!-- self fanned hand -->
+        <div class="hand-band self-hand-band">
+          <div id="selfHand" class="hand-row fan"></div>
+          <span id="selfHandCount" class="count-badge floating">0</span>
+        </div>
 
-          <section class="info-card">
-            <h2>Available Options</h2>
-            <ol id="optionsList" class="options-list"></ol>
-          </section>
-
-          <section class="info-card">
-            <h2>Logs</h2>
-            <div id="logsList" class="logs-list"></div>
-          </section>
-        </aside>
-      </section>
+        <!-- self corner tag -->
+        <div class="player-tag self-tag">
+          <span class="avatar self-avatar"></span>
+          <span id="selfName" class="tag-name">じぶん</span>
+          <span id="selfOrder" class="order-badge"></span>
+          <span id="selfResult" class="result-badge"></span>
+          <span id="selfConditions" class="conditions"></span>
+        </div>
+      </div>
     </main>
 
-    <script src="./app.js"></script>
+    <!-- ================= On-demand drawer (tabbed) ================= -->
+    <aside id="drawer" class="drawer">
+      <div class="drawer-head">
+        <span id="drawerTitle" class="drawer-title">Info</span>
+        <button id="drawerClose" class="ghost round" title="Close">✕</button>
+      </div>
+      <div class="drawer-body">
+        <section class="panel" data-panel="summary">
+          <h2 id="summaryHeading">Replay Summary</h2>
+          <dl id="summaryList" class="summary-list"></dl>
+          <h3 id="moveSummaryHeading" class="panel-subhead">Frame Moves</h3>
+          <ul id="moveSummaryList" class="move-summary-list"></ul>
+        </section>
+
+        <section class="panel card-detail-panel" data-panel="cardDetail">
+          <div id="cardDetailContent" class="card-detail-content">
+            <div class="card-detail-empty">Click a card on the board.</div>
+          </div>
+        </section>
+
+        <!-- Action(選択・理由・探索) を上半分、Options(合法手) を下半分に置き、両方同時に見る。
+             上下それぞれ独立スクロール。 -->
+        <section class="panel decision-panel" data-panel="action">
+          <div class="decision-top">
+            <h2 id="actionHeading">Chosen Action</h2>
+            <div id="chosenAction" class="action-box"></div>
+            <h3 id="reasonTraceHeading" class="panel-subhead">Why This Action</h3>
+            <div id="reasonTraceBox" class="reason-trace"></div>
+            <h3 id="searchTraceHeading" class="panel-subhead">Search Review</h3>
+            <div id="searchTraceBox" class="action-box"></div>
+          </div>
+          <div class="decision-bottom">
+            <h2 id="optionsHeading">Options</h2>
+            <div class="live-actions live-actions-inline">
+              <button id="liveUndoButton" class="ghost" hidden>Undo</button>
+              <button id="liveConfirmButton" class="accent">Confirm</button>
+              <button id="liveClearButton" class="ghost">Clear</button>
+            </div>
+            <ol id="optionsList" class="options-list"></ol>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="logs">
+          <h2 id="logsHeading">Logs</h2>
+          <div id="logsList" class="logs-list"></div>
+        </section>
+
+        <section class="panel" data-panel="debug">
+          <h2 id="debugHeading">Debug</h2>
+          <!-- sub-tab bar: buttons are generated from DEBUG_VIEWS in app.js so new
+               debug views can be added by appending to that registry + a .debug-view below. -->
+          <div class="debug-subtabs" id="debugSubtabs"></div>
+          <div class="debug-views">
+            <div class="debug-view" data-debug-view="opponentKnowledge" id="opponentKnowledgeCard">
+              <div id="opponentKnowledgeStatus" class="diagnostic-status"></div>
+              <h3 id="observedCardsHeading" class="panel-subhead">Observed cards (by name)</h3>
+              <div id="opponentKnowledgeObserved" class="chip-list"></div>
+              <h3 id="currentZonesHeading" class="panel-subhead">Current zones</h3>
+              <div id="opponentKnowledgeZones" class="zone-grid"></div>
+              <h3 id="groundTruthDiffHeading" class="panel-subhead">Ground-truth diff</h3>
+              <div id="opponentKnowledgeDiff" class="diagnostic-list"></div>
+            </div>
+            <div class="debug-view" data-debug-view="deckPredictor" id="deckPredictorCard">
+              <div id="deckPredictorTop" class="predictor-top"></div>
+              <h3 class="panel-subhead">Evidence（根拠カード）</h3>
+              <div id="deckPredictorEvidence" class="predictor-evidence"></div>
+              <h3 class="panel-subhead">Candidates（候補）</h3>
+              <div id="deckPredictorCandidates" class="predictor-candidates"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="live" id="livePanel">
+          <h2 id="livePanelHeading">Human vs CPU</h2>
+          <div id="liveStatusBox" class="action-box"></div>
+          <div id="liveSelectionMeta" class="live-selection-meta"></div>
+        </section>
+
+        <section class="panel" data-panel="settings">
+          <h2>Settings</h2>
+          <div class="settings-list">
+            <label class="toggle">
+              <input id="toggleCardImages" type="checkbox" checked />
+              <span>Card Images</span>
+            </label>
+            <label class="toggle">
+              <input id="toggleOpponentHand" type="checkbox" checked />
+              <span>Show Opponent Hand</span>
+            </label>
+            <label class="toggle">
+              <input id="togglePrize" type="checkbox" checked />
+              <span>Show Prize</span>
+            </label>
+            <label class="toggle">
+              <input id="toggleAnimation" type="checkbox" checked />
+              <span id="animToggleLabel">Animation</span>
+            </label>
+          </div>
+
+          <h3 class="panel-subhead">Card images</h3>
+          <div class="generate-form">
+            <div class="generate-status" id="cardImageInfo"></div>
+            <button id="rebuildImagesButton" class="ghost">全カード画像を生成 / Rebuild all</button>
+          </div>
+        </section>
+      </div>
+    </aside>
+
+    <!-- 初回起動時のガイドツアー（各ボタンをスポットライトして「これは何か」を1つずつ説明）。
+         localStorage で既読を記憶。? ボタンでいつでも再実行できる。 -->
+    <div id="tour" class="tour" hidden>
+      <div id="tourHighlight" class="tour-highlight"></div>
+      <div id="tourTip" class="tour-tip">
+        <div id="tourText" class="tour-text"></div>
+        <div class="tour-nav">
+          <span id="tourProgress" class="tour-progress"></span>
+          <div class="tour-buttons">
+            <button id="tourSkip" class="ghost">スキップ</button>
+            <button id="tourPrev" class="ghost">戻る</button>
+            <button id="tourNext" class="accent">次へ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- リプレイ新規作成ダイアログ（上部の「＋新規」ボタンで開く。Settings とは分離） -->
+    <div id="newReplayModal" class="discard-modal" hidden>
+      <div class="discard-modal-backdrop" id="newReplayBackdrop"></div>
+      <div class="discard-modal-panel new-replay-panel">
+        <div class="discard-modal-header">
+          <span>リプレイを新規作成 / New replay</span>
+          <button id="newReplayClose" class="ghost">Close</button>
+        </div>
+        <div class="new-replay-body">
+          <label class="picker block">
+            <span id="generatePlayerPolicyLabel">Your CPU</span>
+            <select id="generatePlayerPolicy">
+              <option value="self">main.py CPU (self)</option>
+              <option value="random">Random CPU</option>
+            </select>
+          </label>
+          <label class="picker block">
+            <span id="generatePlayerDeckLabel">Your deck</span>
+            <select id="generatePlayerDeck"></select>
+          </label>
+          <label class="picker block">
+            <span id="generateOpponentDeckLabel">Opponent deck</span>
+            <select id="generateOpponentDeck"></select>
+          </label>
+          <label class="picker block">
+            <span id="generateOpponentLabel">Opponent（相手）</span>
+            <select id="generateOpponent">
+              <option value="random">Random CPU</option>
+              <option value="self">main.py CPU (self)</option>
+            </select>
+          </label>
+          <label class="picker block">
+            <span id="generateSeedLabel">乱数シード（Random CPU用・同じ値で試合を再現）</span>
+            <input id="generateSeed" type="number" value="7" />
+          </label>
+          <button id="generateButton" class="accent">生成して開く / Generate &amp; open</button>
+          <div id="generateStatus" class="generate-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="discardModal" class="discard-modal" hidden>
+      <div class="discard-modal-backdrop"></div>
+      <div class="discard-modal-panel">
+        <div class="discard-modal-header">
+          <span id="discardModalTitle">Discard Pile</span>
+          <button id="discardModalClose" class="ghost">Close</button>
+        </div>
+        <div id="discardModalContent" class="discard-modal-content"></div>
+      </div>
+    </div>
+
+    <div id="cardPreview" class="card-preview" hidden></div>
+
+    <!-- カード画像が未生成のとき、裏で生成を回している間に出す進捗バナー -->
+    <div id="imageBuildBanner" class="image-build-banner" hidden>
+      <span class="spinner"></span>
+      <span id="imageBuildText">画像を作成中です。お待ちください…</span>
+    </div>
+
+    <script src="./app.js?v=20260713g"></script>
   </body>
 </html>
