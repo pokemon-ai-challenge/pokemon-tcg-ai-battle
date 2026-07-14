@@ -1,3 +1,4 @@
+
 """ワザ別プロファイル（⑦、担当A領域）。
 
 キーは card_id ではなく attackId（cg.api.Attack.attackId）。
@@ -64,3 +65,10 @@ PROFILES: dict[int, AttackProfile] = {
         disables_next_attack=False,
     ),
 }
+
+"""クラスタ⑦ カード別プロファイル／担当A
+
+このデッキで使うワザごとの追加効果分類。knowledge.profile_types.AttackProfile の型に沿って
+attack_id をキーとした辞書を埋める（ベンチ狙撃、状態異常、ドロー、次ターン攻撃不可など）。
+"""
+

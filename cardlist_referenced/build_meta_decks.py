@@ -1,6 +1,6 @@
 """
 Tier上位デッキのメタデッキDBを生成するビルドスクリプト。
-出力: sample_submission/src/knowledge/meta_decks.py
+出力: sample_submission/ptcg_ai/shared/meta_decks.py
 
 実行方法:
     python cardlist_referenced/build_meta_decks.py
@@ -20,7 +20,7 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = REPO_ROOT / "cardlist_referenced" / "pdf_card_editor" / ".cache" / "tier_ranking"
 JP_CSV = REPO_ROOT / "data" / "JP_Card_Data.csv"
-OUTPUT = REPO_ROOT / "sample_submission" / "src" / "knowledge" / "meta_decks.py"
+OUTPUT = REPO_ROOT / "sample_submission" / "ptcg_ai" / "shared" / "meta_decks.py"
 
 # ---------------------------------------------------------------------------
 # app.py と同じ正規化関数（照合精度を合わせる）

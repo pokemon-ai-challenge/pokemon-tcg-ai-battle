@@ -1,3 +1,4 @@
+
 """ポケモン別プロファイル（⑦、担当A領域）。
 
 役割・主力度・ベンチ価値・特性情報。deck_plan.py の方針を数値・語彙に落とし込んだもの。
@@ -67,3 +68,15 @@ PROFILES: dict[int, PokemonProfile] = {
         ability_priority=0.0,  # 常時効果のため使用タイミングの選択余地はない
     ),
 }
+
+"""クラスタ⑦ カード別プロファイル／担当A
+
+このデッキで使うポケモンごとの役割データ。knowledge.profile_types.PokemonProfile の型に沿って
+card_id をキーとした辞書を埋める。特性を持つポケモンは has_ability/ability_category/
+ability_priority も忘れずに埋める（EffectCategory の語彙は profile_types.py 参照）。
+"""
+
+
+# TODO(担当A): 新デッキの60枚確定後に card_id -> PokemonProfile を埋める。
+#PROFILES: dict[int, PokemonProfile] = {}
+

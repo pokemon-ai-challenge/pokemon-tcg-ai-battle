@@ -1,3 +1,4 @@
+
 """エネルギー別プロファイル（⑦、担当A領域）。"""
 
 from __future__ import annotations
@@ -9,3 +10,10 @@ PROFILES: dict[int, EnergyProfile] = {
     19: EnergyProfile(category="special"),  # テレパス【超】エネルギー（超1個ぶん）
     13: EnergyProfile(category="special"),  # リッチエネルギー（ACE SPEC、無1個ぶん）
 }
+
+"""クラスタ⑦ カード別プロファイル／担当A
+
+このデッキで使う基本/特殊エネルギーの種類。knowledge.profile_types.EnergyProfile の型に沿って
+card_id をキーとした辞書を埋める。category は "basic" / "special" のいずれか。
+"""
+
