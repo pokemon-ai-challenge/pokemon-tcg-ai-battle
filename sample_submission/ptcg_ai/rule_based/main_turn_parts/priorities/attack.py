@@ -40,6 +40,9 @@ def propose(obs: Observation) -> ActionProposal | None:
     defender = opponent.active[0]
     defender_card = card_cache.get_card(defender.id)
 
+    # 可変ダメージ技（手札枚数依存など）の推定に使う、攻撃側自身の手札枚数。
+    attacker_hand_size = player.handCount
+
     usable: list[tuple[int, float]] = []  # (option_index, value)
     ko_candidates: list[tuple[int, float]] = []  # (option_index, value)
     for i, option in enumerate(obs.select.option):
@@ -48,9 +51,12 @@ def propose(obs: Observation) -> ActionProposal | None:
         attack = card_cache.get_attack(option.attackId)
         if not energy_requirements.is_energy_sufficient(attack, attacker.energies):
             continue
-        value = float(attack.damage) + _effect_bonus(option.attackId)
+        damage = attack_features.resolve_damage(
+            attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size
+        )
+        value = float(damage) + _effect_bonus(option.attackId)
         usable.append((i, value))
-        if attack_features.can_ko(attack, attacker, defender, defender_card.weakness, defender_card.resistance):
+        if damage >= defender.hp:
             ko_candidates.append((i, value))
 
     if not usable:
