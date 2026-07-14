@@ -41,13 +41,18 @@ def is_likely_ko_next_turn(pokemon: Pokemon, state: State, your_index: int) -> b
     attacker = opponent.active[0]
     attacker_card = card_cache.get_card(attacker.id)
     defender_card = card_cache.get_card(pokemon.id)
+    # 可変ダメージ技（手札枚数依存など）の推定用。相手の手札枚数は非公開だが件数
+    # （handCount）だけは見えるため、それを使う。次ターンのドロー分までは考慮しない簡易版。
+    attacker_hand_size = opponent.handCount
 
     for attack_id in attacker_card.attacks:
         attack = card_cache.get_attack(attack_id)
         shortfall = energy_requirements.energy_shortfall(attack, attacker.energies)
         if sum(shortfall.values()) > _NEXT_TURN_ENERGY_ALLOWANCE:
             continue
-        damage = attack_features.resolve_damage(attack, attacker, defender_card.weakness, defender_card.resistance)
+        damage = attack_features.resolve_damage(
+            attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size
+        )
         if damage >= pokemon.hp:
             return True
     return False

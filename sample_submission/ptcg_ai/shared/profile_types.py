@@ -86,3 +86,24 @@ class EnergyProfile:
     """使用する基本/特殊エネルギー1種のデータ。"""
 
     category: Literal["basic", "special"]
+
+
+@dataclass
+class DeckPlan:
+    """デッキ方針データを担当Bの判断ロジックに渡すための正規化された形（クラスタ⑥）。
+
+    担当Aの decks/new_deck/deck_plan.py は「なぜその優先度か」の理由付きメモを持たせた
+    独自のデータクラス（AttackerPlan/PriorityEntry など）で書かれることが多く、
+    ファイルごとに形が変わり得る。担当Bの判断ロジックが必要とするのは card_id の
+    列/集合だけなので、ptcg_ai.shared.profile_registry.get_deck_plan() がこの型に
+    変換してから渡す（rule_based/action_selection 配下は decks/ の実際の形を意識しない）。
+    """
+
+    main_attacker_ids: list[int] = field(default_factory=list)  # 主力アタッカーのカードID
+    sub_attacker_ids: list[int] = field(default_factory=list)  # サブアタッカーのカードID
+    opening_priority: list[int] = field(default_factory=list)  # 初手・展開で優先したいカードID順
+    evolution_priority: list[int] = field(default_factory=list)  # 進化を優先したいカードID順
+    energy_priority: list[int] = field(default_factory=list)  # エネルギーを優先して付けたいカードID順
+    search_priority: list[int] = field(default_factory=list)  # サーチで最初に探すべきカードID順
+    protected_card_ids: set[int] = field(default_factory=set)  # 捨てたくないカードIDの集合
+    win_condition_by_prize: dict[int, str] = field(default_factory=dict)  # 残りサイド枚数ごとの勝ち筋メモ
