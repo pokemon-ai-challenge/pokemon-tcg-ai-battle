@@ -2,6 +2,8 @@
   "role_weights": {
     "anchor": 10,
     "signature": 8,
+    "exclusive_core": 9.5,
+    "strong_evolution_line": 8,
     "evolution_line": 4,
     "core": 3,
     "flex": 1,
@@ -23,6 +25,8 @@
   "role_reason_templates": {
     "anchor": "{name}: デッキの主軸カード",
     "signature": "{name}: 単体でもかなり強い専用寄りカード",
+    "exclusive_core": "{name}: このデッキ以外ではほぼ採用されない専用カード",
+    "strong_evolution_line": "{name}: 主軸に直結する進化ライン",
     "evolution_line": "{name}: 進化ライン（進化元・中間形態を含む）",
     "core": "{name}: このデッキでよく採用されるカード",
     "flex": "{name}: 構築によって採用されるカード",
@@ -1005,10 +1009,12 @@
             "name": "Nのゾロア",
             "card_id": [
               292
-            ]
+            ],
+            "role": "signature",
+            "reason": "Nのゾロアークexの進化元で、N系統をかなり強く示すカード"
           }
         ],
-        "core": [
+        "exclusive_core": [
           {
             "name": "Nのゼクロム",
             "card_id": [
@@ -1019,24 +1025,6 @@
             "name": "Nのポイントアップ",
             "card_id": [
               1113
-            ]
-          },
-          {
-            "name": "マシマシラ",
-            "card_id": [
-              112
-            ]
-          },
-          {
-            "name": "モモワロウex",
-            "card_id": [
-              141
-            ]
-          },
-          {
-            "name": "シアノ",
-            "card_id": [
-              1205
             ]
           },
           {
@@ -1065,6 +1053,27 @@
           }
         ],
         "flex": [
+          {
+            "name": "マシマシラ",
+            "card_id": [
+              112
+            ],
+            "reason": "かなり多くのデッキに入りうるため、Nの根拠としては弱めに扱う"
+          },
+          {
+            "name": "モモワロウex",
+            "card_id": [
+              141
+            ],
+            "reason": "悪系・毒系など他デッキにも入りうるため、N系カードと組み合わさった時の補助根拠にする"
+          },
+          {
+            "name": "シアノ",
+            "card_id": [
+              1205
+            ],
+            "reason": "複数デッキで採用されうるため、単体では強い根拠にしない"
+          },
           {
             "name": "キチキギスex",
             "card_id": [
@@ -1100,7 +1109,44 @@
           "reason": "悪タイプデッキの判断材料"
         }
       ],
-      "combo_rules": [],
+      "combo_rules": [
+        {
+          "names": [
+            "モモワロウex"
+          ],
+          "any_names": [
+            "Nのゾロアークex",
+            "Nのゾロア",
+            "Nのゼクロム",
+            "Nのポイントアップ",
+            "Nの城",
+            "Nのダルマッカ",
+            "Nのヒヒダルマ",
+            "Nのレシラム"
+          ],
+          "bonus": 3,
+          "role": "combo",
+          "reason": "モモワロウex + N系カード: 単体では他デッキもあるが、N系と同時に見えた強い根拠"
+        },
+        {
+          "names": [
+            "シアノ"
+          ],
+          "any_names": [
+            "Nのゾロアークex",
+            "Nのゾロア",
+            "Nのゼクロム",
+            "Nのポイントアップ",
+            "Nの城",
+            "Nのダルマッカ",
+            "Nのヒヒダルマ",
+            "Nのレシラム"
+          ],
+          "bonus": 3,
+          "role": "combo",
+          "reason": "シアノ + N系カード: 単体では他デッキもあるが、N系と同時に見えた強い根拠"
+        }
+      ],
       "variants": {},
       "min_score": 6,
       "confident_score": 12
@@ -1146,14 +1192,6 @@
             ]
           },
           {
-            "name": "シェイミ",
-            "card_id": [
-              45,
-              343,
-              1013
-            ]
-          },
-          {
             "name": "アズマオウ",
             "card_id": [
               240
@@ -1192,6 +1230,14 @@
             "name": "ゴリランダー",
             "card_id": [
               91
+            ]
+          },
+          {
+            "name": "シェイミ",
+            "card_id": [
+              45,
+              343,
+              1013
             ]
           }
         ],
@@ -1410,7 +1456,20 @@
           "reason": "水タイプデッキの判断材料"
         }
       ],
-      "combo_rules": [],
+      "combo_rules": [
+        {
+          "names": [
+            "偉大な大樹"
+          ],
+          "any_names": [
+            "ゲコガシラ",
+            "ケロマツ"
+          ],
+          "bonus": 4.6,
+          "role": "combo",
+          "reason": "偉大な大樹 + ゲッコウガ進化ライン: ケロマツかゲコガシラが見えた強い根拠"
+        }
+      ],
       "variants": {},
       "min_score": 6,
       "confident_score": 12
@@ -1425,6 +1484,14 @@
           ],
           "role": "anchor",
           "reason": "デッキの主軸カード"
+        },
+        {
+          "name": "シロナのパワーウエイト",
+          "card_id": [
+            1173
+          ],
+          "role": "anchor",
+          "reason": "シロナのガブリアスex専用に近いどうぐで、主軸カード級の根拠"
         }
       ],
       "role_cards": {
@@ -1442,30 +1509,24 @@
             ]
           }
         ],
-        "core": [
+        "signature": [
           {
-            "name": "シロナのロズレイド",
-            "card_id": [
-              342
-            ]
-          },
-          {
-            "name": "シロナのロゼリア",
-            "card_id": [
+            "names": [
+              "シロナのロズレイド",
+              "シロナのロゼリア"
+            ],
+            "card_ids": [
+              342,
               341
-            ]
-          },
-          {
-            "name": "シロナのパワーウエイト",
-            "card_id": [
-              1173
-            ]
+            ],
+            "reason": "シロナのガブリアスexデッキ以外ではほぼ見ない進化系統"
           },
           {
             "name": "シロナのミカルゲ",
             "card_id": [
               387
-            ]
+            ],
+            "reason": "シロナのガブリアスexデッキ以外ではほぼ見ない専用寄りカード"
           }
         ],
         "flex": [
@@ -1524,6 +1585,7 @@
             834
           ],
           "role": "anchor",
+          "line_key": "toxtricity_line",
           "reason": "デッキの主軸カード"
         },
         {
@@ -1542,10 +1604,21 @@
             "name": "エレズン",
             "card_id": [
               833
-            ]
+            ],
+            "role": "signature",
+            "line_key": "toxtricity_line",
+            "reason": "ストリンダー進化ライン。ストリンダー本体が未観測でも強い根拠にするが、同時観測時は本体側だけを採点する"
           }
         ],
         "core": [
+          {
+            "name": "アラブルタケ",
+            "card_id": [
+              986
+            ]
+          }
+        ],
+        "flex": [
           {
             "name": "マシマシラ",
             "card_id": [
@@ -1565,20 +1638,12 @@
             ]
           },
           {
-            "name": "アラブルタケ",
-            "card_id": [
-              986
-            ]
-          },
-          {
             "name": "モモワロウ",
             "card_id": [
               230,
               898
             ]
-          }
-        ],
-        "flex": [
+          },
           {
             "name": "キチキギスex",
             "card_id": [
@@ -1628,6 +1693,7 @@
             163
           ],
           "role": "anchor",
+          "line_key": "yadoking_line",
           "reason": "デッキの主軸カード"
         },
         {
@@ -1647,10 +1713,28 @@
             "card_id": [
               162,
               327
-            ]
+            ],
+            "role": "strong_evolution_line",
+            "line_key": "yadoking_line",
+            "reason": "ヤドキング進化ライン。単体でもヤドキング系の強い根拠として扱う"
           }
         ],
         "core": [
+          {
+            "name": "ムチュール",
+            "card_id": [
+              183
+            ],
+            "reason": "ヤドキングのワザ先と超エネルギー展開を支える core"
+          },
+          {
+            "name": "コノヨザル",
+            "card_id": [
+              224,
+              439
+            ],
+            "reason": "ヤドキングのワザ先として扱う core"
+          },
           {
             "name": "メタグロス",
             "card_id": [
@@ -1694,19 +1778,6 @@
             "card_id": [
               272
             ]
-          },
-          {
-            "name": "ムチュール",
-            "card_id": [
-              183
-            ]
-          },
-          {
-            "name": "コノヨザル",
-            "card_id": [
-              224,
-              439
-            ]
           }
         ],
         "energy": [
@@ -1734,7 +1805,7 @@
       "combo_rules": [],
       "variants": {},
       "min_score": 6,
-      "confident_score": 12
+      "confident_score": 13
     },
     "rocket_honchkrow": {
       "display_name": "ロケット団のドンカラス",
@@ -1745,6 +1816,7 @@
             891
           ],
           "role": "anchor",
+          "line_key": "rocket_honchkrow_line",
           "reason": "デッキの主軸カード"
         },
         {
@@ -1763,21 +1835,39 @@
             "name": "ロケット団のヤミカラス",
             "card_id": [
               463
-            ]
+            ],
+            "role": "strong_evolution_line",
+            "line_key": "rocket_honchkrow_line",
+            "reason": "ロケット団のドンカラス進化ライン。単体でも高めの根拠として扱う"
           }
         ],
         "core": [
-          {
-            "name": "ロケット団のフリーザー",
-            "card_id": [
-              414
-            ]
-          },
           {
             "name": "ロケット団のファクトリー",
             "card_id": [
               1257
             ]
+          },
+          {
+            "name": "ロケット団のおじゃまロボ",
+            "card_id": [
+              1131
+            ],
+            "reason": "ロケット団系デッキに寄せる core。単体より複数枚の組み合わせを重視"
+          },
+          {
+            "name": "ロケット団のスーパーボール",
+            "card_id": [
+              1132
+            ],
+            "reason": "ロケット団系デッキに寄せる core。単体より複数枚の組み合わせを重視"
+          },
+          {
+            "name": "ロケット団のびっくりボム",
+            "card_id": [
+              1133
+            ],
+            "reason": "ロケット団系デッキに寄せる core。単体より複数枚の組み合わせを重視"
           },
           {
             "name": "ロケット団のアテナ",
@@ -1826,9 +1916,23 @@
             "card_id": [
               474
             ]
+          },
+          {
+            "name": "ロケット団の監視塔",
+            "card_id": [
+              1256
+            ],
+            "reason": "ロケット団系デッキに寄せる core。単体より複数枚の組み合わせを重視"
           }
         ],
         "flex": [
+          {
+            "name": "ロケット団のフリーザー",
+            "card_id": [
+              414
+            ],
+            "reason": "複数のロケット団系デッキに入るため単体では弱めに扱う"
+          },
           {
             "name": "ロケット団のミミッキュ",
             "card_id": [
@@ -1854,6 +1958,481 @@
       "variants": {},
       "min_score": 6,
       "confident_score": 12
+    },
+    "marnie_grimmsnarl_ex": {
+      "display_name": "マリィのオーロンゲex",
+      "cards": [
+        {
+          "name": "マリィのオーロンゲex",
+          "card_id": [
+            648
+          ],
+          "role": "anchor",
+          "line_key": "marnie_grimmsnarl_line",
+          "reason": "デッキの主軸カード。進化元と同時に見えても line_key で二重加点しない"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "names": [
+              "マリィのギモー",
+              "マリィのベロバー"
+            ],
+            "card_ids": [
+              647,
+              646
+            ],
+            "role": "signature",
+            "line_key": "marnie_grimmsnarl_line",
+            "reason": "マリィのオーロンゲexの進化ライン。単体では強いが本体とは二重加点しない"
+          }
+        ],
+        "flex": [
+          {
+            "names": [
+              "ユキメノコ",
+              "ユキワラシ"
+            ],
+            "card_ids": [
+              104,
+              103,
+              860
+            ],
+            "line_key": "froslass_line",
+            "reason": "氷系複数デッキにも入るため、マリィの根拠としては弱く扱う"
+          },
+          {
+            "name": "マシマシラ",
+            "card_id": [
+              112
+            ]
+          },
+          {
+            "name": "イベルタル",
+            "card_id": [
+              689
+            ]
+          },
+          {
+            "name": "シェイミ",
+            "card_id": [
+              45,
+              343,
+              1013
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "基本【悪】エネルギー",
+            "card_id": [
+              7
+            ]
+          },
+          {
+            "name": "基本【水】エネルギー",
+            "card_id": [
+              3
+            ],
+            "reason": "水採用型もあるため補助根拠に留める"
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "DARKNESS",
+          "role": "energy",
+          "reason": "悪タイプデッキの判断材料"
+        },
+        {
+          "type": "WATER",
+          "role": "energy",
+          "reason": "水採用型の補助判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12
+    },
+    "crustle": {
+      "display_name": "イワパレス",
+      "cards": [
+        {
+          "name": "イワパレス",
+          "card_id": [
+            345,
+            533
+          ],
+          "role": "anchor",
+          "line_key": "crustle_line",
+          "reason": "デッキの主軸カード。型が複数あるためイワパレス系統だけを強い根拠にする"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "イシズマイ",
+            "card_id": [
+              344,
+              532
+            ],
+            "role": "strong_evolution_line",
+            "line_key": "crustle_line",
+            "reason": "イワパレス進化ライン。単体では強いが本体とは二重加点しない"
+          }
+        ],
+        "energy": [
+          {
+            "name": "基本【草】エネルギー",
+            "card_id": [
+              1
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "GRASS",
+          "role": "energy",
+          "reason": "草型イワパレスの補助判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 10
+    },
+    "mega_froslass_ex": {
+      "display_name": "メガユキメノコex",
+      "cards": [
+        {
+          "name": "メガユキメノコex",
+          "card_id": [
+            861
+          ],
+          "role": "anchor",
+          "line_key": "mega_froslass_line",
+          "reason": "デッキの主軸カード。進化元と同時に見えても line_key で二重加点しない"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "names": [
+              "ユキワラシ",
+              "ユキメノコ"
+            ],
+            "card_ids": [
+              103,
+              860,
+              104
+            ],
+            "line_key": "mega_froslass_line",
+            "reason": "メガユキメノコex進化ライン。氷系で共有されるため本体とは二重加点しない"
+          }
+        ],
+        "flex": [
+          {
+            "names": [
+              "ノコッチ",
+              "ノココッチ",
+              "ノココッチex"
+            ],
+            "card_ids": [
+              65,
+              305,
+              66,
+              306
+            ],
+            "line_key": "dunsparce_line"
+          },
+          {
+            "name": "スピンロトム",
+            "card_id": [
+              174
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "基本【水】エネルギー",
+            "card_id": [
+              3
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "WATER",
+          "role": "energy",
+          "reason": "水タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 11
+    },
+    "mega_abomasnow_ex": {
+      "display_name": "メガユキノオーex",
+      "cards": [
+        {
+          "name": "メガユキノオーex",
+          "card_id": [
+            723
+          ],
+          "role": "anchor",
+          "line_key": "mega_abomasnow_line",
+          "reason": "デッキの主軸カード。進化元と同時に見えても line_key で二重加点しない"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "names": [
+              "ユキカブリ",
+              "ユキノオー"
+            ],
+            "card_ids": [
+              418,
+              722,
+              419
+            ],
+            "role": "strong_evolution_line",
+            "line_key": "mega_abomasnow_line",
+            "reason": "メガユキノオーexの実進化ライン。単体では強いが本体とは二重加点しない"
+          }
+        ],
+        "flex": [
+          {
+            "name": "ユキワラシ",
+            "card_id": [
+              103,
+              860
+            ],
+            "reason": "氷系複数デッキにまたがるため弱い補助根拠に留める"
+          }
+        ],
+        "energy": [
+          {
+            "name": "基本【水】エネルギー",
+            "card_id": [
+              3
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "WATER",
+          "role": "energy",
+          "reason": "水タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 12.5
+    },
+    "mega_starmie_ex": {
+      "display_name": "メガスターミーex",
+      "cards": [
+        {
+          "name": "メガスターミーex",
+          "card_id": [
+            1031
+          ],
+          "role": "anchor",
+          "line_key": "mega_starmie_line",
+          "reason": "デッキの主軸カード。進化元と同時に見えても line_key で二重加点しない"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "ヒトデマン",
+            "card_id": [
+              1030
+            ],
+            "role": "strong_evolution_line",
+            "line_key": "mega_starmie_line",
+            "reason": "メガスターミーexの進化元。単体では強いが本体とは二重加点しない"
+          }
+        ],
+        "core": [
+          {
+            "name": "メガユキメノコex",
+            "card_id": [
+              861
+            ],
+            "reason": "メガスターミーexで採用されることがあるが、メガユキメノコex単独デッキもあるため core に留める"
+          }
+        ],
+        "flex": [
+          {
+            "names": [
+              "ユキワラシ",
+              "ユキメノコ"
+            ],
+            "card_ids": [
+              103,
+              860,
+              104
+            ],
+            "line_key": "froslass_line",
+            "reason": "氷系複数デッキにまたがるため弱い補助根拠に留める"
+          },
+          {
+            "name": "マシマシラ",
+            "card_id": [
+              112
+            ]
+          },
+          {
+            "names": [
+              "ヨマワル",
+              "サマヨール",
+              "ヨノワール"
+            ],
+            "card_ids": [
+              131,
+              132,
+              133
+            ],
+            "line_key": "dusknoir_line"
+          }
+        ],
+        "energy": [
+          {
+            "name": "基本【水】エネルギー",
+            "card_id": [
+              3
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "WATER",
+          "role": "energy",
+          "reason": "水タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 10
+    },
+    "archaludon_ex": {
+      "display_name": "ブリジュラスex",
+      "cards": [
+        {
+          "name": "ブリジュラスex",
+          "card_id": [
+            190
+          ],
+          "role": "anchor",
+          "line_key": "archaludon_line",
+          "reason": "デッキの主軸カード。進化元と同時に見えても line_key で二重加点しない"
+        }
+      ],
+      "role_cards": {
+        "evolution_line": [
+          {
+            "name": "ジュラルドン",
+            "card_id": [
+              169,
+              839,
+              992
+            ],
+            "line_key": "archaludon_line",
+            "reason": "ブリジュラスexの進化元。本体とは二重加点しない"
+          }
+        ],
+        "core": [
+          {
+            "name": "ジーランス",
+            "card_id": [
+              57
+            ]
+          },
+          {
+            "name": "メガクチートex",
+            "card_id": [
+              695
+            ]
+          },
+          {
+            "name": "エースバーン",
+            "card_id": [
+              666
+            ]
+          },
+          {
+            "name": "ブリジュラス",
+            "card_id": [
+              170,
+              840
+            ]
+          }
+        ],
+        "flex": [
+          {
+            "names": [
+              "ノコッチ",
+              "ノココッチ",
+              "ノココッチex"
+            ],
+            "card_ids": [
+              65,
+              305,
+              66,
+              306
+            ],
+            "line_key": "dunsparce_line"
+          },
+          {
+            "name": "スピンロトム",
+            "card_id": [
+              174
+            ]
+          },
+          {
+            "name": "キチキギスex",
+            "card_id": [
+              140
+            ]
+          },
+          {
+            "name": "コダック",
+            "card_id": [
+              858
+            ]
+          }
+        ],
+        "energy": [
+          {
+            "name": "基本【鋼】エネルギー",
+            "card_id": [
+              8
+            ]
+          }
+        ]
+      },
+      "energy_types": [
+        {
+          "type": "METAL",
+          "role": "energy",
+          "reason": "鋼タイプデッキの判断材料"
+        }
+      ],
+      "combo_rules": [],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 11.5
     }
   },
   "generic_cards": [

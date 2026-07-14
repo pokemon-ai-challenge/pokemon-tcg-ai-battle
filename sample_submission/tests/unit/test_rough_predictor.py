@@ -230,8 +230,10 @@ def test_predict_rocket_honchkrow_from_public_board():
     )
     result = predict(make_state(opponent))
 
-    assert result["deck_type"] == "rocket_honchkrow"
-    assert result["display_name"] == "ロケット団のドンカラス"
+    assert result["deck_type"] == "unknown"
+    assert result["display_name"] == "unknown"
+    assert result["top_candidate_deck_type"] == "rocket_honchkrow"
+    assert result["top_candidate"] == "ロケット団のドンカラス"
 
 
 def test_predict_kamitsuorochi_from_public_board():
@@ -264,7 +266,8 @@ def test_predict_uses_opponent_knowledge_for_seen_but_not_current_cards():
     opponent = make_player_state(discard=[Card(id=GENERIC_ITEM, serial=600, playerIndex=1)])
     result = predict(make_state(opponent), opponent_knowledge=knowledge)
 
-    assert result["deck_type"] == "rocket_honchkrow"
+    assert result["deck_type"] == "unknown"
+    assert result["top_candidate_deck_type"] == "rocket_honchkrow"
     assert result["candidates"][0]["deck_type"] == "rocket_honchkrow"
 
 
@@ -461,3 +464,56 @@ def test_score_prediction_keeps_normalized_score_over_one_for_sorting():
     assert top["match_rate"] == 1.0
     assert "probability" not in top
     assert "relative_probability" not in top
+
+
+@pytest.mark.parametrize(
+    ("names", "name_to_id", "deck_type", "score", "evidence_count"),
+    [
+        (
+            ["マリィのオーロンゲex", "マリィのギモー"],
+            {"マリィのオーロンゲex": 648, "マリィのギモー": 647},
+            "marnie_grimmsnarl_ex",
+            10,
+            1,
+        ),
+        (
+            ["メガスターミーex", "ヒトデマン"],
+            {"メガスターミーex": 1031, "ヒトデマン": 1030},
+            "mega_starmie_ex",
+            10,
+            1,
+        ),
+        (
+            ["ブリジュラスex", "ジュラルドン"],
+            {"ブリジュラスex": 190, "ジュラルドン": 169},
+            "archaludon_ex",
+            10,
+            1,
+        ),
+    ],
+)
+def test_new_archetype_anchor_lines_do_not_double_count(names, name_to_id, deck_type, score, evidence_count):
+    rough_predictor._load_config.cache_clear()
+    config = rough_predictor._load_config()
+    result = rough_predictor._score_prediction(make_features(names, name_to_id, zone=None), config)
+    top = result["candidates"][0]
+
+    assert top["deck_type"] == deck_type
+    assert top["score"] == score
+    assert top["evidence_count"] == evidence_count
+
+
+def test_predict_archaludon_ex_from_anchor_and_core():
+    rough_predictor._load_config.cache_clear()
+    features = make_features(
+        ["ブリジュラスex", "ジーランス"],
+        {"ブリジュラスex": 190, "ジーランス": 57},
+        zone=None,
+    )
+
+    result = rough_predictor._score_prediction(features, rough_predictor._load_config())
+
+    assert result["deck_type"] == "archaludon_ex"
+    assert result["display_name"] == "ブリジュラスex"
+    assert result["score"] == 13
+    assert result["status"] == "confident"

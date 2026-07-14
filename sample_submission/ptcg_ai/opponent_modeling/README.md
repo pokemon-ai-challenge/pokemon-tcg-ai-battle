@@ -9,6 +9,7 @@
 
 - 実装計画・設計方針: [docs/plans/opponent-deck-predictor/plan.md](../../docs/plans/opponent-deck-predictor/plan.md)
 - MVP 方針メモ: [docs/plans/opponent-deck-predictor/mvp-strategy.md](../../docs/plans/opponent-deck-predictor/mvp-strategy.md)
+- デッキ分布推定・教師あり学習 方針メモ: [docs/plans/opponent-deck-predictor/deck-distribution-and-learned-predictor-plan.md](../../docs/plans/opponent-deck-predictor/deck-distribution-and-learned-predictor-plan.md)
 - 観測情報記録器の設計: [docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md](../../docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md)
 - 関連 Issue: #25（MVP 本体）, #26（特徴量 config）
 
@@ -37,6 +38,7 @@ combo で強くなるか、ではなく採用率で切るのが基本方針。
 |------|-----:|------------------|----|
 | `anchor` | 10 | デッキの主軸カード。定義上そのデッキ。最も強い根拠。 | メガルカリオex, フーディン |
 | `signature` | 8 | 単体でもかなり強い専用寄りカード。anchorほど確定ではないが、1枚で候補を大きく絞れる。 | テツノイサハex, コライドンex |
+| `exclusive_core` | 9.5 | そのデッキ以外ではほぼ採用されない専用カード。単体表示はかなり高くするが、確定判定は根拠数で抑える。 | Nのゼクロム, Nの城 |
 | `evolution_line` | 4 | 進化ライン（進化元〜中間を統合）。段ごとに確信度を上げたい場合は別エントリ、同じ根拠として扱いたい場合は `names` でセット化する。 | リオル, ケーシィ/ユンゲラー |
 | `core` | 3 | そのデッキにほぼ必ず入る固定ギミック・専用サポート。単体でも十分な根拠。 | ソルロック・ルナトーン, ふしぎなアメ |
 | `flex` | 1 | 入りうる（構築による）カード。目安は**採用率おおよそ10%以上**。弱めの根拠。 | 採用が分かれるサブアタッカー等 |
@@ -46,7 +48,7 @@ combo で強くなるか、ではなく採用率で切るのが基本方針。
 | `generic` | 0 | 多くのデッキに入る汎用カード。判定の根拠にしない（加点0）。 | ネストボール, 博士の研究 |
 
 > 数値はあくまで初期値。チューニングで上下してよい。順序の意図は
-> 「主軸 > 専用寄りカード > 進化ライン > core > flex ≧ エネルギー > 汎用」。
+> 「主軸 > ほぼ専用カード > 専用寄りカード > 進化ライン > core > flex ≧ エネルギー > 汎用」。
 
 ### `core` / `flex` / 対象外の判断フロー
 
@@ -263,7 +265,7 @@ ACE SPEC はデッキ内に1枚しか入らないカード（`CardData.aceSpec`�
 - [x] `oliva_ex` — オリーヴァex
 - [x] `takeruraiko_ex` — タケルライコex
 - [x] `ogerpon_teal_ex` — オーガポン みどりのめんex
-- [ ] `n_zoroark_ex` — Nのゾロアークex
+- [x] `n_zoroark_ex` — Nのゾロアークex
 - [ ] `omatsuri_ondo` — おまつりおんど
 - [ ] `gekkouga_ex` — ゲッコウガex
 - [ ] `shirona_garchomp_ex` — シロナのガブリアスex
