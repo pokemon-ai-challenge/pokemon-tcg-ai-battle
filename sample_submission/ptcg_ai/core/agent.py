@@ -11,6 +11,8 @@ Kaggle 提出の入口は sample_submission/main.py の agent(obs_dict) のま�
 （今回はスケルトン作成のみで main.py の配線は行わない）。
 """
 
+import os
+
 from cg.api import Observation
 
 from ptcg_ai.action_selection import router
@@ -33,6 +35,26 @@ def agent(obs: Observation) -> list[int]:
 def _select_deck() -> list[int]:
     """使用する60枚デッキのカードIDリストを返す。
 
-    decks.active の DeckPlan（担当A差し替え対象）を参照して構築する想定。
+    現状は sample_submission/deck.csv（提出物本体、CLAUDE.md記載の「使用デッキ」）を
+    読むだけ。デッキ内容そのものは decks/new_deck/ 側の担当Aデータと揃っている必要があるが、
+    その一致を保証するのはこの関数の責務ではない。
     """
-    raise NotImplementedError
+    return read_deck_csv()
+
+
+def read_deck_csv() -> list[int]:
+    """deck.csv を読み、60枚のカードIDリストを返す。
+
+    Kaggle 提出時の実行パスは /kaggle_simulations/agent/ 以下になるため、
+    カレントディレクトリに deck.csv が無ければそちらにフォールバックする
+    （CLAUDE.md「開発時の注意」参照）。main.py からも同じ実装を re-export して使う。
+    """
+    file_path = "deck.csv"
+    if not os.path.exists(file_path):
+        file_path = "/kaggle_simulations/agent/" + file_path
+    with open(file_path, "r") as file:
+        csv = file.read().split("\n")
+    deck = []
+    for i in range(60):
+        deck.append(int(csv[i]))
+    return deck
