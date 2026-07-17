@@ -41,6 +41,10 @@ battle_review_viewer/replays/*.json
 # Claude Code internal settings
 .claude/
 
+# Local-only working directory (currently only tracked on the local
+# feature/mppo-pbrs branch; not part of any other branch's history)
+ptcg-agent/
+
 # OS
 .DS_Store
 Thumbs.db
