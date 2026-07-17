@@ -1,4 +1,4 @@
-"""Phase 1 deterministic lethal search (issue #57).
+"""Deterministic lethal search (issues #57 / #58).
 
 Searches, within the current own turn only, for an action sequence that
 ends the game in our victory, using the competition search API
@@ -6,6 +6,12 @@ ends the game in our victory, using the competition search API
 targeted: a found line is re-verified against reshuffled hidden
 information, so lines that depend on unknown card order (or coin luck)
 are rejected.
+
+Phase 1 (#57) covered the last-prize case; Phase 2 (#58) triggers at
+<= 2 remaining prizes (lethal via KOing a Pokemon ex / Mega ex,
+multi-KO effects, or non-attack card effects — all detected uniformly
+through ``State.result``) and adds pruning and instrumentation
+(``get_stats()`` / ``reset_stats()``).
 
 Entry point (team common interface)::
 
@@ -43,7 +49,7 @@ from ptcg_ai.hidden_information.naive import predict_hidden
 DEFAULTS: dict = {
     "enabled": True,
     "module": "lethal_simple",
-    "max_remaining_prizes": 1,
+    "max_remaining_prizes": 2,
     "time_limit_ms": 100,
     "max_depth": 20,
     "max_nodes": 10000,
@@ -55,23 +61,54 @@ DEFAULTS: dict = {
     "verify_shuffles": 1,
 }
 
-# Option ordering for MAIN selections: try attacks first so the shortest
-# lethal is found early; END last (ending the turn can never win).
+# Option ordering for MAIN selections (#58 探索優先順位): attacks first
+# (multi-prize KOs and win-now lines), then damage raisers
+# (ability/evolve), energy acceleration, retreat/switch, other card use.
+# END is excluded from MAIN candidates entirely: the search only covers
+# the current own turn, so ending the turn can never reach a win.
 _MAIN_OPTION_PRIORITY = {
     OptionType.ATTACK: 0,
     OptionType.ABILITY: 1,
-    OptionType.PLAY: 2,
+    OptionType.EVOLVE: 2,
     OptionType.ATTACH: 3,
-    OptionType.EVOLVE: 4,
-    OptionType.RETREAT: 5,
+    OptionType.RETREAT: 4,
+    OptionType.PLAY: 5,
     OptionType.DISCARD: 6,
-    OptionType.END: 99,
 }
 _DEFAULT_PRIORITY = 50
 
 
 class _SearchAbort(Exception):
     """Raised internally when a time/node budget is exhausted."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+# Instrumentation (#58): cumulative counters for local measurement.
+_STATS_ZERO = {
+    "searches": 0,        # searches actually started (gates passed)
+    "found": 0,           # searches that returned a lethal action
+    "timeouts": 0,        # aborted by time_limit_ms
+    "node_limit_hits": 0, # aborted by max_nodes
+    "verify_rejects": 0,  # lines rejected by the determinism replay
+    "total_time_ms": 0.0,
+    "max_time_ms": 0.0,
+}
+_stats = dict(_STATS_ZERO)
+
+
+def get_stats() -> dict:
+    """Return cumulative search statistics (see ``_STATS_ZERO``)."""
+    stats = dict(_stats)
+    searches = stats["searches"]
+    stats["avg_time_ms"] = stats["total_time_ms"] / searches if searches else 0.0
+    return stats
+
+
+def reset_stats() -> None:
+    _stats.update(_STATS_ZERO)
 
 
 def search(state: State, legal_actions: list, context: dict) -> list[int] | None:
@@ -111,7 +148,9 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
         if predictions is None:
             return None
 
-        deadline = time.perf_counter() + config["time_limit_ms"] / 1000.0
+        start_time = time.perf_counter()
+        _stats["searches"] += 1
+        deadline = start_time + config["time_limit_ms"] / 1000.0
         try:
             path = _find_winning_path(obs, me, predictions, config, deadline)
             if path is None:
@@ -132,9 +171,14 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
                 if verify_predictions is None:
                     return None
                 if not _replay_wins(obs, me, verify_predictions, path, verify_deadline):
+                    _stats["verify_rejects"] += 1
                     return None
+            _stats["found"] += 1
             return first
         finally:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+            _stats["total_time_ms"] += elapsed_ms
+            _stats["max_time_ms"] = max(_stats["max_time_ms"], elapsed_ms)
             try:
                 cg_api.search_end()
             except Exception:
@@ -190,15 +234,24 @@ def _find_winning_path(
     Raises nothing: budget exhaustion is converted to None.
     """
     root = _begin(obs, predictions)
-    budget = {"nodes": 0}
+    budget = {"nodes": 0, "depth_cutoff": False}
     try:
         for depth_limit in range(1, int(config["max_depth"]) + 1):
             visited: dict[str, int] = {}
+            budget["depth_cutoff"] = False
             path = _dfs(root, me, depth_limit, config, deadline, budget, visited)
             if path is not None:
                 return path
+            if not budget["depth_cutoff"]:
+                # The whole reachable tree fits within this depth limit
+                # and holds no win; deeper iterations cannot find one.
+                return None
         return None
-    except _SearchAbort:
+    except _SearchAbort as abort:
+        if abort.reason == "time":
+            _stats["timeouts"] += 1
+        else:
+            _stats["node_limit_hits"] += 1
         return None
     finally:
         try:
@@ -216,10 +269,11 @@ def _dfs(
     budget: dict,
     visited: dict[str, int],
 ) -> list[list[int]] | None:
-    if depth_left <= 0:
-        return None
     obs = node.observation
     if obs.select is None or not obs.select.option:
+        return None
+    if depth_left <= 0:
+        budget["depth_cutoff"] = True
         return None
 
     key = _state_key(obs)
@@ -229,9 +283,9 @@ def _dfs(
 
     for selection in _candidate_selections(obs.select, config):
         if time.perf_counter() > deadline:
-            raise _SearchAbort("time limit")
+            raise _SearchAbort("time")
         if budget["nodes"] >= int(config["max_nodes"]):
-            raise _SearchAbort("node limit")
+            raise _SearchAbort("nodes")
         budget["nodes"] += 1
 
         try:
@@ -262,12 +316,15 @@ def _dfs(
 def _candidate_selections(select: SelectData, config: dict) -> Iterator[list[int]]:
     """Generate index selections satisfying min/max count, no duplicates.
 
-    MAIN options are reordered by ``_MAIN_OPTION_PRIORITY``; other types
-    keep their natural order. Output is capped by
+    MAIN options are reordered by ``_MAIN_OPTION_PRIORITY`` and END is
+    pruned (sound: the search only covers the current own turn, so
+    ending the turn can never lead to a win). Other select types keep
+    their natural order. Output is capped by
     ``max_combinations_per_select``.
     """
     order = list(range(len(select.option)))
     if select.type == SelectType.MAIN:
+        order = [i for i in order if select.option[i].type != OptionType.END]
         order.sort(
             key=lambda i: _MAIN_OPTION_PRIORITY.get(
                 select.option[i].type, _DEFAULT_PRIORITY

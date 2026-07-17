@@ -411,12 +411,23 @@ def test_disabled_config_skips_search(install_engine):
     assert engine.begin_count == 0
 
 
-def test_two_prizes_left_skips_search(install_engine):
-    root_obs = make_obs(make_state(my_prizes=2), make_select([OptionType.ATTACK]))
+def test_over_prize_threshold_skips_search(install_engine):
+    # Phase 2 default threshold is 2 remaining prizes; 3 must not search.
+    root_obs = make_obs(make_state(my_prizes=3), make_select([OptionType.ATTACK]))
     engine = install_engine(FakeEngine(
         {"root": FakeNode(root_obs, {(0,): "win"}), "win": WIN},
     ))
     assert run_search(root_obs) is None
+    assert engine.begin_count == 0
+
+
+def test_phase1_threshold_still_configurable(install_engine):
+    # max_remaining_prizes=1 (Phase 1 behavior) must keep gating at 2.
+    root_obs = make_obs(make_state(my_prizes=2), make_select([OptionType.ATTACK]))
+    engine = install_engine(FakeEngine(
+        {"root": FakeNode(root_obs, {(0,): "win"}), "win": WIN},
+    ))
+    assert run_search(root_obs, max_remaining_prizes=1) is None
     assert engine.begin_count == 0
 
 
@@ -428,6 +439,117 @@ def test_not_my_turn_skips_search(install_engine):
     ))
     assert run_search(root_obs) is None
     assert engine.begin_count == 0
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 (#58): two remaining prizes
+# ---------------------------------------------------------------------------
+
+def test_two_prizes_ex_knockout_wins(install_engine):
+    # KOing a Pokemon ex takes both remaining prizes -> State.result flips.
+    root_obs = make_obs(
+        make_state(my_prizes=2), make_select([OptionType.ATTACK, OptionType.END])
+    )
+    install_engine(FakeEngine(
+        {"root": FakeNode(root_obs, {(0,): "win"}), "win": WIN, "opp": OPP_TURN},
+        default="opp",
+    ))
+    assert run_search(root_obs) == [0]
+
+
+def test_two_prizes_normal_knockout_is_not_lethal(install_engine):
+    # A normal KO only takes 1 of the 2 prizes: the game continues on the
+    # opponent's side, so no lethal must be claimed.
+    root_obs = make_obs(
+        make_state(my_prizes=2), make_select([OptionType.ATTACK, OptionType.END])
+    )
+    install_engine(FakeEngine(
+        {"root": FakeNode(root_obs, {(0,): "opp"}), "opp": OPP_TURN},
+        default="opp",
+    ))
+    assert run_search(root_obs, max_depth=5) is None
+
+
+def test_two_prizes_multi_knockout_selection_wins(install_engine):
+    # Attack -> choose 2 damage targets -> both KO'd -> win. Covers
+    # effects that knock out multiple Pokemon at once.
+    root_obs = make_obs(
+        make_state(my_prizes=2), make_select([OptionType.ATTACK, OptionType.END])
+    )
+    targets_obs = make_obs(
+        make_state(my_prizes=2, action_count=1),
+        make_select(
+            [OptionType.CARD, OptionType.CARD, OptionType.CARD],
+            select_type=SelectType.CARD,
+            min_count=2,
+            max_count=2,
+        ),
+    )
+    install_engine(FakeEngine(
+        {
+            "root": FakeNode(root_obs, {(0,): "targets"}),
+            "targets": FakeNode(targets_obs, {(1, 2): "win"}),
+            "win": WIN,
+            "opp": OPP_TURN,
+        },
+        default="opp",
+    ))
+    assert run_search(root_obs) == [0]
+
+
+def test_two_prizes_card_effect_win_without_attack(install_engine):
+    # A win produced by playing a card (no attack) must also be found.
+    root_obs = make_obs(
+        make_state(my_prizes=2),
+        make_select([OptionType.PLAY, OptionType.ATTACK, OptionType.END]),
+    )
+    install_engine(FakeEngine(
+        {"root": FakeNode(root_obs, {(0,): "win"}), "win": WIN, "opp": OPP_TURN},
+        default="opp",
+    ))
+    assert run_search(root_obs) == [0]
+
+
+def test_end_option_is_never_stepped(install_engine):
+    # END cannot lead to a win within the own turn, so it must be pruned
+    # from MAIN candidates entirely.
+    root_obs = make_obs(make_state(), make_select([OptionType.END, OptionType.ATTACK]))
+    engine = install_engine(FakeEngine(
+        {"root": FakeNode(root_obs, {}), "opp": OPP_TURN},
+        default="opp",
+    ))
+    assert run_search(root_obs, max_depth=5) is None
+    assert ("root", (0,)) not in engine.step_log
+
+
+def test_stats_record_searches_and_findings(install_engine):
+    root_obs = make_obs(make_state(), make_select([OptionType.ATTACK, OptionType.END]))
+    install_engine(FakeEngine(
+        {"root": FakeNode(root_obs, {(0,): "win"}), "win": WIN, "opp": OPP_TURN},
+        default="opp",
+    ))
+    lethal_simple.reset_stats()
+    assert run_search(root_obs) == [0]
+    stats = lethal_simple.get_stats()
+    assert stats["searches"] == 1
+    assert stats["found"] == 1
+    assert stats["timeouts"] == 0
+    assert stats["max_time_ms"] >= 0.0
+    assert stats["avg_time_ms"] == stats["total_time_ms"]
+
+
+def test_stats_record_timeouts(install_engine):
+    root_obs = make_obs(make_state(), make_select([OptionType.ATTACK, OptionType.END]))
+    install_engine(FakeEngine(
+        {"root": FakeNode(root_obs, {(0,): "win"}), "win": WIN, "opp": OPP_TURN},
+        default="opp",
+    ))
+    lethal_simple.reset_stats()
+    assert run_search(root_obs, time_limit_ms=0) is None
+    stats = lethal_simple.get_stats()
+    assert stats["searches"] == 1
+    assert stats["found"] == 0
+    assert stats["timeouts"] == 1
 
 
 # ---------------------------------------------------------------------------

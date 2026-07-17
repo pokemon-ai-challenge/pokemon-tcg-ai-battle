@@ -3,7 +3,7 @@
   "lethal_search": {
     "enabled": true,
     "module": "lethal_simple",
-    "max_remaining_prizes": 1,
+    "max_remaining_prizes": 2,
     "time_limit_ms": 100,
     "max_depth": 20,
     "max_nodes": 10000,

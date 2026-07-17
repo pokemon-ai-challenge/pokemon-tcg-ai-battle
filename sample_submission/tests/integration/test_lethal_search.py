@@ -30,7 +30,7 @@ from ptcg_ai.search import lethal_simple
 
 LETHAL_CONFIG = {
     "enabled": True,
-    "max_remaining_prizes": 1,
+    "max_remaining_prizes": 2,  # Phase 2 (#58); also covers the Phase 1 case
     "time_limit_ms": 100,
     "max_depth": 20,
     "max_nodes": 10000,
@@ -53,7 +53,7 @@ def test_config_file_loads():
     lethal = config["lethal_search"]
     assert lethal["enabled"] is True
     assert lethal["module"] == "lethal_simple"
-    assert lethal["max_remaining_prizes"] == 1
+    assert lethal["max_remaining_prizes"] == 2
 
 
 def test_agent_plays_full_game_without_errors():
@@ -151,12 +151,16 @@ def test_claimed_lethal_wins_within_the_turn():
     """When the search fires in a real game, the line must win that turn."""
     # The engine shuffles decks with its own RNG, so which game produces
     # a lethal spot is not reproducible; sample until one fires.
-    # Empirically ~1/6 of random-vs-random games fire, so 30 games make
-    # a false skip very unlikely.
+    # Empirically ~1/6 of random-vs-random games fire even at the
+    # 1-prize threshold, so 30 games make a false skip very unlikely.
+    lethal_simple.reset_stats()
     outcomes = []
     for seed in range(30):
         outcomes.append(_play_probe_game(seed))
         if outcomes.count("lethal_won") >= 2:
             break
+    stats = lethal_simple.get_stats()
     if "lethal_won" not in outcomes:
         pytest.skip("no lethal situation was sampled in 30 games")
+    assert stats["found"] >= 1
+    assert stats["searches"] >= stats["found"]
