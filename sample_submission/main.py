@@ -1,6 +1,6 @@
 from cg.api import Observation, to_observation_class
 from ptcg_ai.core.agent import agent as _core_agent
-from ptcg_ai.core.agent import read_deck_csv
+from ptcg_ai.rule_based.rule_based_agent import read_deck_csv
 
 __all__ = ["agent", "read_deck_csv"]
 
