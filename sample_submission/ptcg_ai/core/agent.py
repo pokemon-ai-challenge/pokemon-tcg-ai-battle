@@ -1,25 +1,34 @@
-"""クラスタ① 選択振り分け（入口）／担当B
+"""AI全体の入口／担当B
 
-新デッキ用 AI のロジック側エントリポイント。
+新デッキ用 AI のロジック側エントリポイント。sample_submission/main.py の agent(obs_dict) から
+呼ばれる、ルール判断ロジック側の唯一の入口。
 
 責務:
-    - デッキ返却（初回選択）か通常ターンかを分岐する
-    - 通常ターンは decision.router.route に処理を委譲する（判断ロジックは持たない）
+    - デッキ返却（初回選択）か通常ターンかを分岐する（エージェント種別に関わらず共通）
+    - 通常ターンは configs/agent.json の agent_type に応じて、対応するエージェント実装
+      （rule_based_agent など、いずれも agent(obs) -> list[int] という同じ形）に委譲する
+    - 個別の判断ロジックはここには持たない
 
-Kaggle 提出の入口は sample_submission/main.py の agent(obs_dict) のまま変更しない。
-将来的には main.py の agent() 内から本モジュールの agent(obs) を呼び出す形で配線する想定
-（今回はスケルトン作成のみで main.py の配線は行わない）。
+エージェント種別を追加する場合:
+    1. core/ 配下に "xxx_agent.py"（agent(obs) -> list[int] を持つモジュール）を追加する
+    2. 下の分岐に import と if を1行ずつ足す
+    3. configs/agent.json の agent_type をそのエージェント名に切り替える
 """
 
 import os
 
 from cg.api import Observation
 
-from ptcg_ai.action_selection import router
+from ptcg_ai.core import config, rule_based_agent
+
+# 他のエージェント種別を追加したら、ここに import を足す。
+# from ptcg_ai.core import legacy_agent
+# from ptcg_ai.core import ismcts_agent
+# from ptcg_ai.core import hybrid_agent
 
 
 def agent(obs: Observation) -> list[int]:
-    """obs を見てデッキ返却 or ルーター呼び出しを行う。
+    """obs を見てデッキ返却 or 各エージェントへの委譲を行う。
 
     Args:
         obs: main.py の agent(obs_dict) で to_observation_class 変換済みの Observation。
@@ -29,7 +38,27 @@ def agent(obs: Observation) -> list[int]:
     """
     if obs.select is None:
         return _select_deck()
-    return router.route(obs)
+    return _select_turn_agent()(obs)
+
+
+def _select_turn_agent():
+    """configs/agent.json の agent_type に対応するエージェントの agent(obs) 関数を返す。
+
+    未知の agent_type や設定読み込み失敗時は rule_based_agent にフォールバックする
+    （対戦を止めないことを優先する。他のfallback系モジュールと同じ方針）。
+    """
+    agent_type = config.get_agent_type()
+
+    if agent_type == "rule_based":
+        return rule_based_agent.agent
+    # if agent_type == "legacy":
+    #     return legacy_agent.agent
+    # if agent_type == "ismcts":
+    #     return ismcts_agent.agent
+    # if agent_type == "hybrid":
+    #     return hybrid_agent.agent
+
+    return rule_based_agent.agent
 
 
 def _select_deck() -> list[int]:

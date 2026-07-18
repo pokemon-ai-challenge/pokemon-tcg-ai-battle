@@ -1,11 +1,37 @@
-# PR #64: ルールベースAI実装（担当B）+ デッキ統合 + main.py配線
+# Pull Request 用素材（feature/sample_fukuda → integration）
 
-- PR: https://github.com/pokemon-ai-challenge/pokemon-tcg-ai-battle/pull/64
-- ブランチ: `feature/sample_fukuda` → `integration`
+GitHub で PR を作る際に、以下をそのままコピペして使ってください。
+
+---
+
+## タイトル（案）
+
+```
+ルールベースAI実装（担当B）+ デッキ統合 + main.py配線
+```
+
+---
+
+## 本文（案）
+
+```markdown
+Closes #38, Closes #39, Closes #40, Closes #41, Closes #42
 
 ## 概要
 
 担当B（汎用ロジック）として `ptcg_ai/action_selection/`・`ptcg_ai/rule_based/`・`ptcg_ai/board_evaluation/`・`ptcg_ai/shared/` を実装し、担当A（Inadaさん）が用意したデッキ固有データ（`decks/new_deck/`、フーディン ハンドパワーデッキ）と接続、`main.py` から実際に呼び出されるところまで配線した。
+
+## 対応Issue
+
+| Issue | タイトル | 状態 |
+|---|---|---|
+| #38 | ①選択振り分けの実装 | ✅ 完了（`action_selection/`） |
+| #39 | ②盤面評価の実装 | ✅ 完了（`board_evaluation/`） |
+| #40 | ③メイン行動の意思決定の実装（重みは共同） | ✅ 完了（`buckets.py`/`proposals.py`実装、`weights.py`初期値設定まで。値の継続調整は#34側） |
+| #41 | ④カード移動・対象選択の実装 | ✅ 完了（`card_move/`） |
+| #42 | ⑤カード知識アクセスの実装 | ✅ 完了（`card_cache.py`/`profile_registry.py`） |
+
+未完了のため今回はクローズしないIssue: #43（⑨-B 検証・汎用基盤、未着手）、#34（[共同] 重みチューニング、初期値設定のみで継続中）、#33・#21（親Issue、上記が理由で据え置き）。
 
 ## 実装
 
@@ -33,6 +59,14 @@
 
 ## 備考
 
-- `weights.py`のカテゴリ間重みは自己対戦を見ながらの初期値。今後Aさんと一緒にチューニングしていく前提。
+- `weights.py`のカテゴリ間重みは自己対戦を見ながらの初期値。今後Aさんと一緒にチューニングしていく前提（#34）。
 - `AttackProfile`（ベンチ狙撃・状態異常・ドロー・次ターン攻撃封じ）の判定は実装済みだが、個別カードごとの複雑なコンボ（例: 特定ポケモンへのエネルギー付与→特性トリガーでの回収など）はまだ未対応。
 - `ptcg_ai/shared/card_cache.py`・`profile_registry.py`は担当Bの管轄だが、`decks/new_deck/deck_plan.py`の契約変更に合わせて`ptcg_ai/shared/profile_types.py`に`DeckPlan`型を追加している（元は担当Aのファイル側にあった型）。
+```
+
+---
+
+## PR作成時の設定
+
+- base（取り込み先）: `integration`
+- compare（作業ブランチ）: `feature/sample_fukuda`
