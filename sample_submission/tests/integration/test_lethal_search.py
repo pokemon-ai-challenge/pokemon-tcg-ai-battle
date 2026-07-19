@@ -24,8 +24,8 @@ import pytest
 from cg.api import Observation, to_observation_class
 from cg.game import battle_finish, battle_select, battle_start
 from main import agent, read_deck_csv
-from ptcg_ai.action_selection import selector
 from ptcg_ai.core.config import load_config
+from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
 from ptcg_ai.search import lethal_simple
 
 LETHAL_CONFIG = {
@@ -129,9 +129,10 @@ def _play_probe_game(seed: int) -> str:
             ):
                 context = {
                     "observation": obs,
-                    "full_deck": list(deck),
                     "config": LETHAL_CONFIG,
-                    "rng": rng,
+                    "hidden_state_factory": (
+                        lambda obs=obs: build_dummy_search_state(obs, list(deck), rng)
+                    ),
                 }
                 action = lethal_simple.search(state, obs.select.option, context)
                 if action is not None and fired is None:

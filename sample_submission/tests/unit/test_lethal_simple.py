@@ -32,7 +32,7 @@ from cg.api import (
     State,
 )
 from ptcg_ai.action_selection import selector
-from ptcg_ai.hidden_information import naive
+from ptcg_ai.hidden_information import search_state_stub
 from ptcg_ai.search import lethal_simple
 
 
@@ -111,7 +111,7 @@ def make_obs(state: State, select: SelectData | None) -> Observation:
     return Observation(select=select, logs=[], current=state, search_begin_input="{}")
 
 
-DUMMY_PREDICTIONS = {
+DUMMY_HIDDEN_STATE = {
     "your_deck": [],
     "your_prize": [],
     "opponent_deck": [],
@@ -196,7 +196,7 @@ def install_engine(monkeypatch):
 def base_context(obs: Observation, **config) -> dict:
     cfg = {"enabled": True, "verify_shuffles": 1, "time_limit_ms": 1000}
     cfg.update(config)
-    return {"observation": obs, "config": cfg, "predictions": DUMMY_PREDICTIONS}
+    return {"observation": obs, "config": cfg, "hidden_state": DUMMY_HIDDEN_STATE}
 
 
 def run_search(obs: Observation, **config):
@@ -441,6 +441,18 @@ def test_not_my_turn_skips_search(install_engine):
     assert engine.begin_count == 0
 
 
+def test_missing_hidden_state_skips_search(install_engine):
+    # The search never builds hidden information itself: without a
+    # hidden_state / hidden_state_factory in the context it must bail out.
+    root_obs = make_obs(make_state(), make_select([OptionType.ATTACK]))
+    engine = install_engine(FakeEngine(
+        {"root": FakeNode(root_obs, {(0,): "win"}), "win": WIN},
+    ))
+    context = {"observation": root_obs, "config": {"enabled": True}}
+    assert lethal_simple.search(root_obs.current, root_obs.select.option, context) is None
+    assert engine.begin_count == 0
+
+
 # ---------------------------------------------------------------------------
 # Phase 2 (#58): two remaining prizes
 # ---------------------------------------------------------------------------
@@ -597,7 +609,7 @@ def test_returned_action_is_legal_for_current_select(install_engine):
 
 
 # ---------------------------------------------------------------------------
-# Hidden-information prediction
+# Hidden-state stub (dummy data for search_begin)
 # ---------------------------------------------------------------------------
 
 def _card(card_id: int, player_index: int = 0) -> Card:
@@ -606,10 +618,10 @@ def _card(card_id: int, player_index: int = 0) -> Card:
 
 @pytest.fixture(autouse=True)
 def filler_cache(monkeypatch):
-    monkeypatch.setattr(naive, "_FILLER_CACHE", {"energy": 999, "pokemon": 888})
+    monkeypatch.setattr(search_state_stub, "_FILLER_CACHE", {"energy": 999, "pokemon": 888})
 
 
-def test_predict_hidden_accounts_for_visible_cards():
+def test_build_dummy_search_state_accounts_for_visible_cards():
     state = make_state(my_prizes=2)
     me = state.players[0]
     me.hand = [_card(1)]
@@ -617,29 +629,29 @@ def test_predict_hidden_accounts_for_visible_cards():
     me.deckCount = 1
     full_deck = [1, 2, 3, 4, 5]
     obs = make_obs(state, make_select([OptionType.ATTACK]))
-    prediction = naive.predict_hidden(obs, full_deck)
-    assert prediction is not None
-    assert len(prediction["your_prize"]) == 2
-    assert len(prediction["your_deck"]) == 1
-    assert sorted(prediction["your_deck"] + prediction["your_prize"]) == [3, 4, 5]
-    assert len(prediction["opponent_prize"]) == 3
-    assert len(prediction["opponent_deck"]) == state.players[1].deckCount
+    hidden_state = search_state_stub.build_dummy_search_state(obs, full_deck)
+    assert hidden_state is not None
+    assert len(hidden_state["your_prize"]) == 2
+    assert len(hidden_state["your_deck"]) == 1
+    assert sorted(hidden_state["your_deck"] + hidden_state["your_prize"]) == [3, 4, 5]
+    assert len(hidden_state["opponent_prize"]) == 3
+    assert len(hidden_state["opponent_deck"]) == state.players[1].deckCount
 
 
-def test_predict_hidden_returns_none_on_count_mismatch():
+def test_build_dummy_search_state_returns_none_on_count_mismatch():
     state = make_state(my_prizes=2)
     state.players[0].hand = [_card(1)]
     state.players[0].deckCount = 10  # unseen pool cannot cover this
     obs = make_obs(state, make_select([OptionType.ATTACK]))
-    assert naive.predict_hidden(obs, [1, 2, 3, 4, 5]) is None
+    assert search_state_stub.build_dummy_search_state(obs, [1, 2, 3, 4, 5]) is None
 
 
-def test_predict_hidden_returns_none_on_unknown_visible_card():
+def test_build_dummy_search_state_returns_none_on_unknown_visible_card():
     state = make_state(my_prizes=2)
     state.players[0].hand = [_card(42)]  # not in the deck list
     state.players[0].deckCount = 2
     obs = make_obs(state, make_select([OptionType.ATTACK]))
-    assert naive.predict_hidden(obs, [1, 2, 3, 4, 5]) is None
+    assert search_state_stub.build_dummy_search_state(obs, [1, 2, 3, 4, 5]) is None
 
 
 # ---------------------------------------------------------------------------
