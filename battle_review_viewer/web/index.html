@@ -353,8 +353,9 @@
 
     <!-- カード画像が未生成のとき、裏で生成を回している間に出す進捗バナー -->
     <div id="imageBuildBanner" class="image-build-banner" hidden>
-      <span class="spinner"></span>
+      <span id="imageBuildSpinner" class="spinner"></span>
       <span id="imageBuildText">画像を作成中です。お待ちください…</span>
+      <button id="imageBuildDismiss" class="image-build-dismiss" type="button" aria-label="close" hidden>&times;</button>
     </div>
 
     <script src="./app.js?v=20260713g"></script>

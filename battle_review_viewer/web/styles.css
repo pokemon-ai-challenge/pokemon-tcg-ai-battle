@@ -1766,6 +1766,17 @@ body.drawer-open .stage {
   color: var(--ink);
 }
 .image-build-banner[hidden] { display: none; }
+.image-build-dismiss {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0 0 4px;
+}
+.image-build-dismiss:hover { color: var(--ink); }
+.image-build-dismiss[hidden] { display: none; }
 .spinner {
   width: 15px;
   height: 15px;
