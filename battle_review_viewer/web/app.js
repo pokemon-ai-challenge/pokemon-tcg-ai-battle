@@ -3190,9 +3190,37 @@ async function reloadCardManifest() {
   }
 }
 
+// カウント数字だけをアニメーションで増やす（枠のテキストごと差し替えると
+// アニメーションが毎回リセットされるので、数字用の <span> だけ更新する）。
+let imageBuildCountAnimFrame = null;
+let imageBuildCountCurrent = 0;
+function animateCountTo(el, to, duration = 700) {
+  if (!el) return;
+  const from = imageBuildCountCurrent;
+  cancelAnimationFrame(imageBuildCountAnimFrame);
+  if (from === to) {
+    el.textContent = String(to);
+    return;
+  }
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - (1 - t) * (1 - t); // ease-out
+    el.textContent = String(Math.round(from + (to - from) * eased));
+    if (t < 1) {
+      imageBuildCountAnimFrame = requestAnimationFrame(step);
+    } else {
+      imageBuildCountCurrent = to;
+    }
+  };
+  imageBuildCountAnimFrame = requestAnimationFrame(step);
+}
+
 async function runCardImageBuild(mode) {
   if (cardImageBuilding) return;
   cardImageBuilding = true;
+  imageBuildCountCurrent = 0;
+  cancelAnimationFrame(imageBuildCountAnimFrame);
   if (imageBuildBanner) imageBuildBanner.hidden = false;
   if (imageBuildSpinner) imageBuildSpinner.hidden = false;
   if (imageBuildProgress) imageBuildProgress.hidden = false;
@@ -3218,10 +3246,14 @@ async function runCardImageBuild(mode) {
       }
       if (st.running && st.stage === "extracting" && imageBuildText) {
         // 何枚出来たか(st.count)を毎ポーリングで反映し、確定的に進んでいることを見せる
-        // （不確定バーだけだと「動いてるだけ」に見えるため、実数値も添える）。
-        imageBuildText.textContent = lang === "ja"
-          ? `画像を抽出しています…（${st.count} 枚 生成済み）`
-          : `Extracting card images… (${st.count} generated so far)`;
+        // （不確定バーだけだと「動いてるだけ」に見えるため、実数値も添える）。数字部分は
+        // 専用の <span> にして、ポーリングのたびに枠ごと差し替えず数字だけカウントアップする。
+        if (!document.getElementById("imageBuildCountNum")) {
+          imageBuildText.innerHTML = lang === "ja"
+            ? `画像を抽出しています…（<span id="imageBuildCountNum">0</span> 枚 生成済み）`
+            : `Extracting card images… (<span id="imageBuildCountNum">0</span> generated so far)`;
+        }
+        animateCountTo(document.getElementById("imageBuildCountNum"), st.count);
       }
       if (!st.running) {
         if (st.error && !st.count) {
@@ -3252,9 +3284,10 @@ async function runCardImageBuild(mode) {
         if (imageBuildText) {
           imageBuildText.classList.add("is-ok");
           const count = Object.keys(cardManifest).length;
-          imageBuildText.textContent = lang === "ja"
-            ? `✓ 画像の準備ができました（${count} 枚）`
-            : `✓ Images ready (${count})`;
+          imageBuildText.innerHTML = lang === "ja"
+            ? `✓ 画像の準備ができました（<span id="imageBuildCountNum">0</span> 枚）`
+            : `✓ Images ready (<span id="imageBuildCountNum">0</span>)`;
+          animateCountTo(document.getElementById("imageBuildCountNum"), count);
         }
         return;
       }
