@@ -3159,6 +3159,7 @@ document.getElementById("newReplayBackdrop")?.addEventListener("click", closeNew
 const imageBuildBanner = document.getElementById("imageBuildBanner");
 const imageBuildText = document.getElementById("imageBuildText");
 const imageBuildSpinner = document.getElementById("imageBuildSpinner");
+const imageBuildProgress = document.getElementById("imageBuildProgress");
 const imageBuildDismiss = document.getElementById("imageBuildDismiss");
 const imageBuildActionButton = document.getElementById("imageBuildActionButton");
 const rebuildImagesButton = document.getElementById("rebuildImagesButton");
@@ -3190,8 +3191,10 @@ async function runCardImageBuild(mode) {
   cardImageBuilding = true;
   if (imageBuildBanner) imageBuildBanner.hidden = false;
   if (imageBuildSpinner) imageBuildSpinner.hidden = false;
+  if (imageBuildProgress) imageBuildProgress.hidden = false;
   if (imageBuildActionButton) imageBuildActionButton.hidden = true;
   if (imageBuildText) {
+    imageBuildText.classList.remove("is-ok", "is-error");
     imageBuildText.textContent = lang === "ja"
       ? (mode === "all" ? "全カード画像を作成中です。お待ちください…（数分かかります）" : "画像を作成中です。お待ちください…（初回のみ）")
       : "Generating card images… please wait.";
@@ -3209,6 +3212,13 @@ async function runCardImageBuild(mode) {
           ? "初回セットアップ中です（画像抽出用の環境を準備しています）。数分かかることがあります…"
           : "First-time setup in progress (preparing the image-extraction environment). This can take a few minutes…";
       }
+      if (st.running && st.stage === "extracting" && imageBuildText) {
+        // 何枚出来たか(st.count)を毎ポーリングで反映し、確定的に進んでいることを見せる
+        // （不確定バーだけだと「動いてるだけ」に見えるため、実数値も添える）。
+        imageBuildText.textContent = lang === "ja"
+          ? `画像を抽出しています…（${st.count} 枚 生成済み）`
+          : `Extracting card images… (${st.count} generated so far)`;
+      }
       if (!st.running) {
         if (st.error && !st.count) {
           if (imageBuildText) imageBuildText.textContent = lang === "ja"
@@ -3221,6 +3231,8 @@ async function runCardImageBuild(mode) {
           // 「画像を作成中です…」のように数秒で自動的に消える通知にはしない。× で手動で閉じるか、
           // 「画像をセットアップ」ボタンで再試行できる。
           if (imageBuildSpinner) imageBuildSpinner.hidden = true;
+          if (imageBuildProgress) imageBuildProgress.hidden = true;
+          if (imageBuildText) imageBuildText.classList.add("is-error");
           if (imageBuildActionButton) {
             imageBuildActionButton.hidden = false;
             imageBuildActionButton.textContent = lang === "ja" ? "再試行 / Retry" : "Retry";
@@ -3229,6 +3241,18 @@ async function runCardImageBuild(mode) {
         }
         await reloadCardManifest();
         if (toggleCardImages.checked && replayData) render();
+        // 成功時も無言で消さず、一瞬「✓ 準備できました」を見せてから閉じる
+        // （画像が出来たこと自体に気づきにくいという指摘への対応）。
+        if (imageBuildSpinner) imageBuildSpinner.hidden = true;
+        if (imageBuildProgress) imageBuildProgress.hidden = true;
+        if (imageBuildText) {
+          imageBuildText.classList.add("is-ok");
+          const count = Object.keys(cardManifest).length;
+          imageBuildText.textContent = lang === "ja"
+            ? `✓ 画像の準備ができました（${count} 枚）`
+            : `✓ Images ready (${count})`;
+        }
+        await new Promise((r) => setTimeout(r, 2200));
         if (imageBuildBanner) imageBuildBanner.hidden = true;
         return;
       }

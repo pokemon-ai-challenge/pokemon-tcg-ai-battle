@@ -1770,6 +1770,8 @@ body.drawer-open .stage {
   line-height: 1.6;
   color: var(--ink);
 }
+.image-build-content p.is-ok { color: #7fe6ac; font-weight: 700; }
+.image-build-content p.is-error { color: #ffb3c6; }
 .spinner[hidden] { display: none; }
 .spinner {
   width: 15px;
@@ -1781,6 +1783,28 @@ body.drawer-open .stage {
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* 進捗の総数が事前に分からない(抽出対象カード数はスキャンするまで不明)ため、
+   完了率を出す代わりに「動き続けている=作業中」が伝わる不確定(indeterminate)バーにする。 */
+.image-build-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.image-build-progress[hidden] { display: none; }
+.image-build-progress-bar {
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: image-build-progress-slide 1.3s ease-in-out infinite;
+}
+@keyframes image-build-progress-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(280%); }
+}
 
 /* ---------- Guided tour (first-run coachmarks) ---------- */
 
