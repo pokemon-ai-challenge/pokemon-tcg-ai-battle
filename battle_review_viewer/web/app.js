@@ -299,7 +299,6 @@ UI.ja.debugHeading = "デバッグ";
 UI.ja.debugViewOpponentKnowledge = "相手の公開情報";
 UI.ja.debugViewDeckPredictor = "デッキ予測";
 UI.ja.debugViewMlDeckPredictor = "デッキ予測（ML）";
-UI.ja.debugViewHiddenInformation = "隠し情報推定";
 UI.ja.mlArchetypeOther = "その他（未分類）";
 UI.ja.observedCardsHeading = "観測済みカード（名前別）";
 UI.ja.currentZonesHeading = "現在のゾーン";
@@ -308,16 +307,10 @@ UI.ja.noObservationYet = "まだ観測がありません（player0 の最初の�
 UI.ja.noCardsObservedYet = "まだ観測されたカードはありません";
 UI.ja.noCardsVisible = "現在見えているカードはありません";
 UI.ja.noMismatchAtStep = "この時点では差分はありません。";
-UI.ja.hiddenInfoOwnHeading = "自分のサイド落ち候補（上位）";
-UI.ja.hiddenInfoOpponentHeading = "相手の手札候補（上位）";
-UI.ja.hiddenInfoPoolUnready = "プール未配置（archetype_card_pool.json が見つかりません。kaggle_replays/deck_predictor/build_archetype_pool.py で生成・配置してください）。";
-UI.ja.hiddenInfoNoData = "この replay には隠し情報推定データがありません（古い replay か、推定レイヤーが無効）。新しく生成すると出ます。";
-UI.ja.hiddenInfoNoCandidates = "候補なし";
 UI.en.debugHeading = "Debug";
 UI.en.debugViewOpponentKnowledge = "Opponent Knowledge";
 UI.en.debugViewDeckPredictor = "Deck Predictor";
 UI.en.debugViewMlDeckPredictor = "Deck Predictor (ML)";
-UI.en.debugViewHiddenInformation = "Hidden Information";
 UI.en.mlArchetypeOther = "Other (unclassified)";
 UI.en.observedCardsHeading = "Observed cards (by name)";
 UI.en.currentZonesHeading = "Current zones";
@@ -326,11 +319,6 @@ UI.en.noObservationYet = "No observation yet (waiting for player0's first decisi
 UI.en.noCardsObservedYet = "No cards observed yet";
 UI.en.noCardsVisible = "No cards currently visible";
 UI.en.noMismatchAtStep = "No mismatch at this step.";
-UI.en.hiddenInfoOwnHeading = "Own prize-card candidates (top)";
-UI.en.hiddenInfoOpponentHeading = "Opponent hand candidates (top)";
-UI.en.hiddenInfoPoolUnready = "Pool not loaded (archetype_card_pool.json not found; generate it with kaggle_replays/deck_predictor/build_archetype_pool.py).";
-UI.en.hiddenInfoNoData = "This replay has no hidden-information debug data (old replay, or the estimation layer is disabled). Regenerate the replay to see it.";
-UI.en.hiddenInfoNoCandidates = "No candidates";
 
 const ZONE_LABEL = {
   active: { ja: "バトル場", en: "active" },
@@ -861,8 +849,6 @@ function applyLang() {
   set("observedCardsHeading", t("observedCardsHeading"));
   set("currentZonesHeading", t("currentZonesHeading"));
   set("groundTruthDiffHeading", t("groundTruthDiffHeading"));
-  set("hiddenInfoOwnHeading", t("hiddenInfoOwnHeading"));
-  set("hiddenInfoOpponentHeading", t("hiddenInfoOpponentHeading"));
   set("generatePlayerPolicyLabel", lang === "ja" ? "自分のCPU" : "Your CPU");
   set("generateOpponentLabel", lang === "ja" ? "相手のCPU" : "Opponent CPU");
   set("generatePlayerDeckLabel", lang === "ja" ? "自分のデッキ" : "Your deck");
@@ -1189,7 +1175,6 @@ function render() {
   renderOpponentKnowledge(debugEntry);
   renderDeckPredictor(debugEntry);
   renderMlDeckPredictor(debugEntry);
-  renderHiddenInformation(debugEntry);
   renderStadium(current.stadium || [], selectedRefs, actionableRefs);
 
   renderPlayer(opponent, OPPONENT_INDEX, selectedRefs, actionableRefs, {
@@ -2319,102 +2304,6 @@ function renderMlPredictionEvidence(explanation, entry) {
   evidenceEl.innerHTML = cardBlocks + ignoredNote;
 }
 
-// 非公開情報推定レイヤー（sample_submission/ptcg_ai/hidden_information/）のデバッグ表示。
-// OwnHiddenState（自分の山札∪サイド、超幾何分布）の「サイド落ち候補 top N」と、
-// OpponentHiddenState（相手アーキタイプ事後分布×ゾーン配分の混合モデル）の「手札候補 top N」を
-// テーブル表示する。生成は export_replay.py / live_match.py が hidden_info_debug.py の
-// build_hidden_info_debug() 経由で行い、同じ debug.hidden_info（opponentKnowledgeDebug と同居）に
-// 埋め込まれる。古い replay にはキー自体が無いので、その場合は「データなし」表示にフォールバックする。
-function hiddenInfoCardName(candidate) {
-  return cardDisplayName({ id: candidate.card_id, name: candidate.name });
-}
-
-function renderHiddenInformation(entry) {
-  const ownStatusEl = document.getElementById("hiddenInfoOwnStatus");
-  const ownTableEl = document.getElementById("hiddenInfoOwnTable");
-  const opponentStatusEl = document.getElementById("hiddenInfoOpponentStatus");
-  const opponentTableEl = document.getElementById("hiddenInfoOpponentTable");
-  if (!ownStatusEl || !ownTableEl || !opponentStatusEl || !opponentTableEl) return;
-
-  const clearAll = (statusClass, statusText) => {
-    ownStatusEl.className = statusClass;
-    ownStatusEl.textContent = statusText;
-    ownTableEl.innerHTML = "";
-    opponentStatusEl.className = "";
-    opponentStatusEl.textContent = "";
-    opponentTableEl.innerHTML = "";
-  };
-
-  const hiddenInfo = entry?.debug?.hidden_info;
-  if (!hiddenInfo) {
-    clearAll("diagnostic-status", t("hiddenInfoNoData"));
-    return;
-  }
-  if (hiddenInfo.error) {
-    clearAll("diagnostic-status diagnostic-bad", `${lang === "ja" ? "推定レイヤーエラー: " : "Estimation layer error: "}${hiddenInfo.error}`);
-    return;
-  }
-
-  const pctCell = (value, isTop) => `<span class="hidden-info-pct ${isTop ? "is-top" : ""}">${(Number(value || 0) * 100).toFixed(1)}%</span>`;
-
-  const own = hiddenInfo.own;
-  if (!own) {
-    ownStatusEl.className = "diagnostic-status";
-    ownStatusEl.textContent = t("hiddenInfoNoData");
-    ownTableEl.innerHTML = "";
-  } else {
-    ownStatusEl.className = "diagnostic-status diagnostic-ok";
-    ownStatusEl.textContent = lang === "ja"
-      ? `サイド ${own.prize_count} 枚 / 未確認プール ${own.pool_size} 枚`
-      : `${own.prize_count} prize card(s) / ${own.pool_size} unconfirmed pool card(s)`;
-    const rows = own.top_prize_candidates || [];
-    ownTableEl.innerHTML = rows.length
-      ? [
-          `<div class="hidden-info-row hidden-info-row-2 hidden-info-row-head">
-            <span></span><span>${lang === "ja" ? "山札%" : "Deck%"}</span><span>${lang === "ja" ? "サイド落ち%" : "Prize%"}</span>
-          </div>`,
-          ...rows.map((c, i) => `
-          <div class="hidden-info-row hidden-info-row-2 ${i === 0 ? "is-top" : ""}">
-            <span class="hidden-info-name">${escapeHtml(hiddenInfoCardName(c))}</span>
-            ${pctCell(c.deck_prob, false)}
-            ${pctCell(c.prize_prob, i === 0)}
-          </div>`),
-        ].join("")
-      : `<span class="chip chip-empty">${t("hiddenInfoNoCandidates")}</span>`;
-  }
-
-  const opponent = hiddenInfo.opponent;
-  if (!opponent) {
-    opponentStatusEl.className = "diagnostic-status";
-    opponentStatusEl.textContent = t("hiddenInfoNoData");
-    opponentTableEl.innerHTML = "";
-    return;
-  }
-  if (!opponent.is_ready) {
-    opponentStatusEl.className = "diagnostic-status";
-    opponentStatusEl.textContent = t("hiddenInfoPoolUnready");
-    opponentTableEl.innerHTML = "";
-    return;
-  }
-  opponentStatusEl.className = "diagnostic-status diagnostic-ok";
-  opponentStatusEl.textContent = lang === "ja" ? "推定プール読み込み済み" : "Estimation pool loaded";
-  const oRows = opponent.top_hand_candidates || [];
-  opponentTableEl.innerHTML = oRows.length
-    ? [
-        `<div class="hidden-info-row hidden-info-row-3 hidden-info-row-head">
-          <span></span><span>${lang === "ja" ? "山札%" : "Deck%"}</span><span>${lang === "ja" ? "手札%" : "Hand%"}</span><span>${lang === "ja" ? "サイド落ち%" : "Prize%"}</span>
-        </div>`,
-        ...oRows.map((c, i) => `
-        <div class="hidden-info-row hidden-info-row-3 ${i === 0 ? "is-top" : ""}">
-          <span class="hidden-info-name">${escapeHtml(hiddenInfoCardName(c))}</span>
-          ${pctCell(c.deck_prob, false)}
-          ${pctCell(c.hand_prob, i === 0)}
-          ${pctCell(c.prize_prob, false)}
-        </div>`),
-      ].join("")
-    : `<span class="chip chip-empty">${t("hiddenInfoNoCandidates")}</span>`;
-}
-
 function renderStadium(stadium, selectedRefs, actionableRefs) {
   const container = document.getElementById("stadiumSlot");
   if (!stadium.length) {
@@ -3248,7 +3137,6 @@ const DEBUG_VIEWS = [
   { id: "opponentKnowledge", labelKey: "debugViewOpponentKnowledge" },
   { id: "deckPredictor", labelKey: "debugViewDeckPredictor" },
   { id: "mlDeckPredictor", labelKey: "debugViewMlDeckPredictor" },
-  { id: "hiddenInformation", labelKey: "debugViewHiddenInformation" },
 ];
 let activeDebugView = DEBUG_VIEWS[0].id;
 
