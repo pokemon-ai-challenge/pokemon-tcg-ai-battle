@@ -81,19 +81,35 @@ python .\battle_review_viewer\export_replay.py --opponent self --output .\battle
 - 特定フレームを直接開きたいときは URL に `?frame=N` を付けます（レビュー共有用）:
   `http://127.0.0.1:8765/?frame=60`
 
-## カード画像を用意する（任意）
+## カード画像を用意する（任意・通常は自動でセットアップされます）
 
 盤面に実際のカード画像を出したい場合は、`data/Card_ID List_JP.pdf` から画像を抽出して
-`web/card_images/` に書き出します。抽出には pdfplumber / Pillow が必要なので、
-`cardlist_referenced/pdf_card_editor` の venv で実行します。
+`web/card_images/` に書き出します。抽出には pdfplumber / Pillow が必要で、これらは
+`cardlist_referenced/pdf_card_editor` 用の venv に入れて実行します。
+
+> **画像なしでもビューアーは問題なく動きます**（カード名＋HP のテキスト表示にフォールバックする
+> だけです）。
+
+**通常は何もしなくて大丈夫です。** `cardlist_referenced/pdf_card_editor/.venv` は
+（Python の venv は git 管理しないのが通例なので）GitHub から clone した直後は誰の環境にも
+存在しませんが、viewer 起動時 or `⚙ Settings → 全カード画像を生成` を押したときに、
+サーバー（`serve_viewer.py`）が**この venv を自動で作成し、依存関係もインストールしてから**
+画像抽出を行います（初回だけ「初回セットアップ中です…」と表示され、数分かかることがあります）。
+
+自動セットアップが失敗する場合（社内プロキシでネットワークが使えない等）は、画面下に
+「画像は用意できませんでした」というバナーが出ます（原因のエラーメッセージ付き。自動では
+消えないので `×` で閉じてください）。その場合は、同じ手順を手動で実行してみてください:
 
 ```powershell
+python -m venv .\cardlist_referenced\pdf_card_editor\.venv
+& .\cardlist_referenced\pdf_card_editor\.venv\Scripts\python.exe -m pip install `
+    -r .\cardlist_referenced\pdf_card_editor\pdf_tool_requirements.txt
 & .\cardlist_referenced\pdf_card_editor\.venv\Scripts\python.exe `
     .\battle_review_viewer\build_card_assets.py --deck
 ```
 
 - 既定では `replays/*.json` とデッキ（`--deck`）に登場する card_id だけを抽出します。
-- 全カードを抽出したいときは `--all` を付けます。
+- 全カードを抽出したいときは `--all` を付けます（`⚙ Settings` の「全カード画像を生成」ボタンでも同じことができます）。
 - PDF が無い環境では何もせず終了します（画像は任意レイヤ。無くてもテキスト表示で動作）。
 - `⚙ Settings` の「Card Images」トグルで画像/テキストを切り替えられます。
 
