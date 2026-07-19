@@ -3042,9 +3042,13 @@ function startTour() {
   tourEl.hidden = false;
   showTourStep(0);
 }
+// 初回起動時、ガイドツアーの説明中に画像生成モーダル/トーストが重なって出ると
+// 気が散るので、ツアー終了後まで待たせたい呼び出し元はここに積む。
+const tourEndListeners = [];
 function endTour(markSeen) {
   if (tourEl) tourEl.hidden = true;
   if (markSeen) { try { localStorage.setItem(ONBOARDING_KEY, "1"); } catch (_) { /* ignore */ } }
+  tourEndListeners.splice(0).forEach((fn) => fn());
 }
 
 tourNextBtn?.addEventListener("click", () => {
@@ -3332,8 +3336,13 @@ async function boot() {
     await loadSelectedReplay();
   }
   updateModeUI();
-  // 画像が無ければ裏で生成（初回のみ・非ブロッキング）。
-  ensureImagesForCurrentReplay();
+  // 画像が無ければ裏で生成（初回のみ・非ブロッキング）。ガイドツアーが出ている間は
+  // モーダル/トーストが説明と重ならないよう、ツアー終了後まで遅らせる。
+  if (seenOnboarding) {
+    ensureImagesForCurrentReplay();
+  } else {
+    tourEndListeners.push(() => ensureImagesForCurrentReplay());
+  }
 }
 
 boot().catch((error) => {
