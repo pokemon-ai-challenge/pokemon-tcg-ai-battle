@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Battle Review Viewer</title>
-    <link rel="stylesheet" href="./styles.css?v=20260720a" />
+    <!-- app.js/styles.css の ?v= はブラウザキャッシュ避け。編集したら両方とも必ず値を変えること
+         （変え忘れると通常のリロードでは古いキャッシュのまま反映されない）。 -->
+    <link rel="stylesheet" href="./styles.css?v=20260720b" />
   </head>
   <body class="replay-mode">
     <!-- ================= Top bar (slim, dark) ================= -->
@@ -372,6 +374,10 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260720a"></script>
+    <!-- 起動時、画像が既に揃っていて何もしなくていい場合の軽量な自動消去トースト。
+         中央モーダル(imageBuildBanner)は毎回×で閉じる手間があるので使わない。 -->
+    <div id="imageReadyToast" class="image-ready-toast" hidden></div>
+
+    <script src="./app.js?v=20260720b"></script>
   </body>
 </html>

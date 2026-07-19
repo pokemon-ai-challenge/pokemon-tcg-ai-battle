@@ -3279,12 +3279,26 @@ function replayHasMissingImages() {
 }
 
 // 画像が1枚も無い、または今のリプレイに画像未生成のカードがあれば、裏で生成する。
+// 起動時、画像が既に揃っていて何もしなくていい場合はモーダルを出さない
+// （毎回×で閉じる手間を強いるのは邪魔）。代わりに一瞬だけ出て自動で消える
+// 軽量トーストで「✓ 画像OK」だけ知らせる。
+let imageReadyToastTimer = null;
+function showImageReadyToast(count) {
+  const toast = document.getElementById("imageReadyToast");
+  if (!toast) return;
+  toast.textContent = lang === "ja" ? `✓ 画像OK（${count} 枚）` : `✓ Images OK (${count})`;
+  toast.hidden = false;
+  clearTimeout(imageReadyToastTimer);
+  imageReadyToastTimer = setTimeout(() => { toast.hidden = true; }, 2400);
+}
+
 async function ensureImagesForCurrentReplay() {
   if (cardImageBuilding) return;
   if (!Object.keys(cardManifest).length || replayHasMissingImages()) {
     await runCardImageBuild("deck");
   } else {
-    reloadCardManifest(); // info テキスト更新のみ
+    await reloadCardManifest();
+    showImageReadyToast(Object.keys(cardManifest).length);
   }
 }
 

@@ -1806,6 +1806,29 @@ body.drawer-open .stage {
   100% { transform: translateX(280%); }
 }
 
+/* 起動時、画像が既に揃っている場合だけ出す軽量トースト（自動で消える）。 */
+.image-ready-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 850;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: rgba(24, 22, 34, 0.97);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  font-weight: 700;
+  color: #7fe6ac;
+  animation: image-ready-toast-in 180ms ease-out;
+}
+.image-ready-toast[hidden] { display: none; }
+@keyframes image-ready-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 /* ---------- Guided tour (first-run coachmarks) ---------- */
 
 .tour {
