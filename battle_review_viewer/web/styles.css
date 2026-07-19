@@ -1746,37 +1746,31 @@ body.drawer-open .stage {
 }
 .diagnostic-row.diagnostic-ok { background: rgba(60, 180, 110, 0.2); color: #7fe6ac; }
 
-/* ---------- Card-image build banner ---------- */
+/* ---------- Card-image build modal ----------
+   discard-modal（中央・暗い背景つき）と同じ骨格を再利用。右下の小さい pill バナーは
+   気づかれにくかったため（PR #56 レビュー指摘）、中央モーダルに変更した。 */
 
-.image-build-banner {
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  z-index: 850;
-  display: flex;
+.image-build-modal { z-index: 900; }
+.image-build-panel { width: min(440px, 92vw); }
+.image-build-content {
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 11px 18px;
-  border-radius: 999px;
-  background: rgba(24, 22, 34, 0.97);
-  border: 1px solid var(--line);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
-  font-size: 13px;
+  text-align: center;
+  gap: 14px;
+  padding: 24px 20px 26px;
+}
+.image-build-content .spinner {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+.image-build-content p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--ink);
 }
-.image-build-banner[hidden] { display: none; }
-.image-build-dismiss {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 0 0 4px;
-}
-.image-build-dismiss:hover { color: var(--ink); }
-.image-build-dismiss[hidden] { display: none; }
+.spinner[hidden] { display: none; }
 .spinner {
   width: 15px;
   height: 15px;

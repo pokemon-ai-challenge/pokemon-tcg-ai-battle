@@ -3160,11 +3160,15 @@ const imageBuildBanner = document.getElementById("imageBuildBanner");
 const imageBuildText = document.getElementById("imageBuildText");
 const imageBuildSpinner = document.getElementById("imageBuildSpinner");
 const imageBuildDismiss = document.getElementById("imageBuildDismiss");
+const imageBuildActionButton = document.getElementById("imageBuildActionButton");
 const rebuildImagesButton = document.getElementById("rebuildImagesButton");
 const cardImageInfo = document.getElementById("cardImageInfo");
 let cardImageBuilding = false;
 
 imageBuildDismiss?.addEventListener("click", () => { if (imageBuildBanner) imageBuildBanner.hidden = true; });
+// 失敗時の「画像をセットアップ」ボタン。全カード画像を生成(--all)と同じ処理を再実行する
+// （venv セットアップからやり直す。build 中は cardImageBuilding ガードで二重起動しない）。
+imageBuildActionButton?.addEventListener("click", () => runCardImageBuild("all"));
 
 async function reloadCardManifest() {
   try {
@@ -3186,7 +3190,7 @@ async function runCardImageBuild(mode) {
   cardImageBuilding = true;
   if (imageBuildBanner) imageBuildBanner.hidden = false;
   if (imageBuildSpinner) imageBuildSpinner.hidden = false;
-  if (imageBuildDismiss) imageBuildDismiss.hidden = true;
+  if (imageBuildActionButton) imageBuildActionButton.hidden = true;
   if (imageBuildText) {
     imageBuildText.textContent = lang === "ja"
       ? (mode === "all" ? "全カード画像を作成中です。お待ちください…（数分かかります）" : "画像を作成中です。お待ちください…（初回のみ）")
@@ -3214,9 +3218,13 @@ async function runCardImageBuild(mode) {
               + "\"Prepare card images\", or check that the PDF exists under data/. "
               + "The viewer works fine in text mode without them.";
           // 自動で消さない: 原因(venv未セットアップ)に気づいてもらう必要があるため、
-          // 「画像を作成中です…」のように数秒で自動的に消える通知にはしない。× で手動で閉じる。
+          // 「画像を作成中です…」のように数秒で自動的に消える通知にはしない。× で手動で閉じるか、
+          // 「画像をセットアップ」ボタンで再試行できる。
           if (imageBuildSpinner) imageBuildSpinner.hidden = true;
-          if (imageBuildDismiss) imageBuildDismiss.hidden = false;
+          if (imageBuildActionButton) {
+            imageBuildActionButton.hidden = false;
+            imageBuildActionButton.textContent = lang === "ja" ? "再試行 / Retry" : "Retry";
+          }
           return;
         }
         await reloadCardManifest();

@@ -351,11 +351,22 @@
 
     <div id="cardPreview" class="card-preview" hidden></div>
 
-    <!-- カード画像が未生成のとき、裏で生成を回している間に出す進捗バナー -->
-    <div id="imageBuildBanner" class="image-build-banner" hidden>
-      <span id="imageBuildSpinner" class="spinner"></span>
-      <span id="imageBuildText">画像を作成中です。お待ちください…</span>
-      <button id="imageBuildDismiss" class="image-build-dismiss" type="button" aria-label="close" hidden>&times;</button>
+    <!-- カード画像が未生成のとき、生成中/失敗を知らせる中央モーダル。
+         右下の小さいバナーだと気づかれにくかったため、他のモーダル(discard-modal)と
+         同じ「中央+暗い背景」パターンにして、失敗時はここから再試行もできるようにする。 -->
+    <div id="imageBuildBanner" class="discard-modal image-build-modal" hidden>
+      <div class="discard-modal-backdrop"></div>
+      <div class="discard-modal-panel image-build-panel">
+        <div class="discard-modal-header">
+          <span>カード画像 / Card images</span>
+          <button id="imageBuildDismiss" class="ghost" type="button" aria-label="close">&times;</button>
+        </div>
+        <div class="discard-modal-content image-build-content">
+          <span id="imageBuildSpinner" class="spinner"></span>
+          <p id="imageBuildText">画像を作成中です。お待ちください…</p>
+          <button id="imageBuildActionButton" class="accent" type="button" hidden>画像をセットアップ / Set up images</button>
+        </div>
+      </div>
     </div>
 
     <script src="./app.js?v=20260713g"></script>
