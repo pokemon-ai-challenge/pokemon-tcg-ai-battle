@@ -165,7 +165,7 @@ python .\battle_review_viewer\hidden_info_diff.py --matches 5
 アーキタイプキーから変換）を使う。モデルの学習・評価は `kaggle_replays/deck_predictor/`
 （パイプラインの実行方法は同ディレクトリの README.md を参照）。
 
-`Hidden Information` サブタブは `sample_submission/ptcg_ai/hidden_information/`（`OwnHiddenState` /
+`山札・手札・サイド推定` サブタブは `sample_submission/ptcg_ai/hidden_information/`（`OwnHiddenState` /
 `OpponentHiddenState`）の推定結果を表示する。自分側は「サイド落ち候補 top N」（超幾何分布による
 山札/サイドの周辺確率）、相手側は「手札候補 top N」（`HybridDeckPredictor` のアーキタイプ事後分布
 ×ゾーン配分の混合モデルによる山札/手札/サイドの周辺確率）をテーブル表示する。相手側の代表リスト
