@@ -23,15 +23,61 @@ EXPORT_SCRIPT = ROOT_DIR / "export_replay.py"
 CARD_IMAGES_DIR = WEB_DIR / "card_images"
 BUILD_ASSETS_SCRIPT = ROOT_DIR / "build_card_assets.py"
 # 画像抽出は pdfplumber / Pillow が要るので、まず pdf_card_editor の venv python を使う。
-PDF_EDITOR_PY = REPO_ROOT / "cardlist_referenced" / "pdf_card_editor" / ".venv" / "Scripts" / "python.exe"
+# この venv は .gitignore 対象（Python の venv は git 管理しないのが通例）なので、
+# GitHub から clone した直後は誰の環境にも存在しない。_ensure_pdf_editor_venv() が
+# 無ければ自動で作る（ユーザーがターミナルで手動セットアップしなくて済むように）。
+PDF_EDITOR_DIR = REPO_ROOT / "cardlist_referenced" / "pdf_card_editor"
+PDF_EDITOR_VENV = PDF_EDITOR_DIR / ".venv"
+PDF_EDITOR_PY = PDF_EDITOR_VENV / "Scripts" / "python.exe"
+PDF_EDITOR_REQUIREMENTS = PDF_EDITOR_DIR / "pdf_tool_requirements.txt"
 LIVE_MATCH = LiveMatchSession()
 
 # 同時に複数の生成が走ると cg エンジンやファイルが競合するので、生成は1件ずつに直列化する。
 GENERATE_LOCK = threading.Lock()
 
 # カード画像ビルドの進捗（バックグラウンド1本）。フロントは status をポーリングする。
-_IMG_BUILD = {"running": False, "done": False, "error": None, "count": 0}
+# stage: None（未開始）/ "venv_setup"（初回のみ、venv作成+依存インストール中）/ "extracting"（PDFから抽出中）。
+_IMG_BUILD = {"running": False, "done": False, "error": None, "count": 0, "stage": None}
 _IMG_LOCK = threading.Lock()
+
+
+def _ensure_pdf_editor_venv() -> str | None:
+    """pdf_card_editor 用の venv が無ければ作成し、依存関係を入れる。
+
+    成功時（既にある場合を含む）は None、失敗時はエラーメッセージを返す。
+    ネットワークが無い環境等では失敗しうるので、失敗時は README の手動手順に
+    フォールバックできるよう、具体的なエラーメッセージを返す。
+    """
+    if PDF_EDITOR_PY.exists():
+        return None
+    if not PDF_EDITOR_REQUIREMENTS.exists():
+        return f"requirements file not found: {PDF_EDITOR_REQUIREMENTS}"
+
+    with _IMG_LOCK:
+        _IMG_BUILD["stage"] = "venv_setup"
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "venv", str(PDF_EDITOR_VENV)],
+            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=300,
+        )
+        if proc.returncode != 0 or not PDF_EDITOR_PY.exists():
+            detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+            return f"venv creation failed: {detail[-1] if detail else 'unknown error'}"
+
+        proc = subprocess.run(
+            [str(PDF_EDITOR_PY), "-m", "pip", "install", "--disable-pip-version-check",
+             "-r", str(PDF_EDITOR_REQUIREMENTS)],
+            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=900,
+        )
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+            return f"pip install failed: {detail[-1] if detail else 'unknown error'}"
+    except Exception as exc:  # noqa: BLE001
+        return str(exc)
+    finally:
+        with _IMG_LOCK:
+            _IMG_BUILD["stage"] = None
+    return None
 
 
 def _count_card_images() -> int:
@@ -48,6 +94,19 @@ def card_images_status() -> dict:
 
 
 def _run_card_image_build(mode: str) -> None:
+    error = _ensure_pdf_editor_venv()
+    if error is not None:
+        # venv 自体が用意できなければ抽出は試みない（pdfplumber/Pillow が無い環境で
+        # sys.executable にフォールバックしても同じ ImportError で失敗するだけなので）。
+        with _IMG_LOCK:
+            _IMG_BUILD["running"] = False
+            _IMG_BUILD["done"] = True
+            _IMG_BUILD["error"] = f"venv setup failed: {error}"
+            _IMG_BUILD["count"] = _count_card_images()
+        return
+
+    with _IMG_LOCK:
+        _IMG_BUILD["stage"] = "extracting"
     py = str(PDF_EDITOR_PY) if PDF_EDITOR_PY.exists() else sys.executable
     cmd = [py, str(BUILD_ASSETS_SCRIPT), "--all" if mode == "all" else "--deck"]
     error = None
@@ -57,8 +116,8 @@ def _run_card_image_build(mode: str) -> None:
             detail = (proc.stderr or proc.stdout or "").strip().splitlines()
             error = detail[-1] if detail else "build_card_assets.py failed."
         elif _count_card_images() == 0:
-            # PDF や依存が無く、警告だけ出して終了したケース（画像は任意レイヤ）。
-            error = "no images produced (PDF or pdf_card_editor deps missing)."
+            # venv はあるが PDF 自体が data/ に無いケース（画像は任意レイヤ）。
+            error = "no images produced (PDF missing under data/)."
     except Exception as exc:  # noqa: BLE001
         error = str(exc)
     finally:
@@ -67,6 +126,7 @@ def _run_card_image_build(mode: str) -> None:
             _IMG_BUILD["done"] = True
             _IMG_BUILD["error"] = error
             _IMG_BUILD["count"] = _count_card_images()
+            _IMG_BUILD["stage"] = None
 
 
 def start_card_image_build(mode: str) -> dict:
@@ -74,7 +134,7 @@ def start_card_image_build(mode: str) -> dict:
     with _IMG_LOCK:
         if _IMG_BUILD["running"]:
             return dict(_IMG_BUILD)
-        _IMG_BUILD.update({"running": True, "done": False, "error": None})
+        _IMG_BUILD.update({"running": True, "done": False, "error": None, "stage": None})
     threading.Thread(target=_run_card_image_build, args=(mode,), daemon=True).start()
     return card_images_status()
 

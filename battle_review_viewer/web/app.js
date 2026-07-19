@@ -3200,14 +3200,18 @@ async function runCardImageBuild(mode) {
     for (let i = 0; i < 900; i += 1) {
       await new Promise((r) => setTimeout(r, 2000));
       const st = await (await fetch("/api/card_images/status")).json();
+      if (st.running && st.stage === "venv_setup" && imageBuildText) {
+        imageBuildText.textContent = lang === "ja"
+          ? "初回セットアップ中です（画像抽出用の環境を準備しています）。数分かかることがあります…"
+          : "First-time setup in progress (preparing the image-extraction environment). This can take a few minutes…";
+      }
       if (!st.running) {
         if (st.error && !st.count) {
           if (imageBuildText) imageBuildText.textContent = lang === "ja"
-            ? "画像は用意できませんでした（cardlist_referenced/pdf_card_editor の venv 未セットアップ、"
-              + "または data/ に PDF が無い可能性）。README の「カード画像を用意する」を参照してください。"
-              + "画像なしでもテキスト表示で問題なく使えます。"
-            : "Could not build images (cardlist_referenced/pdf_card_editor's venv may not be set up, "
-              + "or the PDF is missing under data/). See the README section \"Prepare card images\". "
+            ? `画像は用意できませんでした（${st.error}）。README の「カード画像を用意する」の手動手順を`
+              + "試すか、data/ に PDF があるか確認してください。画像なしでもテキスト表示で問題なく使えます。"
+            : `Could not build images (${st.error}). Try the manual steps in the README section `
+              + "\"Prepare card images\", or check that the PDF exists under data/. "
               + "The viewer works fine in text mode without them.";
           // 自動で消さない: 原因(venv未セットアップ)に気づいてもらう必要があるため、
           // 「画像を作成中です…」のように数秒で自動的に消える通知にはしない。× で手動で閉じる。
