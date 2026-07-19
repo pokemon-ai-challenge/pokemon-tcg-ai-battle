@@ -241,6 +241,15 @@
               <h3 class="panel-subhead">Candidates（候補）</h3>
               <div id="deckPredictorCandidates" class="predictor-candidates"></div>
             </div>
+            <div class="debug-view" data-debug-view="mlDeckPredictor" id="mlDeckPredictorCard">
+              <div id="mlDeckPredictorTop" class="predictor-top"></div>
+              <h3 class="panel-subhead">確率分布（全アーキタイプ・合計100%）</h3>
+              <div id="mlDeckPredictorBars" class="ml-predictor-bars"></div>
+              <!-- 観測カード別の寄与（NB explain() の結果）。古い replay（新キー未対応）や
+                   LR優勢で NB を使っていない場面では空になるので、JS 側で hidden を切り替える。 -->
+              <h3 class="panel-subhead" id="mlDeckPredictorEvidenceHeading" hidden>Evidence（観測カード別の寄与）</h3>
+              <div id="mlDeckPredictorEvidence" class="ml-evidence-list"></div>
+            </div>
           </div>
         </section>
 

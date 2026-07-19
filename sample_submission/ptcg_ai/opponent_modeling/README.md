@@ -18,6 +18,24 @@
 - `opponent_knowledge.py` — 実装済み。相手の公開情報（`observed_cards`）を `OpponentKnowledge` で蓄積し、
   `get_prediction_features()` で `rough_predictor.py` 等に渡せる形にする。
   設計の詳細・未確定事項は [opponent-knowledge-plan.md](../../docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md) を参照。
+- `ml_predictor.py` — 相手デッキ予測器の ML（学習済み重み）版ランタイム推論。
+  `kaggle_replays/deck_predictor/` のオフライン学習パイプライン（このリポジトリとは別スコープ）が
+  リプレイから多クラス softmax 回帰を学習し、`deck_predictor_weights.json` を出力する。
+  `ml_predictor.py` はその重みJSONを読み込み、`observed_cards`（`opponent_knowledge.py` の
+  `get_prediction_features()["observed_cards"]` と同じ形）+ `turn` から、純Python
+  （外部ライブラリ非依存）で確率分布を計算するだけ。重みファイルは学習完了後に配置される想定で、
+  現時点ではまだ存在しない（未配置でも `is_ready == False` で正常動作し、`predict()` は
+  `{"other": 1.0}` を返す）。スキーマの正は
+  [ml-predictor-plan.md](../../docs/plans/opponent-deck-predictor/ml-predictor-plan.md) の
+  「deck_predictor_weights.json」節。
+
+  ```python
+  from ptcg_ai.opponent_modeling.ml_predictor import MLDeckPredictor
+
+  predictor = MLDeckPredictor()  # 既定: 同ディレクトリの deck_predictor_weights.json
+  probs = predictor.predict(observed_cards, turn=state.turn)  # {"mega_lucario_ex": 0.8, ..., "other": 0.05}
+  top3 = predictor.predict_top(observed_cards, turn=state.turn, n=3)
+  ```
 
 ## config リファレンス（`rough_predictor.json`）
 

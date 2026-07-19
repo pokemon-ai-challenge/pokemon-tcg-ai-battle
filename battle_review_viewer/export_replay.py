@@ -29,6 +29,12 @@ try:
 except Exception:  # noqa: BLE001 -- 予測器が無い/壊れていてもリプレイ生成は続行する
     predict_deck = None
 try:
+    from ptcg_ai.opponent_modeling.hybrid_predictor import HybridDeckPredictor  # noqa: E402
+
+    _ml_predictor = HybridDeckPredictor()
+except Exception:  # noqa: BLE001 -- ML予測器が無い/壊れていてもリプレイ生成は続行する
+    _ml_predictor = None
+try:
     from src.decision import trace  # noqa: E402
 except ImportError:
     # sample_submission/src はこのブランチにはまだ無い（B層の意思決定トレースは別ブランチ由来の
@@ -42,6 +48,10 @@ try:
     from .opponent_knowledge_diff import collect_ground_truth, diff_against_ground_truth  # noqa: E402
 except ImportError:
     from opponent_knowledge_diff import collect_ground_truth, diff_against_ground_truth  # noqa: E402
+try:
+    from .ml_prediction_debug import build_ml_prediction_debug  # noqa: E402
+except ImportError:
+    from ml_prediction_debug import build_ml_prediction_debug  # noqa: E402
 
 
 AgentFn = Callable[[dict], list[int]]
@@ -168,10 +178,14 @@ def build_opponent_knowledge_debug(
         except Exception as exc:  # noqa: BLE001 -- 予測器が落ちてもリプレイ生成は止めない
             prediction = {"error": str(exc)}
 
+    # ML版予測器（学習済みロジスティック回帰）も同じ観測で走らせ、rough_predictor と並べて見比べられるようにする。
+    ml_prediction = build_ml_prediction_debug(_ml_predictor, knowledge, real_state)
+
     return {
         "features": knowledge.get_prediction_features(),
         "diff": diff,
         "prediction": prediction,
+        "ml_prediction": ml_prediction,
     }
 
 
