@@ -32,7 +32,7 @@ from cg.api import (
     State,
 )
 from ptcg_ai.action_selection import selector
-from ptcg_ai.hidden_information import naive
+from ptcg_ai.hidden_information import search_state_stub
 from ptcg_ai.search import lethal_simple
 
 
@@ -111,7 +111,7 @@ def make_obs(state: State, select: SelectData | None) -> Observation:
     return Observation(select=select, logs=[], current=state, search_begin_input="{}")
 
 
-DUMMY_PREDICTIONS = {
+DUMMY_HIDDEN_STATE = {
     "your_deck": [],
     "your_prize": [],
     "opponent_deck": [],
@@ -196,7 +196,7 @@ def install_engine(monkeypatch):
 def base_context(obs: Observation, **config) -> dict:
     cfg = {"enabled": True, "verify_shuffles": 1, "time_limit_ms": 1000}
     cfg.update(config)
-    return {"observation": obs, "config": cfg, "predictions": DUMMY_PREDICTIONS}
+    return {"observation": obs, "config": cfg, "hidden_state": DUMMY_HIDDEN_STATE}
 
 
 def run_search(obs: Observation, **config):
@@ -484,10 +484,10 @@ def _card(card_id: int, player_index: int = 0) -> Card:
 
 @pytest.fixture(autouse=True)
 def filler_cache(monkeypatch):
-    monkeypatch.setattr(naive, "_FILLER_CACHE", {"energy": 999, "pokemon": 888})
+    monkeypatch.setattr(search_state_stub, "_FILLER_CACHE", {"energy": 999, "pokemon": 888})
 
 
-def test_predict_hidden_accounts_for_visible_cards():
+def test_build_dummy_search_state_accounts_for_visible_cards():
     state = make_state(my_prizes=2)
     me = state.players[0]
     me.hand = [_card(1)]
@@ -495,7 +495,7 @@ def test_predict_hidden_accounts_for_visible_cards():
     me.deckCount = 1
     full_deck = [1, 2, 3, 4, 5]
     obs = make_obs(state, make_select([OptionType.ATTACK]))
-    prediction = naive.predict_hidden(obs, full_deck)
+    prediction = search_state_stub.build_dummy_search_state(obs, full_deck)
     assert prediction is not None
     assert len(prediction["your_prize"]) == 2
     assert len(prediction["your_deck"]) == 1
@@ -504,20 +504,20 @@ def test_predict_hidden_accounts_for_visible_cards():
     assert len(prediction["opponent_deck"]) == state.players[1].deckCount
 
 
-def test_predict_hidden_returns_none_on_count_mismatch():
+def test_build_dummy_search_state_returns_none_on_count_mismatch():
     state = make_state(my_prizes=2)
     state.players[0].hand = [_card(1)]
     state.players[0].deckCount = 10  # unseen pool cannot cover this
     obs = make_obs(state, make_select([OptionType.ATTACK]))
-    assert naive.predict_hidden(obs, [1, 2, 3, 4, 5]) is None
+    assert search_state_stub.build_dummy_search_state(obs, [1, 2, 3, 4, 5]) is None
 
 
-def test_predict_hidden_returns_none_on_unknown_visible_card():
+def test_build_dummy_search_state_returns_none_on_unknown_visible_card():
     state = make_state(my_prizes=2)
     state.players[0].hand = [_card(42)]  # not in the deck list
     state.players[0].deckCount = 2
     obs = make_obs(state, make_select([OptionType.ATTACK]))
-    assert naive.predict_hidden(obs, [1, 2, 3, 4, 5]) is None
+    assert search_state_stub.build_dummy_search_state(obs, [1, 2, 3, 4, 5]) is None
 
 
 # ---------------------------------------------------------------------------

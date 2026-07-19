@@ -1,4 +1,12 @@
-"""Naive hidden-information prediction for ``cg.api.search_begin()``.
+"""Temporary hidden-state stub for the lethal search (``search_begin()``).
+
+This is dummy data, not a real prediction. The proper hidden-information
+estimation (own deck / prizes, opponent deck / hand, ...) is being
+developed separately; once it lands, callers should build the
+``hidden_state`` from that module instead and this stub can be removed.
+The lethal search itself never imports this module: it receives the
+result from the outside via its ``hidden_state`` /
+``hidden_state_factory`` context keys.
 
 ``search_begin()`` needs concrete card IDs for every hidden zone
 (own deck / own face-down prizes / opponent deck / prizes / hand /
@@ -72,12 +80,12 @@ def _visible_own_card_ids(state, player_index: int) -> Iterator[int] | None:
     return iter(ids)
 
 
-def predict_hidden(
+def build_dummy_search_state(
     obs: Observation,
     full_deck: list[int],
     rng: random.Random | None = None,
 ) -> dict | None:
-    """Build the hidden-information arguments for ``search_begin()``.
+    """Build dummy hidden-information arguments for ``search_begin()``.
 
     Args:
         obs: The observation passed to the agent.

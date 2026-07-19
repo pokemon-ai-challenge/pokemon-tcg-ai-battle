@@ -16,12 +16,15 @@ Entry point (team common interface)::
 - ``observation`` (required): the original ``Observation`` given to the agent.
 - ``config``: the ``lethal_search`` section of the agent config
   (missing keys fall back to ``DEFAULTS``).
-- ``full_deck``: our own 60-card deck list, used to predict hidden cards.
-- ``predictions`` / ``predictions_factory``: pre-built hidden-information
-  dict (see ``ptcg_ai.hidden_information.naive.predict_hidden``) or a
-  zero-argument callable returning one. Mainly for tests; when absent,
-  ``predict_hidden`` is used with ``full_deck``.
-- ``rng``: optional ``random.Random`` for reproducible predictions.
+- ``hidden_state`` / ``hidden_state_factory`` (one required): pre-built
+  hidden-information dict for ``search_begin()`` (keys ``your_deck``,
+  ``your_prize``, ``opponent_deck``, ``opponent_prize``,
+  ``opponent_hand``, ``opponent_active``), or a zero-argument callable
+  returning one (or None). The search never estimates hidden
+  information itself; the caller decides how to build it (currently
+  ``ptcg_ai.hidden_information.search_state_stub.build_dummy_search_state``).
+  The factory is called once per verification replay, so a factory that
+  reshuffles lets the determinism check reject shuffle-dependent lines.
 
 Returns the first selection (option index list) of a winning line, or
 None when there is no certain lethal / on timeout / on any error, in
@@ -31,14 +34,11 @@ which case the caller falls back to its normal policy.
 from __future__ import annotations
 
 import itertools
-import random
 import time
 from typing import Callable, Iterator
 
 from cg import api as cg_api
 from cg.api import Observation, OptionType, SelectData, SelectType, State
-
-from ptcg_ai.hidden_information.naive import predict_hidden
 
 DEFAULTS: dict = {
     "enabled": True,
@@ -104,16 +104,16 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
         if len(state.players[me].prize) > config["max_remaining_prizes"]:
             return None
 
-        predictions_factory = _predictions_factory(obs, context)
-        if predictions_factory is None:
+        hidden_state_factory = _hidden_state_factory(context)
+        if hidden_state_factory is None:
             return None
-        predictions = predictions_factory()
-        if predictions is None:
+        hidden_state = hidden_state_factory()
+        if hidden_state is None:
             return None
 
         deadline = time.perf_counter() + config["time_limit_ms"] / 1000.0
         try:
-            path = _find_winning_path(obs, me, predictions, config, deadline)
+            path = _find_winning_path(obs, me, hidden_state, config, deadline)
             if path is None:
                 return None
 
@@ -128,10 +128,10 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
                 time.perf_counter() + config["time_limit_ms"] / 1000.0
             )
             for _ in range(int(config["verify_shuffles"])):
-                verify_predictions = predictions_factory()
-                if verify_predictions is None:
+                verify_hidden_state = hidden_state_factory()
+                if verify_hidden_state is None:
                     return None
-                if not _replay_wins(obs, me, verify_predictions, path, verify_deadline):
+                if not _replay_wins(obs, me, verify_hidden_state, path, verify_deadline):
                     return None
             return first
         finally:
@@ -143,18 +143,15 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
         return None
 
 
-def _predictions_factory(obs: Observation, context: dict) -> Callable[[], dict | None] | None:
-    factory = context.get("predictions_factory")
+def _hidden_state_factory(context: dict) -> Callable[[], dict | None] | None:
+    """Resolve the caller-provided hidden state; None if none was given."""
+    factory = context.get("hidden_state_factory")
     if factory is not None:
         return factory
-    predictions = context.get("predictions")
-    if predictions is not None:
-        return lambda: predictions
-    full_deck = context.get("full_deck")
-    if not full_deck:
-        return None
-    rng = context.get("rng") or random
-    return lambda: predict_hidden(obs, full_deck, rng)
+    hidden_state = context.get("hidden_state")
+    if hidden_state is not None:
+        return lambda: hidden_state
+    return None
 
 
 def _is_my_turn(state: State, me: int) -> bool:
@@ -180,7 +177,7 @@ def _is_legal_selection(selection: list[int], select: SelectData) -> bool:
 def _find_winning_path(
     obs: Observation,
     me: int,
-    predictions: dict,
+    hidden_state: dict,
     config: dict,
     deadline: float,
 ) -> list[list[int]] | None:
@@ -189,7 +186,7 @@ def _find_winning_path(
     Returns the list of selections leading to our victory, or None.
     Raises nothing: budget exhaustion is converted to None.
     """
-    root = _begin(obs, predictions)
+    root = _begin(obs, hidden_state)
     budget = {"nodes": 0}
     try:
         for depth_limit in range(1, int(config["max_depth"]) + 1):
@@ -289,13 +286,13 @@ def _candidate_selections(select: SelectData, config: dict) -> Iterator[list[int
 def _replay_wins(
     obs: Observation,
     me: int,
-    predictions: dict,
+    hidden_state: dict,
     path: list[list[int]],
     deadline: float,
 ) -> bool:
     """Replay ``path`` under different hidden info; True if we still win."""
     try:
-        node = _begin(obs, predictions)
+        node = _begin(obs, hidden_state)
     except Exception:
         return False
     search_ids = [node.searchId]
@@ -320,15 +317,15 @@ def _replay_wins(
                 pass
 
 
-def _begin(obs: Observation, predictions: dict):
+def _begin(obs: Observation, hidden_state: dict):
     return cg_api.search_begin(
         obs,
-        predictions["your_deck"],
-        predictions["your_prize"],
-        predictions["opponent_deck"],
-        predictions["opponent_prize"],
-        predictions["opponent_hand"],
-        predictions["opponent_active"],
+        hidden_state["your_deck"],
+        hidden_state["your_prize"],
+        hidden_state["opponent_deck"],
+        hidden_state["opponent_prize"],
+        hidden_state["opponent_hand"],
+        hidden_state["opponent_active"],
     )
 
 

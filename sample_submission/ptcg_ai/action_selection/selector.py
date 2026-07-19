@@ -3,10 +3,11 @@
 ``select_action()`` is the normal-turn entry point called from
 ``ptcg_ai.rule_based.rule_based_agent``. Search modules never talk to
 the agent entry points directly; this module wires the config, builds
-the search context, validates whatever the search returns and falls
-back to the rule-based ``router.route()`` (and a random legal action as
-a last resort), guaranteeing a legal action even when everything else
-fails.
+the hidden state for the search (currently the dummy stub in
+``hidden_information.search_state_stub``), validates whatever the
+search returns and falls back to the rule-based ``router.route()`` (and
+a random legal action as a last resort), guaranteeing a legal action
+even when everything else fails.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from cg.api import Observation, SelectData
 
 from ptcg_ai.action_selection import router
 from ptcg_ai.core.config import load_config
+from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
 from ptcg_ai.search import lethal_simple
 
 _SEARCH_MODULES = {
@@ -54,7 +56,8 @@ def select_action(obs: Observation, full_deck: list[int], config: dict | None = 
 
     Args:
         obs: Observation passed to the agent (``obs.select`` must be set).
-        full_deck: Our own 60-card deck list (used to predict hidden info).
+        full_deck: Our own 60-card deck list (used to build the dummy
+            hidden state handed to the search).
         config: Agent config dict (``lethal_search`` section is used).
             Defaults to ``core.config.load_config()``.
 
@@ -71,8 +74,10 @@ def select_action(obs: Observation, full_deck: list[int], config: dict | None = 
         if module is not None:
             context = {
                 "observation": obs,
-                "full_deck": full_deck,
                 "config": lethal_config,
+                # The search takes the hidden state from the outside; here
+                # it is the dummy stub until real estimation is available.
+                "hidden_state_factory": lambda: build_dummy_search_state(obs, full_deck),
             }
             try:
                 action = module.search(obs.current, select.option, context)
