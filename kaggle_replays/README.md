@@ -13,6 +13,7 @@ kaggle_replays/
 ├── fetch_top_episodes.py           リーダーボード上位N チームのリプレイを取得(全量)
 ├── fetch_deep_decks.py             リーダーボード深い順位帯からチームあたり少数のリプレイを取得(デッキリスト収集用)
 ├── fetch_my_episodes.py            自分のチームのリプレイを取得
+├── fetch_minority_archetype_episodes.py  少数クラス(アーキタイプ)のデッキを使うチームを狙い撃ちして追加取得
 ├── extract_training_data.py        replays/ + index/ を学習用JSONLに変換
 │
 ├── replays/                        [Git管理外] リプレイ本体(episode-<id>-replay.json)
@@ -23,8 +24,11 @@ kaggle_replays/
 │   └── leaderboard_history/
 │       └── leaderboard-<run_id>.json   [Git管理] 実行ごとのリーダーボードのスナップショット
 │
-└── training_data/
-    └── pairs.jsonl                 [Git管理外] 学習用の (observation, action) ペア(生成物)
+├── training_data/
+│   └── pairs.jsonl                 [Git管理外] 学習用の (observation, action) ペア(生成物)
+│
+└── deck_predictor/                 相手デッキ予測器(ML版)の学習パイプライン。詳細は
+                                     deck_predictor/README.md を参照
 ```
 
 ## 何がGit管理下で、何がそうでないか
@@ -53,9 +57,29 @@ python fetch_deep_decks.py --rank-from 201 --rank-to 2000 --episodes-per-team 2
 # 自分のチームの直近5提出のリプレイを取得
 python fetch_my_episodes.py --submissions 5
 
+# 少数クラス(N<50デッキ)を使っているチームを deck_labels.jsonl から逆引きして追加取得
+# (事前に deck_predictor/extract_decks.py と deck_predictor/label_decks.py の実行が必要)
+python fetch_minority_archetype_episodes.py --min-decks 50 --max-episodes 200
+
 # 集めたリプレイを学習用JSONLに変換(rank_at_fetch 等の重み付け情報つき)
 python extract_training_data.py
 ```
+
+### 少数アーキタイプの追加取得(`fetch_minority_archetype_episodes.py`)
+
+`deck_predictor/` の学習パイプラインでは、デッキ数(N)が少ないアーキタイプ(既定 N<50)ほど
+NB/LRの学習・評価が不安定になる。1チームはほぼ同じデッキを使い続ける傾向を利用し、
+`deck_labels.jsonl`(各エピソードのアーキタイプ判定結果)から少数クラスのデッキを使っていた
+`(episode_id, player_index)` を集め、`episodes_master.jsonl` で `team_id` を逆引きして、
+そのチームの他のエピソードを Kaggle API から探して追加ダウンロードする。
+
+- `--min-decks`: このデッキ数未満のアーキタイプを少数クラスとみなす(既定50)
+- `--max-episodes` / `--max-episodes-per-team`: 1runで新規取得する件数の上限(全体/チームあたり、既定200/30)
+- `--submissions-per-team`: 各チームの直近何件の提出からエピソードを探すか(既定5)
+
+`fetch_top_episodes.py` / `fetch_deep_decks.py` と同じ `_common.py` 経由の冪等な取得機構を使うため、
+何度実行しても安全(既取得分はスキップされる)。`team_id` がリーダーボードスナップショットの
+取得済み範囲に無いチームは解決できず、スキップされる(その場合は手動でのリーダーボード再取得が必要)。
 
 いずれも既にダウンロード済みの `episode_id` はスキップするので、同じコマンドを何度実行しても安全(差分だけ取得・追記される)。
 

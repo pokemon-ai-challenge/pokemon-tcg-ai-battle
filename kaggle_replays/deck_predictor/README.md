@@ -58,12 +58,59 @@ python adjust_prior.py --deploy
 #  -> output/model/deck_predictor_weights.json
 #  -> (--deploy時) sample_submission/ptcg_ai/opponent_modeling/deck_predictor_weights.json
 
-# 6. validation セットで評価する(ランタイムと同じ MLDeckPredictor で推論)
+# 6. evidence数(観測ユニークカード種類数)バケット別に温度スケーリングでキャリブレーションする
+#    (T(温度)は1.0を下回らない制約付き。過信の抑制のみ行い、確信度を強気にする方向には補正しない)
+#    --deploy を付けると sample_submission/ptcg_ai/opponent_modeling/deck_predictor_weights.json を上書きする。
+python calibrate.py --deploy
+#  -> output/model/deck_predictor_weights.json (calibration.buckets 追加)
+
+# 7. validation セットで評価する(ランタイムと同じ MLDeckPredictor で推論)
 #    既定で「固定validation」(直近--valid-recent-days日 x 相手上位--valid-top-rank位以内)に絞って評価する。
 #    --all を付けると絞り込みなしの従来の全体評価もあわせて出す。base(補正前) vs adjusted(補正後) の比較も含む。
 python evaluate.py --all
-#  -> output/eval_report.md (ターン別/ランク帯別/期間別 top-1 正解率・log loss・クラス別 precision/recall・base vs adjusted)
+#  -> output/eval_report.md (ターン別/ランク帯別/期間別/evidenceバケット別 top-1 正解率・log loss・
+#     ECE・reliabilityテーブル・クラス別 precision/recall・base vs adjusted)
+#     --error-dump を付けると誤答サンプルを output/errors.jsonl + output/error_summary.md に出力する
 ```
+
+### 序盤過信の改善(生成的ベイズ + LR×NBハイブリッド)
+
+LR単体は evidence(観測ユニークカード種類数)が少ない場面で過信しやすい(evidence 0 で
+正解率33%なのに確信度90%超、等)。これを補うため、`train.py`〜`calibrate.py`のLRパイプラインとは
+別に、生成的ベイズ(NB)を学習してLRとブレンドする。方針の詳細・診断結果は
+[`early-confidence-improvement-plan.md`](../../sample_submission/docs/plans/opponent-deck-predictor/early-confidence-improvement-plan.md)
+を参照。ランタイムは
+[`nb_predictor.py`](../../sample_submission/ptcg_ai/opponent_modeling/nb_predictor.py) /
+[`hybrid_predictor.py`](../../sample_submission/ptcg_ai/opponent_modeling/hybrid_predictor.py)。
+
+上記の手順1〜3(`extract_decks.py` → `label_decks.py` → `build_dataset.py`)と、LRパイプラインの
+`output/model/deck_predictor_weights.json` / `output/model/split.json`(手順4・6)が先に必要。
+
+```bash
+cd kaggle_replays/deck_predictor
+
+# 8. 生成的ベイズ(NB)を学習する。P(≥k枚 | アーキタイプ) をラプラス平滑化で頻度推定する
+python train_nb.py
+#  -> output/model/deck_predictor_nb.json
+
+# 9. LR(手順6のdeck_predictor_weights.json) と NB(手順8) を比較する
+python compare_nb.py
+#  -> output/nb_compare_report.md (evidenceバケット別 top-1/log loss の LR vs NB 比較)
+
+# 10. evidenceバケット別のブレンド重み w を validation でグリッドサーチしてフィットする
+#     50/50分割で安定性チェックする。--baseline に現行デプロイ済みhybrid.jsonを渡すと、
+#     安定して改善したバケットだけ新しいwを採用し、不安定なバケットは既存wを維持する(慎重側)。
+#     --deploy を付けると sample_submission/ptcg_ai/opponent_modeling/deck_predictor_hybrid.json にコピーする。
+python fit_hybrid.py --baseline ../../sample_submission/ptcg_ai/opponent_modeling/deck_predictor_hybrid.json --deploy
+#  -> output/model/deck_predictor_hybrid.json
+
+# 11. LR単体 vs ハイブリッドを比較する(compare_nb.py が hybrid.json の有無を自動検出して列を追加する)
+python compare_nb.py
+```
+
+NBの重みJSON(`deck_predictor_nb.json`)を提出環境にも配置する場合は、`train_nb.py`の出力
+(`output/model/deck_predictor_nb.json`)を`sample_submission/ptcg_ai/opponent_modeling/`へ
+手動でコピーする(`train_nb.py`には`--deploy`は無い。LRの`weights.json`と違い頻度が低い想定のため)。
 
 **注意**: `--recent-days` / `--valid-recent-days` の既定値(14日)は取得済みデータの日付範囲より狭くなりうる。
 取得したリプレイが数日分しかない場合、ウィンドウが0件になることがある(`adjust_prior.py` は警告を出し、
@@ -79,7 +126,11 @@ python evaluate.py --all
 | `build_dataset.py` | `replays/*.json` + `output/deck_labels.jsonl` | `output/dataset.jsonl` |
 | `train.py` | `output/dataset.jsonl` + `output/deck_labels.jsonl` | `output/model/deck_predictor_weights_base.json`(class_priors付き), `output/model/split.json` |
 | `adjust_prior.py` | `output/model/deck_predictor_weights_base.json` + `output/deck_labels.jsonl` + `index/episodes_master.jsonl` | `output/model/deck_predictor_weights.json`(デプロイ用)、`--deploy`時はランタイムへのコピー |
-| `evaluate.py` | `output/dataset.jsonl` + `output/model/*` + `index/episodes_master.jsonl` | `output/eval_report.md` |
+| `calibrate.py` | `output/model/deck_predictor_weights.json` + `output/dataset.jsonl` + `output/model/split.json` | `output/model/deck_predictor_weights.json`(evidenceバケット別温度スケーリング`calibration.buckets`追加、上書き)、`--deploy`時はランタイムへのコピー |
+| `evaluate.py` | `output/dataset.jsonl` + `output/model/*` + `index/episodes_master.jsonl` | `output/eval_report.md`(`--error-dump`時は`output/errors.jsonl`/`output/error_summary.md`も) |
+| `train_nb.py` | `output/deck_db.jsonl` + `output/deck_labels.jsonl` | `output/model/deck_predictor_nb.json` |
+| `fit_hybrid.py` | `output/dataset.jsonl` + `output/model/deck_predictor_weights.json` + `output/model/deck_predictor_nb.json` + `output/model/split.json` | `output/model/deck_predictor_hybrid.json`(デプロイ用)、`--deploy`時はランタイムへのコピー |
+| `compare_nb.py` | `output/dataset.jsonl` + `output/model/deck_predictor_weights.json` + `output/model/deck_predictor_nb.json` (+ 存在すれば `deck_predictor_hybrid.json`) | `output/nb_compare_report.md` |
 
 `episode_window.py` は `adjust_prior.py` と `evaluate.py` が共有する、`episodes_master.jsonl` との
 ジョイン(エピソード作成日時・相手ランク)とウィンドウ判定のユーティリティ(単独では実行しない)。
