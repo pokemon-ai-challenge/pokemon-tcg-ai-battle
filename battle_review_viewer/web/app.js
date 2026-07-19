@@ -3241,8 +3241,8 @@ async function runCardImageBuild(mode) {
         }
         await reloadCardManifest();
         if (toggleCardImages.checked && replayData) render();
-        // 成功時も無言で消さず、一瞬「✓ 準備できました」を見せてから閉じる
-        // （画像が出来たこと自体に気づきにくいという指摘への対応）。
+        // 成功時も無言で消さず「✓ 準備できました」を見せる。タイマーで自動的に閉じると
+        // 読み切る前に消えてしまう(実際に指摘あり)ので、エラー時と同じく × で閉じるまで残す。
         if (imageBuildSpinner) imageBuildSpinner.hidden = true;
         if (imageBuildProgress) imageBuildProgress.hidden = true;
         if (imageBuildText) {
@@ -3252,8 +3252,6 @@ async function runCardImageBuild(mode) {
             ? `✓ 画像の準備ができました（${count} 枚）`
             : `✓ Images ready (${count})`;
         }
-        await new Promise((r) => setTimeout(r, 2200));
-        if (imageBuildBanner) imageBuildBanner.hidden = true;
         return;
       }
     }
