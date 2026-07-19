@@ -1,0 +1,88 @@
+"""Action selection: try lethal search first, then the rule-based router.
+
+``select_action()`` is the normal-turn entry point called from
+``ptcg_ai.rule_based.rule_based_agent``. Search modules never talk to
+the agent entry points directly; this module wires the config, builds
+the hidden state for the search (currently the dummy stub in
+``hidden_information.search_state_stub``), validates whatever the
+search returns and falls back to the rule-based ``router.route()``,
+guaranteeing a legal action even when everything else fails.
+"""
+
+from __future__ import annotations
+
+from cg.api import Observation, SelectData
+
+from ptcg_ai.action_selection import fallback, router
+from ptcg_ai.core.config import load_config
+from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
+from ptcg_ai.search import lethal_simple
+
+_SEARCH_MODULES = {
+    "lethal_simple": lethal_simple,
+}
+
+_CONFIG_CACHE: dict | None = None
+
+
+def _config() -> dict:
+    global _CONFIG_CACHE
+    if _CONFIG_CACHE is None:
+        _CONFIG_CACHE = load_config()
+    return _CONFIG_CACHE
+
+
+def is_valid_action(action, select: SelectData) -> bool:
+    """Check the contract required by the competition runner."""
+    if not isinstance(action, list) or not all(isinstance(i, int) for i in action):
+        return False
+    if not (select.minCount <= len(action) <= select.maxCount):
+        return False
+    if len(action) != len(set(action)):
+        return False
+    return all(0 <= i < len(select.option) for i in action)
+
+
+def select_action(obs: Observation, full_deck: list[int], config: dict | None = None) -> list[int]:
+    """Choose the action for the current selection.
+
+    Args:
+        obs: Observation passed to the agent (``obs.select`` must be set).
+        full_deck: Our own 60-card deck list (used to build the dummy
+            hidden state handed to the search).
+        config: Agent config dict (``lethal_search`` section is used).
+            Defaults to ``core.config.load_config()``.
+
+    Returns:
+        list[int]: A legal selection.
+    """
+    select = obs.select
+    if config is None:
+        config = _config()
+    lethal_config = (config or {}).get("lethal_search") or {}
+
+    if lethal_config.get("enabled", False) and obs.current is not None:
+        module = _SEARCH_MODULES.get(lethal_config.get("module", "lethal_simple"))
+        if module is not None:
+            context = {
+                "observation": obs,
+                "config": lethal_config,
+                # The search takes the hidden state from the outside; here
+                # it is the dummy stub until real estimation is available.
+                "hidden_state_factory": lambda: build_dummy_search_state(obs, full_deck),
+            }
+            try:
+                action = module.search(obs.current, select.option, context)
+            except Exception:
+                action = None
+            if action is not None and is_valid_action(action, select):
+                return action
+
+    # No certain lethal: play the normal rule-based policy.
+    try:
+        action = router.route(obs)
+    except Exception:
+        action = None
+    if action is not None and is_valid_action(action, select):
+        return action
+    return fallback.safe_choice(obs)

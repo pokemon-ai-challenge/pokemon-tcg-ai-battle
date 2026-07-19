@@ -35,6 +35,7 @@ sample_submission/
 │   ├── state_view/          # Observation を AI 向けの形に変換
 │   ├── learning/            # 強化学習や機械学習モデルの推論・学習
 │   └── shared/              # 複数機能で使う共通処理
+├── decks/                   # デッキ固有データ（方針・カード別プロファイル）
 ├── configs/                 # AI 構成を切り替える設定
 ├── tests/                   # 単体テスト、import 確認、ローカルシミュレーション
 ├── docs/                    # 開発メモ、設計メモ
@@ -63,6 +64,9 @@ sample_submission/
   強化学習や機械学習モデルの推論・学習関連を置きます。
 - `ptcg_ai/shared/`
   複数の機能で使う共通処理を置きます。
+- `decks/`
+  デッキ固有のデータ（デッキ方針、ポケモン・ワザ・グッズなどカード別プロファイル）を置きます。
+  `ptcg_ai/` 側はカードIDやカード名を直接書かず、`decks/active.py` 経由でここを参照します。
 - `configs/`
   AI 構成を切り替えるための config を置きます。
 - `tests/`
