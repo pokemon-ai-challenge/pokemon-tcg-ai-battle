@@ -120,6 +120,17 @@ python .\battle_review_viewer\export_replay.py --opponent self --output .\battle
 
 突き合わせロジックは `opponent_knowledge_diff.py` にあります。
 
+非公開ゾーン（山札・手札・サイド）版の検証ツールは `hidden_info_diff.py`（手動実行のレポートツール、
+自動テスト対象外）。`sample_submission/ptcg_ai/hidden_information/` の `OpponentHiddenState.marginals()`
+が出す確率と、`cg.game.visualize_data()` の神視点（未取得のサイドカードの中身まで含む）を突き合わせて
+reliability/ECE を測る。
+
+```powershell
+python .\battle_review_viewer\hidden_info_diff.py --matches 5
+```
+
+出力: `battle_review_viewer/output/hidden_info_diff_report.md`。
+
 画面上部のタブ `Debug` を押すと右からドロワーが開き、観測特徴量と diff 結果が表示されます
 （盤面以外の情報は「必要な時だけ」1パネルずつ大きく見せるタブ式ドロワー方式）。
 
@@ -137,6 +148,17 @@ python .\battle_review_viewer\export_replay.py --opponent self --output .\battle
 `web/archetype_display_names.json`（生成: `build_archetype_names.py`、`rough_predictor.json` の
 アーキタイプキーから変換）を使う。モデルの学習・評価は `kaggle_replays/deck_predictor/`
 （パイプラインの実行方法は同ディレクトリの README.md を参照）。
+
+`Hidden Information` サブタブは `sample_submission/ptcg_ai/hidden_information/`（`OwnHiddenState` /
+`OpponentHiddenState`）の推定結果を表示する。自分側は「サイド落ち候補 top N」（超幾何分布による
+山札/サイドの周辺確率）、相手側は「手札候補 top N」（`HybridDeckPredictor` のアーキタイプ事後分布
+×ゾーン配分の混合モデルによる山札/手札/サイドの周辺確率）をテーブル表示する。相手側の代表リスト
+（`archetype_card_pool.json`）が未配置の場合は「プール未配置」と表示する。生成は `export_replay.py` /
+`live_match.py` が `hidden_info_debug.py`（`opponentKnowledgeDebug` の中に `hidden_info` キーとして
+`ml_prediction` と同居させる）を経由して行う。`match_context.py`（提出エージェント本番用の
+プロセス全体シングルトン）はここでは使わず、`OpponentKnowledge` と同様に replay/live セッション内で
+独立したインスタンスを構築する（`--opponent self` では両プレイヤーとも `main.agent` を使うため、
+シングルトンを流用すると player0/player1 が交互に上書きし合ってしまうため）。
 
 デバッグ項目を増やすときは 2 箇所を足すだけです:
 
