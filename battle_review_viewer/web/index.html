@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Battle Review Viewer</title>
-    <link rel="stylesheet" href="./styles.css?v=20260713g" />
+    <!-- app.js/styles.css の ?v= はブラウザキャッシュ避け。編集したら両方とも必ず値を変えること
+         （変え忘れると通常のリロードでは古いキャッシュのまま反映されない）。 -->
+    <link rel="stylesheet" href="./styles.css?v=20260720d" />
   </head>
   <body class="replay-mode">
     <!-- ================= Top bar (slim, dark) ================= -->
@@ -351,12 +353,31 @@
 
     <div id="cardPreview" class="card-preview" hidden></div>
 
-    <!-- カード画像が未生成のとき、裏で生成を回している間に出す進捗バナー -->
-    <div id="imageBuildBanner" class="image-build-banner" hidden>
-      <span class="spinner"></span>
-      <span id="imageBuildText">画像を作成中です。お待ちください…</span>
+    <!-- カード画像が未生成のとき、生成中/失敗を知らせる中央モーダル。
+         右下の小さいバナーだと気づかれにくかったため、他のモーダル(discard-modal)と
+         同じ「中央+暗い背景」パターンにして、失敗時はここから再試行もできるようにする。 -->
+    <div id="imageBuildBanner" class="discard-modal image-build-modal" hidden>
+      <div class="discard-modal-backdrop"></div>
+      <div class="discard-modal-panel image-build-panel">
+        <div class="discard-modal-header">
+          <span>カード画像 / Card images</span>
+          <button id="imageBuildDismiss" class="ghost" type="button" aria-label="close">&times;</button>
+        </div>
+        <div class="discard-modal-content image-build-content">
+          <span id="imageBuildSpinner" class="spinner"></span>
+          <div id="imageBuildProgress" class="image-build-progress" hidden>
+            <div class="image-build-progress-bar"></div>
+          </div>
+          <p id="imageBuildText">画像を作成中です。お待ちください…</p>
+          <button id="imageBuildActionButton" class="accent" type="button" hidden>画像をセットアップ / Set up images</button>
+        </div>
+      </div>
     </div>
 
-    <script src="./app.js?v=20260713g"></script>
+    <!-- 起動時、画像が既に揃っていて何もしなくていい場合の軽量な自動消去トースト。
+         中央モーダル(imageBuildBanner)は毎回×で閉じる手間があるので使わない。 -->
+    <div id="imageReadyToast" class="image-ready-toast" hidden></div>
+
+    <script src="./app.js?v=20260720d"></script>
   </body>
 </html>

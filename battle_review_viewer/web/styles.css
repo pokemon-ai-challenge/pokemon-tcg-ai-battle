@@ -1746,26 +1746,33 @@ body.drawer-open .stage {
 }
 .diagnostic-row.diagnostic-ok { background: rgba(60, 180, 110, 0.2); color: #7fe6ac; }
 
-/* ---------- Card-image build banner ---------- */
+/* ---------- Card-image build modal ----------
+   discard-modal（中央・暗い背景つき）と同じ骨格を再利用。右下の小さい pill バナーは
+   気づかれにくかったため（PR #56 レビュー指摘）、中央モーダルに変更した。 */
 
-.image-build-banner {
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  z-index: 850;
-  display: flex;
+.image-build-modal { z-index: 900; }
+.image-build-panel { width: min(440px, 92vw); }
+.image-build-content {
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 11px 18px;
-  border-radius: 999px;
-  background: rgba(24, 22, 34, 0.97);
-  border: 1px solid var(--line);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
-  font-size: 13px;
+  text-align: center;
+  gap: 14px;
+  padding: 24px 20px 26px;
+}
+.image-build-content .spinner {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+.image-build-content p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--ink);
 }
-.image-build-banner[hidden] { display: none; }
+.image-build-content p.is-ok { color: #7fe6ac; font-weight: 700; }
+.image-build-content p.is-error { color: #ffb3c6; }
+.spinner[hidden] { display: none; }
 .spinner {
   width: 15px;
   height: 15px;
@@ -1776,6 +1783,51 @@ body.drawer-open .stage {
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* 進捗の総数が事前に分からない(抽出対象カード数はスキャンするまで不明)ため、
+   完了率を出す代わりに「動き続けている=作業中」が伝わる不確定(indeterminate)バーにする。 */
+.image-build-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.image-build-progress[hidden] { display: none; }
+.image-build-progress-bar {
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: image-build-progress-slide 1.3s ease-in-out infinite;
+}
+@keyframes image-build-progress-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(280%); }
+}
+
+/* 起動時、画像が既に揃っている場合だけ出す軽量トースト（自動で消える）。 */
+.image-ready-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 850;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: rgba(24, 22, 34, 0.97);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  font-weight: 700;
+  color: #7fe6ac;
+  animation: image-ready-toast-in 180ms ease-out;
+}
+.image-ready-toast[hidden] { display: none; }
+@keyframes image-ready-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 
 /* ---------- Guided tour (first-run coachmarks) ---------- */
 

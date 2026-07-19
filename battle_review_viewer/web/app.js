@@ -65,6 +65,9 @@ const ENERGY_TYPE = {
   Y: { ja: "妖", en: "Y", bg: "#D03080", text: "#fff" },
 };
 
+// cg/api.py の SelectContext 全49種に対応する表示名。ここに無いものは ctxName() が
+// enum名をそのまま出す（例: "DrawCount"）ので、cg/api.py に新しい SelectContext が
+// 追加されたときはここにも追記すること（api.py のコメントに元の意味が書いてある）。
 const CONTEXT_MAP = {
   Main: { ja: "メイン", en: "Main" },
   SetupActivePokemon: { ja: "バトル場セット", en: "Setup Active" },
@@ -79,9 +82,53 @@ const CONTEXT_MAP = {
   ToDeckBottom: { ja: "山札の下へ", en: "To Deck Bottom" },
   ToPrize: { ja: "サイドへ", en: "To Prize" },
   NotMove: { ja: "動かさない", en: "Not Move" },
+  DamageCounter: { ja: "ダメカン配置", en: "Damage Counter" },
+  DamageCounterAny: { ja: "ダメカン配置（自由）", en: "Damage Counter (Any)" },
+  Damage: { ja: "ダメージ対象", en: "Damage Target" },
+  RemoveDamageCounter: { ja: "ダメカン除去", en: "Remove Damage Counter" },
+  Heal: { ja: "回復", en: "Heal" },
+  EvolvesFrom: { ja: "進化元", en: "Evolves From" },
+  EvolvesTo: { ja: "進化先", en: "Evolves To" },
+  Devolve: { ja: "退化", en: "Devolve" },
+  AttachFrom: { ja: "つける道具/エネルギー", en: "Attach From" },
+  AttachTo: { ja: "つける先のポケモン", en: "Attach To" },
+  DetachFrom: { ja: "外す対象", en: "Detach From" },
+  Look: { ja: "確認", en: "Look" },
+  EffectTarget: { ja: "効果の対象", en: "Effect Target" },
+  DiscardEnergyCard: { ja: "エネルギーをトラッシュ", en: "Discard Energy Card" },
+  DiscardToolCard: { ja: "どうぐをトラッシュ", en: "Discard Tool Card" },
+  SwitchEnergyCard: { ja: "エネルギーの付け替え", en: "Switch Energy Card" },
+  DiscardCardOrAttachedCard: { ja: "トラッシュ対象", en: "Discard Card / Attached Card" },
+  DiscardEnergy: { ja: "エネルギーをトラッシュ", en: "Discard Energy" },
+  ToHandEnergy: { ja: "エネルギーを手札へ", en: "Energy To Hand" },
+  ToDeckEnergy: { ja: "エネルギーを山札へ", en: "Energy To Deck" },
+  SwitchEnergy: { ja: "エネルギーの入れ替え", en: "Switch Energy" },
+  SkillOrder: { ja: "効果の発動順", en: "Skill Order" },
   Attack: { ja: "ワザ", en: "Attack" },
+  DisableAttack: { ja: "ワザを使用不可に", en: "Disable Attack" },
   Evolve: { ja: "進化", en: "Evolve" },
+  DrawCount: { ja: "追加ドロー枚数", en: "Draw Count" },
+  DamageCounterCount: { ja: "ダメカン配置枚数", en: "Damage Counter Count" },
+  RemoveDamageCounterCount: { ja: "ダメカン除去枚数", en: "Remove Damage Counter Count" },
   IsFirst: { ja: "先攻後攻", en: "First / Second" },
+  Mulligan: { ja: "マリガン（引き直し）", en: "Mulligan" },
+  Activate: { ja: "効果の発動確認", en: "Activate" },
+  FirstEffect: { ja: "最初の効果の選択", en: "First Effect" },
+  MoreDevolve: { ja: "追加の退化確認", en: "More Devolve" },
+  CoinHead: { ja: "コインの表裏", en: "Coin Head" },
+  AffectSpecialCondition: { ja: "特殊状態の付与対象", en: "Affect Special Condition" },
+  RecoverSpecialCondition: { ja: "特殊状態の回復対象", en: "Recover Special Condition" },
+};
+
+// context ごとの Yes/No 質問文。cg/api.py の SelectContext コメント（"Would you like to..."）を
+// 日本語化したもの。ここに無い context の Yes/No はそのまま「はい」「いいえ」を表示する。
+const YES_NO_QUESTION_MAP = {
+  IsFirst: { yes: { ja: "先攻を選ぶ", en: "Go first" }, no: { ja: "後攻を選ぶ", en: "Go second" } },
+  Mulligan: { yes: { ja: "引き直す（マリガン）", en: "Redraw (mulligan)" }, no: { ja: "引き直さない", en: "Don't redraw" } },
+  Activate: { yes: { ja: "効果を発動する", en: "Activate the effect" }, no: { ja: "発動しない", en: "Don't activate" } },
+  FirstEffect: { yes: { ja: "最初の効果を選ぶ", en: "Select the first effect" }, no: { ja: "選ばない", en: "Don't select" } },
+  MoreDevolve: { yes: { ja: "さらに退化させる", en: "Devolve further" }, no: { ja: "ここで止める", en: "Stop here" } },
+  CoinHead: { yes: { ja: "表を選ぶ", en: "Choose heads" }, no: { ja: "裏を選ぶ", en: "Choose tails" } },
 };
 
 let lang = "ja";
@@ -698,6 +745,21 @@ function shouldShowEffectOverlay(frame) {
   return false;
 }
 
+function cardDisambiguator(card) {
+  // 同名カード（同じ名前・別インスタンス）が同時に選択肢に並ぶことがあるため
+  // （例: セットアップ中に手札の2匹目の同名ポケモンを選ぶ場合）、id/serial を必ず添えて
+  // 「カード選択: リオル」が複数並んで区別できない、という事態を避ける。
+  if (!card) return "";
+  const bits = [];
+  if (card.id != null) bits.push(`id=${card.id}`);
+  if (card.serial != null) bits.push(`serial=${card.serial}`);
+  return bits.length ? ` (${bits.join(", ")})` : "";
+}
+
+function namedCard(card) {
+  return `${cardDisplayName(card)}${cardDisambiguator(card)}`;
+}
+
 function describeOptionLabel(option, frame) {
   if (lang === "en") return option.label;
 
@@ -705,34 +767,38 @@ function describeOptionLabel(option, frame) {
   const visual = frame.visual || {};
   const actingPlayer = visual.current?.yourIndex ?? frame.actingPlayer ?? SELF_INDEX;
   const type = raw.type;
+  const context = visual.select?.context;
 
-  if (type === "Yes") return "はい";
-  if (type === "No") return "いいえ";
+  if (type === "Yes" || type === "No") {
+    const question = YES_NO_QUESTION_MAP[context];
+    if (question) return (type === "Yes" ? question.yes : question.no)[lang] || (type === "Yes" ? "はい" : "いいえ");
+    return type === "Yes" ? "はい" : "いいえ";
+  }
   if (type === "Number") return `数字 ${raw.number ?? "?"}`;
   if (type === "Attack") return `ワザ: ${localizedAttackName(option)}`;
   if (type === "Play") {
     const card = getCardFromVisual(visual, AREA.HAND, raw.index, actingPlayer);
-    return `手札から出す: ${cardDisplayName(card)}`;
+    return `手札から出す: ${namedCard(card)}`;
   }
   if (type === "Card") {
     const owner = raw.playerIndex ?? actingPlayer;
     const card = getCardFromVisual(visual, raw.area, raw.index, owner);
-    return `カード選択: ${cardDisplayName(card)}`;
+    return `カード選択: ${namedCard(card)}`;
   }
   if (type === "Ability") {
     const owner = raw.playerIndex ?? actingPlayer;
     const card = getCardFromVisual(visual, raw.area, raw.index, owner);
-    return `特性: ${cardDisplayName(card)}`;
+    return `特性: ${namedCard(card)}`;
   }
   if (type === "Attach") {
     const source = getCardFromVisual(visual, raw.area, raw.index, actingPlayer);
     const target = getCardFromVisual(visual, raw.inPlayArea, raw.inPlayIndex, actingPlayer);
-    return `${cardDisplayName(source)} を ${cardDisplayName(target)} につける`;
+    return `${namedCard(source)} を ${namedCard(target)} につける`;
   }
   if (type === "Evolve") {
     const evolved = getCardFromVisual(visual, raw.area, raw.index, actingPlayer);
     const base = getCardFromVisual(visual, raw.inPlayArea, raw.inPlayIndex, actingPlayer);
-    return `${cardDisplayName(base)} を ${cardDisplayName(evolved)} に進化`;
+    return `${namedCard(base)} を ${namedCard(evolved)} に進化`;
   }
   if (type === "Energy") return `エネルギー ${raw.energyIndex ?? "?"}`;
   if (type === "EnergyCard") return `ついているエネルギー ${raw.energyIndex ?? "?"}`;
@@ -2976,9 +3042,13 @@ function startTour() {
   tourEl.hidden = false;
   showTourStep(0);
 }
+// 初回起動時、ガイドツアーの説明中に画像生成モーダル/トーストが重なって出ると
+// 気が散るので、ツアー終了後まで待たせたい呼び出し元はここに積む。
+const tourEndListeners = [];
 function endTour(markSeen) {
   if (tourEl) tourEl.hidden = true;
   if (markSeen) { try { localStorage.setItem(ONBOARDING_KEY, "1"); } catch (_) { /* ignore */ } }
+  tourEndListeners.splice(0).forEach((fn) => fn());
 }
 
 tourNextBtn?.addEventListener("click", () => {
@@ -3092,9 +3162,18 @@ document.getElementById("newReplayBackdrop")?.addEventListener("click", closeNew
 // 「画像を作成中です…」を出す。生成中もテキスト表示で使えるので非ブロッキング。
 const imageBuildBanner = document.getElementById("imageBuildBanner");
 const imageBuildText = document.getElementById("imageBuildText");
+const imageBuildSpinner = document.getElementById("imageBuildSpinner");
+const imageBuildProgress = document.getElementById("imageBuildProgress");
+const imageBuildDismiss = document.getElementById("imageBuildDismiss");
+const imageBuildActionButton = document.getElementById("imageBuildActionButton");
 const rebuildImagesButton = document.getElementById("rebuildImagesButton");
 const cardImageInfo = document.getElementById("cardImageInfo");
 let cardImageBuilding = false;
+
+imageBuildDismiss?.addEventListener("click", () => { if (imageBuildBanner) imageBuildBanner.hidden = true; });
+// 失敗時の「画像をセットアップ」ボタン。全カード画像を生成(--all)と同じ処理を再実行する
+// （venv セットアップからやり直す。build 中は cardImageBuilding ガードで二重起動しない）。
+imageBuildActionButton?.addEventListener("click", () => runCardImageBuild("all"));
 
 async function reloadCardManifest() {
   try {
@@ -3111,11 +3190,43 @@ async function reloadCardManifest() {
   }
 }
 
+// カウント数字だけをアニメーションで増やす（枠のテキストごと差し替えると
+// アニメーションが毎回リセットされるので、数字用の <span> だけ更新する）。
+let imageBuildCountAnimFrame = null;
+let imageBuildCountCurrent = 0;
+function animateCountTo(el, to, duration = 700) {
+  if (!el) return;
+  const from = imageBuildCountCurrent;
+  cancelAnimationFrame(imageBuildCountAnimFrame);
+  if (from === to) {
+    el.textContent = String(to);
+    return;
+  }
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - (1 - t) * (1 - t); // ease-out
+    el.textContent = String(Math.round(from + (to - from) * eased));
+    if (t < 1) {
+      imageBuildCountAnimFrame = requestAnimationFrame(step);
+    } else {
+      imageBuildCountCurrent = to;
+    }
+  };
+  imageBuildCountAnimFrame = requestAnimationFrame(step);
+}
+
 async function runCardImageBuild(mode) {
   if (cardImageBuilding) return;
   cardImageBuilding = true;
+  imageBuildCountCurrent = 0;
+  cancelAnimationFrame(imageBuildCountAnimFrame);
   if (imageBuildBanner) imageBuildBanner.hidden = false;
+  if (imageBuildSpinner) imageBuildSpinner.hidden = false;
+  if (imageBuildProgress) imageBuildProgress.hidden = false;
+  if (imageBuildActionButton) imageBuildActionButton.hidden = true;
   if (imageBuildText) {
+    imageBuildText.classList.remove("is-ok", "is-error");
     imageBuildText.textContent = lang === "ja"
       ? (mode === "all" ? "全カード画像を作成中です。お待ちください…（数分かかります）" : "画像を作成中です。お待ちください…（初回のみ）")
       : "Generating card images… please wait.";
@@ -3128,17 +3239,56 @@ async function runCardImageBuild(mode) {
     for (let i = 0; i < 900; i += 1) {
       await new Promise((r) => setTimeout(r, 2000));
       const st = await (await fetch("/api/card_images/status")).json();
+      if (st.running && st.stage === "venv_setup" && imageBuildText) {
+        imageBuildText.textContent = lang === "ja"
+          ? "初回セットアップ中です（画像抽出用の環境を準備しています）。数分かかることがあります…"
+          : "First-time setup in progress (preparing the image-extraction environment). This can take a few minutes…";
+      }
+      if (st.running && st.stage === "extracting" && imageBuildText) {
+        // 何枚出来たか(st.count)を毎ポーリングで反映し、確定的に進んでいることを見せる
+        // （不確定バーだけだと「動いてるだけ」に見えるため、実数値も添える）。数字部分は
+        // 専用の <span> にして、ポーリングのたびに枠ごと差し替えず数字だけカウントアップする。
+        if (!document.getElementById("imageBuildCountNum")) {
+          imageBuildText.innerHTML = lang === "ja"
+            ? `画像を抽出しています…（<span id="imageBuildCountNum">0</span> 枚 生成済み）`
+            : `Extracting card images… (<span id="imageBuildCountNum">0</span> generated so far)`;
+        }
+        animateCountTo(document.getElementById("imageBuildCountNum"), st.count);
+      }
       if (!st.running) {
         if (st.error && !st.count) {
           if (imageBuildText) imageBuildText.textContent = lang === "ja"
-            ? "画像は用意できませんでした（PDF/依存が無い環境）。テキスト表示で続行します。"
-            : "Could not build images (missing PDF/deps). Continuing in text mode.";
-          setTimeout(() => { if (imageBuildBanner) imageBuildBanner.hidden = true; }, 4000);
+            ? `画像は用意できませんでした（${st.error}）。README の「カード画像を用意する」の手動手順を`
+              + "試すか、data/ に PDF があるか確認してください。画像なしでもテキスト表示で問題なく使えます。"
+            : `Could not build images (${st.error}). Try the manual steps in the README section `
+              + "\"Prepare card images\", or check that the PDF exists under data/. "
+              + "The viewer works fine in text mode without them.";
+          // 自動で消さない: 原因(venv未セットアップ)に気づいてもらう必要があるため、
+          // 「画像を作成中です…」のように数秒で自動的に消える通知にはしない。× で手動で閉じるか、
+          // 「画像をセットアップ」ボタンで再試行できる。
+          if (imageBuildSpinner) imageBuildSpinner.hidden = true;
+          if (imageBuildProgress) imageBuildProgress.hidden = true;
+          if (imageBuildText) imageBuildText.classList.add("is-error");
+          if (imageBuildActionButton) {
+            imageBuildActionButton.hidden = false;
+            imageBuildActionButton.textContent = lang === "ja" ? "再試行 / Retry" : "Retry";
+          }
           return;
         }
         await reloadCardManifest();
         if (toggleCardImages.checked && replayData) render();
-        if (imageBuildBanner) imageBuildBanner.hidden = true;
+        // 成功時も無言で消さず「✓ 準備できました」を見せる。タイマーで自動的に閉じると
+        // 読み切る前に消えてしまう(実際に指摘あり)ので、エラー時と同じく × で閉じるまで残す。
+        if (imageBuildSpinner) imageBuildSpinner.hidden = true;
+        if (imageBuildProgress) imageBuildProgress.hidden = true;
+        if (imageBuildText) {
+          imageBuildText.classList.add("is-ok");
+          const count = Object.keys(cardManifest).length;
+          imageBuildText.innerHTML = lang === "ja"
+            ? `✓ 画像の準備ができました（<span id="imageBuildCountNum">0</span> 枚）`
+            : `✓ Images ready (<span id="imageBuildCountNum">0</span>)`;
+          animateCountTo(document.getElementById("imageBuildCountNum"), count);
+        }
         return;
       }
     }
@@ -3166,12 +3316,26 @@ function replayHasMissingImages() {
 }
 
 // 画像が1枚も無い、または今のリプレイに画像未生成のカードがあれば、裏で生成する。
+// 起動時、画像が既に揃っていて何もしなくていい場合はモーダルを出さない
+// （毎回×で閉じる手間を強いるのは邪魔）。代わりに一瞬だけ出て自動で消える
+// 軽量トーストで「✓ 画像OK」だけ知らせる。
+let imageReadyToastTimer = null;
+function showImageReadyToast(count) {
+  const toast = document.getElementById("imageReadyToast");
+  if (!toast) return;
+  toast.textContent = lang === "ja" ? `✓ 画像OK（${count} 枚）` : `✓ Images OK (${count})`;
+  toast.hidden = false;
+  clearTimeout(imageReadyToastTimer);
+  imageReadyToastTimer = setTimeout(() => { toast.hidden = true; }, 2400);
+}
+
 async function ensureImagesForCurrentReplay() {
   if (cardImageBuilding) return;
   if (!Object.keys(cardManifest).length || replayHasMissingImages()) {
     await runCardImageBuild("deck");
   } else {
-    reloadCardManifest(); // info テキスト更新のみ
+    await reloadCardManifest();
+    showImageReadyToast(Object.keys(cardManifest).length);
   }
 }
 
@@ -3205,8 +3369,13 @@ async function boot() {
     await loadSelectedReplay();
   }
   updateModeUI();
-  // 画像が無ければ裏で生成（初回のみ・非ブロッキング）。
-  ensureImagesForCurrentReplay();
+  // 画像が無ければ裏で生成（初回のみ・非ブロッキング）。ガイドツアーが出ている間は
+  // モーダル/トーストが説明と重ならないよう、ツアー終了後まで遅らせる。
+  if (seenOnboarding) {
+    ensureImagesForCurrentReplay();
+  } else {
+    tourEndListeners.push(() => ensureImagesForCurrentReplay());
+  }
 }
 
 boot().catch((error) => {
