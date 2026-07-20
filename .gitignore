@@ -65,6 +65,12 @@ kaggle_replays/value_net/*.npz
 kaggle_replays/policy_net/*.npz
 kaggle_replays/policy_net/*.log
 
+# league/results: run_league.py output is re-derivable by re-running the league (though not
+# bit-for-bit reproducible across engine/agent code changes). Ignored by default; results worth
+# keeping as a permanent record are force-added individually. See league/README.md.
+league/results/*.json
+!league/results/.gitkeep
+
 # battle_review_viewer: card images are generated locally from the data/ PDF (not shared).
 # Missing on first run → the viewer regenerates them in the background.
 battle_review_viewer/web/card_images/*.jpg
