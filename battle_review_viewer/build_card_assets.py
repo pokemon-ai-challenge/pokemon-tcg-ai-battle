@@ -75,6 +75,12 @@ def collect_card_ids(replay_dir: Path, deck_csv: Path, use_deck: bool) -> set[in
             except (OSError, json.JSONDecodeError) as error:
                 print(f"[build_card_assets] リプレイ読み込み失敗 {replay_path.name}: {error}", file=sys.stderr)
                 continue
+            if not isinstance(payload, dict):
+                # replays/ には export_kaggle_archetype_replays.py 等が書き出す集計用の
+                # 一覧ファイル（例: kaggle-archetype-summary.json、トップレベルが list）も
+                # 混在しうる。replay JSON（{"metadata": ..., "frames": [...]}）ではないので
+                # スキップする（"frames" が無いだけでなく dict ですらないため .get が使えない）。
+                continue
             _collect_card_ids_from_obj(payload.get("frames", []), found)
 
     if use_deck and deck_csv.exists():
