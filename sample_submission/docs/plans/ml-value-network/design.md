@@ -6,6 +6,7 @@
 - 親ドキュメント(全体方針): [`../individual/shogo/ml-agent-plan.md`](../individual/shogo/ml-agent-plan.md)
 - アルゴリズム選定理由(なぜこの手法か・却下した代替案): [`./algorithm-selection.md`](./algorithm-selection.md)
 - オフライン評価レポート(最終判断): [`./step1-offline-evaluation.md`](./step1-offline-evaluation.md)
+- 後続(Step2: 模倣ポリシー): [`./step2-design.md`](./step2-design.md)
 
 ---
 
