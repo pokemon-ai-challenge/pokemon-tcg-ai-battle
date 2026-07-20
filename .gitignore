@@ -69,6 +69,7 @@ kaggle_replays/policy_net/*.log
 # bit-for-bit reproducible across engine/agent code changes). Ignored by default; results worth
 # keeping as a permanent record are force-added individually. See league/README.md.
 league/results/*.json
+league/results/*.log
 !league/results/.gitkeep
 
 # battle_review_viewer: card images are generated locally from the data/ PDF (not shared).
