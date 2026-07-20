@@ -28,6 +28,9 @@ from ptcg_ai.hidden_information.opponent_hidden_state import (
     OpponentHiddenState,
     _HAND_CONFIDENCE_FLOOR,
     _HAND_EXCESS_KEEP,
+    _POSTERIOR_UNIFORM_MIX,
+    _SMOOTHING_DECAY_PER_MISS,
+    _SMOOTHING_FLOOR_RATIO,
     _shrink_hand_confidence,
 )
 from ptcg_ai.hidden_information import zone_math
@@ -174,14 +177,17 @@ def test_marginals_is_normalized_weighted_sum_over_archetypes(tmp_path):
     b_cards = {200 + i: 1 for i in range(10)}
     pool_path = _write_pool(tmp_path, {"A": a_cards, "B": b_cards})
     state = OpponentHiddenState(pool_path=pool_path)
-    # わざと合計 0.8 の非正規 posterior。正規化後は A=0.75, B=0.25。
+    # わざと合計 0.8 の非正規 posterior。正規化後は A=0.75, B=0.25。その後、一様分布へ
+    # _POSTERIOR_UNIFORM_MIX だけ混ぜる（K=2 なので各アーキタイプへ mix/2 を上乗せ）。
     state.update({"A": 0.6, "B": 0.2}, observed_card_ids={}, player_state=_StubPlayerState(5, 3, 2))
     marg = state.marginals()
 
-    # A固有カードの deck 確率 = P(A)*P(deck|A)。P(deck|A)=5/10。正規化後 P(A)=0.6/0.8=0.75。
-    assert math.isclose(marg[100]["deck"], 0.75 * (5 / 10), abs_tol=1e-12)
-    # B固有カードは正規化後 P(B)=0.2/0.8=0.25。
-    assert math.isclose(marg[200]["deck"], 0.25 * (5 / 10), abs_tol=1e-12)
+    mix = _POSTERIOR_UNIFORM_MIX
+    pa = (1.0 - mix) * 0.75 + mix / 2  # 混合後 P(A)
+    pb = (1.0 - mix) * 0.25 + mix / 2  # 混合後 P(B)
+    # A固有カードの deck 確率 = P(A)*P(deck|A)。P(deck|A)=5/10。
+    assert math.isclose(marg[100]["deck"], pa * (5 / 10), abs_tol=1e-12)
+    assert math.isclose(marg[200]["deck"], pb * (5 / 10), abs_tol=1e-12)
 
 
 # ----------------------------------------------------------------------
@@ -200,8 +206,8 @@ def test_smoothing_decays_but_never_zeroes_weight(tmp_path):
 
     wa = state._smoothed_weight("A", observed)
     wb = state._smoothed_weight("B", observed)
-    # miss=1 -> factor 0.5。元の 0.5 から減衰しているが 0 ではない。
-    assert math.isclose(wa, 0.5 * 0.5, abs_tol=1e-12)
+    # miss=1 -> factor _SMOOTHING_DECAY_PER_MISS。元の 0.5 から減衰しているが 0 ではない。
+    assert math.isclose(wa, 0.5 * _SMOOTHING_DECAY_PER_MISS, abs_tol=1e-12)
     assert wa > 0.0 and wb > 0.0
 
     # A固有カードの marginal も正のまま残る（アーキタイプが候補から消えていない）。
@@ -214,11 +220,12 @@ def test_smoothing_floor_prevents_zero_even_with_many_misses(tmp_path):
     pool_path = _write_pool(tmp_path, {"A": a_cards})
     state = OpponentHiddenState(pool_path=pool_path)
 
-    # 代表リストに無いカードを大量に観測（miss=12）。0.5^12 は floor(0.05)を下回るので floor が効く。
+    # 代表リストに無いカードを大量に観測（miss=12）。decay^12 は floor を下回るので floor が効く。
     observed = {900 + i: 1 for i in range(12)}
     state.update({"A": 1.0}, observed_card_ids=observed, player_state=_StubPlayerState(5, 3, 2))
     wa = state._smoothed_weight("A", observed)
-    assert math.isclose(wa, 1.0 * 0.05, abs_tol=1e-12)  # floor まで下がるが 0 ではない
+    assert _SMOOTHING_DECAY_PER_MISS ** 12 < _SMOOTHING_FLOOR_RATIO  # 前提: floor が効く miss 数
+    assert math.isclose(wa, 1.0 * _SMOOTHING_FLOOR_RATIO, abs_tol=1e-12)  # floor まで下がるが 0 ではない
     assert wa > 0.0
 
 

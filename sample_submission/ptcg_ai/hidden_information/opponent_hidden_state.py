@@ -60,6 +60,21 @@ _SMOOTHING_DECAY_PER_MISS = 0.5
 # 下げない = ゼロを作らない（「確信度は慎重側に倒す」方針）。
 _SMOOTHING_FLOOR_RATIO = 0.05
 
+# 事後分布を、アーキタイプ集合上の一様分布へ少しだけ混ぜる係数（temperature 的な平滑化）。
+#     mixed[a] = (1 - MIX) * normalized[a] + MIX * (1/K)
+# ティア別キャリブレーション検証（accuracy-by-tier.md）で、相手が「分類不能(other)」デッキのとき
+# 予測器が誤った実在アーキタイプを高確信で選び、その未観測カードを高確率で「山札にある」と主張する
+# 過信が判明した（Other 山札ECE 0.06 でナイーブ=一様に大敗）。「一様分布(=非コミット)の方が OOD
+# デッキには当たる」という観測そのものが対策を示している: 事後を一様へわずかに寄せると、Other では
+# 誤ったアーキタイプのピークが崩れて過信が下がる。実在ティアは impl がナイーブに対し十分マージンを
+# 持つため、わずかな一様寄せでも較正はほとんど悪化しない。
+#
+# 係数は同一500リプレイの before/after 検証で決定（0.15）。0.15 は全ティア（上位〜下位）の
+# 手札・山札 ECE を一斉に改善する（例: 上位山札 0.018→0.010、中の上山札 0.028→0.012）。
+# 0.30 まで上げると Other はさらに改善するが実在ティアが過信→過小へ行き過ぎて悪化する（上位山札
+# 0.023 と baseline 割れ）ため、実在ティア（全体の約9割）を最優先して 0.15 を採用した。0=無効化。
+_POSTERIOR_UNIFORM_MIX = 0.15
+
 # 代表リストを持たない特別扱いのアーキタイプ（design.md 実装プラン 2.2）。
 # 雑多なデッキの寄せ集めであり、median 枚数を集計しても意味のある代表60枚にならないため、
 # サンプル時は全ゾーンを「不明カード」(None)で埋め、marginals では特定 card_id に寄与させない。
@@ -213,10 +228,15 @@ class OpponentHiddenState:
         return raw * factor
 
     def _smoothed_normalized_weights(self) -> dict[str, float]:
-        """全アーキタイプに ``_smoothed_weight`` を適用したうえで、合計1.0に再正規化して返す。
+        """全アーキタイプに ``_smoothed_weight`` を適用し、合計1.0に再正規化し、最後に一様分布へ
+        ``_POSTERIOR_UNIFORM_MIX`` だけ混ぜて返す。
 
         スムージングは重みを不均一に減衰させるので、適用後は合計が1.0からズレる。周辺化・サンプリング
         の前に必ずここで正規化し直す（設計方針: 重みの正規化を忘れない）。
+
+        一様混合（``_POSTERIOR_UNIFORM_MIX``）は、OOD（分類不能）デッキで誤ったアーキタイプに
+        ピークが立つ過信を和らげるための平滑化（定数定義のコメント参照）。混合はここで一度だけ行い、
+        ``marginals()`` と ``sample()`` の両方へ一貫して効かせる（determinization も過剰コミットしない）。
         """
         weights = {
             archetype: self._smoothed_weight(archetype, self._observed)
@@ -225,7 +245,15 @@ class OpponentHiddenState:
         total = sum(weights.values())
         if total <= 0.0:
             return {}
-        return {archetype: w / total for archetype, w in weights.items() if w > 0.0}
+        normalized = {archetype: w / total for archetype, w in weights.items() if w > 0.0}
+
+        mix = _POSTERIOR_UNIFORM_MIX
+        if mix <= 0.0 or len(normalized) <= 1:
+            return normalized
+        # 正の重みを持つアーキタイプ集合上の一様分布へ mix だけ寄せる（合計は 1.0 のまま:
+        # (1-mix)*Σnorm + mix*K/K = 1）。ピークが崩れて特定カードへの過信が下がる。
+        uniform = mix / len(normalized)
+        return {archetype: (1.0 - mix) * w + uniform for archetype, w in normalized.items()}
 
     # ------------------------------------------------------------------
     # 未観測プールの計算
