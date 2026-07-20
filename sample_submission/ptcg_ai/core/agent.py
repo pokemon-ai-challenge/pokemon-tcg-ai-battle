@@ -32,4 +32,9 @@ def agent(obs: Observation) -> list[int]:
 
         return rule_based_agent(obs)
 
+    if AGENT_TYPE == "ml_policy":
+        from ptcg_ai.ml_policy.ml_policy_agent import agent as ml_policy_agent
+
+        return ml_policy_agent(obs)
+
     raise ValueError(f"Unknown AGENT_TYPE: {AGENT_TYPE!r}")
