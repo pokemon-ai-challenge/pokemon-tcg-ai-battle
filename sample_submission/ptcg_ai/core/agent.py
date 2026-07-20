@@ -15,7 +15,7 @@ Kaggle 提出の入口は sample_submission/main.py の agent(obs_dict) のま�
 
 from cg.api import Observation
 
-AGENT_TYPE = "rule_based"
+AGENT_TYPE = "ml_policy"
 
 
 def agent(obs: Observation) -> list[int]:

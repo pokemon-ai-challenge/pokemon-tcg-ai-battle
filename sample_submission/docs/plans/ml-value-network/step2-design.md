@@ -9,6 +9,7 @@
 - Step1 オフライン評価レポート: [`./step1-offline-evaluation.md`](./step1-offline-evaluation.md)
 - アルゴリズム選定理由(本 Step2): [`./step2-algorithm-selection.md`](./step2-algorithm-selection.md)
 - オフライン評価レポート(最終判断): [`./step2-offline-evaluation.md`](./step2-offline-evaluation.md)
+- 後続(確定リーサル探索とのハイブリッド化): [`./step2-lethal-hybrid.md`](./step2-lethal-hybrid.md)
 
 ブランチ運用: 本 Step2 は `feature/ml-value-network`(Step1, PR #73, 未マージ)から分岐した
 `feature/ml-imitation-policy` で実装する。PR の base は `feature/ml-value-network` に設定し
