@@ -1707,6 +1707,32 @@ body.drawer-open .stage {
 .ml-predictor-bar-fill { display: block; height: 100%; background: var(--self); border-radius: 999px; }
 .ml-predictor-bar-pct { color: var(--muted); font-family: var(--mono); text-align: right; }
 
+/* Board evaluation view (value network win-prob bars) */
+.value-eval-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 56px;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.value-eval-label { font-weight: 700; }
+.value-eval-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.value-eval-fill { display: block; height: 100%; border-radius: 999px; }
+.value-eval-fill-self { background: var(--self); }
+.value-eval-fill-opp { background: var(--opp); }
+.value-eval-pct { color: var(--muted); font-family: var(--mono); text-align: right; }
+.value-eval-caveat { margin-top: 8px; font-size: 11px; line-height: 1.5; color: var(--muted); opacity: 0.85; }
+
 /* 未確定判定バッジ(status=="uncertain")。既存 .order-badge.first と同じ amber トーンに揃える。 */
 .predictor-headline.is-uncertain {
   background: rgba(255, 211, 92, 0.12);

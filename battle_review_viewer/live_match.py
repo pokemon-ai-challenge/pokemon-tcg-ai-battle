@@ -40,6 +40,10 @@ try:
 except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォールバック
     from hidden_info_debug import build_hidden_info_debug  # noqa: E402
 try:
+    from .value_eval_debug import build_value_eval_debug  # noqa: E402
+except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォールバック
+    from value_eval_debug import build_value_eval_debug  # noqa: E402
+try:
     from ptcg_ai.hidden_information.own_hidden_state import OwnHiddenState  # noqa: E402
     from ptcg_ai.hidden_information.opponent_hidden_state import OpponentHiddenState  # noqa: E402
 except Exception:  # noqa: BLE001 -- 非公開情報推定レイヤーが無い/壊れていてもライブモードは続行する
@@ -55,6 +59,12 @@ try:
     _ml_predictor = HybridDeckPredictor()
 except Exception:  # noqa: BLE001 -- ML予測器が無い/壊れていてもライブモードは続行する
     _ml_predictor = None
+try:
+    from ptcg_ai.learning.value_model import ValueModel  # noqa: E402
+
+    _value_model = ValueModel()
+except Exception:  # noqa: BLE001 -- 値ネットが無い/壊れていてもライブモードは続行する
+    _value_model = None
 
 from cg.api import Observation, to_observation_class  # noqa: E402
 from cg.game import battle_finish, battle_select, battle_start  # noqa: E402
@@ -242,6 +252,7 @@ class LiveMatchSession:
                 prediction = {"error": str(exc)}
 
         ml_prediction = build_ml_prediction_debug(_ml_predictor, self.opponent_knowledge, obs.current)
+        value_eval = build_value_eval_debug(_value_model, obs.current)
 
         # 非公開情報推定レイヤー（自分の山札∪サイド、相手の山札/手札/サイド）も同じフレームに埋め込む。
         # own_hidden_state/opponent_hidden_state の update() 呼び出しは build_hidden_info_debug の内部が
@@ -266,6 +277,7 @@ class LiveMatchSession:
             "diff": diff,
             "prediction": prediction,
             "ml_prediction": ml_prediction,
+            "value_eval": value_eval,
             "hidden_info": hidden_info,
         }
 
