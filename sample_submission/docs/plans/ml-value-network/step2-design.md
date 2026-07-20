@@ -246,7 +246,10 @@ Step2 の完了条件は §5.1 のオフライン評価 PASS までとし、対�
 8. [x] 新規 `ptcg_ai/ml_policy/ml_policy_agent.py` で単体エージェントとして動く状態にした
    (`ptcg_ai/core/agent.py` の `AGENT_TYPE` 分岐に1行追加、既存 `rule_based` 分岐は変更なし)。
    `configs/ml_policy.json` は現時点で切り替える設定値が無いため見送り(§8 参照)
-9. [ ] (完了条件外、次タスク)対戦リーグ基盤の設計(§5.2)
+9. [x] (完了条件外だったが実施)対戦リーグ基盤の構築(§5.2)→ `league/`(新規)。
+   `ml_policy` vs `rule_based` 500試合(同一デッキミラー戦、先手/後手交互)で
+   **`ml_policy` 勝率86.4%(95%CI [83.1%,89.1%]相当、`rule_based`視点13.6% [10.9%,16.9%])**
+   を確認。詳細: [`./step2-offline-evaluation.md`](./step2-offline-evaluation.md) §8
 
 **Step2 はタスク1〜6の完了(オフライン評価 PASS)をもって完了とする。** タスク7・8は
 模倣ポリシーを実際にエージェントとして動かすための後続作業として同 Issue 内で扱うが、
