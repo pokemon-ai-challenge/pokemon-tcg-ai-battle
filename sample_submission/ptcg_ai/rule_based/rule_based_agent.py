@@ -4,19 +4,22 @@
 
 責務:
     - デッキ返却（初回選択）か通常ターンかを分岐する
-    - 通常ターンは action_selection.router.route に処理を委譲する（判断ロジックは持たない）
+    - 通常ターンは action_selection.selector.select_action に処理を委譲する（判断ロジックは持たない）。
+      selector 側で確定リーサル探索（#57/#58）を先に試し、無ければ router.route のルールベースに落ちる
 """
 
 import os
 
 from cg.api import Observation
 
-from ptcg_ai.action_selection import router
+from ptcg_ai.action_selection import selector
 from ptcg_ai.hidden_information import match_context
+
+_DECK_CACHE: list[int] | None = None
 
 
 def agent(obs: Observation) -> list[int]:
-    """obs を見てデッキ返却 or ルーター呼び出しを行う。
+    """obs を見てデッキ返却 or 行動選択（selector）呼び出しを行う。
 
     Args:
         obs: core.agent から渡される Observation。
@@ -31,7 +34,15 @@ def agent(obs: Observation) -> list[int]:
 
     if obs.select is None:
         return _select_deck()
-    return router.route(obs)
+    return selector.select_action(obs, _full_deck())
+
+
+def _full_deck() -> list[int]:
+    """deck.csv の内容をキャッシュして返す（リーサル探索の隠れ情報スタブ用）。"""
+    global _DECK_CACHE
+    if _DECK_CACHE is None:
+        _DECK_CACHE = read_deck_csv()
+    return _DECK_CACHE
 
 
 def _select_deck() -> list[int]:
