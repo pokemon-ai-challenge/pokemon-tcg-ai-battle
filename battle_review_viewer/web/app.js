@@ -313,6 +313,10 @@ UI.ja.hiddenInfoOpponentHeading = "相手の手札候補（上位）";
 UI.ja.hiddenInfoPoolUnready = "プール未配置（archetype_card_pool.json が見つかりません。kaggle_replays/deck_predictor/build_archetype_pool.py で生成・配置してください）。";
 UI.ja.hiddenInfoNoData = "この replay には山札・手札・サイド推定データがありません（古い replay か、推定レイヤーが無効）。新しく生成すると出ます。";
 UI.ja.hiddenInfoNoCandidates = "候補なし";
+UI.ja.hiddenInfoLegend = "% = そのゾーンに最低1枚ある確率 ／ 実際 = 神視点の実枚数";
+UI.ja.hiddenInfoLegendNote = "※ ビュアーは確率表示のみ。枚数など詳細は推定関数で取得できます。";
+UI.ja.hiddenInfoActualOwn = "実際(山/サイド)";
+UI.ja.hiddenInfoActualOpp = "実際(手/山/サイド)";
 UI.en.debugHeading = "Debug";
 UI.en.debugViewOpponentKnowledge = "Opponent Knowledge";
 UI.en.debugViewDeckPredictor = "Deck Predictor";
@@ -331,6 +335,10 @@ UI.en.hiddenInfoOpponentHeading = "Opponent hand candidates (top)";
 UI.en.hiddenInfoPoolUnready = "Pool not loaded (archetype_card_pool.json not found; generate it with kaggle_replays/deck_predictor/build_archetype_pool.py).";
 UI.en.hiddenInfoNoData = "This replay has no deck/hand/prize estimation data (old replay, or the estimation layer is disabled). Regenerate the replay to see it.";
 UI.en.hiddenInfoNoCandidates = "No candidates";
+UI.en.hiddenInfoLegend = "% = probability ≥1 copy is in that zone / Actual = true count (god's-eye)";
+UI.en.hiddenInfoLegendNote = "Note: the viewer shows probabilities only; counts are available via the estimator functions.";
+UI.en.hiddenInfoActualOwn = "Actual (D/P)";
+UI.en.hiddenInfoActualOpp = "Actual (H/D/P)";
 
 const ZONE_LABEL = {
   active: { ja: "バトル場", en: "active" },
@@ -2336,6 +2344,13 @@ function renderHiddenInformation(entry) {
   const opponentTableEl = document.getElementById("hiddenInfoOpponentTable");
   if (!ownStatusEl || !ownTableEl || !opponentStatusEl || !opponentTableEl) return;
 
+  const legendEl = document.getElementById("hiddenInfoLegend");
+  if (legendEl) {
+    legendEl.innerHTML =
+      `${escapeHtml(t("hiddenInfoLegend"))}<br>` +
+      `<span class="hidden-info-note">${escapeHtml(t("hiddenInfoLegendNote"))}</span>`;
+  }
+
   const clearAll = (statusClass, statusText) => {
     ownStatusEl.className = statusClass;
     ownStatusEl.textContent = statusText;
@@ -2356,6 +2371,12 @@ function renderHiddenInformation(entry) {
   }
 
   const pctCell = (value, isTop) => `<span class="hidden-info-pct ${isTop ? "is-top" : ""}">${(Number(value || 0) * 100).toFixed(1)}%</span>`;
+  // 神視点の実枚数を "4 / 0" のように表示。全成分が null（神視点なし）なら "—"、個別 null は "·"。
+  const actualCell = (values) => {
+    const known = values.some((v) => v !== null && v !== undefined);
+    const body = known ? values.map((v) => (v === null || v === undefined ? "·" : String(v))).join(" / ") : "—";
+    return `<span class="hidden-info-actual">${body}</span>`;
+  };
 
   const own = hiddenInfo.own;
   if (!own) {
@@ -2371,13 +2392,14 @@ function renderHiddenInformation(entry) {
     ownTableEl.innerHTML = rows.length
       ? [
           `<div class="hidden-info-row hidden-info-row-2 hidden-info-row-head">
-            <span></span><span>${lang === "ja" ? "山札%" : "Deck%"}</span><span>${lang === "ja" ? "サイド落ち%" : "Prize%"}</span>
+            <span></span><span>${lang === "ja" ? "山札%" : "Deck%"}</span><span>${lang === "ja" ? "サイド落ち%" : "Prize%"}</span><span>${t("hiddenInfoActualOwn")}</span>
           </div>`,
           ...rows.map((c, i) => `
           <div class="hidden-info-row hidden-info-row-2 ${i === 0 ? "is-top" : ""}">
             <span class="hidden-info-name">${escapeHtml(hiddenInfoCardName(c))}</span>
             ${pctCell(c.deck_prob, false)}
             ${pctCell(c.prize_prob, i === 0)}
+            ${actualCell([c.actual_deck, c.actual_prize])}
           </div>`),
         ].join("")
       : `<span class="chip chip-empty">${t("hiddenInfoNoCandidates")}</span>`;
@@ -2402,7 +2424,7 @@ function renderHiddenInformation(entry) {
   opponentTableEl.innerHTML = oRows.length
     ? [
         `<div class="hidden-info-row hidden-info-row-3 hidden-info-row-head">
-          <span></span><span>${lang === "ja" ? "山札%" : "Deck%"}</span><span>${lang === "ja" ? "手札%" : "Hand%"}</span><span>${lang === "ja" ? "サイド落ち%" : "Prize%"}</span>
+          <span></span><span>${lang === "ja" ? "山札%" : "Deck%"}</span><span>${lang === "ja" ? "手札%" : "Hand%"}</span><span>${lang === "ja" ? "サイド落ち%" : "Prize%"}</span><span>${t("hiddenInfoActualOpp")}</span>
         </div>`,
         ...oRows.map((c, i) => `
         <div class="hidden-info-row hidden-info-row-3 ${i === 0 ? "is-top" : ""}">
@@ -2410,6 +2432,7 @@ function renderHiddenInformation(entry) {
           ${pctCell(c.deck_prob, false)}
           ${pctCell(c.hand_prob, i === 0)}
           ${pctCell(c.prize_prob, false)}
+          ${actualCell([c.actual_hand, c.actual_deck, c.actual_prize])}
         </div>`),
       ].join("")
     : `<span class="chip chip-empty">${t("hiddenInfoNoCandidates")}</span>`;

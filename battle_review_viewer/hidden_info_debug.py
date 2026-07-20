@@ -6,6 +6,16 @@ dict の中に ``"hidden_info"`` キーとして同居させる。予測器/推�
 未ロードでも None／最小限の dict を返すだけで、呼び出し側（``export_replay.py`` /
 ``live_match.py``）の処理は止めない。
 
+## 表示は「確率」に絞っているが、実データは関数で取れる（重要）
+
+ビュアーが出しているのは各ゾーンの「最低1枚ある確率」（``marginals()``）だけ。これは表示上の
+割り切りで、推定レイヤー自体は枚数まで持っている。用途に応じて以下を直接呼べば取得できる:
+- ``OwnHiddenState.sample()`` / ``OpponentHiddenState.sample()`` … 山札/サイド(/手札)へ枚数を割り当てた
+  determinization（超幾何サンプリング）。ISMCTS の ``search_begin`` にはこちらを使う。
+- ``zone_math.expected_in_prize()`` / ``expected_in_zone()`` … 各ゾーンの期待枚数（``k·n/M``）。
+- ``OwnHiddenState`` の ``_pool`` は「山札∪サイド」の残り枚数そのもの（``card_id -> 枚数``）。
+つまりビュアーは確率表示にしているだけで、枚数が失われているわけではない。
+
 ## 責務分担（重要）
 
 ``OwnHiddenState.update()`` / ``resolve_deck_search()`` と ``OpponentHiddenState.update()`` の
@@ -18,6 +28,7 @@ dict の中に ``"hidden_info"`` キーとして同居させる。予測器/推�
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 
@@ -29,6 +40,7 @@ def build_hidden_info_debug(
     real_state: Any,
     select: Any = None,
     top_n: int = 15,
+    visual_current: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """自分側（サイド落ち候補）・相手側（手札候補）の周辺確率を top_n 件ずつまとめて返す。
 
@@ -36,6 +48,13 @@ def build_hidden_info_debug(
     インポートできない環境）なら None を返す。``real_state`` が None（まだ対局開始前など）の
     ときも None。それ以外の失敗は握りつぶして ``{"error": str(exc)}`` を返す
     （``ml_prediction_debug.py`` と同じフォールバック規則）。
+
+    ``visual_current`` は神視点（``visualize_data()`` の ``current``、伏せの中身まで見える完全情報）。
+    渡された場合、各候補に「実際にそのゾーンに何枚あったか」（``actual_deck`` /
+    ``actual_prize`` / ``actual_hand``）を重ねる。推定確率はキャリブレーション（ECE）と同じ
+    「そのゾーンに最低1枚ある確率」だが、それ単体では当たり外れが目視できないため、
+    神視点の実枚数を並べて1フレームごとの命中/はずれを追えるようにする（用途=キャリブレーション検証）。
+    神視点が無い（``None``）ゾーンは実枚数を ``None`` にする（正解不明。0枚とは区別する）。
     """
     if own_state is None and opponent_state is None:
         return None
@@ -43,9 +62,37 @@ def build_hidden_info_debug(
         return None
 
     try:
-        return _build(own_state, opponent_state, predictor, knowledge, real_state, select, top_n)
+        return _build(
+            own_state, opponent_state, predictor, knowledge, real_state, select, top_n, visual_current
+        )
     except Exception as exc:  # noqa: BLE001 -- 推定レイヤーが落ちてもリプレイ生成/ライブ対戦は止めない
         return {"error": str(exc)}
+
+
+def _zone_counts(visual_current: dict[str, Any] | None, seat: int, zone_name: str) -> Counter[int] | None:
+    """神視点 dict から ``seat`` の ``zone_name`` ゾーンの ``card_id -> 枚数`` を数える。
+
+    神視点が無い / そのゾーンがリストで表現されていない場合は ``None``（正解不明）を返す。
+    ``None`` と「空 Counter（そのゾーンは空）」は区別する: 前者は「見えていない」、後者は「実際に0枚」。
+    """
+    if visual_current is None:
+        return None
+    players = visual_current.get("players") or []
+    if not (0 <= seat < len(players)):
+        return None
+    zone = players[seat].get(zone_name)
+    if not isinstance(zone, list):
+        return None
+    counts: Counter[int] = Counter()
+    for card in zone:
+        if isinstance(card, dict) and card.get("id") is not None:
+            counts[card["id"]] += 1
+    return counts
+
+
+def _actual(counts: Counter[int] | None, card_id: int) -> int | None:
+    """``counts`` が神視点あり（Counter）なら実枚数（0含む）、無ければ ``None``（正解不明）。"""
+    return None if counts is None else counts.get(card_id, 0)
 
 
 def _build(
@@ -56,6 +103,7 @@ def _build(
     real_state: Any,
     select: Any,
     top_n: int,
+    visual_current: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     from cg.api import all_card_data  # noqa: PLC0415 -- 遅延import(呼び出し側のsys.path設定に依存するため)
 
@@ -71,6 +119,8 @@ def _build(
             own_state.resolve_deck_search(select)
 
         my_player = real_state.players[my_index]
+        own_deck_truth = _zone_counts(visual_current, my_index, "deck")
+        own_prize_truth = _zone_counts(visual_current, my_index, "prize")
         marginals = own_state.marginals()
         candidates = [
             {
@@ -78,6 +128,9 @@ def _build(
                 "name": id_to_name.get(card_id, str(card_id)),
                 "prize_prob": probs["prize"],
                 "deck_prob": probs["deck"],
+                # 神視点の実枚数（正解不明なら None）。推定確率の当たり外れを1フレームで突き合わせる用。
+                "actual_deck": _actual(own_deck_truth, card_id),
+                "actual_prize": _actual(own_prize_truth, card_id),
             }
             for card_id, probs in marginals.items()
         ]
@@ -105,6 +158,9 @@ def _build(
 
         opponent_state.update(archetype_posterior, observed_card_ids, real_state.players[opponent_index])
 
+        opp_hand_truth = _zone_counts(visual_current, opponent_index, "hand")
+        opp_deck_truth = _zone_counts(visual_current, opponent_index, "deck")
+        opp_prize_truth = _zone_counts(visual_current, opponent_index, "prize")
         marginals = opponent_state.marginals()
         candidates = [
             {
@@ -113,6 +169,11 @@ def _build(
                 "hand_prob": probs["hand"],
                 "deck_prob": probs["deck"],
                 "prize_prob": probs["prize"],
+                # 神視点の実枚数（正解不明なら None）。相手は代表リスト由来の card_id なので、
+                # 実デッキに無いカードは全ゾーン0枚になる（＝「予測したが相手は持っていない」も可視化される）。
+                "actual_hand": _actual(opp_hand_truth, card_id),
+                "actual_deck": _actual(opp_deck_truth, card_id),
+                "actual_prize": _actual(opp_prize_truth, card_id),
             }
             for card_id, probs in marginals.items()
         ]

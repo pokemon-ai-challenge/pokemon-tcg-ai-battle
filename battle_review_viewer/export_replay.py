@@ -197,7 +197,9 @@ def build_opponent_knowledge_debug(
     # 非公開情報推定レイヤー（自分の山札∪サイド、相手の山札/手札/サイド）の周辺確率もここで一緒に埋め込む。
     # own_state/opponent_state の update() 呼び出しはこの関数の内部（build_hidden_info_debug）が担う
     # （このフレームにつき build_opponent_knowledge_debug は1回しか呼ばれないため二重更新にならない）。
-    hidden_info = build_hidden_info_debug(own_state, opponent_state, _ml_predictor, knowledge, real_state, select)
+    hidden_info = build_hidden_info_debug(
+        own_state, opponent_state, _ml_predictor, knowledge, real_state, select, visual_current=visual_current
+    )
 
     return {
         "features": knowledge.get_prediction_features(),

@@ -258,6 +258,7 @@ class LiveMatchSession:
             self.opponent_knowledge,
             obs.current,
             obs.select,
+            visual_current=current,
         )
 
         return {

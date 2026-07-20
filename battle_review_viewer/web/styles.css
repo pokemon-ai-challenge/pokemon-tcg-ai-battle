@@ -1760,8 +1760,8 @@ body.drawer-open .stage {
   background: rgba(255, 255, 255, 0.04);
   font-size: 12px;
 }
-.hidden-info-row-2 { grid-template-columns: 1fr 72px 72px; }
-.hidden-info-row-3 { grid-template-columns: 1fr 72px 72px 72px; }
+.hidden-info-row-2 { grid-template-columns: 1fr 64px 64px 92px; }
+.hidden-info-row-3 { grid-template-columns: 1fr 56px 56px 56px 104px; }
 .hidden-info-row-head {
   background: transparent;
   font-size: 11px;
@@ -1774,6 +1774,9 @@ body.drawer-open .stage {
 .hidden-info-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hidden-info-pct { font-family: var(--mono); color: var(--muted); text-align: right; }
 .hidden-info-pct.is-top { color: #7fe6ac; font-weight: 700; }
+.hidden-info-actual { font-family: var(--mono); color: var(--muted); text-align: right; }
+.hidden-info-legend { margin: 0 0 8px; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.hidden-info-note { opacity: 0.75; font-style: italic; }
 
 .debug-placeholder {
   color: var(--muted);
