@@ -300,6 +300,7 @@ UI.ja.debugViewOpponentKnowledge = "相手の公開情報";
 UI.ja.debugViewDeckPredictor = "デッキ予測";
 UI.ja.debugViewMlDeckPredictor = "デッキ予測（ML）";
 UI.ja.debugViewHiddenInformation = "山札・手札・サイド推定";
+UI.ja.debugViewValueEval = "盤面評価";
 UI.ja.mlArchetypeOther = "その他（未分類）";
 UI.ja.observedCardsHeading = "観測済みカード（名前別）";
 UI.ja.currentZonesHeading = "現在のゾーン";
@@ -317,11 +318,18 @@ UI.ja.hiddenInfoLegend = "% = そのゾーンに最低1枚ある確率 ／ 実�
 UI.ja.hiddenInfoLegendNote = "※ ビュアーは確率表示のみ。枚数など詳細は推定関数で取得できます。";
 UI.ja.hiddenInfoActualOwn = "実際(山/サイド)";
 UI.ja.hiddenInfoActualOpp = "実際(手/山/サイド)";
+UI.ja.valueEvalNoData = "この replay には盤面評価データがありません（古い replay か、値ネットが無効）。新しく生成すると出ます。";
+UI.ja.valueEvalNotReady = "値ネット未ロード（重みファイルが見つかりません）。";
+UI.ja.valueEvalSelfLabel = "自分";
+UI.ja.valueEvalOpponentLabel = "相手";
+UI.ja.valueEvalTurnLabel = "ターン";
+UI.ja.valueEvalCaveat = "※ 序盤(ターン1-2)は識別力が低いことが分かっています(オフライン評価: AUC≈0.53)。中盤以降の値を重視してください。";
 UI.en.debugHeading = "Debug";
 UI.en.debugViewOpponentKnowledge = "Opponent Knowledge";
 UI.en.debugViewDeckPredictor = "Deck Predictor";
 UI.en.debugViewMlDeckPredictor = "Deck Predictor (ML)";
 UI.en.debugViewHiddenInformation = "Deck / Hand / Prize Estimation";
+UI.en.debugViewValueEval = "Board Evaluation";
 UI.en.mlArchetypeOther = "Other (unclassified)";
 UI.en.observedCardsHeading = "Observed cards (by name)";
 UI.en.currentZonesHeading = "Current zones";
@@ -339,6 +347,12 @@ UI.en.hiddenInfoLegend = "% = probability ≥1 copy is in that zone / Actual = t
 UI.en.hiddenInfoLegendNote = "Note: the viewer shows probabilities only; counts are available via the estimator functions.";
 UI.en.hiddenInfoActualOwn = "Actual (D/P)";
 UI.en.hiddenInfoActualOpp = "Actual (H/D/P)";
+UI.en.valueEvalNoData = "This replay has no board evaluation data (old replay, or the value network is disabled). Regenerate the replay to see it.";
+UI.en.valueEvalNotReady = "Value network not loaded (weights file not found).";
+UI.en.valueEvalSelfLabel = "You";
+UI.en.valueEvalOpponentLabel = "Opponent";
+UI.en.valueEvalTurnLabel = "Turn";
+UI.en.valueEvalCaveat = "Note: discriminative power is known to be low in the early game (turns 1-2, offline AUC≈0.53). Weight mid-game and later values more heavily.";
 
 const ZONE_LABEL = {
   active: { ja: "バトル場", en: "active" },
@@ -871,6 +885,7 @@ function applyLang() {
   set("groundTruthDiffHeading", t("groundTruthDiffHeading"));
   set("hiddenInfoOwnHeading", t("hiddenInfoOwnHeading"));
   set("hiddenInfoOpponentHeading", t("hiddenInfoOpponentHeading"));
+  set("valueEvalHeading", t("debugViewValueEval"));
   set("generatePlayerPolicyLabel", lang === "ja" ? "自分のCPU" : "Your CPU");
   set("generateOpponentLabel", lang === "ja" ? "相手のCPU" : "Opponent CPU");
   set("generatePlayerDeckLabel", lang === "ja" ? "自分のデッキ" : "Your deck");
@@ -1198,6 +1213,7 @@ function render() {
   renderDeckPredictor(debugEntry);
   renderMlDeckPredictor(debugEntry);
   renderHiddenInformation(debugEntry);
+  renderValueEval(debugEntry);
   renderStadium(current.stadium || [], selectedRefs, actionableRefs);
 
   renderPlayer(opponent, OPPONENT_INDEX, selectedRefs, actionableRefs, {
@@ -2438,6 +2454,61 @@ function renderHiddenInformation(entry) {
     : `<span class="chip chip-empty">${t("hiddenInfoNoCandidates")}</span>`;
 }
 
+// Step1 で学習した勝率予測器(ValueModel)のデバッグ表示。build_value_eval_debug() が
+// export_replay.py / live_match.py 側で opponentKnowledgeDebug と同居させて埋め込む
+// debug.value_eval を読み、自分/相手視点の勝率を数値+横棒で見せる。古い replay には
+// キー自体が無いので、その場合は「データなし」表示にフォールバックする。
+function renderValueEval(entry) {
+  const statusEl = document.getElementById("valueEvalStatus");
+  const contentEl = document.getElementById("valueEvalContent");
+  if (!statusEl || !contentEl) return;
+
+  const valueEval = entry?.debug?.value_eval;
+  if (!valueEval) {
+    statusEl.className = "diagnostic-status";
+    statusEl.textContent = t("valueEvalNoData");
+    contentEl.innerHTML = "";
+    return;
+  }
+  if (valueEval.error) {
+    statusEl.className = "diagnostic-status diagnostic-bad";
+    statusEl.textContent = `${lang === "ja" ? "値ネットエラー: " : "Value network error: "}${valueEval.error}`;
+    contentEl.innerHTML = "";
+    return;
+  }
+  if (!valueEval.is_ready) {
+    statusEl.className = "diagnostic-status";
+    statusEl.textContent = t("valueEvalNotReady");
+    contentEl.innerHTML = "";
+    return;
+  }
+  if (valueEval.win_prob == null) {
+    statusEl.className = "diagnostic-status";
+    statusEl.textContent = t("valueEvalNoData");
+    contentEl.innerHTML = "";
+    return;
+  }
+
+  statusEl.className = "diagnostic-status diagnostic-ok";
+  const turnText = valueEval.turn != null ? `${t("valueEvalTurnLabel")} ${valueEval.turn}` : "";
+  statusEl.textContent = turnText;
+
+  const selfPct = Math.max(0, Math.min(100, valueEval.win_prob * 100));
+  const oppPct = Math.max(0, Math.min(100, valueEval.opponent_win_prob * 100));
+  contentEl.innerHTML = `
+    <div class="value-eval-row">
+      <span class="value-eval-label">${escapeHtml(t("valueEvalSelfLabel"))}</span>
+      <span class="value-eval-track"><span class="value-eval-fill value-eval-fill-self" style="width:${selfPct.toFixed(1)}%"></span></span>
+      <span class="value-eval-pct">${selfPct.toFixed(1)}%</span>
+    </div>
+    <div class="value-eval-row">
+      <span class="value-eval-label">${escapeHtml(t("valueEvalOpponentLabel"))}</span>
+      <span class="value-eval-track"><span class="value-eval-fill value-eval-fill-opp" style="width:${oppPct.toFixed(1)}%"></span></span>
+      <span class="value-eval-pct">${oppPct.toFixed(1)}%</span>
+    </div>
+    <div class="value-eval-caveat">${escapeHtml(t("valueEvalCaveat"))}</div>`;
+}
+
 function renderStadium(stadium, selectedRefs, actionableRefs) {
   const container = document.getElementById("stadiumSlot");
   if (!stadium.length) {
@@ -3272,6 +3343,7 @@ const DEBUG_VIEWS = [
   { id: "deckPredictor", labelKey: "debugViewDeckPredictor" },
   { id: "mlDeckPredictor", labelKey: "debugViewMlDeckPredictor" },
   { id: "hiddenInformation", labelKey: "debugViewHiddenInformation" },
+  { id: "valueEval", labelKey: "debugViewValueEval" },
 ];
 let activeDebugView = DEBUG_VIEWS[0].id;
 

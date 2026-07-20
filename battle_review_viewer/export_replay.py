@@ -35,6 +35,12 @@ try:
 except Exception:  # noqa: BLE001 -- ML予測器が無い/壊れていてもリプレイ生成は続行する
     _ml_predictor = None
 try:
+    from ptcg_ai.learning.value_model import ValueModel  # noqa: E402
+
+    _value_model = ValueModel()
+except Exception:  # noqa: BLE001 -- 値ネットが無い/壊れていてもリプレイ生成は続行する
+    _value_model = None
+try:
     from src.decision import trace  # noqa: E402
 except ImportError:
     # sample_submission/src はこのブランチにはまだ無い（B層の意思決定トレースは別ブランチ由来の
@@ -56,6 +62,10 @@ try:
     from .hidden_info_debug import build_hidden_info_debug  # noqa: E402
 except ImportError:
     from hidden_info_debug import build_hidden_info_debug  # noqa: E402
+try:
+    from .value_eval_debug import build_value_eval_debug  # noqa: E402
+except ImportError:
+    from value_eval_debug import build_value_eval_debug  # noqa: E402
 try:
     from ptcg_ai.hidden_information.own_hidden_state import OwnHiddenState  # noqa: E402
     from ptcg_ai.hidden_information.opponent_hidden_state import OpponentHiddenState  # noqa: E402
@@ -194,6 +204,9 @@ def build_opponent_knowledge_debug(
     # ML版予測器（学習済みロジスティック回帰）も同じ観測で走らせ、rough_predictor と並べて見比べられるようにする。
     ml_prediction = build_ml_prediction_debug(_ml_predictor, knowledge, real_state)
 
+    # Step1 で学習した勝率予測器(ValueModel)による、この局面の自分視点勝率もここで一緒に埋め込む。
+    value_eval = build_value_eval_debug(_value_model, real_state)
+
     # 非公開情報推定レイヤー（自分の山札∪サイド、相手の山札/手札/サイド）の周辺確率もここで一緒に埋め込む。
     # own_state/opponent_state の update() 呼び出しはこの関数の内部（build_hidden_info_debug）が担う
     # （このフレームにつき build_opponent_knowledge_debug は1回しか呼ばれないため二重更新にならない）。
@@ -206,6 +219,7 @@ def build_opponent_knowledge_debug(
         "diff": diff,
         "prediction": prediction,
         "ml_prediction": ml_prediction,
+        "value_eval": value_eval,
         "hidden_info": hidden_info,
     }
 
