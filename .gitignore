@@ -40,6 +40,15 @@ tmp_submit_check/
 battle_review_viewer/replays/*.json
 !battle_review_viewer/replays/.gitkeep
 
+# kaggle_replays: raw replay JSON is large (~MB/episode) and re-downloadable, so it stays local only.
+# index/episodes_master.jsonl and index/leaderboard_history/*.json are small, NOT re-derivable
+# (they capture a leaderboard rank/score snapshot at fetch time), and ARE tracked in git.
+# See kaggle_replays/README.md for the full storage policy.
+kaggle_replays/replays/*.json
+!kaggle_replays/replays/.gitkeep
+kaggle_replays/training_data/*
+!kaggle_replays/training_data/.gitkeep
+
 # battle_review_viewer: card images are generated locally from the data/ PDF (not shared).
 # Missing on first run → the viewer regenerates them in the background.
 battle_review_viewer/web/card_images/*.jpg

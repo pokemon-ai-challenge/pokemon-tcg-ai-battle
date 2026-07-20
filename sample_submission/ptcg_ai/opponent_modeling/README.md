@@ -9,7 +9,6 @@
 
 - 実装計画・設計方針: [docs/plans/opponent-deck-predictor/plan.md](../../docs/plans/opponent-deck-predictor/plan.md)
 - MVP 方針メモ: [docs/plans/opponent-deck-predictor/mvp-strategy.md](../../docs/plans/opponent-deck-predictor/mvp-strategy.md)
-- デッキ分布推定・教師あり学習 方針メモ: [docs/plans/opponent-deck-predictor/deck-distribution-and-learned-predictor-plan.md](../../docs/plans/opponent-deck-predictor/deck-distribution-and-learned-predictor-plan.md)
 - 観測情報記録器の設計: [docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md](../../docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md)
 - 関連 Issue: #25（MVP 本体）, #26（特徴量 config）
 
