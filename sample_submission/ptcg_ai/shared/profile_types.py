@@ -11,7 +11,7 @@ EffectCategory は、グッズ/サポート/どうぐ/スタジアム/特性の�
 """
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Callable, Literal
 
 EffectCategory = Literal[
     "search",       # デッキ/手札からカードを探す
@@ -50,11 +50,58 @@ class AttackProfile:
 
 
 @dataclass
+class OpponentBenchStatus:
+    """相手ベンチ1体ぶんのスナップショット（UsageContext から参照する）。"""
+
+    card_id: int
+    hp: int
+
+
+@dataclass
+class UsageContext:
+    """グッズ/サポート/スタジアムの使用条件（usage_condition）に渡す、盤面の「今の状態」の
+    スナップショット。担当Bが Observation/State から組み立てて渡す
+    （ptcg_ai.board_evaluation.usage_context.build_usage_context）。
+
+    担当Aは usage_condition 関数の中で、ここに載っている値だけを見て bool を返す
+    （Observation/State を直接扱わない）。載っていない情報が必要になった場合は、
+    担当Bにフィールド追加を相談すること（勝手に profile_types.py 以外の経路で
+    盤面情報を取得しない）。
+    """
+
+    own_hand_ids: list[int] = field(default_factory=list)
+    own_active_id: int | None = None
+    own_bench_ids: list[int] = field(default_factory=list)
+    own_discard_ids: list[int] = field(default_factory=list)
+    own_active_energy_count: int = 0
+    own_discard_pokemon_count: int = 0
+    opponent_active_id: int | None = None
+    opponent_active_hp: int | None = None
+    opponent_bench: list[OpponentBenchStatus] = field(default_factory=list)
+    opponent_active_has_special_energy: bool = False
+    stadium_id: int | None = None
+
+    @property
+    def own_board_ids(self) -> list[int]:
+        """自分の場（バトル場+ベンチ）にいるポケモンの card_id 一覧。"""
+        ids = list(self.own_bench_ids)
+        if self.own_active_id is not None:
+            ids.append(self.own_active_id)
+        return ids
+
+
+# グッズ/サポート/スタジアムを「今使うべきか」判定する条件関数。UsageContext だけを見て bool を返す。
+# None なら「常に使ってよい（category/priority だけで判断する）」を意味する。
+UsageCondition = Callable[[UsageContext], bool]
+
+
+@dataclass
 class ItemProfile:
     """グッズ1枚の効果分類データ。"""
 
     category: EffectCategory
     priority: float = 0.0  # 同カテゴリ内での使用優先度の目安（tie-break用）
+    usage_condition: UsageCondition | None = None  # 「今使うべきか」の判定関数（無ければ常に使用可）
 
 
 @dataclass
@@ -63,6 +110,7 @@ class SupporterProfile:
 
     category: EffectCategory
     priority: float = 0.0
+    usage_condition: UsageCondition | None = None
 
 
 @dataclass
@@ -79,6 +127,7 @@ class StadiumProfile:
 
     category: EffectCategory
     priority: float = 0.0
+    usage_condition: UsageCondition | None = None
 
 
 @dataclass
