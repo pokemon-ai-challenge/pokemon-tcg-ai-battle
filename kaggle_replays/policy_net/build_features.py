@@ -33,6 +33,18 @@ policy_positions.jsonl.gz の i 行目(0-indexed、空行を除く)に対応す�
   python build_features.py                  # 全件処理
   python build_features.py --limit 2000      # 先頭2000行のみ(動作確認用)
   python build_features.py --in ... --out ... --limit ...
+
+skill-concentration実験用フラグ(policymodel-skill-concentration-implementation-plan.md Step2。
+既定値は上記の固定設計のまま = フラグを付けなければ既存の挙動と完全に同じ):
+  --rank-max N        rank_at_fetch が N を超える行(不明=Noneも含む)を除外するハードフィルタ。
+                       既定は None(フィルタなし)。
+  --weight-scheme {default,concentrated}
+                       default(既定)は上記の _WEIGHT_BY_RANK_BUCKET をそのまま使う。
+                       concentrated は rank_at_fetch の生値に基づく専用スキーム
+                       (weight_for_rank_concentrated、rank<=20:8.0 / <=50:3.0 / <=200:1.5 /
+                       <=1000:1.0 / 1000超:0.5 / 不明:0.2)。既存の rank_bucket() より粒度が
+                       細かく、上位への勾配集中を強める実験用(design.md §4 の固定表は変更しない
+                       別関数として追加)。
 """
 
 from __future__ import annotations
@@ -98,6 +110,22 @@ def weight_for_rank(rank_at_fetch: int | None) -> float:
     return _WEIGHT_BY_RANK_BUCKET[rank_bucket(rank_at_fetch)]
 
 
+def weight_for_rank_concentrated(rank_at_fetch: int | None) -> float:
+    """--weight-scheme concentrated 用。rank_bucket() より粒度の細かい専用テーブル
+    (skill-concentration実験専用。既定の weight_for_rank は変更しない)。"""
+    if rank_at_fetch is None:
+        return 0.2
+    if rank_at_fetch <= 20:
+        return 8.0
+    if rank_at_fetch <= 50:
+        return 3.0
+    if rank_at_fetch <= 200:
+        return 1.5
+    if rank_at_fetch <= 1000:
+        return 1.0
+    return 0.5
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--in", dest="in_path", default=str(_DEFAULT_IN))
@@ -105,7 +133,16 @@ def main() -> None:
     parser.add_argument(
         "--limit", type=int, default=None, help="先頭N行のみ処理する(動作確認モード)"
     )
+    parser.add_argument(
+        "--rank-max", type=int, default=None,
+        help="rank_at_fetch がこの値を超える行(不明含む)を除外するハードフィルタ(既定: フィルタなし)",
+    )
+    parser.add_argument(
+        "--weight-scheme", choices=["default", "concentrated"], default="default",
+        help="サンプル重みスキーム(既定: default = 固定の rank_bucket テーブル)",
+    )
     args = parser.parse_args()
+    weight_fn = weight_for_rank_concentrated if args.weight_scheme == "concentrated" else weight_for_rank
 
     in_path = Path(args.in_path)
     out_path = Path(args.out_path)
@@ -123,14 +160,21 @@ def main() -> None:
     turn_rows: list[int] = []
     select_type_rows: list[int] = []
     select_context_rows: list[int] = []
+    rank_rows: list[int] = []
+    row_index_rows: list[int] = []
 
-    n_total = 0  # 空行を除いた採用行数(= 出力行数 = row_index)
+    n_total = 0  # フィルタ後の採用行数(= 出力行数)
     n_seen_lines = 0
+    line_no = -1  # 空行を除いた0-indexed行番号(evaluate.pyの数え方と同じ。フィルタの影響を受けない)
     t0 = time.time()
 
     print(f"読み込み開始: {in_path}", file=sys.stderr)
     if args.limit is not None:
         print(f"動作確認モード: 先頭 {args.limit} 行のみ処理", file=sys.stderr)
+    if args.rank_max is not None:
+        print(f"rank フィルタ: rank_at_fetch<= {args.rank_max}(不明含め超過行は除外)", file=sys.stderr)
+    if args.weight_scheme != "default":
+        print(f"weight スキーム: {args.weight_scheme}", file=sys.stderr)
 
     with gzip.open(in_path, "rt", encoding="utf-8") as f:
         for line in f:
@@ -138,6 +182,7 @@ def main() -> None:
             line = line.strip()
             if not line:
                 continue
+            line_no += 1
             if args.limit is not None and n_total >= args.limit:
                 break
 
@@ -150,7 +195,11 @@ def main() -> None:
                 )
                 raise
 
-            row_index = n_total  # このファイルでの採用順インデックス(0-indexed)
+            rank_at_fetch = row.get("rank_at_fetch")
+            if args.rank_max is not None and (rank_at_fetch is None or rank_at_fetch > args.rank_max):
+                continue  # フィルタで除外(line_no は既にインクリメント済みなので元ファイルの行番号との対応は崩れない)
+
+            row_index = line_no  # 元ファイル(policy_positions.jsonl.gz)での0-indexed行番号
 
             try:
                 obs_dict = {**row["observation"], "logs": []}
@@ -204,10 +253,12 @@ def main() -> None:
             option_card_id_rows.append(np.asarray(option_card_ids, dtype=np.int32))
             chosen_index_rows.append(chosen_index)
             split_rows.append(split_for_episode(episode_id))
-            weight_rows.append(weight_for_rank(row.get("rank_at_fetch")))
+            weight_rows.append(weight_fn(rank_at_fetch))
             turn_rows.append(int(row.get("turn", -1)))
             select_type_rows.append(int(row["select_type"]))
             select_context_rows.append(int(row["select_context"]))
+            rank_rows.append(rank_at_fetch if rank_at_fetch is not None else -1)
+            row_index_rows.append(row_index)
 
             n_total += 1
             if n_total % _PROGRESS_EVERY == 0:
@@ -235,7 +286,8 @@ def main() -> None:
     turn = np.asarray(turn_rows, dtype=np.int32)
     select_type = np.asarray(select_type_rows, dtype=np.int32)
     select_context = np.asarray(select_context_rows, dtype=np.int32)
-    row_index = np.arange(n_total, dtype=np.int32)
+    rank_at_fetch_arr = np.asarray(rank_rows, dtype=np.int32)  # -1 = 不明(rank_at_fetch is None)
+    row_index = np.asarray(row_index_rows, dtype=np.int32)  # 元ファイルでの0-indexed行番号(rank-maxフィルタ時はarangeと異なる)
 
     print(f"state_features shape={state_features.shape} dtype={state_features.dtype}", file=sys.stderr)
     print(
@@ -257,6 +309,7 @@ def main() -> None:
         select_type=select_type,
         select_context=select_context,
         row_index=row_index,
+        rank_at_fetch=rank_at_fetch_arr,
     )
     size_mb = out_path.stat().st_size / 1e6
     print(f"書き出し完了: {out_path} ({size_mb:.1f} MB)", file=sys.stderr)
