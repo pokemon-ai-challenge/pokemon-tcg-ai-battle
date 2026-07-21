@@ -1,0 +1,14 @@
+{
+  "name": "ml_pimc_dummy",
+  "lethal_search": {
+    "enabled": true,
+    "module": "pimc",
+    "hidden_state_source": "dummy",
+    "time_limit_ms": 300,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "num_determinizations": 4
+  },
+  "value_shadow_logging": true
+}

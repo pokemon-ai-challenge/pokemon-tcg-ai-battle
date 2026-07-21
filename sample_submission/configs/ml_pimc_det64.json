@@ -1,0 +1,14 @@
+{
+  "name": "ml_pimc_det64",
+  "lethal_search": {
+    "enabled": true,
+    "module": "pimc",
+    "hidden_state_source": "estimated",
+    "time_limit_ms": 4800,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "num_determinizations": 64
+  },
+  "value_shadow_logging": true
+}
