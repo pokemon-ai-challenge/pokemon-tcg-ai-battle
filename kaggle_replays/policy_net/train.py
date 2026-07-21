@@ -35,6 +35,11 @@
 使い方:
   PYTHONIOENCODING=utf-8 python train.py
   PYTHONIOENCODING=utf-8 python train.py --limit 5000 --max-epochs 5  (動作確認用)
+
+skill-concentration実験用フラグ(policymodel-skill-concentration-implementation-plan.md Step2):
+  --out-weights PATH  重みJSONの書き出し先(既定: 現行の sample_submission/ptcg_ai/learning/
+                       policy_weights.json、= 本番が読む場所)。実験構成は本番重みを上書きしない
+                       よう、必ず別パス(例: policy_weights_configA.json)を明示指定すること。
 """
 
 from __future__ import annotations
@@ -379,7 +384,12 @@ def main() -> None:
     parser.add_argument("--patience", type=int, default=_PATIENCE)
     parser.add_argument("--batch-size", type=int, default=_BATCH_SIZE)
     parser.add_argument("--limit", type=int, default=None, help="先頭N件のみ使う(動作確認モード)")
+    parser.add_argument(
+        "--out-weights", default=str(_WEIGHTS_OUT_PATH),
+        help="重みJSON書き出し先(既定: 本番パス。実験時は別パスを明示指定すること)",
+    )
     args = parser.parse_args()
+    weights_out_path = Path(args.out_weights)
 
     features_path = Path(args.features)
     print(f"features.npz を読み込み: {features_path}")
@@ -549,9 +559,9 @@ def main() -> None:
         "layers": layers_json,
     }
 
-    _WEIGHTS_OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _WEIGHTS_OUT_PATH.write_text(json.dumps(weights_json, ensure_ascii=False), encoding="utf-8")
-    print(f"\n重みを書き出しました: {_WEIGHTS_OUT_PATH} ({_WEIGHTS_OUT_PATH.stat().st_size / 1e3:.1f} KB)")
+    weights_out_path.parent.mkdir(parents=True, exist_ok=True)
+    weights_out_path.write_text(json.dumps(weights_json, ensure_ascii=False), encoding="utf-8")
+    print(f"\n重みを書き出しました: {weights_out_path} ({weights_out_path.stat().st_size / 1e3:.1f} KB)")
 
     # --- 自己検証: 本番推論経路(ptcg_ai.learning.policy_model.PolicyModel._forward)と
     # 数値的に一致する独立実装(pure_python_forward、本ファイル内で JSON を再読み込みして
@@ -565,7 +575,7 @@ def main() -> None:
     # してから同じ標準化式を float64 で適用して比較することで、丸め誤差ではなく実装の
     # 一致(連結順・標準化・埋め込み参照・層の順序)だけを検証する。
     print("\n=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===")
-    reloaded = json.loads(_WEIGHTS_OUT_PATH.read_text(encoding="utf-8"))
+    reloaded = json.loads(weights_out_path.read_text(encoding="utf-8"))
 
     main_model_fp64 = main_model.double()
     main_model_fp64.eval()
@@ -610,7 +620,7 @@ def main() -> None:
     print(f"  ベースライン(option only)      test: top1={baseline_test['top1_accuracy']:.4f} nll={baseline_test['mean_weighted_nll']:.4f}")
     print(f"  本命(state ++ option ++ embed) test: top1={main_test['top1_accuracy']:.4f} nll={main_test['mean_weighted_nll']:.4f}")
     print(f"  自己検証: 最大誤差={max_abs_err:.8e} -> {'PASS' if self_check_pass else 'FAIL'}")
-    print(f"  出力: {_WEIGHTS_OUT_PATH}")
+    print(f"  出力: {weights_out_path}")
 
 
 if __name__ == "__main__":

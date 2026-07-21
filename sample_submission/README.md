@@ -126,9 +126,12 @@ https://www.kaggle.com/competitions/pokemon-tcg-ai-battle
 
 ```powershell
 cd sample_submission
-tar -czvf submission.tar.gz main.py deck.csv cg configs ptcg_ai
+tar -czvf submission.tar.gz main.py deck.csv cg configs ptcg_ai decks
 kaggle competitions submit pokemon-tcg-ai-battle -f submission.tar.gz -m "提出内容の説明"
 ```
+
+> **重要（`decks/` を必ず含める）**: 現在の agent は import 連鎖で `decks/`（`ptcg_ai/shared/profile_registry.py` → `from decks import active`）に依存する。`decks` を tar に含め忘れると、Kaggle 側で agent が **import すらできず即 `SubmissionStatus.ERROR`** になる（ローカルはリポジトリ全体があるため気づけない。実例: 提出 54876982）。
+> 提出前の確認として、tarball を**空のディレクトリに展開して**（＝Kaggle と同じ「tarball の中身しか無い」状態）1ゲーム走らせると、この種の欠落を事前に検出できる。
 
 提出後の確認:
 
