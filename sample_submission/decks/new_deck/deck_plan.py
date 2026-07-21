@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ptcg_ai.shared.profile_types import EnergyCardContext, EnergyPriorityRule
+
 
 @dataclass(frozen=True)
 class AttackerPlan:
@@ -37,14 +39,6 @@ class PriorityEntry:
 class PrizeStageWinCondition:
     prize_range: str
     plan: str
-
-
-@dataclass(frozen=True)
-class EnergyPriorityRule:
-    """特定条件下でのエネルギーカード付与優先順位（カードIDを優先度順に並べたもの）。"""
-
-    condition: str
-    order: list[int]
 
 
 @dataclass(frozen=True)
@@ -273,20 +267,49 @@ TELEPATH_ENERGY_CARD_ID = 19
 RICH_ENERGY_CARD_ID = 13
 ENERGY_RECYCLE_TOOL_CARD_ID = 1146  # ワンダーパッチ：トラッシュの基本超エネルギーをベンチの超ポケモンに再利用
 
+def _alakazam_needs_first_energy(ctx: EnergyCardContext) -> bool:
+    """付与先がフーディンで、まだエネルギーが0個の場合。
+
+    ハンドパワーのコストは【超】1個指定で、無エネルギーのリッチエネルギーだけでは
+    支払えないため、まず超エネルギー（テレパス/基本）で攻撃可能な状態にする。
+    """
+    return ctx.target_card_id == MAIN_ATTACKER.card_id and ctx.target_energy_count == 0
+
+
+def _otherwise(ctx: EnergyCardContext) -> bool:
+    """それ以外（フーディン以外への付与、またはフーディンに既にエネルギーが付いている場合）。
+
+    常に True を返す、フォールバック用の最終ルール。
+    """
+    return True
+
+
 ENERGY_CARD_PRIORITY_RULES: list[EnergyPriorityRule] = [
     EnergyPriorityRule(
-        condition=(
-            "付与先がフーディンで、まだエネルギーが0個の場合"
-            "（ハンドパワーのコストは【超】1個指定で、無エネルギーのリッチエネルギーでは"
-            "支払えないため、まず超エネルギーで攻撃可能な状態にする）"
-        ),
+        condition=_alakazam_needs_first_energy,
         order=[TELEPATH_ENERGY_CARD_ID, BASIC_PSYCHIC_ENERGY_CARD_ID],
     ),
     EnergyPriorityRule(
-        condition="それ以外（フーディン以外への付与、またはフーディンに既にエネルギーが付いている場合）",
+        condition=_otherwise,
         order=[RICH_ENERGY_CARD_ID, TELEPATH_ENERGY_CARD_ID, BASIC_PSYCHIC_ENERGY_CARD_ID],
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# エネルギー周回コンボ（ノココッチ×リッチエネルギー）
+# ---------------------------------------------------------------------------
+#
+# リッチエネルギー(ACE SPEC・1枚)は、ノココッチの特性「にげあしドロー」
+# （3ドロー後、自身と付いているカード全てを山札に戻す。特性自体にエネルギーコストは無い）
+# で回収し直せる。バトル場の主力に攻撃可能なだけのエネルギーが既に付いている、または
+# ワンダーパッチでトラッシュから後から補給できる場合に限り、余っているリッチエネルギーを
+# ノココッチに預けて回す（③実装時: energy_eval.py が ENERGY_REQUIRED_COUNT /
+# ワンダーパッチの usage_condition と組み合わせて判定する）。
+
+ENERGY_RECYCLE_TARGET_CARD_ID = 66  # ノココッチ
+ENERGY_RECYCLE_CARD_ID = RICH_ENERGY_CARD_ID  # リッチエネルギー
+ENERGY_RECYCLE_BACKUP_ITEM_ID = ENERGY_RECYCLE_TOOL_CARD_ID  # ワンダーパッチ
 
 # 付与ルール:
 # - ENERGY_REQUIRED_COUNT に定めた必要数以上は付けない。
@@ -328,6 +351,14 @@ SEARCH_PRIORITY: list[PriorityEntry] = [
         card_id=RARE_CANDY_CARD_ID,
         name="ふしぎなアメ",
         reason="フーディンへの進化短縮用。基本的に手札に来たら温存し、進化ルートのために使う。",
+    ),
+    PriorityEntry(
+        card_id=ENERGY_RECYCLE_CARD_ID,
+        name="リッチエネルギー",
+        reason=(
+            "ACE SPEC・1枚のみ。ノココッチの特性で山札に戻した後は、"
+            "トウコ等のエネルギーサーチで優先的に回収し直す。"
+        ),
     ),
 ]
 

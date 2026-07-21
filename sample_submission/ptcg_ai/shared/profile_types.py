@@ -138,6 +138,30 @@ class EnergyProfile:
 
 
 @dataclass
+class EnergyCardContext:
+    """ENERGY_CARD_PRIORITY_RULES の条件関数に渡す、エネルギー付与1回ぶんの状況。"""
+
+    target_card_id: int  # エネルギーを付ける先のポケモンの card_id
+    target_energy_count: int  # 付ける先に現在付いているエネルギー本数
+
+
+# 条件付きの「どのエネルギーカードを使うか」の条件関数。EnergyCardContext だけを見て bool を返す。
+EnergyCardCondition = Callable[[EnergyCardContext], bool]
+
+
+@dataclass
+class EnergyPriorityRule:
+    """条件付きの「どのエネルギーカードを使うか」優先順位
+    （担当Aが decks/new_deck/deck_plan.py の ENERGY_CARD_PRIORITY_RULES で定義する）。
+
+    condition が True を返す最初のルールの order（card_id を優先度順に並べたもの）を使う。
+    """
+
+    condition: EnergyCardCondition
+    order: list[int]
+
+
+@dataclass
 class DeckPlan:
     """デッキ方針データを担当Bの判断ロジックに渡すための正規化された形（クラスタ⑥）。
 
@@ -156,3 +180,9 @@ class DeckPlan:
     search_priority: list[int] = field(default_factory=list)  # サーチで最初に探すべきカードID順
     protected_card_ids: set[int] = field(default_factory=set)  # 捨てたくないカードIDの集合
     win_condition_by_prize: dict[int, str] = field(default_factory=dict)  # 残りサイド枚数ごとの勝ち筋メモ
+
+    # エネルギー周回コンボ（例: ACE SPECエネルギーを、山札に戻る特性持ちポケモンに一時的に
+    # 付けて再利用する）。該当が無いデッキでは None のままでよい。
+    energy_recycle_target_id: int | None = None  # 周回コンボの受け皿にするポケモンのcard_id
+    energy_recycle_card_id: int | None = None  # 周回させたいエネルギーカードのcard_id
+    energy_recycle_backup_item_id: int | None = None  # 主力への代替エネルギー供給手段（グッズ等）のcard_id

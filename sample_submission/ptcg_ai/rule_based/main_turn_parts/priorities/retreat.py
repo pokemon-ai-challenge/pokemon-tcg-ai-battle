@@ -10,9 +10,10 @@
 
 from cg.api import Observation, OptionType
 
-from ptcg_ai.board_evaluation import board_features
+from ptcg_ai.board_evaluation import board_features, energy_requirements
 from ptcg_ai.rule_based.main_turn_parts import pokemon_value
 from ptcg_ai.rule_based.main_turn_parts.proposals import ActionProposal
+from ptcg_ai.shared import card_cache
 
 _URGENT_RETREAT_SCORE = 5.0
 _IMPROVEMENT_RETREAT_SCORE = 1.0
@@ -29,6 +30,11 @@ def propose(obs: Observation) -> ActionProposal | None:
     if not player.active or player.active[0] is None:
         return None
     active = player.active[0]
+
+    active_card = card_cache.get_card(active.id)
+    if not energy_requirements.can_afford_retreat(active_card.retreatCost, active.energies):
+        # にげるコストを払えない（合法手として出ていても念のための防御）。
+        return None
 
     bench = list(player.bench)
     if not bench:

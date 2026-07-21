@@ -10,6 +10,7 @@ from ptcg_ai.shared.profile_types import (
     AttackProfile,
     DeckPlan,
     EnergyProfile,
+    EnergyPriorityRule,
     ItemProfile,
     PokemonProfile,
     StadiumProfile,
@@ -55,6 +56,9 @@ def _build_deck_plan() -> DeckPlan:
         # 空のままにしておく（必要になれば plan.WIN_CONDITIONS_BY_PRIZE を直接使う専用の
         # アクセサを別途用意する）。
         win_condition_by_prize={},
+        energy_recycle_target_id=getattr(plan, "ENERGY_RECYCLE_TARGET_CARD_ID", None),
+        energy_recycle_card_id=getattr(plan, "ENERGY_RECYCLE_CARD_ID", None),
+        energy_recycle_backup_item_id=getattr(plan, "ENERGY_RECYCLE_BACKUP_ITEM_ID", None),
     )
 
 
@@ -62,6 +66,34 @@ def reset_deck_plan_cache() -> None:
     """テスト用: DeckPlan のキャッシュを破棄する（通常の対戦では不要）。"""
     global _deck_plan_cache
     _deck_plan_cache = None
+
+
+def get_ko_replacement_priority() -> list[int]:
+    """decks.active.deck_plan.KO_REPLACEMENT_PRIORITY の card_id 列を返す。
+
+    同じ card_id が複数回登場しうる（例: 同じポケモンでもエネルギー充足状況で
+    優先度を分けたい場合）。呼び出し側でその重複をどう解決するかを判断する。
+    デッキがこのデータを持たない場合は空リスト。
+    """
+    entries = getattr(active.deck_plan, "KO_REPLACEMENT_PRIORITY", [])
+    return [entry.card_id for entry in entries]
+
+
+def get_energy_required_count(card_id: int) -> int | None:
+    """decks.active.deck_plan.ENERGY_REQUIRED_COUNT から、そのポケモンが攻撃に必要とする
+    エネルギー総数の上限を引く（無ければ None = 上限不明）。
+    """
+    table: dict[int, int] = getattr(active.deck_plan, "ENERGY_REQUIRED_COUNT", {})
+    return table.get(card_id)
+
+
+def get_energy_card_priority_rules() -> list[EnergyPriorityRule]:
+    """decks.active.deck_plan.ENERGY_CARD_PRIORITY_RULES をそのまま返す。
+
+    各ルールの condition(EnergyCardContext) -> bool を先頭から順に試し、
+    最初に True になったルールの order（card_id の優先順）を使う。
+    """
+    return list(getattr(active.deck_plan, "ENERGY_CARD_PRIORITY_RULES", []))
 
 
 def get_pokemon_profile(card_id: int) -> PokemonProfile | None:

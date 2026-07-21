@@ -22,6 +22,8 @@ _ROLE_SCORE_WEIGHT = 3.0
 _BENCH_VALUE_PENALTY_WEIGHT = 2.0
 # combo_with の相棒が自分の場に既にいるなら、今アクティブにする/しておく理由として加点する。
 _COMBO_BONUS = 1.5
+# KO_REPLACEMENT_PRIORITY での順位に応じた加点の基準値（順位が下がるほど少しずつ減らす）。
+_KO_REPLACEMENT_BASE_SCORE = 4.0
 
 
 def active_value(pokemon: Pokemon, state: State, your_index: int) -> float:
@@ -30,9 +32,11 @@ def active_value(pokemon: Pokemon, state: State, your_index: int) -> float:
 
 
 def switch_target_value(candidate: Pokemon, state: State, your_index: int) -> float:
-    """交代先候補としての総合評価（B の switch_eval + A の PokemonProfile）。"""
-    return switch_eval.switch_target_score(candidate, state, your_index) + _profile_bonus(
-        candidate, state, your_index
+    """交代先候補としての総合評価（B の switch_eval + A の PokemonProfile + KO_REPLACEMENT_PRIORITY）。"""
+    return (
+        switch_eval.switch_target_score(candidate, state, your_index)
+        + _profile_bonus(candidate, state, your_index)
+        + _ko_replacement_bonus(candidate)
     )
 
 
@@ -63,3 +67,33 @@ def _combo_partner_in_play(combo_with: list[int], state: State, your_index: int)
     own_card_ids = {pokemon.id for pokemon in player.active if pokemon is not None}
     own_card_ids |= {pokemon.id for pokemon in player.bench}
     return any(card_id in own_card_ids for card_id in combo_with)
+
+
+def _ko_replacement_bonus(pokemon: Pokemon) -> float:
+    """KO_REPLACEMENT_PRIORITY（きぜつ後の後継優先順位）に応じた加点。"""
+    priority = profile_registry.get_ko_replacement_priority()
+    rank = _ko_replacement_rank(pokemon.id, len(pokemon.energies), priority)
+    if rank is None:
+        return 0.0
+    return _KO_REPLACEMENT_BASE_SCORE - rank * 0.01
+
+
+def _ko_replacement_rank(card_id: int, energy_count: int, priority: list[int]) -> int | None:
+    """priority 内での card_id の順位（小さいほど優先）を返す。載っていなければ None。
+
+    同じ card_id が複数回登場する場合（例: 同じポケモンでもエネルギー充足度で優先度を
+    分けたいケース）は、ENERGY_REQUIRED_COUNT に対してエネルギーがほぼ足りている
+    （あと1本以内）候補は先頭寄りの登場位置を、そうでなければ末尾寄りの登場位置を採用する。
+    """
+    matches = [i for i, cid in enumerate(priority) if cid == card_id]
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+
+    required = profile_registry.get_energy_required_count(card_id)
+    if required is None:
+        return matches[0]
+
+    is_almost_ready = energy_count >= required - 1
+    return matches[0] if is_almost_ready else matches[-1]

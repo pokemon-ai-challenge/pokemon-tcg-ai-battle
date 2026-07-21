@@ -78,3 +78,12 @@ def energy_shortfall(attack: Attack, attached: list[EnergyType]) -> dict[EnergyT
 def is_energy_sufficient(attack: Attack, attached: list[EnergyType]) -> bool:
     """このワザを今すぐ使えるだけのエネルギーが揃っているかを判定する。"""
     return not energy_shortfall(attack, attached)
+
+
+def can_afford_retreat(retreat_cost: int, attached: list[EnergyType]) -> bool:
+    """にげるコスト（付いているエネルギーを retreat_cost 枚捨てる）を支払えるかを判定する。
+
+    にげるコストはタイプを問わず、付いているエネルギーの総数だけで判定する
+    （弱点/抵抗力や色指定のある技コストとは異なり、色の一致は不要）。
+    """
+    return len(attached) >= retreat_cost
