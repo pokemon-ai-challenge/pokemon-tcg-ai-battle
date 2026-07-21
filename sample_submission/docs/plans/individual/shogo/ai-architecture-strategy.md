@@ -4,6 +4,8 @@
 状態: 検討メモ（決定ではなく、あくまで推奨案）
 関連: [ml-agent-plan.md](./ml-agent-plan.md)（個人方針メモ、本文書はこれを実装状況に照らして更新・具体化したもの）
 
+**実装方針決定（2026-07-21）**: Stage 2（PIMC + hidden_information接続）はブランチ `experiment/pimc-hidden-info-integration` で着手する。ベースは `integration` ではなく `feature/ml-imitation-policy`（直接の親ブランチにスタック）。理由: PRレビューが早く返ってこない体制のため `feature/ml-imitation-policy` の`integration`マージを待たない。この`experiment/`は検証用の一時ブランチと位置づけ、有効だった部分だけ後で新しい `feature/*` ブランチに切り出し、`integration` へ改めてPRする（`docs/team-development-rules.md` の `experiment/*` 運用に準拠）。`ptcg_ai/search/` `ptcg_ai/action_selection/selector.py` 等はtsuoimorikaさんの担当領域のため、着手前に一言相談する。
+
 このドキュメントは2部構成。
 
 - **第1部**: このプロジェクトで統計的機械学習が有効そうな理由を、山札推定・盤面評価などの具体テーマに沿って一つの文章としてまとめる。
@@ -59,12 +61,12 @@ flowchart TD
 
     HI --> DET["determinization\n推定分布から相手の手札・山札を複数サンプリングし\n非公開情報を一時的に「確定」させる"]
 
-    DET --> ISMCTS["ISMCTS探索\n(サンプルごとに独立して数手読み)"]
+    DET --> PIMC["PIMC探索\n(サンプルごとに独立した木で数手読み)"]
 
-    POLICY["ml_policy (模倣ポリシー)\n候補手に事前確率を与えて枝刈り"] --> ISMCTS
-    VALUE["value network (盤面評価)\n葉ノードで勝率を評価し, 深読みを打ち切る"] --> ISMCTS
+    POLICY["ml_policy (模倣ポリシー)\n候補手に事前確率を与えて枝刈り"] --> PIMC
+    VALUE["value network (盤面評価)\n葉ノードで勝率を評価し, 深読みを打ち切る"] --> PIMC
 
-    ISMCTS --> AGG["複数サンプルの結果を集約\n(平均 or 最悪ケース重視)"]
+    PIMC --> AGG["複数サンプルの結果を集約\n(平均 or 最悪ケース重視)"]
 
     AGG --> TIME{"時間予算内?"}
     TIME -- Yes --> ACT["最終行動選択"]
@@ -75,7 +77,7 @@ flowchart TD
     style OM fill:#2b6cb0,color:#fff
     style POLICY fill:#2f855a,color:#fff
     style VALUE fill:#2f855a,color:#fff
-    style ISMCTS fill:#805ad5,color:#fff
+    style PIMC fill:#805ad5,color:#fff
 ```
 
 オフライン（学習・検証）側は別の輪として次のように回す。
@@ -96,21 +98,47 @@ flowchart LR
 
 ### Stage 1（最優先・新規MLモデル不要、配線だけ）
 
-現状の最大の問題は「モデルの精度」ではなく「作ったものが繋がっていない」ことなので、まずここから着手するのが最も費用対効果が高い。
+現状の最大の問題は「モデルの精度」ではなく「作ったものが繋がっていない」ことなので、まずここから着手するのが最も費用対効果が高い。**詳細な実装手順は本ドキュメントではなく [stage1-wiring-implementation-plan.md](./stage1-wiring-implementation-plan.md) に分離した**（design/roadmapとimplementation-planを分けるチームの既存慣習に合わせた）。
 
 - `hidden_information` の実推定値を、`search_state_stub.py` のダミー（ランダムな基本エネルギー等で埋めている）の代わりに `search_begin()` へ渡す。`search_adapter.py` が入口として既に用意されている。
-- value network（`learning/value_model.py`）を `lethal_simple.py` の非リーサル局面評価、あるいは `ml_policy` のATTACK判断（弱点が判明している箇所）の補強に使う。
+- value network（`learning/value_model.py`）をまず**shadow mode**（ログに出すだけ、意思決定には未接続）で配線する。ATTACK判断の補強のように予測結果で意思決定を変える使い方は、候補手の結果比較まで踏み込む必要がありStage1の「配線だけ」の範囲を超えるため、Stage2以降に訂正した（2026-07-21、実装計画作成時に気づいた点）。
 - ここまでは教科書的には「既に学習済みのモデルを推論パイプラインに接続するだけ」の作業で、新しいアルゴリズム選定は不要。
 
-### Stage 2（本命: ISMCTS + policy prior + value leaf評価）
+### Stage 2（本命: PIMC + policy prior + value leaf評価）
+
+**実装計画: [stage2-pimc-implementation-plan.md](./stage2-pimc-implementation-plan.md)（2026-07-21作成、v0）**。v0は相手ターンをまたぐ探索とpolicy prior統合を明示的にNon-goalsとし、「自分のターン内のみ・value networkによる葉評価・複数determinizationの平均集約」に絞った。v0実装・検証は完了（[stage2-pimc-implementation-result.md](./stage2-pimc-implementation-result.md)）。実測で「1試合平均21〜28秒、プライズゲート無し」という実行コスト課題と「`match_context`シングルトンによりhead-to-head評価ができない」という制約が判明。**コスト対策[stage2-cost-control-implementation-plan.md](./stage2-cost-control-implementation-plan.md)のStep0で、実際のKaggle予算(1エージェントあたり600秒/対局)に対する使用率は平均2.22%・最大4.04%と十分低いことが一次情報(実リプレイJSONの`specification`)で判明し、コスト対策自体は優先度低に格下げした。** 残る唯一の技術的ブロッカーだったhead-to-head評価不能は[stage2-match-context-separation-implementation-plan.md](./stage2-match-context-separation-implementation-plan.md)で解消し、**`rule_pimc` が `rule_lethal_estimated` に61% vs 39%（100試合、95% CI）で有意に勝ち越すこと**を実証した（[2026-07-21_stage2_head_to_head.md](../../../results/2026-07-21_stage2_head_to_head.md)）。ただしこれは「PIMC > lethal探索」であって「PIMC > 本番`ml_policy`」ではない（比較した2つとも本番エージェントではない）。次は**本番改善の検証**を優先した（[pimc-production-validation-implementation-plan.md](./pimc-production-validation-implementation-plan.md)）: 現行提出 `ml_lethal`(ml_policy+lethal+dummy) を基準に、PIMC化・estimated hidden state化が提出物を強くするかを head-to-head で測った。
+
+**結果（2026-07-21）: 両方 null（有意差なし）。** `ml_pimc`(pimc+estimated) 48% vs `ml_lethal` 52%、`ml_lethal_estimated`(hidden info単独) 45% vs `ml_lethal` 55%（各100試合、ミラー、[summary](../../../results/2026-07-21_pimc_prod_validation_summary.md)）。**Stage2で rule_based で明確だった「PIMC > lethal」(61%)は本番 `ml_policy` の上のミラーでは消えた。** 転移しなかった主因の診断: `ml_policy` は PolicyModel が意思決定の大半を担い、探索(lethal/pimc)が効く発火域が狭い。pimcはゲート無しで広く発火(約116回/試合)するが、それは「強いPolicyModel」を「value誘導探索」で上書きしているだけで、pimcの棋力 ≈ PolicyModel のため差し引きゼロになる（rule_basedでは「弱いrouter」を上書きしたので改善した）。**帰結: 探索bolt-onは `ml_policy` の律速ではない。** [[project_pimc_prod_validation]]。
+
+**この結果を踏まえた方針の再検討（ユーザー判断待ち）:**
+- **v1(policy prior統合・相手ターンをまたぐ探索)の前提が弱まった。** 「研究でPIMCが勝った」を根拠にv1へ投資する前提は本番転移が確認できず崩れた。進むなら転移条件（探索発火域の拡大 or 非ミラー評価）を先に特定すべき。
+- **実証済みインフラ(config注入点・match_context分離・head-to-head基盤・hidden info配線・value shadow)は提出可否と無関係に価値がある。** experimentブランチが肥大化した今、これらをfeature/*へ切り出しintegrationへPRし、tsuoimorikaさんへの共有(Stage1からのDoD持ち越し)を消化するのが妥当。
+- **代替の高レバレッジ課題**: 実戦の主要敗因である山札切れ29%([[project_deckout_loss_cause]])は、ミラー自己対戦でなく実Kaggleログで計測された敗因であり、探索/hidden infoが扱えない直交領域。本番スコアへの期待値が高い可能性。
+
+**診断フェーズを先に回した（2026-07-21）**（[pimc-null-diagnosis-implementation-plan.md](./pimc-null-diagnosis-implementation-plan.md)）。null の真犯人候補は (A) value網が粗い、(B) strategy fusion、(C) PolicyModel 支配、の3つ。確定した結果:
+- **value網摂動probe**: サイド系特徴には健全(prize_diff 100%)だが、**`self_deck_count` にほぼ無反応(46%＝コイントス以下)＝山札切れに盲目**。ただし value網は本番の意思決定経路に無い(shadowのみ)ため、これは今後 value網を使う場合の留意点として独立に残る。
+- **山札切れ（クローズ）**: 診断で「上位デッキ流用＝構築健全、犯人はpiloting」という仮説を立てて決定レベル診断まで行ったが、**piloting説は棄却**。同アーキタイプを回す第三者695チームの山札切れ率23.6%が自チーム25.9%と有意差なし＝**アーキタイプ内在の構造的コスト**。決定レベルでも識別可能な誤りなし。sustain札はSacred Ash 1枚のみ。**ユーザー判断: コストとして許容し追加投資しない**（[[project_deckout_loss_cause]]）。
+- determinizationスイープ(探索のノイズ vs fusion切り分け)は未完了だが、PIMCが本番を改善しない以上、決着の価値は低い。
+
+**実戦敗因の網羅的分類（loss taxonomy）を実施（2026-07-21）**（[loss-taxonomy-implementation-plan.md](./loss-taxonomy-implementation-plan.md)）。結果は決定的:
+- **ブローアウト負け（サイドレース大差）が負けの69.2%（139件）で圧倒的最大**。平均11.9ターンと短く、最終残りサイド5.17/6＝ほぼ何も返せず一方的に轢かれる。山札切れ(25.9%、許容済み)を大きく上回る。
+- **接戦負けは5.0%のみ** → 終盤の詰め（PIMC/探索）を磨いても救える試合はほぼ無い（本番null と整合）。
+- ブローアウトは相手アーキタイプを問わず**広く分散**（特定マッチアップの弱さでない＝非ミラー相手モデリングでも解決しない）。序盤展開は67.6%で正常＝**試合を通じたプレイの質（PolicyModelの領域）**の問題。
+- routing: **次の大投資は PolicyModel の改善**。
+
+**PolicyModel投資前の検証を実施（2026-07-21）**（[blowout-piloting-validation-implementation-plan.md](./blowout-piloting-validation-implementation-plan.md)）。結果は複合: 第三者Alakazamは勝率が有意に高い（+9.4pt）が、負けのブローアウト率は同程度（構造的）。さらに**リーダーボード順位で層別**（勝率選別の循環を回避、[rank-stratified](../../../results/2026-07-21_blowout_valid_rank_stratified.md)）すると単調な技量勾配（不明49%→1001位以下52%→201-1000位55%→**≤20位61%**、359試合）。**上位帯の清潔な天井は約61%、自チーム44.6%からの伸びしろは約+16pt**（当初の「+9pt/天井54%」は過小評価だった）。順位に対し勝率が単調上昇＝**デッキが天井でなく回し方（PolicyModel）が効く**強い証拠。
+
+**採用した次の方針（2026-07-21）: PolicyModel改善（初の「作る」フェーズ）**（[policymodel-skill-concentration-implementation-plan.md](./policymodel-skill-concentration-implementation-plan.md)）。現行 PolicyModel はプール全体（≈54%層）を緩い順位重みで模倣している。学習データは上位(≤200位)が約26k点(14%)あり集中可能。**模倣をリーダーボード上位パイロットに技量集中（rankフィルタ/リウェイト）して再学習し、天井を54%→61%へ引き上げる**。評価は「上位決定との一致率」＋「現行 ml_lethal とのミラー head-to-head」、提出判断はユーザー。これが実戦最大の敗因（ブローアウト69.2%＝プレイの質）に証拠が指した唯一の直接レバー。**足場固めはユーザー判断で保留継続。**
 
 `ml-agent-plan.md` が当初「一番勝率が伸びるところ」と書いていた部分で、この評価も妥当だと考える。
 
-- **アルゴリズム**: ISMCTS（Information Set MCTS）/ Determinization（PIMC）。非公開情報を推定分布からサンプリングして一時的に完全情報化し、通常のMCTSを複数サンプルぶん回して平均を取る。出典: Cowling, Powley & Whitehouse, *Information Set Monte Carlo Tree Search*, IEEE TCIAIG (2012)。
-- **なぜこれか**: ルールが完全に既知で正確にシミュレートできる本ゲームに素直に適合し、実装コストが比較的低く、時間予算に応じて反復回数を調整できるため Kaggle の持ち時間制約と相性が良い。
+**PIMC と ISMCTS の呼び分け（2026-07-21 追記）**: 当初この節では「ISMCTS」と一括りに書いていたが、実際に組む設計（推定分布からサンプルした非公開情報ごとに**独立した木**で探索し、結果を集約する）は厳密には **PIMC（Perfect Information Monte Carlo / Determinization）** であり、ISMCTS（複数のdeterminizationで単一の情報集合木を共有する、より高度でstrategy fusion対策も入った手法）とは別物。実装コストの低いPIMCから着手し、ISMCTSは効果が見えてから検討する拡張候補として切り分ける。ブランチ名・モジュール名も `pimc` で統一する。
+
+- **アルゴリズム**: PIMC（Determinization）。非公開情報を推定分布からサンプリングして一時的に完全情報化し、サンプルごとに独立した探索木を通常のMCTS/深さ制限探索で回し、複数サンプルの結果を平均する。出典: Long et al., *Understanding the Success of Perfect Information Monte Carlo Sampling in Game Tree Search*, AAAI (2010)。ISMCTSの出典は参考として: Cowling, Powley & Whitehouse, *Information Set Monte Carlo Tree Search*, IEEE TCIAIG (2012)。
+- **なぜこれか**: ルールが完全に既知で正確にシミュレートできる本ゲームに素直に適合し、ISMCTSより実装が単純（情報集合木の共有機構が不要）で、時間予算に応じてサンプル数・反復回数を調整できるため Kaggle の持ち時間制約と相性が良い。既知の弱点として strategy fusion（サンプルごとに異なる手を選べることに起因する過大評価）があるが、初期実装としては許容範囲と判断。
 - **policy prior**: `ml_policy` を「単体エージェント」から「探索の候補手に事前確率を与えてPUCT的に枝刈りする部品」に転用する。AlphaGoのSLポリシーと同じ位置づけ（Silver et al., *AlphaGo*, Nature 2016）。ATTACK判断で模倣ポリシーが弱いという実測結果があるので、ATTACKの葉評価は探索+valueに、それ以外の展開判断はpolicy priorに重みを置く、といった役割分担がデータに裏付けられている。
 - **value leaf評価**: 終局まで読み切らず、一定の深さで打ち切ってvalue networkに評価させる。AUC 0.746の実績があるので土台として十分使える。
-- **1ターン内の行動順序問題への対処（マクロアクション化）**: エネルギー付与・進化・道具複数枚・サポート・ワザという複数行動の組み合わせをそのまま全順列展開すると木が爆発する。`lethal_simple.py` が `itertools.combinations` で選択肢の組み合わせを列挙しつつ `OptionType` の優先順位でソートしている設計は、この問題への簡易な対処に近い発想なので、ISMCTS側でもこれを踏襲・拡張し、可換な行動列（例: ベンチに2体出す順序）は正規化して同一ノード扱いにする。一般論としての出典: Sturtevant, Childs et al. *Transpositions and Move Groups in MCTS* (2008)、Sutton, Precup & Singh *Options* (1999)。
+- **1ターン内の行動順序問題への対処（マクロアクション化）**: エネルギー付与・進化・道具複数枚・サポート・ワザという複数行動の組み合わせをそのまま全順列展開すると木が爆発する。`lethal_simple.py` が `itertools.combinations` で選択肢の組み合わせを列挙しつつ `OptionType` の優先順位でソートしている設計は、この問題への簡易な対処に近い発想なので、PIMC側でもこれを踏襲・拡張し、可換な行動列（例: ベンチに2体出す順序）は正規化して同一ノード扱いにする。一般論としての出典: Sturtevant, Childs et al. *Transpositions and Move Groups in MCTS* (2008)、Sutton, Precup & Singh *Options* (1999)。
 
 ### Stage 3（余力があれば: 限定的な self-play fine-tuning）
 
