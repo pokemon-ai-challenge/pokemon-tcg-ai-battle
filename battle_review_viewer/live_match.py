@@ -32,9 +32,19 @@ except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォール�
         diff_against_ground_truth,
     )
 try:
+    from .ml_prediction_debug import build_ml_prediction_debug  # noqa: E402
+except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォールバック
+    from ml_prediction_debug import build_ml_prediction_debug  # noqa: E402
+try:
     from ptcg_ai.opponent_modeling.rough_predictor import predict as predict_deck  # noqa: E402
 except Exception:  # noqa: BLE001 -- 予測器が無い/壊れていてもライブモードは続行する
     predict_deck = None
+try:
+    from ptcg_ai.opponent_modeling.hybrid_predictor import HybridDeckPredictor  # noqa: E402
+
+    _ml_predictor = HybridDeckPredictor()
+except Exception:  # noqa: BLE001 -- ML予測器が無い/壊れていてもライブモードは続行する
+    _ml_predictor = None
 
 from cg.api import Observation, to_observation_class  # noqa: E402
 from cg.game import battle_finish, battle_select, battle_start  # noqa: E402
@@ -215,10 +225,13 @@ class LiveMatchSession:
             except Exception as exc:  # noqa: BLE001 -- 予測器が落ちてもライブモードは止めない
                 prediction = {"error": str(exc)}
 
+        ml_prediction = build_ml_prediction_debug(_ml_predictor, self.opponent_knowledge, obs.current)
+
         return {
             "features": self.opponent_knowledge.get_prediction_features(),
             "diff": diff,
             "prediction": prediction,
+            "ml_prediction": ml_prediction,
         }
 
     def _apply_action_locked(self, action: list[int], player_index: int) -> None:

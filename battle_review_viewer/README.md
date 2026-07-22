@@ -39,6 +39,8 @@ battle_review_viewer/
 ├─ Launch Human vs CPU.cmd      # クリック起動（対戦）
 ├─ export_replay.py             # replay 生成（CLI）
 ├─ serve_viewer.py              # ローカルサーバー（UI からの生成 API を含む）
+├─ ml_prediction_debug.py       # 相手デッキ予測器(ML)の推論結果を各フレームに埋め込む
+├─ build_archetype_names.py     # rough_predictor.json → web/archetype_display_names.json(日本語表示名)を生成
 ├─ replays/                     # 生成された replay JSON 置き場
 └─ web/                         # index.html / app.js / styles.css
 ```
@@ -140,7 +142,17 @@ python -m venv .\cardlist_referenced\pdf_card_editor\.venv
 ### Debug のサブビュー（拡張可能）
 
 `Debug` パネル内は**サブタブで複数のデバッグビューを切り替えられます**。現状は
-`Opponent Knowledge`（観測情報）と `Deck Predictor`（相手デッキ予測器・未実装のプレースホルダー）。
+`Opponent Knowledge`（観測情報）と `Deck Predictor`（相手デッキ予測器・ML版、実装済み）。
+
+`Deck Predictor` サブタブは `sample_submission/ptcg_ai/opponent_modeling/hybrid_predictor.py`
+（LR×NBハイブリッド）の推論結果を `prediction_summary.summarize_prediction()` 経由で表示する。
+確信度が閾値（既定0.6）未満のときは「未確定」バッジと候補一覧、閾値以上のときは1位デッキを
+断定表示し、いずれもカード別の根拠（evidence）を展開できる。生成は `export_replay.py` /
+`live_match.py` が `ml_prediction_debug.py`（`opponentKnowledgeDebug` と同様に各フレームへ
+`mlPredictionDebug` キーを埋め込む）を経由して行う。日本語の表示名は
+`web/archetype_display_names.json`（生成: `build_archetype_names.py`、`rough_predictor.json` の
+アーキタイプキーから変換）を使う。モデルの学習・評価は `kaggle_replays/deck_predictor/`
+（パイプラインの実行方法は同ディレクトリの README.md を参照）。
 
 デバッグ項目を増やすときは 2 箇所を足すだけです:
 

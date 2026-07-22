@@ -142,6 +142,7 @@ let cardManifest = {};
 let cardNamesJp = {};
 let attackNamesJp = { byId: {}, byName: {} };
 let cardTypes = {}; // { card_id: CardType int } — POKEMON0 ITEM1 TOOL2 SUPPORTER3 STADIUM4 BASIC_ENERGY5 SPECIAL_ENERGY6
+let archetypeNamesJp = {}; // { deck_type: "日本語表示名" } — ML版デッキ予測器（mlDeckPredictor タブ）用
 let currentPlayers = [{}, {}];
 let cardRegistry = {};
 let cardSelectionRefs = {};
@@ -297,6 +298,8 @@ UI.en.reasonAlternatives = "Not chosen";
 UI.ja.debugHeading = "デバッグ";
 UI.ja.debugViewOpponentKnowledge = "相手の公開情報";
 UI.ja.debugViewDeckPredictor = "デッキ予測";
+UI.ja.debugViewMlDeckPredictor = "デッキ予測（ML）";
+UI.ja.mlArchetypeOther = "その他（未分類）";
 UI.ja.observedCardsHeading = "観測済みカード（名前別）";
 UI.ja.currentZonesHeading = "現在のゾーン";
 UI.ja.groundTruthDiffHeading = "神視点との差分";
@@ -307,6 +310,8 @@ UI.ja.noMismatchAtStep = "この時点では差分はありません。";
 UI.en.debugHeading = "Debug";
 UI.en.debugViewOpponentKnowledge = "Opponent Knowledge";
 UI.en.debugViewDeckPredictor = "Deck Predictor";
+UI.en.debugViewMlDeckPredictor = "Deck Predictor (ML)";
+UI.en.mlArchetypeOther = "Other (unclassified)";
 UI.en.observedCardsHeading = "Observed cards (by name)";
 UI.en.currentZonesHeading = "Current zones";
 UI.en.groundTruthDiffHeading = "Ground-truth diff";
@@ -1169,6 +1174,7 @@ function render() {
   const debugEntry = findLatestOpponentKnowledgeDebug(replayData.frames, frameIndex);
   renderOpponentKnowledge(debugEntry);
   renderDeckPredictor(debugEntry);
+  renderMlDeckPredictor(debugEntry);
   renderStadium(current.stadium || [], selectedRefs, actionableRefs);
 
   renderPlayer(opponent, OPPONENT_INDEX, selectedRefs, actionableRefs, {
@@ -2142,6 +2148,162 @@ function renderDeckPredictor(entry) {
   }
 }
 
+// ML版デッキ予測器（kaggle_replays/deck_predictor/ で学習したロジスティック回帰 / NB / ハイブリッド）
+// の表示。rough_predictor（ルールベース、上の deckPredictor タブ）とは独立した予測経路で、
+// 出力は「全アーキタイプ + other」の確率分布（合計100%）。同じ debug.ml_prediction を
+// export_replay.py / live_match.py の両方が build_ml_prediction_debug() 経由で埋め込む。
+//
+// build_ml_prediction_debug() は ptcg_ai.opponent_modeling.prediction_summary.summarize_prediction()
+// を利用して status/uncertain_threshold/evidence_count/explanation を追加している（フェーズC）が、
+// 過去にエクスポート済みの replay JSON にはこれらのキーが無い。以下のレンダリングは
+// mlPrediction.status 等が undefined でも例外にならず、旧来どおり top1 を断定表示する
+// フォールバックになるように書く（新旧どちらの replay でも壊れないようにするため）。
+function renderMlDeckPredictor(entry) {
+  const topEl = document.getElementById("mlDeckPredictorTop");
+  const barsEl = document.getElementById("mlDeckPredictorBars");
+  if (!topEl || !barsEl) return;
+
+  const mlPrediction = entry?.debug?.ml_prediction;
+  if (!mlPrediction) {
+    topEl.className = "predictor-top";
+    topEl.innerHTML = `<div class="diagnostic-status">この replay には ML 予測結果がありません（古い replay か、ML予測器が無効）。新しく生成すると出ます。</div>`;
+    barsEl.innerHTML = "";
+    renderMlPredictionEvidence(null, entry);
+    return;
+  }
+  if (mlPrediction.error) {
+    topEl.innerHTML = `<div class="diagnostic-status diagnostic-bad">ML予測器エラー: ${escapeHtml(String(mlPrediction.error))}</div>`;
+    barsEl.innerHTML = "";
+    renderMlPredictionEvidence(null, entry);
+    return;
+  }
+  if (!mlPrediction.is_ready) {
+    topEl.innerHTML = `<div class="diagnostic-status">モデル未ロード（deck_predictor_weights.json が見つかりません。kaggle_replays/deck_predictor/ の学習パイプラインで生成・配置してください）。</div>`;
+    barsEl.innerHTML = "";
+    renderMlPredictionEvidence(null, entry);
+    return;
+  }
+
+  const ranked = (mlPrediction.ranked || []).slice(0, 8);
+  const top = ranked[0] || null;
+  const topPct = top ? Math.round(top.probability * 100) : 0;
+  const turnText = mlPrediction.turn != null ? `turn ${mlPrediction.turn}` : null;
+  // evidence_count / status / uncertain_threshold は無ければ undefined のまま（古い replay）。
+  const evidenceCountText = mlPrediction.evidence_count != null ? `evidence ${mlPrediction.evidence_count}` : null;
+  const headlineMeta = [turnText, `top1 ${topPct}%`, evidenceCountText].filter(Boolean).join(" / ");
+  const isUncertain = mlPrediction.status === "uncertain";
+
+  topEl.className = "predictor-top";
+  if (!top) {
+    topEl.innerHTML = `<div class="diagnostic-status">候補なし</div>`;
+  } else if (isUncertain) {
+    // 未確定: 1位を断定表示せず、バッジ + 上位候補の列挙にする。
+    const candidateText = ranked
+      .slice(0, 3)
+      .map((c) => `${mlArchetypeLabel(c.deck_type)} ${Math.round(c.probability * 100)}%`)
+      .join(" / ");
+    topEl.innerHTML = `
+    <div class="predictor-headline is-uncertain">
+      <div class="predictor-headline-row">
+        <span class="predictor-uncertain-badge">${lang === "ja" ? "未確定" : "Uncertain"}</span>
+        <span class="predictor-conf">${escapeHtml(headlineMeta)}</span>
+      </div>
+      <div class="predictor-uncertain-candidates">${lang === "ja" ? "候補: " : "Candidates: "}${escapeHtml(candidateText)}</div>
+    </div>`;
+  } else {
+    topEl.innerHTML = `
+    <div class="predictor-headline is-known">
+      <span class="predictor-name">${escapeHtml(mlArchetypeLabel(top.deck_type))}</span>
+      <span class="predictor-conf">${escapeHtml(headlineMeta)}</span>
+    </div>`;
+  }
+
+  barsEl.innerHTML = ranked.length
+    ? ranked
+        .map((c, i) => {
+          const pct = Math.max(0, Math.min(100, c.probability * 100));
+          return `
+        <div class="ml-predictor-bar-row ${i === 0 ? "is-top" : ""}">
+          <span class="ml-predictor-bar-name">${escapeHtml(mlArchetypeLabel(c.deck_type))}</span>
+          <span class="ml-predictor-bar-track"><span class="ml-predictor-bar-fill" style="width:${pct.toFixed(1)}%"></span></span>
+          <span class="ml-predictor-bar-pct">${pct.toFixed(1)}%</span>
+        </div>`;
+        })
+        .join("")
+    : `<div class="chip chip-empty">候補なし</div>`;
+
+  renderMlPredictionEvidence(mlPrediction.explanation, entry);
+}
+
+// explanation（HybridDeckPredictor.explain() / NBDeckPredictor.explain() の結果、無ければ
+// undefined/null）から、観測カード別にどのアーキタイプを押し上げたか（log尤度の高いクラス上位数件）
+// を表示する。古い replay には explanation キー自体が無いので、その場合はセクションごと隠す
+// （= 追加前の見た目に戻るフォールバック）。
+function renderMlPredictionEvidence(explanation, entry) {
+  const headingEl = document.getElementById("mlDeckPredictorEvidenceHeading");
+  const evidenceEl = document.getElementById("mlDeckPredictorEvidence");
+  if (!evidenceEl) return;
+
+  if (!explanation) {
+    evidenceEl.innerHTML = "";
+    if (headingEl) headingEl.hidden = true;
+    return;
+  }
+
+  // HybridDeckPredictor.explain() は {mode, weight_nb, evidence_count, nb_explanation} を返す。
+  // NBDeckPredictor.explain() を直接受け取った場合（nb_only 相当）は nb_explanation ラッパーが無く、
+  // "cards" キーがトップレベルにあるので、両方の形を受け付ける。
+  const nbExplanation = "nb_explanation" in explanation ? explanation.nb_explanation : explanation;
+
+  if (headingEl) headingEl.hidden = false;
+
+  if (!nbExplanation || !nbExplanation.cards || !Object.keys(nbExplanation.cards).length) {
+    evidenceEl.innerHTML = `<div class="chip chip-empty">${
+      lang === "ja"
+        ? "この時点ではカード別の根拠(NB)は使われていません（LR予測が優勢、または観測カードが学習語彙外）。"
+        : "No per-card evidence (NB) at this point (LR-dominant prediction, or observed cards outside the trained vocabulary)."
+    }</div>`;
+    return;
+  }
+
+  const nameToCardIds = entry?.debug?.features?.name_to_card_ids || {};
+  const TOP_CLASSES = 3;
+  const cardBlocks = Object.entries(nbExplanation.cards)
+    .map(([cardName, cardInfo]) => {
+      const displayName = localizedZoneName(cardName, nameToCardIds);
+      const logLikelihood = cardInfo.log_likelihood || {};
+      const topClasses = Object.entries(logLikelihood)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, TOP_CLASSES);
+      const rows = topClasses
+        .map(
+          ([cls, value], i) => `
+          <div class="ml-evidence-cls-row ${i === 0 ? "is-top" : ""}">
+            <span class="ml-evidence-cls-name">${escapeHtml(mlArchetypeLabel(cls))}</span>
+            <span class="ml-evidence-cls-val">${Number(value).toFixed(2)}</span>
+          </div>`
+        )
+        .join("");
+      return `
+      <div class="ml-evidence-card">
+        <div class="ml-evidence-card-title">${escapeHtml(displayName)} &times;${cardInfo.observed_count ?? 1}</div>
+        <div class="ml-evidence-cls-list">${rows}</div>
+      </div>`;
+    })
+    .join("");
+
+  const ignoredCount = (nbExplanation.ignored_cards || []).length;
+  const ignoredNote = ignoredCount
+    ? `<div class="ml-evidence-ignored-note">${
+        lang === "ja"
+          ? `他 ${ignoredCount} 枚は学習語彙外のため無視`
+          : `${ignoredCount} more card(s) ignored (outside the trained vocabulary)`
+      }</div>`
+    : "";
+
+  evidenceEl.innerHTML = cardBlocks + ignoredNote;
+}
+
 function renderStadium(stadium, selectedRefs, actionableRefs) {
   const container = document.getElementById("stadiumSlot");
   if (!stadium.length) {
@@ -2801,6 +2963,26 @@ async function loadCardTypes() {
   } catch (_) { cardTypes = {}; }
 }
 
+async function loadArchetypeNames() {
+  try {
+    const response = await fetch(`./archetype_display_names.json?v=${ASSET_VERSION}`);
+    if (response.ok) archetypeNamesJp = await response.json();
+  } catch (_) { archetypeNamesJp = {}; }
+}
+
+// ML版デッキ予測器の deck_type（例: "mega_lucario_ex"）を表示用ラベルにする。
+// 日本語UIのときは archetype_display_names.json（rough_predictor.json 由来）の表示名を使い、
+// 見つからなければ（英語UI、または未知の deck_type）読みやすい英語風ラベルに整形する。
+function mlArchetypeLabel(deckType) {
+  if (!deckType) return t("mlArchetypeOther");
+  if (deckType === "other") return t("mlArchetypeOther");
+  if (lang === "ja" && archetypeNamesJp[deckType]) return archetypeNamesJp[deckType];
+  return deckType
+    .split("_")
+    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(" ");
+}
+
 async function loadCardManifest() {
   try {
     const response = await fetch(`./card_images/manifest.json?v=${ASSET_VERSION}`);
@@ -2954,6 +3136,7 @@ drawerClose?.addEventListener("click", () => { activePanel = null; applyPanel();
 const DEBUG_VIEWS = [
   { id: "opponentKnowledge", labelKey: "debugViewOpponentKnowledge" },
   { id: "deckPredictor", labelKey: "debugViewDeckPredictor" },
+  { id: "mlDeckPredictor", labelKey: "debugViewMlDeckPredictor" },
 ];
 let activeDebugView = DEBUG_VIEWS[0].id;
 
@@ -3357,7 +3540,7 @@ async function boot() {
   let seenOnboarding = false;
   try { seenOnboarding = !!localStorage.getItem(ONBOARDING_KEY); } catch (_) { seenOnboarding = false; }
   if (!seenOnboarding) setTimeout(startTour, 300);
-  await Promise.all([loadCardManifest(), loadCardNamesJp(), loadAttackNamesJp(), loadCardTypes(), loadDeckOptions()]);
+  await Promise.all([loadCardManifest(), loadCardNamesJp(), loadAttackNamesJp(), loadCardTypes(), loadArchetypeNames(), loadDeckOptions()]);
   replaySpeed = Number(speedSelect?.value || "1") || 1;
   liveCpuSelect.value = requestedInitialCpu();
   await loadReplayList();
