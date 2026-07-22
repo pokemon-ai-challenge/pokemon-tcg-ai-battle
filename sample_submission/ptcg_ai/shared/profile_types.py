@@ -89,6 +89,19 @@ class EnergyProfile:
 
 
 @dataclass
+class MatchupPlan:
+    """相手デッキのアーキタイプ（opponent_modeling.rough_predictor の deck_type）ごとの対策データ。
+
+    キーは DeckPlan.matchup_plans の dict キー（deck_type 文字列）側で持つため、
+    ここには「そのアーキタイプに対してどう加点するか」だけを持たせる。
+    """
+
+    attack_priority_boost: dict[int, float] = field(default_factory=dict)  # attack_id -> 加点
+    card_priority_boost: dict[int, float] = field(default_factory=dict)  # card_id -> 加点（board系）
+    note: str = ""  # なぜその加点かの理由メモ
+
+
+@dataclass
 class DeckPlan:
     """デッキ方針データを担当Bの判断ロジックに渡すための正規化された形（クラスタ⑥）。
 
@@ -107,3 +120,6 @@ class DeckPlan:
     search_priority: list[int] = field(default_factory=list)  # サーチで最初に探すべきカードID順
     protected_card_ids: set[int] = field(default_factory=set)  # 捨てたくないカードIDの集合
     win_condition_by_prize: dict[int, str] = field(default_factory=dict)  # 残りサイド枚数ごとの勝ち筋メモ
+    # 相手デッキのアーキタイプ（opponent_modeling.rough_predictor の deck_type）ごとの対策。
+    # キーは rough_predictor.json の archetypes キーと一致させること。
+    matchup_plans: dict[str, MatchupPlan] = field(default_factory=dict)

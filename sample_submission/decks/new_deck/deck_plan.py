@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ptcg_ai.shared.profile_types import MatchupPlan
+
 
 @dataclass(frozen=True)
 class AttackerPlan:
@@ -530,4 +532,27 @@ WIN_CONDITIONS_BY_PRIZE: list[PrizeStageWinCondition] = [
         plan="キチキギスexのさかてにとるで3ドローし、手札とベンチを立て直す。",
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# 対アーキタイプ戦略（相手デッキ予測との連携）
+# ---------------------------------------------------------------------------
+#
+# opponent_modeling.rough_predictor が「相手はこのアーキタイプらしい」と確信を持てた
+# （status == "confident"）場合にだけ参照される、技/カードの優先度加点。
+# キーは rough_predictor.json の archetypes キーと一致させること（例:
+# "mega_lucario_ex", "alakazam", "dragapult_ex" など。全キーは同ファイル参照）。
+#
+# TODO: 対アーキタイプの中身はまだ書けていない。判明ししだい以下のように追記する。
+#
+#   MATCHUP_PLANS: dict[str, MatchupPlan] = {
+#       "alakazam": MatchupPlan(
+#           attack_priority_boost={743: 5.0},  # 対アラカザムはハンドパワーを最優先、等
+#           card_priority_boost={1182: 3.0},   # ボスの指令を優先、等
+#           note="なぜこの加点かの理由",
+#       ),
+#   }
+#
+# 現状は空のままにしておく（該当エントリが無いアーキタイプは加点なしで通常運用）。
+MATCHUP_PLANS: dict[str, MatchupPlan] = {}
 

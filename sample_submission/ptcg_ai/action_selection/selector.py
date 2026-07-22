@@ -16,6 +16,7 @@ from cg.api import Observation, SelectData
 from ptcg_ai.action_selection import fallback, router
 from ptcg_ai.core.config import load_config
 from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
+from ptcg_ai.opponent_modeling import tracker as opponent_tracker
 from ptcg_ai.search import lethal_simple
 
 _SEARCH_MODULES = {
@@ -60,6 +61,15 @@ def select_action(obs: Observation, full_deck: list[int], config: dict | None = 
     if config is None:
         config = _config()
     lethal_config = (config or {}).get("lethal_search") or {}
+
+    # 相手デッキ予測の更新は lethal_search / router のどちらに進む前にも必ず通したいので、
+    # この関数の一番手前で行う。予測結果は priorities/*.py が
+    # opponent_tracker.current_matchup_plan() 経由で参照する。失敗しても通常運用は継続する。
+    if obs.current is not None:
+        try:
+            opponent_tracker.update(obs)
+        except Exception:
+            pass
 
     if lethal_config.get("enabled", False) and obs.current is not None:
         module = _SEARCH_MODULES.get(lethal_config.get("module", "lethal_simple"))

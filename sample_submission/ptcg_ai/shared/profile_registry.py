@@ -55,6 +55,9 @@ def _build_deck_plan() -> DeckPlan:
         # 空のままにしておく（必要になれば plan.WIN_CONDITIONS_BY_PRIZE を直接使う専用の
         # アクセサを別途用意する）。
         win_condition_by_prize={},
+        # matchup_plans: 対アーキタイプ戦略。担当Aがまだ書いていないデッキでは
+        # plan.MATCHUP_PLANS 自体が無いこともあるため getattr で欠損時は空dictにする。
+        matchup_plans=getattr(plan, "MATCHUP_PLANS", {}),
     )
 
 
