@@ -17,6 +17,11 @@ from ptcg_ai.shared import card_cache
 
 _URGENT_RETREAT_SCORE = 5.0
 _IMPROVEMENT_RETREAT_SCORE = 1.0
+# switch_target_value 側にだけ安全ボーナス（switch_eval._SAFE_BONUS=3.0）や
+# KO_REPLACEMENT_PRIORITY ボーナス（最大4.0）が乗る非対称な比較になっているため、
+# 僅差のスコア差だけでは撤退を提案しないようにするマージン。この値未満の差は
+# 「今のバトルポケモンでも大差ない」とみなして無駄な逃げを避ける。
+_IMPROVEMENT_MARGIN = 3.0
 
 
 def propose(obs: Observation) -> ActionProposal | None:
@@ -48,7 +53,7 @@ def propose(obs: Observation) -> ActionProposal | None:
     if not needs_retreat:
         current_score = pokemon_value.active_value(active, state, your_index)
         bench_score = pokemon_value.switch_target_value(best_bench_target, state, your_index)
-        if bench_score <= current_score:
+        if bench_score <= current_score + _IMPROVEMENT_MARGIN:
             return None
 
     retreat_index = next((i for i, option in enumerate(obs.select.option) if option.type == OptionType.RETREAT), None)

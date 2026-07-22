@@ -13,6 +13,7 @@ from ptcg_ai.shared.profile_types import (
     EnergyPriorityRule,
     ItemProfile,
     PokemonProfile,
+    SearchPriorityRule,
     StadiumProfile,
     SupporterProfile,
     ToolProfile,
@@ -49,6 +50,7 @@ def _build_deck_plan() -> DeckPlan:
         evolution_priority=[entry.card_id for entry in plan.EVOLUTION_PRIORITY],
         energy_priority=[entry.card_id for entry in plan.ENERGY_TARGET_PRIORITY],
         search_priority=[entry.card_id for entry in plan.SEARCH_PRIORITY],
+        search_priority_rules=list(getattr(plan, "SEARCH_PRIORITY_RULES", [])),
         protected_card_ids={entry.card_id for entry in plan.PROTECT_CARDS},
         # win_condition_by_prize: 担当Aのデータは "6〜4枚（序盤）" のような自由記述の
         # サイド枚数レンジで持っており、DeckPlan の dict[int, str]（サイド枚数->文字列）

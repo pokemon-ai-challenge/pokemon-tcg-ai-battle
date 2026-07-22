@@ -162,6 +162,20 @@ class EnergyPriorityRule:
 
 
 @dataclass
+class SearchPriorityRule:
+    """条件付きの「サーチ/ドローで何を優先して持ってくるか」優先順位
+    （担当Aが decks/new_deck/deck_plan.py の SEARCH_PRIORITY_RULES で定義する）。
+
+    condition（UsageContext、盤面のスナップショット）が True を返す最初のルールの
+    order（card_id を優先度順に並べたもの）を使う。TO_HAND/LOOK の選択肢のうち、この
+    order に載っていないカードは DeckPlan.search_priority（無条件の優先順）にフォールバックする。
+    """
+
+    condition: UsageCondition
+    order: list[int]
+
+
+@dataclass
 class DeckPlan:
     """デッキ方針データを担当Bの判断ロジックに渡すための正規化された形（クラスタ⑥）。
 
@@ -178,6 +192,7 @@ class DeckPlan:
     evolution_priority: list[int] = field(default_factory=list)  # 進化を優先したいカードID順
     energy_priority: list[int] = field(default_factory=list)  # エネルギーを優先して付けたいカードID順
     search_priority: list[int] = field(default_factory=list)  # サーチで最初に探すべきカードID順
+    search_priority_rules: list[SearchPriorityRule] = field(default_factory=list)  # 条件付きサーチ優先順（無条件のsearch_priorityより優先）
     protected_card_ids: set[int] = field(default_factory=set)  # 捨てたくないカードIDの集合
     win_condition_by_prize: dict[int, str] = field(default_factory=dict)  # 残りサイド枚数ごとの勝ち筋メモ
 
