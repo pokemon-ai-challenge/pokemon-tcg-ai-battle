@@ -1,0 +1,27 @@
+{
+  "submission_ref": "54918091",
+  "model": "M128",
+  "public_score": 668.9,
+  "games": 27,
+  "wins": 15,
+  "losses": 12,
+  "ties": 0,
+  "mirror": 1,
+  "win_rate": 0.5555555555555556,
+  "win_rate_wilson_95ci": [
+    0.37313024513224485,
+    0.72414141822977
+  ],
+  "opponent_score": {
+    "min": 447,
+    "median": 677,
+    "max": 818
+  },
+  "opponent_rank": {
+    "best": 853,
+    "median": 2478,
+    "worst": 4618
+  },
+  "my_rank_at_fetch": 2543,
+  "my_team": "MORIOKA Tsuoi(16379894)"
+}
