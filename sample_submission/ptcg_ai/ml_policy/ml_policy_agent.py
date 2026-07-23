@@ -43,7 +43,7 @@ from ptcg_ai.learning.policy_model import PolicyModel
 from ptcg_ai.rule_based.main_turn_parts import proposals as rb_proposals
 from ptcg_ai.rule_based.main_turn_parts import weights as rb_weights
 from ptcg_ai.rule_based.rule_based_agent import read_deck_csv
-from ptcg_ai.search import attack_plan, lethal_simple, pimc
+from ptcg_ai.search import attack_plan, lethal_simple, pimc, pipeline
 
 # `_try_attack_hybrid` 用。draw/board/ability/energyのいずれかが提案されている
 # (=まだ他にやるべき展開が残っている)行ではATTACKゲートを発火させない。
@@ -79,6 +79,11 @@ _CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "ml_lethal_attackplan_v0only"
 _model: PolicyModel | None = None
 _config_cache: dict | None = None
 _deck_cache: list[int] | None = None
+# パイプライン(pipeline.py)の動的時間予算用。1試合ごとにデッキ選択ターン(obs.select is None)
+# でリセットする。league の worker はプロセスを跨いで再利用されるため、試合境界での
+# リセットが必要(config["pipeline"]["time_budget"] を指定したときのみ参照される)。
+_match_start_perf: float | None = None
+_selects_seen: int = 0
 # config で明示された `policy_weights_path` ごとにキャッシュする(既定パス=グローバル `_model`
 # は変えず、注入されたパスだけ別枠に積む)。同一プロセス内で複数の候補重み(config違い)を
 # 混線なく head-to-head させるための注入点(policymodel-skill-concentration-implementation-plan.md
@@ -122,6 +127,11 @@ def agent(obs: Observation, config: dict | None = None) -> list[int]:
         value_shadow_log.record(obs)
 
     if obs.select is None:
+        # 新しい試合の開始。pipeline の動的時間予算のカウンタをリセットする
+        # (pipeline 無効時も無害なただの代入)。
+        global _match_start_perf, _selects_seen
+        _match_start_perf = time.perf_counter()
+        _selects_seen = 0
         return read_deck_csv()
     return _select_action(obs, config)
 
@@ -329,12 +339,93 @@ def _model_hidden_state_factory(obs: Observation, config: dict | None):
     return lambda: build_dummy_search_state(obs, full_deck)
 
 
+def _dynamic_pipeline_time_limit_ms(pipeline_config: dict) -> float:
+    """`config["pipeline"]["time_budget"]` があれば「残り時間 ÷ 推定残り選択数」で1手予算を
+    算出する。無ければ固定 `time_limit_ms`(既定は pipeline.DEFAULTS の値)を返す。
+
+    予算切れ・未初期化でも必ず正の値を返す(pipeline 側の deadline は壁時計で二重に保護
+    されており、この関数の失敗が反則負けにつながることはない)。
+    """
+    base = float(pipeline_config.get("time_limit_ms", pipeline.DEFAULTS["time_limit_ms"]))
+    budget = pipeline_config.get("time_budget")
+    if not budget or _match_start_perf is None:
+        return base
+    try:
+        total_ms = float(budget["total_ms"])
+        min_ms = float(budget.get("min_ms", 50))
+        max_ms = float(budget.get("max_ms", 2000))
+        assumed_total = int(budget.get("assumed_total_selects", 400))
+        elapsed_ms = (time.perf_counter() - _match_start_perf) * 1000.0
+        remaining_ms = total_ms - elapsed_ms
+        if remaining_ms <= 0:
+            return min_ms
+        remaining_selects = max(1, assumed_total - _selects_seen)
+        per_move = remaining_ms / remaining_selects
+        return max(min_ms, min(max_ms, per_move))
+    except Exception:
+        return base
+
+
+def _try_pipeline(obs: Observation, config: dict | None = None) -> list[int] | None:
+    """`config["pipeline"]["enabled"]` が真のときだけ統合パイプライン(`search.pipeline`)を
+    試す。適用外(単一選択の MAIN 以外)・失敗・予算切れ前に評価不能なら None を返し、
+    呼び出し側は既存の Policy top1 経路にフォールバックする。
+
+    本番 config(`ml_lethal_attackplan_v0only`)は `pipeline` キーを持たないため常に None を
+    返し、本番挙動は完全に不変。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    pipeline_config = (effective_config or {}).get("pipeline") or {}
+    if not pipeline_config.get("enabled", False):
+        return None
+
+    # 動的時間予算を反映した config を1回だけ組み立てる(元 config は不変)。
+    run_config = dict(pipeline_config)
+    run_config["time_limit_ms"] = _dynamic_pipeline_time_limit_ms(pipeline_config)
+
+    try:
+        if pipeline_config.get("hidden_state_source", "estimated") == "dummy":
+            full_deck = _get_deck()
+            factory = lambda: build_dummy_search_state(obs, full_deck)
+        else:
+            factory = lambda: search_adapter.to_search_begin_kwargs(
+                match_context.get_own_state(obs.current.yourIndex),
+                match_context.get_opponent_state(obs.current.yourIndex),
+                obs,
+            )
+        model = _get_model(config)
+        action = pipeline.search(obs.current, obs.select.option, {
+            "observation": obs,
+            "config": run_config,
+            "hidden_state_factory": factory,
+            "model_hidden_state_factory": _model_hidden_state_factory(obs, config),
+            "policy_model": model,
+        })
+    except Exception:
+        return None
+
+    if action is not None and _is_valid_action(action, obs.select):
+        return action
+    return None
+
+
 def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
     select = obs.select
+
+    # pipeline の動的時間予算用に、意思決定を要する選択のたびにカウンタを進める
+    # (pipeline 無効時も無害)。
+    global _selects_seen
+    _selects_seen += 1
 
     lethal_action = _try_lethal(obs, config=config)
     if lethal_action is not None:
         return lethal_action
+
+    pipeline_action = _try_pipeline(obs, config=config)
+    if pipeline_action is not None:
+        return pipeline_action
 
     model = _get_model(config)
     model_factory = _model_hidden_state_factory(obs, config)

@@ -1,0 +1,9 @@
+{
+  "name": "abl_2_policy_only",
+  "lethal_search": {
+    "enabled": false
+  },
+  "pipeline": {
+    "enabled": false
+  }
+}

@@ -259,6 +259,62 @@ def test_multi_select_greedy_fallback_respects_min_max_count(ml_policy_agent, en
 
 
 # ---------------------------------------------------------------------------
+# _try_pipeline (decision-pipeline/design-and-implementation-plan.md)
+# ---------------------------------------------------------------------------
+
+
+def test_try_pipeline_returns_none_when_disabled(ml_policy_agent, encoder_observations, monkeypatch):
+    """config未指定/`pipeline`キー無しでは常にNone(pipeline.searchを呼ばない)。本番挙動不変の回帰。"""
+    obs = _obs(encoder_observations, "mid_game")
+
+    def _must_not_be_called(state, options, context):
+        raise AssertionError("pipeline.search must not be called when disabled")
+
+    monkeypatch.setattr(ml_policy_agent.pipeline, "search", _must_not_be_called)
+
+    assert ml_policy_agent._try_pipeline(obs, config={"lethal_search": {"enabled": False}}) is None
+    assert ml_policy_agent._try_pipeline(obs, config={}) is None
+
+
+def test_try_pipeline_invokes_search_when_enabled(ml_policy_agent, encoder_observations, monkeypatch):
+    """`pipeline.enabled=true` のとき pipeline.search を呼び、契約(policy_model 等)を満たす。"""
+    obs = _obs(encoder_observations, "mid_game")
+
+    def _stub_search(state, options, context):
+        assert context["observation"] is obs
+        assert context["policy_model"] is not None
+        assert callable(context["hidden_state_factory"])
+        return [1]
+
+    monkeypatch.setattr(ml_policy_agent.pipeline, "search", _stub_search)
+    config = {"lethal_search": {"enabled": False}, "pipeline": {"enabled": True, "hidden_state_source": "dummy"}}
+    assert ml_policy_agent._try_pipeline(obs, config=config) == [1]
+    # agent() 経由でも lethal 無効時は pipeline の結果が採用される。
+    assert ml_policy_agent.agent(obs, config=config) == [1]
+
+
+def test_try_pipeline_swallows_exceptions_and_rejects_illegal(ml_policy_agent, encoder_observations, monkeypatch):
+    """pipeline.search が例外/contract違反を返してもクラッシュせず None(top1 へフォールバック)。"""
+    obs = _obs(encoder_observations, "mid_game")
+    config = {"lethal_search": {"enabled": False}, "pipeline": {"enabled": True}}
+
+    def _boom(state, options, context):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(ml_policy_agent.pipeline, "search", _boom)
+    assert ml_policy_agent._try_pipeline(obs, config=config) is None
+
+    def _illegal(state, options, context):
+        return [len(options) + 5]
+
+    monkeypatch.setattr(ml_policy_agent.pipeline, "search", _illegal)
+    assert ml_policy_agent._try_pipeline(obs, config=config) is None
+    # フォールバックで合法手を返し続ける。
+    result = ml_policy_agent.agent(obs, config=config)
+    assert len(result) == 1 and 0 <= result[0] < len(obs.select.option)
+
+
+# ---------------------------------------------------------------------------
 # _try_attack_hybrid (attack-rulebased-hybrid-implementation-plan.md Step1/Step2)
 # ---------------------------------------------------------------------------
 
