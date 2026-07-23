@@ -759,3 +759,105 @@ def encode_option_card_ids(state: State | None, select: SelectData | None) -> li
             card_id = pokemon.id if pokemon is not None else None
         card_ids.append(card_id if card_id is not None else 0)
     return card_ids
+
+
+# ---------------------------------------------------------------------------
+# consequence特徴(Tier3 Stage3c、docs/plans/policy-feature-expansion/
+# tier3-consequence-features-design-and-implementation-plan.md)。
+#
+# **本セクションだけ、上記の encode_* 系と契約が異なる。** encode_state/encode_options/
+# encode_option_card_ids はいずれも「current盤面のみからの決定的・純粋な読み取り」だが、
+# encode_option_consequence_features はゲームエンジンの仮実行(cg.api.search_step、
+# ptcg_ai.board_evaluation.consequence 経由)を要求する。そのため hidden_state_factory
+# (相手の非公開情報のスタブ。実行時は build_dummy_search_state 等、学習時も同じ経路を
+# 使うこと。§2.3 のtrain/runtime parity要件)と deadline(時間予算)を追加引数に取る。
+# 例外は投げず、計算できない選択肢は全特徴0で埋める(fail-soft。§6 Stage3c)。
+# ---------------------------------------------------------------------------
+
+#: option_consequence の各フィールド名(OptionConsequence.option_index を除く)。
+#: この順序で encode_option_consequence_features のベクトルに並ぶ。
+CONSEQUENCE_FEATURE_NAMES: list[str] = [
+    "opp_hp_loss",
+    "self_hp_gain",
+    "opp_energy_removed",
+    "opp_special_energy_removed",
+    "self_energy_added",
+    "cards_drawn",
+    "pokemon_evolved",
+    "stadium_changed",
+    "delta_best_effective_attack_damage",
+    "delta_can_ko",
+    "delta_attack_ready",
+    "delta_energy_shortfall",
+]
+
+CONSEQUENCE_FEATURE_COUNT: int = len(CONSEQUENCE_FEATURE_NAMES)
+
+_ZERO_CONSEQUENCE = [0.0] * CONSEQUENCE_FEATURE_COUNT
+
+# consequenceを計算する選択肢の型(Tier3方針書 §6 Stage3b: ATTACH/EVOLVE/ITEM系)。
+# ATTACKは対象外(attack_planと機能が重複するため。方針書 §1.2/§6 Stage3a)。
+# PLAYはITEM/SUPPORTERの発動を含む(改造ハンマー等はPLAYで表現される)。
+_CONSEQUENCE_OPTION_TYPES: frozenset = frozenset({
+    OptionType.ATTACH, OptionType.EVOLVE, OptionType.PLAY,
+})
+
+
+def _consequence_to_vector(result) -> list[float]:
+    return [
+        float(result.opp_hp_loss),
+        float(result.self_hp_gain),
+        1.0 if result.opp_energy_removed else 0.0,
+        1.0 if result.opp_special_energy_removed else 0.0,
+        1.0 if result.self_energy_added else 0.0,
+        float(result.cards_drawn),
+        1.0 if result.pokemon_evolved else 0.0,
+        1.0 if result.stadium_changed else 0.0,
+        float(result.delta_best_effective_attack_damage),
+        1.0 if result.delta_can_ko else 0.0,
+        1.0 if result.delta_attack_ready else 0.0,
+        float(result.delta_energy_shortfall),
+    ]
+
+
+def encode_option_consequence_features(
+    obs: Observation,
+    hidden_state_factory,
+    deadline: float,
+) -> list[list[float]]:
+    """選択肢ごとの consequence 特徴(Tier3方針書 §3)を返す。
+
+    ``obs.select.option`` のうち ``_CONSEQUENCE_OPTION_TYPES`` に含まれる型だけを
+    ``ptcg_ai.board_evaluation.consequence.option_consequence`` で仮実行して評価する
+    (ATTACK・その他の型・解決不能・タイムアウトは全特徴0で埋める)。
+
+    Args:
+        obs: 現在の Observation(``obs.current``/``obs.select`` が必要)。
+        hidden_state_factory: ``consequence.option_consequence`` に渡す0引数callable
+            (相手の非公開情報スタブを返す。学習時・実行時で同じ経路を使うこと)。
+        deadline: ``time.perf_counter()`` 基準の締め切り(選択肢1件あたりではなく
+            呼び出し全体で共有する想定。呼び出し側が予算を管理する)。
+
+    Returns:
+        list[list[float]]: ``select.option`` と同じ長さ・順序。各要素は長さ
+        ``CONSEQUENCE_FEATURE_COUNT`` のベクトル。``obs.current``/``obs.select`` が
+        無い、または選択肢が0件の場合は空リスト。
+    """
+    from ptcg_ai.board_evaluation import consequence  # 遅延import(循環回避・軽量化)
+
+    state = obs.current
+    select = obs.select
+    if state is None or select is None or not select.option:
+        return []
+
+    vectors: list[list[float]] = []
+    for i, option in enumerate(select.option):
+        if option.type not in _CONSEQUENCE_OPTION_TYPES:
+            vectors.append(list(_ZERO_CONSEQUENCE))
+            continue
+        try:
+            result = consequence.option_consequence(obs, i, hidden_state_factory, deadline)
+        except Exception:
+            result = None
+        vectors.append(_consequence_to_vector(result) if result is not None else list(_ZERO_CONSEQUENCE))
+    return vectors

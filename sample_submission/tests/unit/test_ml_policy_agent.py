@@ -225,7 +225,7 @@ def test_policy_weights_path_config_is_independent_per_call(
             calls.append(weights_path)
             self.weights_path = weights_path
 
-        def select_option(self, obs):
+        def select_option(self, obs, hidden_state_factory=None, deadline=None):
             return 0
 
     monkeypatch.setattr(ml_policy_agent, "PolicyModel", _StubModel)

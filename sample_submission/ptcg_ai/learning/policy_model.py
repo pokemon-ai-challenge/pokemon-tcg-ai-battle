@@ -95,6 +95,9 @@ class PolicyModel:
         self._card_id_max: int = 0
         # 各層は (W[out][in], b[out]) のタプル。最終層以外に ReLU を適用する。
         self._layers: list[tuple[list[list[float]], list[float]]] | None = None
+        # Tier3 Stage3c: この重みが学習時に使ったconsequence特徴名のリスト(空なら不使用、
+        # 旧重み完全後方互換)。encoder.CONSEQUENCE_FEATURE_NAMES の部分集合・同じ順序。
+        self._consequence_fields: list[str] = []
 
         self._load()
 
@@ -122,6 +125,8 @@ class PolicyModel:
             [float(v) for v in row] for row in card_embedding["table"]
         ]
 
+        self._consequence_fields = list(payload.get("meta", {}).get("consequence_fields") or [])
+
         self._layers = [
             (
                 [[float(w) for w in row] for row in layer["weight"]],
@@ -133,16 +138,52 @@ class PolicyModel:
     # ------------------------------------------------------------------
     # 公開 API
     # ------------------------------------------------------------------
-    def score_options(self, obs: Observation) -> list[float]:
+    def score_options(
+        self,
+        obs: Observation,
+        hidden_state_factory=None,
+        deadline: float | None = None,
+    ) -> list[float]:
         """``obs.select.option`` の各選択肢のスコア(生の値、確率ではない)を返す。
 
         未ロード時、``obs.current``/``obs.select`` が無い場合、選択肢が0件の場合は
         空リストを返す(例外は出さない)。
+
+        Args:
+            hidden_state_factory / deadline: この重みがconsequence特徴
+                (``meta.consequence_fields``、Tier3 Stage3c)を使う場合のみ必要。
+                `ptcg_ai.search.attack_plan`/`_try_lethal` 等と同じ0引数callable
+                (相手の非公開情報スタブ)と ``time.perf_counter()`` 基準の締め切り。
+                consequence特徴を使わない重み(既定)では無視される
+                (呼び出し側は渡さなくてもよい。完全後方互換)。
         """
-        return self.score_options_from_state(obs.current, obs.select)
+        if not self.is_ready or obs.current is None or obs.select is None or not obs.select.option:
+            return []
+        state_features = encoder.encode_state_from_state(obs.current)
+        option_rows = encoder.encode_options_from_state(obs.current, obs.select)
+        card_ids = encoder.encode_option_card_ids(obs.current, obs.select)
+        if self._consequence_fields:
+            option_rows = self._append_consequence_features(obs, option_rows, hidden_state_factory, deadline)
+        return [
+            self._forward(state_features, option_row, card_id)
+            for option_row, card_id in zip(option_rows, card_ids)
+        ]
 
     def score_options_from_state(self, state: State | None, select) -> list[float]:
-        """State/SelectData を直接受け取る版(単体テスト・オフライン評価向け)。"""
+        """State/SelectData を直接受け取る版(単体テスト・オフライン評価向け)。
+
+        consequence特徴(Tier3 Stage3c)は非対応(``search_begin`` に必要な
+        ``Observation.search_begin_input`` が無いため)。consequence特徴を使う重みを
+        テストする場合は :meth:`score_options` に完全な ``Observation`` を渡すこと。
+        この重みが ``meta.consequence_fields`` を持つ場合、未対応の呼び出しと分かるよう
+        例外にする(値0で静かにフォールバックしてスコアが歪むより安全)。
+        """
+        if self._consequence_fields:
+            raise ValueError(
+                "この重みは consequence 特徴(meta.consequence_fields)を使うため、"
+                "score_options_from_state ではなく完全な Observation を渡す "
+                "score_options を使ってください。"
+            )
         if not self.is_ready or state is None or select is None or not select.option:
             return []
         state_features = encoder.encode_state_from_state(state)
@@ -153,19 +194,51 @@ class PolicyModel:
             for option_row, card_id in zip(option_rows, card_ids)
         ]
 
-    def select_option(self, obs: Observation) -> int | None:
+    def select_option(
+        self,
+        obs: Observation,
+        hidden_state_factory=None,
+        deadline: float | None = None,
+    ) -> int | None:
         """スコア最大の選択肢インデックスを返す。
 
         選択肢が0件(``obs.select`` が無い等)なら None。未ロード時は index 0
-        (常に有効な選択肢)を返す安全側フォールバック。
+        (常に有効な選択肢)を返す安全側フォールバック。``hidden_state_factory``/
+        ``deadline`` は :meth:`score_options` と同じ(consequence特徴を使う重みのみ必要)。
         """
         select = obs.select
         if select is None or not select.option:
             return None
         if not self.is_ready:
             return 0
-        scores = self.score_options(obs)
+        scores = self.score_options(obs, hidden_state_factory, deadline)
         return max(range(len(scores)), key=lambda i: scores[i])
+
+    def _append_consequence_features(
+        self,
+        obs: Observation,
+        option_rows: list[list[float]],
+        hidden_state_factory,
+        deadline: float | None,
+    ) -> list[list[float]]:
+        """``self._consequence_fields`` の並びで consequence 特徴を計算し、各選択肢の
+        option_rows 末尾に連結する(学習時: kaggle_replays/policy_net/train.py が
+        option_features に同じ並びで連結してから標準化しているのと同じ順序。§ train.py参照)。
+
+        ``hidden_state_factory`` が無ければ全て0で埋める(fail-soft。呼び出し側が
+        consequence特徴対応を怠っても例外にしない)。
+        """
+        if hidden_state_factory is None:
+            zeros = [0.0] * len(self._consequence_fields)
+            return [row + zeros for row in option_rows]
+        effective_deadline = deadline if deadline is not None else float("inf")
+        all_vectors = encoder.encode_option_consequence_features(obs, hidden_state_factory, effective_deadline)
+        name_to_idx = {name: i for i, name in enumerate(encoder.CONSEQUENCE_FEATURE_NAMES)}
+        selected_idx = [name_to_idx[name] for name in self._consequence_fields]
+        return [
+            row + [vec[i] for i in selected_idx]
+            for row, vec in zip(option_rows, all_vectors)
+        ]
 
     # ------------------------------------------------------------------
     # 内部: フォワードパス

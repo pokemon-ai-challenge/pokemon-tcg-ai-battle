@@ -10,9 +10,10 @@ SelectData)、steps[i+1][player]["action"] がその観測に対して実際に�
 そのステップを対象外とする。
 
 Step2(模倣ポリシー)は design.md §8 / step2-design.md §2.1 の確定方針に従い、
-フーディン(alakazam)使用プレイヤーの局面に限定する。対象は
+1つのアーキタイプ使用プレイヤーの局面に限定する。対象アーキタイプは --archetype
+で指定する(既定 alakazam、後方互換)。判定は
 kaggle_replays/deck_predictor/output/deck_labels.jsonl で
-(episode_id, player_index) -> archetype == "alakazam" とラベル付けされた
+(episode_id, player_index) -> archetype == 指定値 とラベル付けされた
 プレイヤーのみ。deck_labels.jsonl が存在しない場合はエラーにせず、
 「全件フィルタ対象外」として警告した上で空データセットを出力する。
 
@@ -123,8 +124,9 @@ def iter_decision_points(
     archetype_labels: dict[tuple[str, int], str],
     master_row: dict | None,
     stats: "Stats",
+    target_archetype: str,
 ):
-    """1リプレイから、フーディン使用プレイヤーの単純選択の意思決定点を列挙する。
+    """1リプレイから、target_archetype 使用プレイヤーの単純選択の意思決定点を列挙する。
 
     採用条件を満たさない局面はここで理由別にカウントしてスキップする。
     """
@@ -132,8 +134,8 @@ def iter_decision_points(
     players_meta = {p["player_index"]: p for p in master_row["players"]} if master_row else {}
 
     for player_index in (0, 1):
-        if archetype_labels.get((episode_id, player_index)) != "alakazam":
-            # フーディン以外のアーキタイプ(またはラベル欠損)は丸ごと対象外。
+        if archetype_labels.get((episode_id, player_index)) != target_archetype:
+            # 対象アーキタイプ以外(またはラベル欠損)は丸ごと対象外。
             # ステップ数分をまとめてカウントするより、局面単位のスキップ理由と
             # 同じ粒度で数えるため、あとで局面走査に混ぜてカウントする。
             for i in range(len(steps) - 1):
@@ -163,8 +165,11 @@ def iter_decision_points(
                 stats.record_skip("multi_select")
                 continue
 
-            action = steps[i + 1][player_index]["action"]
-            if len(action) != 1:
+            # action は None のこともある(次ステップでそのプレイヤーが行動を記録して
+            # いない=対象外)。len(None) で落ちないよう None も bad_action_count 扱いで
+            # スキップする(dragapult_ex のリプレイで実際に None が観測された)。
+            action = steps[i + 1][player_index].get("action")
+            if action is None or len(action) != 1:
                 stats.record_skip("bad_action_count")
                 continue
 
@@ -230,6 +235,7 @@ def process_replays(
     out_f,
     limit: int | None,
     stats: Stats,
+    target_archetype: str,
 ) -> None:
     replay_paths = sorted(replays_dir.glob("episode-*-replay.json"))
     if limit is not None:
@@ -248,11 +254,13 @@ def process_replays(
         stats.n_replays_parsed += 1
 
         for player_index in (0, 1):
-            if archetype_labels.get((episode_id, player_index)) == "alakazam":
+            if archetype_labels.get((episode_id, player_index)) == target_archetype:
                 stats.n_alakazam_episode_players += 1
 
         master_row = master_index.get(episode_id)
-        for row in iter_decision_points(replay, episode_id, archetype_labels, master_row, stats):
+        for row in iter_decision_points(
+            replay, episode_id, archetype_labels, master_row, stats, target_archetype
+        ):
             out_f.write(json.dumps(row, ensure_ascii=False) + "\n")
             stats.record_record(row)
 
@@ -366,6 +374,11 @@ def main() -> None:
         default=str(_HERE / "deck_predictor" / "output" / "deck_labels.jsonl"),
         help="フーディン(alakazam)使用プレイヤーへの絞り込みに使う label_decks.py の出力",
     )
+    parser.add_argument(
+        "--archetype", default="alakazam",
+        help="模倣学習の対象アーキタイプ(deck_labels.jsonl の archetype 値)。既定は alakazam"
+        "(後方互換)。他アーキタイプを学習する場合は --out も専用パスを指定すること。",
+    )
     parser.add_argument("--out", default=str(_HERE / "training_data" / "policy_positions.jsonl.gz"))
     parser.add_argument("--limit", type=int, default=None, help="先頭N件のリプレイのみ処理する(動作確認用)")
     parser.add_argument("--audit", action="store_true", help="監査レポート(Markdown)も書き出す")
@@ -378,7 +391,7 @@ def main() -> None:
     archetype_labels = load_archetype_labels(deck_labels_path)
     if not deck_labels_path.exists():
         print(
-            f"警告: {deck_labels_path} が見つかりません。フーディン(alakazam)への絞り込みが"
+            f"警告: {deck_labels_path} が見つかりません。{args.archetype} への絞り込みが"
             "できないため、全件フィルタ対象外(空データセット)として出力します。",
             file=sys.stderr,
         )
@@ -388,12 +401,14 @@ def main() -> None:
 
     stats = Stats()
     with gzip.open(out_path, "wt", encoding="utf-8") as out_f:
-        process_replays(replays_dir, master_index, archetype_labels, out_f, args.limit, stats)
+        process_replays(
+            replays_dir, master_index, archetype_labels, out_f, args.limit, stats, args.archetype
+        )
 
     n_skipped = sum(stats.skip_reasons.values())
     print(
         f"{stats.n_replays_total}件のリプレイ中 {stats.n_alakazam_episode_players}件の "
-        f"alakazam episode-player を対象に {stats.n_records}件の意思決定点を {out_path} に "
+        f"{args.archetype} episode-player を対象に {stats.n_records}件の意思決定点を {out_path} に "
         f"書き出しました(スキップ {n_skipped}件: {dict(stats.skip_reasons)})"
     )
 

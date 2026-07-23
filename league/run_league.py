@@ -31,6 +31,7 @@ import os
 import sys
 import time
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable
 
@@ -59,6 +60,50 @@ def load_agent(name: str) -> AgentFn:
         raise ValueError(f"unknown agent: {name!r} (choices: {sorted(AGENT_REGISTRY)})")
     module = importlib.import_module(AGENT_REGISTRY[name])
     return module.agent
+
+
+def resolve_weights_path(value: str | Path) -> Path:
+    """重みJSONの相対パスはリポジトリルート基準で解決する(deck と同じ方針)。"""
+    path = Path(value)
+    if not path.is_absolute():
+        path = _ROOT_DIR / path
+    return path.resolve()
+
+
+def build_agent(name: str, weights_path: str | Path | None, config_base: str) -> AgentFn:
+    """agent(obs) 関数を構築する。ml_policy かつ weights_path 指定時は、base config
+    (config_base)をコピーして ``policy_weights_path`` だけ差し替えた config を注入する
+    (アーキタイプ別重みの同デッキ ablation 用。既存の head-to-head 診断と同じ注入点)。
+
+    weights_path が None の ml_policy は、両者が同一 base config を明示的に使う形にそろえる
+    ため config_base をそのまま注入する(現行 production 既定 = ml_lethal_attackplan_v0only
+    と一致するので挙動は不変)。rule_based は config を取らないため weights_path 指定はエラー。
+    """
+    if name not in AGENT_REGISTRY:
+        raise ValueError(f"unknown agent: {name!r} (choices: {sorted(AGENT_REGISTRY)})")
+    module = importlib.import_module(AGENT_REGISTRY[name])
+
+    if name == "rule_based":
+        if weights_path is not None:
+            raise ValueError("--weights-* は ml_policy 専用です(rule_based は重みを取りません)")
+        return module.agent
+
+    # ml_policy: base config をコピーし、weights_path があれば policy_weights_path を注入。
+    import copy
+
+    from ptcg_ai.core.config import load_config
+
+    cfg = copy.deepcopy(load_config(config_base))
+    if weights_path is not None:
+        resolved = resolve_weights_path(weights_path)
+        if not resolved.exists():
+            raise FileNotFoundError(f"weights が見つかりません: {resolved}")
+        cfg["policy_weights_path"] = str(resolved)
+
+    def agent(obs):
+        return module.agent(obs, config=cfg)
+
+    return agent
 
 
 def resolve_deck_path(value: str | Path | None) -> Path:
@@ -143,7 +188,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--deck-b", default=None,
         help="エージェントBが使うデッキCSV(default: sample_submission/deck.csv)",
     )
+    parser.add_argument(
+        "--weights-a", default=None,
+        help="エージェントAが ml_policy のとき使う重みJSON(相対パスはリポジトリルート基準)。"
+        "指定すると base config をコピーして policy_weights_path を注入する。rule_based には指定不可。",
+    )
+    parser.add_argument(
+        "--weights-b", default=None,
+        help="エージェントBが ml_policy のとき使う重みJSON(--weights-a と同様)。",
+    )
+    parser.add_argument(
+        "--config-base", default="ml_lethal_attackplan_v0only",
+        help="ml_policy に注入する base config 名(default: 現行 production の "
+        "ml_lethal_attackplan_v0only)。weights だけを変えた ablation にするため両者で共有する。",
+    )
     parser.add_argument("--seed-start", type=int, default=0, help="試合iにはseed_start+iを渡す")
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="同時に走らせるプロセス数(default: 1=逐次)。2以上でプロセス並列、"
+        "0以下で自動(CPU数-1)。cg エンジンはプロセス内シングルトンのためスレッドではなく"
+        "プロセスで分散する。試合どうしは独立で集計は実行順序に依存しないため、workers を"
+        "変えても結果分布は変わらない(ネイティブエンジンのシャッフルは seed 制御外で、"
+        "逐次実行でも run ごとに勝率はばらつく。並列化はそのばらつきを増やさない)。",
+    )
     parser.add_argument(
         "--out", default=None,
         help="結果JSONの出力先(default: league/results/<agent-a>_vs_<agent-b>_<timestamp>.json)",
@@ -165,36 +232,86 @@ def resolve_out_path(value: str | None, agent_a: str, agent_b: str) -> Path:
     return _LEAGUE_DIR / "results" / f"{agent_a}_vs_{agent_b}_{timestamp}.json"
 
 
-def run_league(
+def _play_game(
+    agent_a: AgentFn,
+    agent_b: AgentFn,
+    deck_a: list[int],
+    deck_b: list[int],
+    index: int,
+    seed: int,
+) -> dict:
+    """1試合を実行し、JSONにそのまま書ける結果レコードを返す。
+
+    先手/後手の割り当て(偶数index=Aがplayer0、奇数=Bがplayer0)と、勝者を player_index では
+    なく「エージェント名(A/B)」に正規化する処理をここに閉じ込める。これにより逐次実行でも
+    プロセス並列でも、この関数を呼ぶだけで同一のレコードが得られる(集計は _aggregate_records
+    がレコード列だけから行うため、実行順序・実行方式に依存しない)。
+    """
+    a_is_player0 = (index % 2 == 0)
+    if a_is_player0:
+        agent0, agent1 = agent_a, agent_b
+        deck0, deck1 = deck_a, deck_b
+        a_player_index = 0
+    else:
+        agent0, agent1 = agent_b, agent_a
+        deck0, deck1 = deck_b, deck_a
+        a_player_index = 1
+
+    result: MatchResult = play_match(agent0, agent1, deck0, deck1, seed=seed)
+
+    if result.error is not None:
+        winner_agent: str | None = None
+    else:
+        winner_agent = "A" if result.winner == a_player_index else "B"
+
+    return {
+        "index": index,
+        "seed": seed,
+        "a_player_index": a_player_index,
+        "winner_agent": winner_agent,
+        "turns": result.turns,
+        "steps": result.steps,
+        "seconds": result.seconds,
+        "error": result.error,
+    }
+
+
+# --- プロセス並列用のワーカー状態 ---------------------------------------------------
+# ``cg.game`` の対戦状態はモジュールグローバルなシングルトン(run_match.py の docstring 参照)の
+# ため、1プロセスでは1試合ずつしか進められない。並列化は必ずプロセスを分ける(スレッド不可)。
+# 各ワーカープロセスで agent/deck を1回だけ構築し、以降のタスクで使い回す。
+_WORKER_STATE: dict = {}
+
+
+def _worker_init(
     agent_a_name: str,
     agent_b_name: str,
-    games: int,
     deck_a_path: str | Path | None,
     deck_b_path: str | Path | None,
-    seed_start: int,
-    progress_every: int,
-    log: Callable[[str], None] = lambda msg: print(msg, file=sys.stderr),
-) -> dict:
-    """N試合を実行し、集計結果を dict(JSONにそのまま書ける形)で返す。"""
+    weights_a_path: str | Path | None,
+    weights_b_path: str | Path | None,
+    config_base: str,
+) -> None:
+    """ProcessPoolExecutor の各ワーカー起動時に1回だけ呼ばれ、agent/deck を構築する。"""
+    # ml_policy/rule_based は deck.csv や重み等を cwd 相対で参照するため、main() と同じく
+    # sample_submission/ を cwd にそろえる(spawn された子プロセスでは cwd が継承されない）。
+    os.chdir(_SAMPLE_SUBMISSION_DIR)
+    _WORKER_STATE["agent_a"] = build_agent(agent_a_name, weights_a_path, config_base)
+    _WORKER_STATE["agent_b"] = build_agent(agent_b_name, weights_b_path, config_base)
+    _WORKER_STATE["deck_a"] = read_deck_csv_file(deck_a_path)
+    _WORKER_STATE["deck_b"] = read_deck_csv_file(deck_b_path)
 
-    requested_games = games
-    games = requested_games - (requested_games % 2)
-    if games != requested_games:
-        log(
-            f"[warn] --games {requested_games} は奇数のため、先手/後手の割り当てが偏らないよう "
-            f"{games} 試合に切り詰めます(1試合分は実行しません)。"
-        )
-    if games <= 0:
-        raise ValueError("--games must resolve to a positive even number (>= 2)")
 
-    agent_a = load_agent(agent_a_name)
-    agent_b = load_agent(agent_b_name)
-    deck_a = read_deck_csv_file(deck_a_path)
-    deck_b = read_deck_csv_file(deck_b_path)
+def _worker_play(task: tuple[int, int]) -> dict:
+    """1試合分のタスク (index, seed) を受け取り、_play_game のレコードを返す。"""
+    index, seed = task
+    s = _WORKER_STATE
+    return _play_game(s["agent_a"], s["agent_b"], s["deck_a"], s["deck_b"], index, seed)
 
-    game_records: list[dict] = []
+
+def _aggregate_records(game_records: list[dict]) -> dict:
+    """index 昇順のレコード列から、逐次版と同一の集計値を算出する。"""
     error_reasons: Counter[str] = Counter()
-
     a_wins_total = 0
     b_wins_total = 0
     a_wins_first = 0  # A が player_index=0(先手扱い)だった試合でのA勝ち
@@ -206,68 +323,145 @@ def run_league(
     valid_games = 0
     error_games = 0
 
-    t_start = time.time()
-
-    for i in range(games):
-        seed = seed_start + i
-        a_is_player0 = (i % 2 == 0)
-        if a_is_player0:
-            agent0, agent1 = agent_a, agent_b
-            deck0, deck1 = deck_a, deck_b
-            a_player_index = 0
-        else:
-            agent0, agent1 = agent_b, agent_a
-            deck0, deck1 = deck_b, deck_a
-            a_player_index = 1
-
-        result: MatchResult = play_match(agent0, agent1, deck0, deck1, seed=seed)
-
-        winner_agent: str | None
-        if result.error is not None:
+    for rec in game_records:
+        if rec["error"] is not None:
             error_games += 1
-            error_reasons[result.error] += 1
-            winner_agent = None
+            error_reasons[rec["error"]] += 1
+            continue
+        valid_games += 1
+        winner_agent = rec["winner_agent"]
+        if winner_agent == "A":
+            a_wins_total += 1
         else:
-            valid_games += 1
-            winner_agent = "A" if result.winner == a_player_index else "B"
+            b_wins_total += 1
+        if rec["a_player_index"] == 0:
+            n_first += 1
             if winner_agent == "A":
-                a_wins_total += 1
-            else:
-                b_wins_total += 1
-            if a_is_player0:
-                n_first += 1
-                if winner_agent == "A":
-                    a_wins_first += 1
-            else:
-                n_second += 1
-                if winner_agent == "A":
-                    a_wins_second += 1
-            if result.turns is not None:
-                turns_sum += result.turns
-            steps_sum += result.steps
+                a_wins_first += 1
+        else:
+            n_second += 1
+            if winner_agent == "A":
+                a_wins_second += 1
+        if rec["turns"] is not None:
+            turns_sum += rec["turns"]
+        steps_sum += rec["steps"]
 
-        game_records.append({
-            "index": i,
-            "seed": seed,
-            "a_player_index": a_player_index,
-            "winner_agent": winner_agent,
-            "turns": result.turns,
-            "steps": result.steps,
-            "seconds": result.seconds,
-            "error": result.error,
-        })
+    return {
+        "error_reasons": error_reasons,
+        "a_wins_total": a_wins_total,
+        "b_wins_total": b_wins_total,
+        "a_wins_first": a_wins_first,
+        "n_first": n_first,
+        "a_wins_second": a_wins_second,
+        "n_second": n_second,
+        "turns_sum": turns_sum,
+        "steps_sum": steps_sum,
+        "valid_games": valid_games,
+        "error_games": error_games,
+    }
 
-        completed = i + 1
-        if progress_every > 0 and (completed % progress_every == 0 or completed == games):
-            elapsed = time.time() - t_start
-            provisional_rate = a_wins_total / valid_games if valid_games else float("nan")
-            log(
-                f"[progress] {completed}/{games} games done "
-                f"(A win rate so far: {provisional_rate:.3f} over {valid_games} valid games, "
-                f"errors: {error_games}, elapsed: {elapsed:.1f}s)"
-            )
+
+def resolve_workers(workers: int | None) -> int:
+    """--workers の解決。None/0/負値は「自動(物理コアを空けて CPU数-1、最低1)」。"""
+    if workers is None or workers <= 0:
+        return max(1, (os.cpu_count() or 1) - 1)
+    return workers
+
+
+def run_league(
+    agent_a_name: str,
+    agent_b_name: str,
+    games: int,
+    deck_a_path: str | Path | None,
+    deck_b_path: str | Path | None,
+    seed_start: int,
+    progress_every: int,
+    weights_a_path: str | Path | None = None,
+    weights_b_path: str | Path | None = None,
+    config_base: str = "ml_lethal_attackplan_v0only",
+    workers: int | None = 1,
+    log: Callable[[str], None] = lambda msg: print(msg, file=sys.stderr),
+) -> dict:
+    """N試合を実行し、集計結果を dict(JSONにそのまま書ける形)で返す。
+
+    ``workers`` は同時に走らせるプロセス数。1 なら逐次実行(従来と完全に同一の挙動)。
+    2以上/自動(0以下→CPU数-1)なら ProcessPoolExecutor で試合を分散する。試合どうしは
+    独立で、集計(_aggregate_records)はレコードの index 昇順列だけから行い実行順序に依存しない
+    ため、workers を変えても結果の分布は変わらない(ネイティブエンジンのシャッフルは seed
+    制御外で、逐次実行でも run ごとに勝率はばらつく。並列化はそのばらつきを増やさない)。
+    """
+
+    requested_games = games
+    games = requested_games - (requested_games % 2)
+    if games != requested_games:
+        log(
+            f"[warn] --games {requested_games} は奇数のため、先手/後手の割り当てが偏らないよう "
+            f"{games} 試合に切り詰めます(1試合分は実行しません)。"
+        )
+    if games <= 0:
+        raise ValueError("--games must resolve to a positive even number (>= 2)")
+
+    n_workers = resolve_workers(workers)
+    tasks: list[tuple[int, int]] = [(i, seed_start + i) for i in range(games)]
+
+    def _progress(completed: int, records_so_far: list[dict]) -> None:
+        if progress_every <= 0:
+            return
+        if completed % progress_every != 0 and completed != games:
+            return
+        valid = sum(1 for r in records_so_far if r["error"] is None)
+        a_wins = sum(1 for r in records_so_far if r["winner_agent"] == "A")
+        errors = sum(1 for r in records_so_far if r["error"] is not None)
+        rate = a_wins / valid if valid else float("nan")
+        elapsed = time.time() - t_start
+        log(
+            f"[progress] {completed}/{games} games done "
+            f"(A win rate so far: {rate:.3f} over {valid} valid games, "
+            f"errors: {errors}, elapsed: {elapsed:.1f}s)"
+        )
+
+    t_start = time.time()
+    game_records: list[dict] = []
+
+    if n_workers <= 1:
+        agent_a = build_agent(agent_a_name, weights_a_path, config_base)
+        agent_b = build_agent(agent_b_name, weights_b_path, config_base)
+        deck_a = read_deck_csv_file(deck_a_path)
+        deck_b = read_deck_csv_file(deck_b_path)
+        for index, seed in tasks:
+            game_records.append(_play_game(agent_a, agent_b, deck_a, deck_b, index, seed))
+            _progress(len(game_records), game_records)
+    else:
+        log(f"[info] running {games} games across {n_workers} worker processes")
+        initargs = (
+            agent_a_name, agent_b_name, deck_a_path, deck_b_path,
+            weights_a_path, weights_b_path, config_base,
+        )
+        with ProcessPoolExecutor(
+            max_workers=n_workers, initializer=_worker_init, initargs=initargs
+        ) as executor:
+            futures = [executor.submit(_worker_play, task) for task in tasks]
+            for future in as_completed(futures):
+                game_records.append(future.result())
+                _progress(len(game_records), game_records)
+        # 完了順に積んだレコードを index 昇順へ戻す(逐次版と同じ順序でJSONに残すため)。
+        game_records.sort(key=lambda r: r["index"])
 
     elapsed_total = time.time() - t_start
+
+    agg = _aggregate_records(game_records)
+    error_reasons = agg["error_reasons"]
+    a_wins_total = agg["a_wins_total"]
+    b_wins_total = agg["b_wins_total"]
+    a_wins_first = agg["a_wins_first"]
+    n_first = agg["n_first"]
+    a_wins_second = agg["a_wins_second"]
+    n_second = agg["n_second"]
+    turns_sum = agg["turns_sum"]
+    steps_sum = agg["steps_sum"]
+    valid_games = agg["valid_games"]
+    error_games = agg["error_games"]
+
     error_rate = error_games / games if games else 0.0
     if error_rate > 0.05:
         log(
@@ -283,8 +477,12 @@ def run_league(
         "agent_b": agent_b_name,
         "deck_a_path": str(resolve_deck_path(deck_a_path)),
         "deck_b_path": str(resolve_deck_path(deck_b_path)),
+        "weights_a_path": str(resolve_weights_path(weights_a_path)) if weights_a_path else None,
+        "weights_b_path": str(resolve_weights_path(weights_b_path)) if weights_b_path else None,
+        "config_base": config_base,
         "games_requested": requested_games,
         "games_run": games,
+        "workers": n_workers,
         "seed_start": seed_start,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "elapsed_seconds": elapsed_total,
@@ -318,7 +516,7 @@ def print_summary(summary: dict, log: Callable[[str], None] = print) -> None:
 
     log(f"=== league result: {a} (A) vs {b} (B) ===")
     log(f"games requested/run: {summary['games_requested']}/{summary['games_run']}")
-    log(f"elapsed: {summary['elapsed_seconds']:.1f}s")
+    log(f"elapsed: {summary['elapsed_seconds']:.1f}s (workers: {summary.get('workers', 1)})")
     log("")
     if overall["games"]:
         lo, hi = overall["wilson_95ci"]
@@ -374,6 +572,10 @@ def main(argv: list[str] | None = None) -> None:
         deck_b_path=args.deck_b,
         seed_start=args.seed_start,
         progress_every=args.progress_every,
+        weights_a_path=args.weights_a,
+        weights_b_path=args.weights_b,
+        config_base=args.config_base,
+        workers=args.workers,
     )
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

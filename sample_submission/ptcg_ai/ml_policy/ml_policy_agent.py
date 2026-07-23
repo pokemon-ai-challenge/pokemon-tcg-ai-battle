@@ -1,4 +1,4 @@
-"""模倣ポリシー Agent の入口(Step2、イシュー未起票、ml-value-network の後続)。
+﻿"""模倣ポリシー Agent の入口(Step2、イシュー未起票、ml-value-network の後続)。
 
 `core.agent` から `AGENT_TYPE == "ml_policy"` のときに呼ばれる Agent 実装。
 `ptcg_ai.learning.policy_model.PolicyModel`(選択肢スコアリング)で通常ターンの選択肢を
@@ -32,6 +32,7 @@ Step1)。`rule_based.main_turn_parts.proposals.collect_proposals(obs)` を呼び
 """
 
 import os
+import time
 
 from cg.api import Observation, OptionType, SelectData
 from ptcg_ai.core.config import load_config
@@ -42,7 +43,7 @@ from ptcg_ai.learning.policy_model import PolicyModel
 from ptcg_ai.rule_based.main_turn_parts import proposals as rb_proposals
 from ptcg_ai.rule_based.main_turn_parts import weights as rb_weights
 from ptcg_ai.rule_based.rule_based_agent import read_deck_csv
-from ptcg_ai.search import lethal_simple, pimc
+from ptcg_ai.search import attack_plan, lethal_simple, pimc
 
 # `_try_attack_hybrid` 用。draw/board/ability/energyのいずれかが提案されている
 # (=まだ他にやるべき展開が残っている)行ではATTACKゲートを発火させない。
@@ -68,8 +69,12 @@ _SEARCH_MODULES = {
 # この値を共有 config 側で変えると `rule_based` の挙動まで変わってしまうため、
 # ml_policy 専用の config に分けている。
 # `PTCG_AI_ML_CONFIG` で上書き可能(Stage1 A/B計測で ml_lethal_estimated 等に
-# 切り替えるため。未設定時は従来どおり "ml_lethal" で挙動不変)。
-_CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "ml_lethal")
+# 切り替えるため)。Kaggle提出時はこの環境変数を設定できないため、提出したい config を
+# デフォルト値としてここに直接指定する(2026-07-22: ml_lethal_attackplan_v0only を提出。
+# ロック闘エネルギー等で攻撃が0ダメージになる局面の事後veto。design-and-implementation-plan.md
+# 参照。ローカル400試合では勝率への有意差は未確認だが、同一seedペア比較で46/300試合の
+# 展開が変化し23勝23敗と方向性は五分五分、エラー・タイムアウトは0件)。
+_CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "ml_lethal_attackplan_v0only")
 
 _model: PolicyModel | None = None
 _config_cache: dict | None = None
@@ -268,6 +273,62 @@ def _try_attack_hybrid(obs: Observation, config: dict | None = None) -> list[int
     return best.select
 
 
+def _try_attack_plan(
+    obs: Observation,
+    chosen_action: list[int],
+    config: dict | None = None,
+    policy_scores: list[float] | None = None,
+) -> list[int] | None:
+    """Post-validate the final normal-policy choice; disabled by default."""
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    plan_config = (effective_config or {}).get("attack_plan") or {}
+    if not plan_config.get("enabled", False) or len(chosen_action) != 1:
+        return None
+    try:
+        if plan_config.get("hidden_state_source", "dummy") == "estimated":
+            factory = lambda: search_adapter.to_search_begin_kwargs(
+                match_context.get_own_state(obs.current.yourIndex),
+                match_context.get_opponent_state(obs.current.yourIndex), obs,
+            )
+        else:
+            full_deck = _get_deck()
+            factory = lambda: build_dummy_search_state(obs, full_deck)
+        action = attack_plan.search(obs.current, obs.select.option, {
+            "observation": obs, "chosen_action": chosen_action,
+            "config": plan_config, "hidden_state_factory": factory,
+            "policy_scores": policy_scores or [],
+        })
+    except Exception:
+        return None
+    return action if action is not None and _is_valid_action(action, obs.select) else None
+
+
+# PolicyModelがconsequence特徴(Tier3 Stage3c、meta.consequence_fieldsを持つ重み)を使う
+# 場合の仮実行に割り当てる時間予算。既定重み(consequence特徴なし)ではこの値は一切参照
+# されない(PolicyModel._consequence_fields が空なら factory/deadline は無視される)。
+_MODEL_TIME_BUDGET_MS = 100
+
+
+def _model_hidden_state_factory(obs: Observation, config: dict | None):
+    """PolicyModelのconsequence特徴計算に使う hidden_state_factory。
+
+    `_try_lethal`/`_try_attack_plan` と同じ dummy/estimated 切替
+    (config["policy_model"]["hidden_state_source"]、既定 "dummy")。consequence特徴を
+    使わない重みではこの factory は呼ばれずコストゼロ(遅延評価のlambdaのみ構築)。
+    """
+    effective_config = config if config is not None else _get_config()
+    model_config = (effective_config or {}).get("policy_model") or {}
+    if model_config.get("hidden_state_source", "dummy") == "estimated":
+        return lambda: search_adapter.to_search_begin_kwargs(
+            match_context.get_own_state(obs.current.yourIndex),
+            match_context.get_opponent_state(obs.current.yourIndex), obs,
+        )
+    full_deck = _get_deck()
+    return lambda: build_dummy_search_state(obs, full_deck)
+
+
 def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
     select = obs.select
 
@@ -275,20 +336,37 @@ def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
     if lethal_action is not None:
         return lethal_action
 
+    model = _get_model(config)
+    model_factory = _model_hidden_state_factory(obs, config)
+    model_deadline = time.perf_counter() + _MODEL_TIME_BUDGET_MS / 1000
     attack_hybrid_action = _try_attack_hybrid(obs, config=config)
     if attack_hybrid_action is not None:
-        return attack_hybrid_action
+        baseline_action = attack_hybrid_action
+        policy_scores = None
+    elif select.maxCount == 1:
+        idx = model.select_option(obs, model_factory, model_deadline)
+        baseline_action = [idx if idx is not None else 0]
+        effective_config = config if config is not None else _get_config()
+        plan_config = (effective_config or {}).get("attack_plan") or {}
+        policy_scores = (
+            model.score_options(obs, model_factory, model_deadline)
+            if plan_config.get("enabled", False) else None
+        )
+    else:
+        baseline_action = _greedy_multi_select(obs, model, select, model_factory, model_deadline)
+        policy_scores = None
 
-    model = _get_model(config)
-
-    if select.maxCount == 1:
-        idx = model.select_option(obs)
-        return [idx if idx is not None else 0]
-
-    return _greedy_multi_select(obs, model, select)
+    planned_action = _try_attack_plan(obs, baseline_action, config, policy_scores)
+    return planned_action if planned_action is not None else baseline_action
 
 
-def _greedy_multi_select(obs: Observation, model: PolicyModel, select: SelectData) -> list[int]:
+def _greedy_multi_select(
+    obs: Observation,
+    model: PolicyModel,
+    select: SelectData,
+    hidden_state_factory=None,
+    deadline: float | None = None,
+) -> list[int]:
     """maxCount > 1(Step2 学習スコープ外)向けの貪欲フォールバック。
 
     各選択肢を独立にスコアリングし、上位から minCount〜maxCount 件を選ぶ。組み合わせの
@@ -297,9 +375,10 @@ def _greedy_multi_select(obs: Observation, model: PolicyModel, select: SelectDat
     n = len(select.option)
     count = max(select.minCount, min(select.maxCount, n))
 
-    scores = model.score_options(obs)
+    scores = model.score_options(obs, hidden_state_factory, deadline)
     if not scores:
         return list(range(count))
 
     ranked = sorted(range(n), key=lambda i: scores[i], reverse=True)
     return ranked[:count]
+

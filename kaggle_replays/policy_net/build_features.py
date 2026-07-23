@@ -74,15 +74,27 @@ sys.path.insert(0, str(_HERE.parent / "deck_predictor"))
 from cg.api import all_card_data, to_observation_class  # noqa: E402
 from ptcg_ai.learning.encoder import (  # noqa: E402
     BASE_FEATURE_COUNT,
+    CONSEQUENCE_FEATURE_COUNT,
     OPTION_FEATURE_COUNT,
     encode_option_card_ids,
+    encode_option_consequence_features,
     encode_options,
     encode_state,
 )
 from episode_window import rank_bucket  # noqa: E402
 
+# Tier3 Stage3c: consequence特徴(--with-consequence-features 有効時のみ)。既定は付けない
+# (フラグ無しなら features.npz に consequence_features キー自体が入らず、既存の
+# build_features.py の出力と完全に同一。tier3-consequence-features-design-and-
+# implementation-plan.md §6 Stage3c / §10 可逆性)。
+_CONSEQUENCE_TIME_BUDGET_MS = 100.0
+
 _DEFAULT_IN = _HERE.parent / "training_data" / "policy_positions.jsonl.gz"
 _DEFAULT_OUT = _HERE / "features.npz"
+# Phase1(案C, beyond-bc): 勝敗ラベルの取得元。value_positions は position 単位で label
+# (win=1/loss=0)を持ち、(episode_id, player_index) では試合×プレイヤーで一意
+# (実測: 不整合0)。policy_positions と同じ replay 由来なので episode_id/player_index で join できる。
+_DEFAULT_OUTCOME_SOURCE = _HERE.parent / "training_data" / "value_positions.jsonl.gz"
 
 # rank_bucket() の出力(日本語バケット名)->サンプル重み。value_net と同じ対応表(固定)。
 _WEIGHT_BY_RANK_BUCKET: dict[str, float] = {
@@ -126,6 +138,31 @@ def weight_for_rank_concentrated(rank_at_fetch: int | None) -> float:
     return 0.5
 
 
+def load_outcome_map(path: Path) -> dict[tuple[str, int], int]:
+    """value_positions.jsonl.gz から ``(episode_id, player_index) -> won(0/1)`` を作る。
+
+    label は position 単位だが試合×プレイヤーで一定のはず。同一キーで label が食い違う場合は
+    データ健全性の問題として ValueError を投げる(将来データで壊れたら気付けるように)。
+    """
+    outcome: dict[tuple[str, int], int] = {}
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            r = json.loads(line)
+            key = (str(r["episode_id"]), int(r["player_index"]))
+            label = int(r["label"])
+            prev = outcome.get(key)
+            if prev is None:
+                outcome[key] = label
+            elif prev != label:
+                raise ValueError(
+                    f"outcome ラベル不整合: {key} に label {prev} と {label} が混在"
+                )
+    return outcome
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--in", dest="in_path", default=str(_DEFAULT_IN))
@@ -141,6 +178,36 @@ def main() -> None:
         "--weight-scheme", choices=["default", "concentrated"], default="default",
         help="サンプル重みスキーム(既定: default = 固定の rank_bucket テーブル)",
     )
+    parser.add_argument(
+        "--with-consequence-features", action="store_true",
+        help="Tier3 Stage3c: 選択肢のconsequence特徴(仮実行、CONSEQUENCE_FEATURE_NAMES)を"
+        "追加で計算し features.npz に consequence_features として保存する(既定OFF。"
+        "付けない場合は既存の出力と完全に同一)。学習時もdummy隠れ状態のみを使う"
+        "(tier3-consequence-features-design-and-implementation-plan.md §2.3のtrain/"
+        "runtime parity要件。--with-consequence-features-deck で使うデッキを指定、"
+        "既定は sample_submission/deck.csv)。仮実行を伴うため大幅に遅くなる。",
+    )
+    parser.add_argument(
+        "--consequence-deck", default=None,
+        help="--with-consequence-features 用の仮実行に使う自分のデッキCSV(既定: "
+        "sample_submission/deck.csv、read_deck_csv() と同じ解決規則)。",
+    )
+    parser.add_argument(
+        "--with-outcome", action="store_true",
+        help="Phase1(案C, beyond-bc): 各行に won(勝=1/負=0/不明=-1)を追加して features.npz に "
+        "保存する(既定OFF。付けない場合は won キー自体が入らず既存の出力と完全に同一)。"
+        "勝敗は --outcome-source(value_positions)から (episode_id, player_index) で引く。",
+    )
+    parser.add_argument(
+        "--outcome-source", default=str(_DEFAULT_OUTCOME_SOURCE),
+        help="--with-outcome 用の勝敗ラベル源(既定: training_data/value_positions.jsonl.gz)。",
+    )
+    parser.add_argument(
+        "--drop-unknown-outcome", action="store_true",
+        help="--with-outcome 時、勝敗を引けない行(won=-1)を出力から除く(既定: 残す)。"
+        "除くと row_index の元ファイル対応は崩れる(このnpzはoutcome学習専用で evaluate.py の"
+        "行突き合わせには使わないため許容)。",
+    )
     args = parser.parse_args()
     weight_fn = weight_for_rank_concentrated if args.weight_scheme == "concentrated" else weight_for_rank
 
@@ -151,9 +218,36 @@ def main() -> None:
     card_id_max = max(c.cardId for c in all_card_data())
     print(f"card_id_max = {card_id_max}(all_card_data() から動的に計算)", file=sys.stderr)
 
+    outcome_map: dict[tuple[str, int], int] | None = None
+    if args.with_outcome:
+        outcome_source = Path(args.outcome_source)
+        print(f"勝敗ラベルを読み込み(--with-outcome): {outcome_source}", file=sys.stderr)
+        outcome_map = load_outcome_map(outcome_source)
+        print(f"  (episode_id, player_index) 対 = {len(outcome_map)}(label不整合なし)", file=sys.stderr)
+
+    consequence_deck: list[int] | None = None
+    if args.with_consequence_features:
+        import time as _time_mod
+
+        from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
+        from ptcg_ai.rule_based.rule_based_agent import read_deck_csv
+
+        if args.consequence_deck:
+            with open(args.consequence_deck, encoding="utf-8") as fh:
+                consequence_deck = [int(v) for v in fh.read().split("\n") if v.strip()][:60]
+        else:
+            consequence_deck = read_deck_csv()
+        print(
+            f"consequence特徴を計算します(--with-consequence-features、deck枚数="
+            f"{len(consequence_deck)}、1行あたり時間予算={_CONSEQUENCE_TIME_BUDGET_MS}ms)",
+            file=sys.stderr,
+        )
+
     state_feature_rows: list[list[float]] = []
     option_feature_rows: list[np.ndarray] = []
     option_card_id_rows: list[np.ndarray] = []
+    consequence_feature_rows: list[np.ndarray] = []
+    n_consequence_errors = 0
     chosen_index_rows: list[int] = []
     split_rows: list[int] = []
     weight_rows: list[float] = []
@@ -162,6 +256,8 @@ def main() -> None:
     select_context_rows: list[int] = []
     rank_rows: list[int] = []
     row_index_rows: list[int] = []
+    won_rows: list[int] = []  # --with-outcome 時のみ使用(勝=1/負=0/不明=-1)
+    n_outcome_unknown = 0
 
     n_total = 0  # フィルタ後の採用行数(= 出力行数)
     n_seen_lines = 0
@@ -246,6 +342,39 @@ def main() -> None:
                     f"{chosen_index} not in [0, {n_options})"
                 )
 
+            # Phase1(案C): 勝敗ラベル。行の player_index(= obs.current.yourIndex、決定者)で引く。
+            # --drop-unknown-outcome 時は引けない行を早期スキップ(consequence 追加より前で行い、
+            # 各 *_rows の対応を崩さない)。
+            won = -1
+            if outcome_map is not None:
+                won = outcome_map.get((str(row["episode_id"]), int(row["player_index"])), -1)
+                if won == -1:
+                    if args.drop_unknown_outcome:
+                        continue
+                    n_outcome_unknown += 1  # 出力に残す不明行だけ数える
+
+            if args.with_consequence_features:
+                # 仮実行(cg.api.search_step)を伴うため、既存のfail-fast方針の例外として
+                # fail-soft(失敗した行は0埋め、ビルド全体は止めない。方針書 §6 Stage3c)。
+                deadline = _time_mod.perf_counter() + _CONSEQUENCE_TIME_BUDGET_MS / 1000
+                factory = lambda: build_dummy_search_state(obs, consequence_deck)  # noqa: B023
+                try:
+                    consequence_feats = encode_option_consequence_features(obs, factory, deadline)
+                    if len(consequence_feats) != n_options:
+                        raise ValueError(
+                            f"consequence特徴の選択肢数不一致: "
+                            f"{len(consequence_feats)} != n_options={n_options}"
+                        )
+                except Exception as exc:  # noqa: BLE001
+                    n_consequence_errors += 1
+                    print(
+                        f"警告: consequence特徴の計算に失敗(row_index={row_index}): {exc!r}"
+                        f"(0埋めで続行)",
+                        file=sys.stderr,
+                    )
+                    consequence_feats = [[0.0] * CONSEQUENCE_FEATURE_COUNT for _ in range(n_options)]
+                consequence_feature_rows.append(np.asarray(consequence_feats, dtype=np.float32))
+
             episode_id = str(row["episode_id"])
 
             state_feature_rows.append(state_feats)
@@ -259,6 +388,8 @@ def main() -> None:
             select_context_rows.append(int(row["select_context"]))
             rank_rows.append(rank_at_fetch if rank_at_fetch is not None else -1)
             row_index_rows.append(row_index)
+            if outcome_map is not None:
+                won_rows.append(won)
 
             n_total += 1
             if n_total % _PROGRESS_EVERY == 0:
@@ -296,6 +427,26 @@ def main() -> None:
         file=sys.stderr,
     )
 
+    extra_arrays = {}
+    if outcome_map is not None:
+        extra_arrays["won"] = np.asarray(won_rows, dtype=np.int8)
+        n_known = n_total - n_outcome_unknown
+        print(
+            f"outcome: {n_total}行中 勝敗既知={n_known} ({n_known / max(n_total,1):.3f}) "
+            f"不明(won=-1)={n_outcome_unknown}",
+            file=sys.stderr,
+        )
+    if args.with_consequence_features:
+        consequence_features_arr = np.empty(n_total, dtype=object)
+        for i, arr in enumerate(consequence_feature_rows):
+            consequence_features_arr[i] = arr
+        extra_arrays["consequence_features"] = consequence_features_arr
+        extra_arrays["consequence_feature_count"] = np.array(CONSEQUENCE_FEATURE_COUNT)
+        print(
+            f"consequence特徴: {n_total}行中 {n_consequence_errors}行で計算失敗(0埋め)",
+            file=sys.stderr,
+        )
+
     np.savez_compressed(
         out_path,
         state_features=state_features,
@@ -310,6 +461,7 @@ def main() -> None:
         select_context=select_context,
         row_index=row_index,
         rank_at_fetch=rank_at_fetch_arr,
+        **extra_arrays,
     )
     size_mb = out_path.stat().st_size / 1e6
     print(f"書き出し完了: {out_path} ({size_mb:.1f} MB)", file=sys.stderr)
@@ -319,6 +471,13 @@ def main() -> None:
         "(data['card_id_max'].item() で取り出す)。",
         file=sys.stderr,
     )
+    if args.with_consequence_features:
+        print(
+            "consequence_features も object 配列(ragged、各行 shape=(n_options, "
+            f"{CONSEQUENCE_FEATURE_COUNT}))。特徴の並びは "
+            "ptcg_ai.learning.encoder.CONSEQUENCE_FEATURE_NAMES と同じ。",
+            file=sys.stderr,
+        )
 
 
 if __name__ == "__main__":

@@ -65,7 +65,11 @@ _REPO_ROOT = _HERE.parent.parent
 _SAMPLE_SUBMISSION_DIR = _REPO_ROOT / "sample_submission"
 sys.path.insert(0, str(_SAMPLE_SUBMISSION_DIR))
 
-from ptcg_ai.learning.encoder import BASE_FEATURE_COUNT, OPTION_FEATURE_COUNT  # noqa: E402
+from ptcg_ai.learning.encoder import (  # noqa: E402
+    BASE_FEATURE_COUNT,
+    CONSEQUENCE_FEATURE_NAMES,
+    OPTION_FEATURE_COUNT,
+)
 
 _DEFAULT_FEATURES = _HERE / "features.npz"
 _WEIGHTS_OUT_PATH = _SAMPLE_SUBMISSION_DIR / "ptcg_ai" / "learning" / "policy_weights.json"
@@ -377,6 +381,95 @@ def pure_python_forward(
     return h[0]
 
 
+# ---------------------------------------------------------------------------
+# Phase1(案C, beyond-bc): outcome / advantage-aware weighting。
+# base の sample weight(構成C等)に勝敗由来の係数を掛ける。C1=discount/filter は
+# ValueModel 不要、C2=advantage は ValueModel の V(s) を baseline にした MC advantage。
+# ---------------------------------------------------------------------------
+def _sigmoid_np(z: np.ndarray) -> np.ndarray:
+    """value_model._sigmoid と同じオーバーフロー耐性 sigmoid の numpy 版。"""
+    return np.where(z >= 0, 1.0 / (1.0 + np.exp(-np.abs(z))), np.exp(-np.abs(z)) / (1.0 + np.exp(-np.abs(z))))
+
+
+def _value_probs_np(state_raw: np.ndarray, turn: np.ndarray, value_weights_path: str) -> np.ndarray:
+    """features.npz の生 state 特徴(標準化前)から ValueModel の較正済み勝率をベクトルで計算。
+
+    value_model.py の _forward + _calibrate を numpy で複製する(1行ずつの pure-Python 版は
+    18万行で遅いため)。数値一致は呼び出し側で ValueModel と突き合わせて検証する。
+    """
+    from ptcg_ai.learning.value_model import _turn_band_of  # noqa: E402
+
+    with open(value_weights_path, encoding="utf-8") as fh:
+        vw = json.load(fh)
+    mean = np.asarray(vw["standardization"]["mean"], dtype=np.float64)
+    std = np.asarray(vw["standardization"]["std"], dtype=np.float64)
+    # value_model: (f-mean)/std if std else 0.0(std==0 の特徴は 0 に潰す)。
+    safe_std = np.where(std == 0.0, 1.0, std)
+    h = np.where(std == 0.0, 0.0, (state_raw.astype(np.float64) - mean) / safe_std)
+    for layer in vw["layers"]:
+        W = np.asarray(layer["W"], dtype=np.float64)  # [out][in]
+        b = np.asarray(layer["b"], dtype=np.float64)
+        z = h @ W.T + b
+        act = layer["activation"]
+        if act == "relu":
+            h = np.maximum(z, 0.0)
+        elif act == "sigmoid":
+            h = _sigmoid_np(z)
+        else:
+            raise ValueError(f"未知の activation: {act}")
+    p_raw = h[:, 0]
+    buckets = {
+        bk["band"]: float(bk["temperature"])
+        for bk in vw.get("meta", {}).get("calibration", {}).get("buckets", [])
+    }
+    eps = 1e-12
+    p = np.clip(p_raw, eps, 1.0 - eps)
+    logit = np.log(p / (1.0 - p))
+    temps = np.ones(len(turn), dtype=np.float64)
+    bands = np.array([_turn_band_of(int(t)) for t in turn])
+    for band, temp in buckets.items():
+        temps[bands == band] = temp
+    return _sigmoid_np(logit / temps)
+
+
+def compute_outcome_factor(args, won: np.ndarray, state_raw: np.ndarray, turn: np.ndarray) -> np.ndarray:
+    """outcome-weighting の係数(base weight に掛ける)を全行ぶん返す。won=-1(不明)は 1.0。
+
+    - discount: won=1 -> 1.0 / won=0 -> loss_discount γ / won=-1 -> 1.0
+    - filter:   won=1 -> 1.0 / won=0 -> 0.0(= γ=0。後段で train/val の 0 重み行は除外)
+    - advantage: A=won-V(s), factor=exp(clip(A/β, -c, c))。won=-1 -> 1.0(A=0 扱い)
+    """
+    mode = args.outcome_weighting
+    factor = np.ones(len(won), dtype=np.float64)
+    known = won >= 0
+    if mode in ("discount", "filter"):
+        gamma = 0.0 if mode == "filter" else float(args.loss_discount)
+        factor[known & (won == 0)] = gamma
+    elif mode == "advantage":
+        v = _value_probs_np(state_raw, turn, args.value_weights)
+        # 数値一致検証(ValueModel と突き合わせ、val split から数十件)。
+        from ptcg_ai.learning.value_model import ValueModel
+        vm = ValueModel(args.value_weights)
+        if not vm.is_ready:
+            raise ValueError(f"value_weights を読めません: {args.value_weights}")
+        rng = np.random.default_rng(_SEED)
+        check_idx = rng.choice(len(won), size=min(50, len(won)), replace=False)
+        max_err = 0.0
+        for i in check_idx:
+            got = vm.predict_win_prob_from_features(state_raw[int(i)].astype(np.float64).tolist(), int(turn[int(i)]))
+            max_err = max(max_err, abs(got - float(v[int(i)])))
+        print(f"  V(s) numpy vs ValueModel 最大誤差={max_err:.3e}(許容 1e-6)")
+        if max_err > 1e-6:
+            raise ValueError(f"V(s) の numpy 実装が value_model と一致しません(誤差 {max_err:.3e})")
+        adv = np.where(known, won.astype(np.float64) - v, 0.0)
+        beta = float(args.adv_beta)
+        clip = float(args.adv_clip)
+        factor = np.exp(np.clip(adv / beta, -clip, clip))
+    else:
+        raise ValueError(f"未知の outcome_weighting: {mode}")
+    return factor
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--features", default=str(_DEFAULT_FEATURES))
@@ -388,8 +481,52 @@ def main() -> None:
         "--out-weights", default=str(_WEIGHTS_OUT_PATH),
         help="重みJSON書き出し先(既定: 本番パス。実験時は別パスを明示指定すること)",
     )
+    parser.add_argument(
+        "--hidden-size", type=int, default=_HIDDEN_SIZE,
+        help="本命MLPの隠れ層サイズ(既定: 32 = 現行本番と同一。モデル容量ablation用。"
+        "model-capacity-ablation-implementation-plan.md。hidden以外は一切変えないこと)。",
+    )
+    parser.add_argument(
+        "--metrics-out", default=None,
+        help="offline評価指標(train/val/test NLL・Top-1、param数、gap)のJSON書き出し先"
+        "(既定: 書き出さない)。容量ablationの記録用。",
+    )
+    # --- Phase1(案C, beyond-bc): outcome / advantage-aware weighting ---
+    parser.add_argument(
+        "--outcome-weighting", choices=["none", "discount", "filter", "advantage"], default="none",
+        help="勝敗(features.npz の won)で sample weight を再重み付けする(既定 none = 現行と完全に同一)。"
+        "discount=負け試合を γ 倍 / filter=勝ち試合のみ / advantage=exp((won-V(s))/β)。"
+        "phase1-outcome-aware-implementation-plan.md。none 以外は features.npz に won が必要"
+        "(build_features.py --with-outcome)。",
+    )
+    parser.add_argument("--loss-discount", type=float, default=0.5, help="discount 用: 負け試合の重み係数 γ∈[0,1]")
+    parser.add_argument("--adv-beta", type=float, default=1.0, help="advantage 用: 温度 β")
+    parser.add_argument("--adv-clip", type=float, default=3.0, help="advantage 用: A/β のクリップ幅 c")
+    parser.add_argument(
+        "--value-weights",
+        default=str(_SAMPLE_SUBMISSION_DIR / "ptcg_ai" / "learning" / "value_weights.json"),
+        help="advantage 用の ValueModel 重み(既定: 本番 value_weights.json、読み取り専用)",
+    )
+    parser.add_argument(
+        "--consequence-fields", default=None,
+        help="Tier3 Stage3c: features.npz の consequence_features(build_features.py "
+        "--with-consequence-features で生成)からこのカンマ区切りの特徴名だけを選び、"
+        "option特徴の末尾に連結して学習する(例: 'opp_hp_loss,opp_energy_removed,"
+        "opp_special_energy_removed' = Experiment B)。既定は None(consequence特徴を"
+        "使わない。既存の挙動と完全に同一)。有効な特徴名は "
+        "ptcg_ai.learning.encoder.CONSEQUENCE_FEATURE_NAMES 参照。",
+    )
     args = parser.parse_args()
     weights_out_path = Path(args.out_weights)
+    consequence_fields: list[str] = (
+        [s.strip() for s in args.consequence_fields.split(",") if s.strip()]
+        if args.consequence_fields else []
+    )
+    if consequence_fields:
+        unknown = [f for f in consequence_fields if f not in CONSEQUENCE_FEATURE_NAMES]
+        if unknown:
+            raise ValueError(f"未知のconsequence特徴名: {unknown} (有効: {CONSEQUENCE_FEATURE_NAMES})")
+        print(f"consequence特徴を使用: {consequence_fields}")
 
     features_path = Path(args.features)
     print(f"features.npz を読み込み: {features_path}")
@@ -403,9 +540,43 @@ def main() -> None:
     weight = data["weight"].astype(np.float64)
     select_type = data["select_type"].astype(np.int64)
 
+    won = None
+    turn = None
+    if args.outcome_weighting != "none":
+        if "won" not in data:
+            raise ValueError(
+                "--outcome-weighting が指定されましたが features.npz に won がありません"
+                "(build_features.py を --with-outcome で再実行してください)"
+            )
+        won = data["won"].astype(np.int64)
+        turn = data["turn"].astype(np.int64)
+
     assert state_features.shape[1] == BASE_FEATURE_COUNT
     assert option_features[0].shape[1] == OPTION_FEATURE_COUNT
     print(f"card_id_max={card_id_max}  embedding table size={card_id_max + 1} x {_EMBED_DIM}")
+
+    effective_option_feature_count = OPTION_FEATURE_COUNT
+    if consequence_fields:
+        if "consequence_features" not in data:
+            raise ValueError(
+                "--consequence-fields が指定されましたが features.npz に "
+                "consequence_features がありません(build_features.py を "
+                "--with-consequence-features で再実行してください)"
+            )
+        consequence_features_all = data["consequence_features"]
+        field_indices = [CONSEQUENCE_FEATURE_NAMES.index(f) for f in consequence_fields]
+        # option_features の末尾に選択したconsequence列だけを連結する(この時点で連結
+        # しておけば、以降の標準化・self-check・PolicyModel._forward はすべて既存の
+        # option_features 用ロジックのまま流用でき、consequence専用の分岐が不要になる)。
+        option_features = np.array(
+            [
+                np.concatenate([option_features[i], consequence_features_all[i][:, field_indices]], axis=1)
+                for i in range(len(option_features))
+            ],
+            dtype=object,
+        )
+        effective_option_feature_count = OPTION_FEATURE_COUNT + len(consequence_fields)
+        print(f"option特徴を{OPTION_FEATURE_COUNT}->{effective_option_feature_count}次元に拡張")
 
     n_total = len(state_features)
     if args.limit is not None:
@@ -417,7 +588,34 @@ def main() -> None:
         split = split[:n_total]
         weight = weight[:n_total]
         select_type = select_type[:n_total]
+        if won is not None:
+            won = won[:n_total]
+            turn = turn[:n_total]
         print(f"動作確認モード: 先頭 {n_total} 件のみ使用")
+
+    # --- Phase1(案C): outcome / advantage 係数を base weight に掛ける(state_features は
+    # まだ生=標準化前なので advantage の V(s) 計算に使える。標準化・del より前で行う)。---
+    outcome_meta: dict | None = None
+    if args.outcome_weighting != "none":
+        factor = compute_outcome_factor(args, won, state_features, turn)
+        n_known = int((won >= 0).sum())
+        weight = weight * factor
+        outcome_meta = {
+            "mode": args.outcome_weighting,
+            "loss_discount": float(args.loss_discount) if args.outcome_weighting == "discount" else None,
+            "adv_beta": float(args.adv_beta) if args.outcome_weighting == "advantage" else None,
+            "adv_clip": float(args.adv_clip) if args.outcome_weighting == "advantage" else None,
+            "value_weights": args.value_weights if args.outcome_weighting == "advantage" else None,
+            "n_outcome_known": n_known,
+            "n_outcome_unknown": int(len(won) - n_known),
+            "n_win": int((won == 1).sum()),
+            "n_loss": int((won == 0).sum()),
+        }
+        print(
+            f"outcome-weighting={args.outcome_weighting} 適用: 既知={n_known} "
+            f"(勝={outcome_meta['n_win']} 負={outcome_meta['n_loss']}) "
+            f"factor範囲=[{factor.min():.3f}, {factor.max():.3f}] 平均={factor.mean():.3f}"
+        )
 
     train_mask = split == _TRAIN
     val_mask = split == _VAL
@@ -478,14 +676,26 @@ def main() -> None:
     val_idx = np.where(val_mask)[0]
     test_idx = np.where(test_mask)[0]
 
+    # filter モード(および任意の 0 重み)では train/val から重み 0 の行を除く(全 0 の
+    # ミニバッチで total_weight≈0 になり不安定化するのを避ける)。none/discount>0/advantage
+    # では 0 重みが生じないため影響しない。test は報告用に全件保持する。
+    if args.outcome_weighting != "none":
+        n_tr0, n_va0 = len(train_idx), len(val_idx)
+        train_idx = train_idx[weight[train_idx] > 0.0]
+        val_idx = val_idx[weight[val_idx] > 0.0]
+        if len(train_idx) != n_tr0 or len(val_idx) != n_va0:
+            print(f"  0重み行を除外: train {n_tr0}->{len(train_idx)}  val {n_va0}->{len(val_idx)}")
+
     train_main = SplitData(train_idx, chosen_index[train_idx], weight[train_idx])
     val_main = SplitData(val_idx, chosen_index[val_idx], weight[val_idx])
     test_main = SplitData(test_idx, chosen_index[test_idx], weight[test_idx])
 
     # --- ベースライン: 隠れ層なし線形モデル(選択肢特徴のみ、card embedding なし。変更なし) ---
+    # consequence_fields 指定時は option_features_std に既に連結済みなので、ベースラインの
+    # 入力次元も合わせて拡張する(そうしないと次元不一致になる)。
     print("\n=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===")
     t0 = time.time()
-    baseline_model = LinearScorer(_IN_DIM_BASELINE)
+    baseline_model = LinearScorer(effective_option_feature_count)
     baseline_model, _ = train_model(
         baseline_model, None, option_features_std, None, train_main, val_main,
         args.max_epochs, args.patience, args.batch_size, _LR, label="baseline",
@@ -497,19 +707,38 @@ def main() -> None:
     print(f"  test: top1={baseline_test['top1_accuracy']:.4f}  nll={baseline_test['mean_weighted_nll']:.4f}")
 
     # --- 本命: 小型 MLP(state ++ option ++ card_embedding) ---
-    print("\n=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===")
+    hidden_size = args.hidden_size
+    print(f"\n=== 本命: MLP(embedding(card_id) ++ Linear(in,{hidden_size}) -> ReLU -> Linear({hidden_size},1)) ===")
     t0 = time.time()
-    main_model = PolicyScorer(_IN_DIM_MAIN, card_id_max, _EMBED_DIM, _HIDDEN_SIZE)
+    in_dim_main = BASE_FEATURE_COUNT + effective_option_feature_count
+    main_model = PolicyScorer(in_dim_main, card_id_max, _EMBED_DIM, hidden_size)
     main_model, val_loss_history = train_model(
         main_model, state_features_std, option_features_std, option_card_ids, train_main, val_main,
         args.max_epochs, args.patience, args.batch_size, _LR, label="main",
     )
     print(f"  学習完了 ({time.time() - t0:.1f}s, {len(val_loss_history)} epochs)")
 
+    # train/val/test の全 split で指標を取る(容量ablation の overfitting 確認用。
+    # train split の評価は本ファイルでは従来省いていたが、train-val gap を見るために追加する)。
+    main_train = evaluate_split(main_model, state_features_std, option_features_std, option_card_ids, train_main)
     main_val = evaluate_split(main_model, state_features_std, option_features_std, option_card_ids, val_main)
     main_test = evaluate_split(main_model, state_features_std, option_features_std, option_card_ids, test_main)
-    print(f"  val : top1={main_val['top1_accuracy']:.4f}  nll={main_val['mean_weighted_nll']:.4f}")
-    print(f"  test: top1={main_test['top1_accuracy']:.4f}  nll={main_test['mean_weighted_nll']:.4f}")
+    print(f"  train: top1={main_train['top1_accuracy']:.4f}  nll={main_train['mean_weighted_nll']:.4f}")
+    print(f"  val  : top1={main_val['top1_accuracy']:.4f}  nll={main_val['mean_weighted_nll']:.4f}")
+    print(f"  test : top1={main_test['top1_accuracy']:.4f}  nll={main_test['mean_weighted_nll']:.4f}")
+    train_val_top1_gap = main_train["top1_accuracy"] - main_val["top1_accuracy"]
+    train_val_nll_gap = main_val["mean_weighted_nll"] - main_train["mean_weighted_nll"]
+    print(f"  train-val gap: top1={train_val_top1_gap:+.4f}  nll={train_val_nll_gap:+.4f}(overfitting指標)")
+
+    # パラメータ数(fc1/fc2/embedding/total)。value/latency の記録用。
+    param_counts = {
+        "fc1": main_model.fc1.weight.numel() + main_model.fc1.bias.numel(),
+        "fc2": main_model.fc2.weight.numel() + main_model.fc2.bias.numel(),
+        "embedding": main_model.embedding.weight.numel(),
+    }
+    param_counts["mlp"] = param_counts["fc1"] + param_counts["fc2"]
+    param_counts["total"] = param_counts["mlp"] + param_counts["embedding"]
+    print(f"  param_counts: {param_counts}")
 
     print("\n=== 本命 vs ベースライン(val split) ===")
     print(f"  ベースライン(option only): top1={baseline_val['top1_accuracy']:.4f}  nll={baseline_val['mean_weighted_nll']:.4f}")
@@ -535,7 +764,23 @@ def main() -> None:
             "n_val": n_val,
             "n_test": n_test,
             "state_feature_count": int(BASE_FEATURE_COUNT),
-            "option_feature_count": int(OPTION_FEATURE_COUNT),
+            "option_feature_count": int(effective_option_feature_count),
+            "consequence_fields": consequence_fields,
+            "hidden_size": int(hidden_size),
+            "param_counts": param_counts,
+            "outcome_weighting": outcome_meta,
+            "train_metrics": {
+                "top1_accuracy": main_train["top1_accuracy"],
+                "mean_weighted_nll": main_train["mean_weighted_nll"],
+            },
+            "val_metrics": {
+                "top1_accuracy": main_val["top1_accuracy"],
+                "mean_weighted_nll": main_val["mean_weighted_nll"],
+            },
+            "train_val_gap": {
+                "top1_accuracy": train_val_top1_gap,
+                "mean_weighted_nll": train_val_nll_gap,
+            },
             "test_metrics": {
                 "top1_accuracy": main_test["top1_accuracy"],
                 "mean_weighted_nll": main_test["mean_weighted_nll"],
@@ -621,6 +866,31 @@ def main() -> None:
     print(f"  本命(state ++ option ++ embed) test: top1={main_test['top1_accuracy']:.4f} nll={main_test['mean_weighted_nll']:.4f}")
     print(f"  自己検証: 最大誤差={max_abs_err:.8e} -> {'PASS' if self_check_pass else 'FAIL'}")
     print(f"  出力: {weights_out_path}")
+
+    # --- offline 指標 JSON(容量ablation の記録用、--metrics-out 指定時のみ) ---
+    if args.metrics_out is not None:
+        metrics_path = Path(args.metrics_out)
+        metrics_path.parent.mkdir(parents=True, exist_ok=True)
+        metrics_json = {
+            "hidden_size": int(hidden_size),
+            "features": str(features_path),
+            "consequence_fields": consequence_fields,
+            "outcome_weighting": outcome_meta,
+            "seed": _SEED,
+            "param_counts": param_counts,
+            "n_train": n_train,
+            "n_val": n_val,
+            "n_test": n_test,
+            "epochs_trained": len(val_loss_history),
+            "train": {"top1_accuracy": main_train["top1_accuracy"], "mean_weighted_nll": main_train["mean_weighted_nll"]},
+            "val": {"top1_accuracy": main_val["top1_accuracy"], "mean_weighted_nll": main_val["mean_weighted_nll"]},
+            "test": {"top1_accuracy": main_test["top1_accuracy"], "mean_weighted_nll": main_test["mean_weighted_nll"]},
+            "train_val_gap": {"top1_accuracy": train_val_top1_gap, "mean_weighted_nll": train_val_nll_gap},
+            "self_check_max_abs_err": max_abs_err,
+            "out_weights": str(weights_out_path),
+        }
+        metrics_path.write_text(json.dumps(metrics_json, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"  offline指標を書き出しました: {metrics_path}")
 
 
 if __name__ == "__main__":
