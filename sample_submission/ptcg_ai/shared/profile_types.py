@@ -11,7 +11,7 @@ EffectCategory は、グッズ/サポート/どうぐ/スタジアム/特性の�
 """
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Callable, Literal
 
 EffectCategory = Literal[
     "search",       # デッキ/手札からカードを探す
@@ -50,11 +50,58 @@ class AttackProfile:
 
 
 @dataclass
+class OpponentBenchStatus:
+    """相手ベンチ1体ぶんのスナップショット（UsageContext から参照する）。"""
+
+    card_id: int
+    hp: int
+
+
+@dataclass
+class UsageContext:
+    """グッズ/サポート/スタジアムの使用条件（usage_condition）に渡す、盤面の「今の状態」の
+    スナップショット。担当Bが Observation/State から組み立てて渡す
+    （ptcg_ai.board_evaluation.usage_context.build_usage_context）。
+
+    担当Aは usage_condition 関数の中で、ここに載っている値だけを見て bool を返す
+    （Observation/State を直接扱わない）。載っていない情報が必要になった場合は、
+    担当Bにフィールド追加を相談すること（勝手に profile_types.py 以外の経路で
+    盤面情報を取得しない）。
+    """
+
+    own_hand_ids: list[int] = field(default_factory=list)
+    own_active_id: int | None = None
+    own_bench_ids: list[int] = field(default_factory=list)
+    own_discard_ids: list[int] = field(default_factory=list)
+    own_active_energy_count: int = 0
+    own_discard_pokemon_count: int = 0
+    opponent_active_id: int | None = None
+    opponent_active_hp: int | None = None
+    opponent_bench: list[OpponentBenchStatus] = field(default_factory=list)
+    opponent_active_has_special_energy: bool = False
+    stadium_id: int | None = None
+
+    @property
+    def own_board_ids(self) -> list[int]:
+        """自分の場（バトル場+ベンチ）にいるポケモンの card_id 一覧。"""
+        ids = list(self.own_bench_ids)
+        if self.own_active_id is not None:
+            ids.append(self.own_active_id)
+        return ids
+
+
+# グッズ/サポート/スタジアムを「今使うべきか」判定する条件関数。UsageContext だけを見て bool を返す。
+# None なら「常に使ってよい（category/priority だけで判断する）」を意味する。
+UsageCondition = Callable[[UsageContext], bool]
+
+
+@dataclass
 class ItemProfile:
     """グッズ1枚の効果分類データ。"""
 
     category: EffectCategory
     priority: float = 0.0  # 同カテゴリ内での使用優先度の目安（tie-break用）
+    usage_condition: UsageCondition | None = None  # 「今使うべきか」の判定関数（無ければ常に使用可）
 
 
 @dataclass
@@ -63,6 +110,7 @@ class SupporterProfile:
 
     category: EffectCategory
     priority: float = 0.0
+    usage_condition: UsageCondition | None = None
 
 
 @dataclass
@@ -79,6 +127,7 @@ class StadiumProfile:
 
     category: EffectCategory
     priority: float = 0.0
+    usage_condition: UsageCondition | None = None
 
 
 @dataclass
@@ -86,6 +135,44 @@ class EnergyProfile:
     """使用する基本/特殊エネルギー1種のデータ。"""
 
     category: Literal["basic", "special"]
+
+
+@dataclass
+class EnergyCardContext:
+    """ENERGY_CARD_PRIORITY_RULES の条件関数に渡す、エネルギー付与1回ぶんの状況。"""
+
+    target_card_id: int  # エネルギーを付ける先のポケモンの card_id
+    target_energy_count: int  # 付ける先に現在付いているエネルギー本数
+
+
+# 条件付きの「どのエネルギーカードを使うか」の条件関数。EnergyCardContext だけを見て bool を返す。
+EnergyCardCondition = Callable[[EnergyCardContext], bool]
+
+
+@dataclass
+class EnergyPriorityRule:
+    """条件付きの「どのエネルギーカードを使うか」優先順位
+    （担当Aが decks/new_deck/deck_plan.py の ENERGY_CARD_PRIORITY_RULES で定義する）。
+
+    condition が True を返す最初のルールの order（card_id を優先度順に並べたもの）を使う。
+    """
+
+    condition: EnergyCardCondition
+    order: list[int]
+
+
+@dataclass
+class SearchPriorityRule:
+    """条件付きの「サーチ/ドローで何を優先して持ってくるか」優先順位
+    （担当Aが decks/new_deck/deck_plan.py の SEARCH_PRIORITY_RULES で定義する）。
+
+    condition（UsageContext、盤面のスナップショット）が True を返す最初のルールの
+    order（card_id を優先度順に並べたもの）を使う。TO_HAND/LOOK の選択肢のうち、この
+    order に載っていないカードは DeckPlan.search_priority（無条件の優先順）にフォールバックする。
+    """
+
+    condition: UsageCondition
+    order: list[int]
 
 
 @dataclass
@@ -105,5 +192,12 @@ class DeckPlan:
     evolution_priority: list[int] = field(default_factory=list)  # 進化を優先したいカードID順
     energy_priority: list[int] = field(default_factory=list)  # エネルギーを優先して付けたいカードID順
     search_priority: list[int] = field(default_factory=list)  # サーチで最初に探すべきカードID順
+    search_priority_rules: list[SearchPriorityRule] = field(default_factory=list)  # 条件付きサーチ優先順（無条件のsearch_priorityより優先）
     protected_card_ids: set[int] = field(default_factory=set)  # 捨てたくないカードIDの集合
     win_condition_by_prize: dict[int, str] = field(default_factory=dict)  # 残りサイド枚数ごとの勝ち筋メモ
+
+    # エネルギー周回コンボ（例: ACE SPECエネルギーを、山札に戻る特性持ちポケモンに一時的に
+    # 付けて再利用する）。該当が無いデッキでは None のままでよい。
+    energy_recycle_target_id: int | None = None  # 周回コンボの受け皿にするポケモンのcard_id
+    energy_recycle_card_id: int | None = None  # 周回させたいエネルギーカードのcard_id
+    energy_recycle_backup_item_id: int | None = None  # 主力への代替エネルギー供給手段（グッズ等）のcard_id

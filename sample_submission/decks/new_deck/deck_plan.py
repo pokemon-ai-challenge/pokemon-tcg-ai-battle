@@ -18,6 +18,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ptcg_ai.shared.profile_types import (
+    EnergyCardContext,
+    EnergyPriorityRule,
+    SearchPriorityRule,
+    UsageContext,
+)
+
 
 @dataclass(frozen=True)
 class AttackerPlan:
@@ -37,14 +44,6 @@ class PriorityEntry:
 class PrizeStageWinCondition:
     prize_range: str
     plan: str
-
-
-@dataclass(frozen=True)
-class EnergyPriorityRule:
-    """特定条件下でのエネルギーカード付与優先順位（カードIDを優先度順に並べたもの）。"""
-
-    condition: str
-    order: list[int]
 
 
 @dataclass(frozen=True)
@@ -273,20 +272,52 @@ TELEPATH_ENERGY_CARD_ID = 19
 RICH_ENERGY_CARD_ID = 13
 ENERGY_RECYCLE_TOOL_CARD_ID = 1146  # ワンダーパッチ：トラッシュの基本超エネルギーをベンチの超ポケモンに再利用
 
+def _fudin_line_needs_first_energy(ctx: EnergyCardContext) -> bool:
+    """付与先がフーディン系列（ケーシィ／ユンゲラー／フーディン）で、まだエネルギーが0個の場合。
+
+    フーディン系列は ENERGY_REQUIRED_COUNT がいずれも1のため、無エネルギーのリッチ
+    エネルギーを最初に付けてしまうと「必要数を満たした」扱いになり、以後エネルギーが
+    付かなくなる（ハンドパワーは【超】1個指定でリッチエネルギーだけでは支払えないため、
+    実際には攻撃できないまま止まってしまう）。ケーシィ／ユンゲラーの段階でも同じ問題が
+    起きるため、フーディンだけでなく系列全体を対象にする。
+    """
+    return ctx.target_card_id in FUDIN_LINE_CARD_IDS and ctx.target_energy_count == 0
+
+
+def _otherwise(ctx: EnergyCardContext) -> bool:
+    """それ以外（フーディン以外への付与、またはフーディンに既にエネルギーが付いている場合）。
+
+    常に True を返す、フォールバック用の最終ルール。
+    """
+    return True
+
+
 ENERGY_CARD_PRIORITY_RULES: list[EnergyPriorityRule] = [
     EnergyPriorityRule(
-        condition=(
-            "付与先がフーディンで、まだエネルギーが0個の場合"
-            "（ハンドパワーのコストは【超】1個指定で、無エネルギーのリッチエネルギーでは"
-            "支払えないため、まず超エネルギーで攻撃可能な状態にする）"
-        ),
+        condition=_fudin_line_needs_first_energy,
         order=[TELEPATH_ENERGY_CARD_ID, BASIC_PSYCHIC_ENERGY_CARD_ID],
     ),
     EnergyPriorityRule(
-        condition="それ以外（フーディン以外への付与、またはフーディンに既にエネルギーが付いている場合）",
+        condition=_otherwise,
         order=[RICH_ENERGY_CARD_ID, TELEPATH_ENERGY_CARD_ID, BASIC_PSYCHIC_ENERGY_CARD_ID],
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# エネルギー周回コンボ（ノココッチ×リッチエネルギー）
+# ---------------------------------------------------------------------------
+#
+# リッチエネルギー(ACE SPEC・1枚)は、ノココッチの特性「にげあしドロー」
+# （3ドロー後、自身と付いているカード全てを山札に戻す。特性自体にエネルギーコストは無い）
+# で回収し直せる。バトル場の主力に攻撃可能なだけのエネルギーが既に付いている、または
+# ワンダーパッチでトラッシュから後から補給できる場合に限り、余っているリッチエネルギーを
+# ノココッチに預けて回す（③実装時: energy_eval.py が ENERGY_REQUIRED_COUNT /
+# ワンダーパッチの usage_condition と組み合わせて判定する）。
+
+ENERGY_RECYCLE_TARGET_CARD_ID = 66  # ノココッチ
+ENERGY_RECYCLE_CARD_ID = RICH_ENERGY_CARD_ID  # リッチエネルギー
+ENERGY_RECYCLE_BACKUP_ITEM_ID = ENERGY_RECYCLE_TOOL_CARD_ID  # ワンダーパッチ
 
 # 付与ルール:
 # - ENERGY_REQUIRED_COUNT に定めた必要数以上は付けない。
@@ -328,6 +359,55 @@ SEARCH_PRIORITY: list[PriorityEntry] = [
         card_id=RARE_CANDY_CARD_ID,
         name="ふしぎなアメ",
         reason="フーディンへの進化短縮用。基本的に手札に来たら温存し、進化ルートのために使う。",
+    ),
+    PriorityEntry(
+        card_id=ENERGY_RECYCLE_CARD_ID,
+        name="リッチエネルギー",
+        reason=(
+            "ACE SPEC・1枚のみ。ノココッチの特性で山札に戻した後は、"
+            "トウコ等のエネルギーサーチで優先的に回収し直す。"
+        ),
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# 条件付きサーチ優先順位（トウコ等の「進化ポケモン1体」選択で使用）
+# ---------------------------------------------------------------------------
+#
+# SEARCH_PRIORITY にはポケモンのcard_idを含めていない（サポート/グッズ/エネルギーの
+# 優先順であり、トウコの進化ポケモン選択のような「複数の進化ポケモンから1体選ぶ」
+# 場面では使えないため）。ここではその選択に限定した条件付き優先順を定義する。
+#
+# ノココッチ（進化先）だけを先にサーチしても、進化元のノコッチが場に無ければ
+# 進化させられず手札で腐る。そのため、ノコッチが既に場にいる／ポケパッド・
+# なかよしポフィンで今すぐ持ってこられる場合に限りノココッチを最優先にし、
+# そうでなければユンゲラー系列（進化前でもエネルギーを付けて使い回せる）を優先する。
+
+_DUNSPARCE_ID = 65  # ノコッチ
+_DUNSPARCE_STAGE1_ID = 66  # ノココッチ
+_POKE_PAD_CARD_ID = 1152  # ポケパッド
+_FRIENDSHIP_MUFFIN_CARD_ID = 1086  # なかよしポフィン
+
+
+def _dunsparce_reachable(ctx: UsageContext) -> bool:
+    """ノコッチが既に自分の場にいる、またはポケパッド／なかよしポフィンで今すぐ持ってこれる場合。"""
+    if _DUNSPARCE_ID in ctx.own_board_ids or _DUNSPARCE_STAGE1_ID in ctx.own_board_ids:
+        return True
+    return _POKE_PAD_CARD_ID in ctx.own_hand_ids or _FRIENDSHIP_MUFFIN_CARD_ID in ctx.own_hand_ids
+
+
+def _search_otherwise(ctx: UsageContext) -> bool:
+    return True
+
+
+SEARCH_PRIORITY_RULES: list[SearchPriorityRule] = [
+    SearchPriorityRule(
+        condition=_dunsparce_reachable,
+        order=[_DUNSPARCE_STAGE1_ID, 742, 743],  # ノココッチ最優先、次点でユンゲラー系列
+    ),
+    SearchPriorityRule(
+        condition=_search_otherwise,
+        order=[742, 743, _DUNSPARCE_STAGE1_ID],  # ノコッチ未確保時はユンゲラー系列を優先
     ),
 ]
 
@@ -423,8 +503,11 @@ SUPPORTER_USAGE_NOTES: list[UsageNote] = [
         card_id=1225,
         name="トウコ",
         note=(
-            "手札にあれば基本的に使用する。サーチ対象は OPENING_BENCH_PRIORITY の並びに"
-            "準拠しつつ、場・手札に進化先がいないポケモンの確保を優先する。"
+            "手札にあれば基本的に使用する。進化ポケモンとエネルギーを1枚ずつサーチできる。"
+            "エネルギーは基本的にリッチエネルギーを回収する（SEARCH_PRIORITY参照）。"
+            "進化ポケモンの対象は SEARCH_PRIORITY_RULES に従い、ノコッチが場にいる／"
+            "ポケパッド・なかよしポフィンで持ってこれる場合はノココッチを、"
+            "そうでなければユンゲラー系列を優先する。"
         ),
     ),
     UsageNote(

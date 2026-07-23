@@ -32,6 +32,11 @@ from ptcg_ai.shared import card_cache
 _WEAKNESS_MULTIPLIER = 2
 _RESISTANCE_REDUCTION = 30
 
+# 公式ルール上、ダメージカウンター1個 = 10ダメージ。
+# 「N damage counters」表記の技は、直接ダメージ点数を書く技（例: "does 100 damage"）とは
+# 単位が異なるため、抽出した数値をそのままダメージ点数として使ってはいけない。
+_DAMAGE_PER_COUNTER = 10
+
 # Attack.damage が 0（可変ダメージなど）の場合に、Attack.text から推定を試みるパターン。
 # 上から順に試し、最初にマッチしたものを採用する。新しい言い回しが見つかったら追記していく。
 _FIXED_DAMAGE_PATTERN = re.compile(r"does (\d+) damage", re.IGNORECASE)
@@ -45,7 +50,9 @@ def _estimate_variable_damage(attack: Attack, attacker_hand_size: int | None) ->
     if attacker_hand_size is not None:
         match = _PER_HAND_CARD_PATTERN.search(text)
         if match:
-            return int(match.group(1)) * attacker_hand_size
+            # 抽出した数値は「ダメージカウンター」の個数であり、ダメージ点数そのものではない
+            # （1個=10ダメージ）。手札1枚あたりの点数に換算してから手札枚数を掛ける。
+            return int(match.group(1)) * _DAMAGE_PER_COUNTER * attacker_hand_size
 
     match = _FIXED_DAMAGE_PATTERN.search(text)
     if match:
