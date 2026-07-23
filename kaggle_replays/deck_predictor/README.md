@@ -40,6 +40,14 @@ python extract_decks.py
 python label_decks.py
 #  -> output/deck_labels.jsonl, output/label_report.md (分布レポート)
 
+# 2b. アーキタイプ別の代表カードプール(card_id -> median枚数 / inclusion_rate)を集計する
+#     (非公開情報推定レイヤー Phase 2 = OpponentHiddenState が読む代表60枚リスト)
+#     deck_db.jsonl + deck_labels.jsonl を結合するだけの軽量集計。手順1〜2の直後に置ける。
+#     --deploy を付けると sample_submission/ptcg_ai/hidden_information/archetype_card_pool.json にコピーする。
+python build_archetype_pool.py --deploy
+#  -> output/model/archetype_card_pool.json
+#  -> (--deploy時) sample_submission/ptcg_ai/hidden_information/archetype_card_pool.json
+
 # 3. 各意思決定時点の「見えている相手情報」を OpponentKnowledge で再現し、特徴量化する
 #    (719リプレイ×2視点、進捗表示あり。1件のエラーで全体は止まらない)
 python build_dataset.py
@@ -108,6 +116,33 @@ python fit_hybrid.py --baseline ../../sample_submission/ptcg_ai/opponent_modelin
 python compare_nb.py
 ```
 
+### 非公開情報推定レイヤー(hidden_information)のキャリブレーション検証
+
+`sample_submission/ptcg_ai/hidden_information/`(`OwnHiddenState`/`OpponentHiddenState`、Phase 1/2)が
+出す「相手の山札/手札にこの card_id が入っている確率」が実際どれだけ当たっているかを、Kaggle リプレイで
+検証する(設計は
+[`sample_submission/docs/plans/hidden-information/implementation-plan.md`](../../sample_submission/docs/plans/hidden-information/implementation-plan.md)
+Phase 3)。手順1〜2b(`extract_decks.py` → `label_decks.py` → `build_archetype_pool.py --deploy`)と
+`opponent_modeling` 側のデプロイ済み重み(手順4〜11のいずれか、`HybridDeckPredictor` が読めれば可)が
+先に必要。
+
+```bash
+cd kaggle_replays/deck_predictor
+
+# 12. 各リプレイ・各意思決定時点で HybridDeckPredictor.predict() -> OpponentHiddenState.marginals() を計算し、
+#     同じ時点の相手プレイヤー自身の視点(手札は真値)・全60枚(deck_db.jsonl)から求めた山札の ground truth と
+#     突き合わせて reliability/ECE を測る。アーキタイプ事後分布を全アーキタイプ等重みに差し替えた
+#     ナイーブベースラインも同じレポートに併記する(本実装が悪化していないかの完了条件チェック用)。
+#     --replay-limit で評価件数を絞れる(既定100件。0で全件)。
+python evaluate_hidden_information.py --replay-limit 100
+#  -> output/hidden_info_eval_report.md
+```
+
+サイドカード(取得済み分は公開ゾーンとして山末 ground truth の計算に含めるが、未取得分の中身は
+Kaggle リプレイからは復元できない)や、未取得サイドを含めた完全なキャリブレーションは、
+`battle_review_viewer/hidden_info_diff.py`(`cg.game.visualize_data()` の神視点を使うローカル自己対戦)
+で別途検証する。
+
 NBの重みJSON(`deck_predictor_nb.json`)を提出環境にも配置する場合は、`train_nb.py`の出力
 (`output/model/deck_predictor_nb.json`)を`sample_submission/ptcg_ai/opponent_modeling/`へ
 手動でコピーする(`train_nb.py`には`--deploy`は無い。LRの`weights.json`と違い頻度が低い想定のため)。
@@ -123,6 +158,7 @@ NBの重みJSON(`deck_predictor_nb.json`)を提出環境にも配置する場合
 |---|---|---|
 | `extract_decks.py` | `replays/*.json` + `index/episodes_master.jsonl` | `output/deck_db.jsonl` |
 | `label_decks.py` | `output/deck_db.jsonl` + `rough_predictor.json` | `output/deck_labels.jsonl`, `output/label_report.md` |
+| `build_archetype_pool.py` | `output/deck_db.jsonl` + `output/deck_labels.jsonl` | `output/model/archetype_card_pool.json`(アーキタイプ別 card_id→median枚数/inclusion_rate)、`--deploy`時は `sample_submission/ptcg_ai/hidden_information/` へコピー |
 | `build_dataset.py` | `replays/*.json` + `output/deck_labels.jsonl` | `output/dataset.jsonl` |
 | `train.py` | `output/dataset.jsonl` + `output/deck_labels.jsonl` | `output/model/deck_predictor_weights_base.json`(class_priors付き), `output/model/split.json` |
 | `adjust_prior.py` | `output/model/deck_predictor_weights_base.json` + `output/deck_labels.jsonl` + `index/episodes_master.jsonl` | `output/model/deck_predictor_weights.json`(デプロイ用)、`--deploy`時はランタイムへのコピー |
@@ -131,6 +167,7 @@ NBの重みJSON(`deck_predictor_nb.json`)を提出環境にも配置する場合
 | `train_nb.py` | `output/deck_db.jsonl` + `output/deck_labels.jsonl` | `output/model/deck_predictor_nb.json` |
 | `fit_hybrid.py` | `output/dataset.jsonl` + `output/model/deck_predictor_weights.json` + `output/model/deck_predictor_nb.json` + `output/model/split.json` | `output/model/deck_predictor_hybrid.json`(デプロイ用)、`--deploy`時はランタイムへのコピー |
 | `compare_nb.py` | `output/dataset.jsonl` + `output/model/deck_predictor_weights.json` + `output/model/deck_predictor_nb.json` (+ 存在すれば `deck_predictor_hybrid.json`) | `output/nb_compare_report.md` |
+| `evaluate_hidden_information.py` | `replays/*.json` + `output/deck_db.jsonl` + `sample_submission/ptcg_ai/hidden_information/archetype_card_pool.json` + `opponent_modeling` のデプロイ済み重み | `output/hidden_info_eval_report.md`(山末/手札 reliability・ECE、実装 vs ナイーブベースライン) |
 
 `episode_window.py` は `adjust_prior.py` と `evaluate.py` が共有する、`episodes_master.jsonl` との
 ジョイン(エピソード作成日時・相手ランク)とウィンドウ判定のユーティリティ(単独では実行しない)。

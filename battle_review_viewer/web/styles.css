@@ -1707,6 +1707,32 @@ body.drawer-open .stage {
 .ml-predictor-bar-fill { display: block; height: 100%; background: var(--self); border-radius: 999px; }
 .ml-predictor-bar-pct { color: var(--muted); font-family: var(--mono); text-align: right; }
 
+/* Board evaluation view (value network win-prob bars) */
+.value-eval-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 56px;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.value-eval-label { font-weight: 700; }
+.value-eval-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.value-eval-fill { display: block; height: 100%; border-radius: 999px; }
+.value-eval-fill-self { background: var(--self); }
+.value-eval-fill-opp { background: var(--opp); }
+.value-eval-pct { color: var(--muted); font-family: var(--mono); text-align: right; }
+.value-eval-caveat { margin-top: 8px; font-size: 11px; line-height: 1.5; color: var(--muted); opacity: 0.85; }
+
 /* 未確定判定バッジ(status=="uncertain")。既存 .order-badge.first と同じ amber トーンに揃える。 */
 .predictor-headline.is-uncertain {
   background: rgba(255, 211, 92, 0.12);
@@ -1748,6 +1774,35 @@ body.drawer-open .stage {
 .ml-evidence-cls-name { color: var(--ink); }
 .ml-evidence-cls-val { color: var(--muted); font-family: var(--mono); }
 .ml-evidence-ignored-note { font-size: 11px; color: var(--muted); padding: 2px 4px; }
+
+/* Hidden information (own prize-card / opponent hand) estimation debug view */
+.hidden-info-table { display: grid; gap: 6px; margin: 6px 0 14px; }
+.hidden-info-row {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+}
+.hidden-info-row-2 { grid-template-columns: 1fr 64px 64px 92px; }
+.hidden-info-row-3 { grid-template-columns: 1fr 56px 56px 56px 104px; }
+.hidden-info-row-head {
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 10px;
+}
+.hidden-info-row.is-top { box-shadow: inset 0 0 0 1px rgba(79, 155, 255, 0.5); }
+.hidden-info-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hidden-info-pct { font-family: var(--mono); color: var(--muted); text-align: right; }
+.hidden-info-pct.is-top { color: #7fe6ac; font-weight: 700; }
+.hidden-info-actual { font-family: var(--mono); color: var(--muted); text-align: right; }
+.hidden-info-legend { margin: 0 0 8px; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.hidden-info-note { opacity: 0.75; font-style: italic; }
 
 .debug-placeholder {
   color: var(--muted);

@@ -36,6 +36,20 @@ try:
 except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォールバック
     from ml_prediction_debug import build_ml_prediction_debug  # noqa: E402
 try:
+    from .hidden_info_debug import build_hidden_info_debug  # noqa: E402
+except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォールバック
+    from hidden_info_debug import build_hidden_info_debug  # noqa: E402
+try:
+    from .value_eval_debug import build_value_eval_debug  # noqa: E402
+except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォールバック
+    from value_eval_debug import build_value_eval_debug  # noqa: E402
+try:
+    from ptcg_ai.hidden_information.own_hidden_state import OwnHiddenState  # noqa: E402
+    from ptcg_ai.hidden_information.opponent_hidden_state import OpponentHiddenState  # noqa: E402
+except Exception:  # noqa: BLE001 -- 非公開情報推定レイヤーが無い/壊れていてもライブモードは続行する
+    OwnHiddenState = None
+    OpponentHiddenState = None
+try:
     from ptcg_ai.opponent_modeling.rough_predictor import predict as predict_deck  # noqa: E402
 except Exception:  # noqa: BLE001 -- 予測器が無い/壊れていてもライブモードは続行する
     predict_deck = None
@@ -45,6 +59,12 @@ try:
     _ml_predictor = HybridDeckPredictor()
 except Exception:  # noqa: BLE001 -- ML予測器が無い/壊れていてもライブモードは続行する
     _ml_predictor = None
+try:
+    from ptcg_ai.learning.value_model import ValueModel  # noqa: E402
+
+    _value_model = ValueModel()
+except Exception:  # noqa: BLE001 -- 値ネットが無い/壊れていてもライブモードは続行する
+    _value_model = None
 
 from cg.api import Observation, to_observation_class  # noqa: E402
 from cg.game import battle_finish, battle_select, battle_start  # noqa: E402
@@ -123,6 +143,8 @@ class LiveMatchSession:
     action_history: list[dict[str, Any]] = field(default_factory=list)
     decision_frames: list[dict[str, Any]] = field(default_factory=list)
     opponent_knowledge: Any | None = None
+    own_hidden_state: Any | None = None
+    opponent_hidden_state: Any | None = None
 
     def start(
         self,
@@ -145,6 +167,10 @@ class LiveMatchSession:
             self.opponent_knowledge = (
                 None if OpponentKnowledge is None else OpponentKnowledge(opponent_index=OPPONENT_INDEX)
             )
+            # 非公開情報推定レイヤーも player0(=Human, SELF_INDEX)視点で独立に構築する。
+            # match_context シングルトンはビュアーのデバッグ表示には流用しない（export_replay.py と同じ理由）。
+            self.own_hidden_state = None if OwnHiddenState is None else OwnHiddenState(self.deck0)
+            self.opponent_hidden_state = None if OpponentHiddenState is None else OpponentHiddenState()
             self._start_battle_locked()
             self._advance_cpu_locked()
             return self._snapshot_locked()
@@ -226,12 +252,33 @@ class LiveMatchSession:
                 prediction = {"error": str(exc)}
 
         ml_prediction = build_ml_prediction_debug(_ml_predictor, self.opponent_knowledge, obs.current)
+        value_eval = build_value_eval_debug(_value_model, obs.current)
+
+        # 非公開情報推定レイヤー（自分の山札∪サイド、相手の山札/手札/サイド）も同じフレームに埋め込む。
+        # own_hidden_state/opponent_hidden_state の update() 呼び出しは build_hidden_info_debug の内部が
+        # 担う。このメソッドは1フレームにつき高々1回しか呼ばれない(呼び出し元は _apply_action_locked /
+        # _snapshot_locked のいずれか一方のみ)ため、二重更新にはならない。
+        if self.own_hidden_state is None and OwnHiddenState is not None:
+            self.own_hidden_state = OwnHiddenState(self.deck0)
+        if self.opponent_hidden_state is None and OpponentHiddenState is not None:
+            self.opponent_hidden_state = OpponentHiddenState()
+        hidden_info = build_hidden_info_debug(
+            self.own_hidden_state,
+            self.opponent_hidden_state,
+            _ml_predictor,
+            self.opponent_knowledge,
+            obs.current,
+            obs.select,
+            visual_current=current,
+        )
 
         return {
             "features": self.opponent_knowledge.get_prediction_features(),
             "diff": diff,
             "prediction": prediction,
             "ml_prediction": ml_prediction,
+            "value_eval": value_eval,
+            "hidden_info": hidden_info,
         }
 
     def _apply_action_locked(self, action: list[int], player_index: int) -> None:

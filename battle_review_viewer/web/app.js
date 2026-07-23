@@ -299,6 +299,8 @@ UI.ja.debugHeading = "デバッグ";
 UI.ja.debugViewOpponentKnowledge = "相手の公開情報";
 UI.ja.debugViewDeckPredictor = "デッキ予測";
 UI.ja.debugViewMlDeckPredictor = "デッキ予測（ML）";
+UI.ja.debugViewHiddenInformation = "山札・手札・サイド推定";
+UI.ja.debugViewValueEval = "盤面評価";
 UI.ja.mlArchetypeOther = "その他（未分類）";
 UI.ja.observedCardsHeading = "観測済みカード（名前別）";
 UI.ja.currentZonesHeading = "現在のゾーン";
@@ -307,10 +309,27 @@ UI.ja.noObservationYet = "まだ観測がありません（player0 の最初の�
 UI.ja.noCardsObservedYet = "まだ観測されたカードはありません";
 UI.ja.noCardsVisible = "現在見えているカードはありません";
 UI.ja.noMismatchAtStep = "この時点では差分はありません。";
+UI.ja.hiddenInfoOwnHeading = "自分のサイド落ち候補（上位）";
+UI.ja.hiddenInfoOpponentHeading = "相手の手札候補（上位）";
+UI.ja.hiddenInfoPoolUnready = "プール未配置（archetype_card_pool.json が見つかりません。kaggle_replays/deck_predictor/build_archetype_pool.py で生成・配置してください）。";
+UI.ja.hiddenInfoNoData = "この replay には山札・手札・サイド推定データがありません（古い replay か、推定レイヤーが無効）。新しく生成すると出ます。";
+UI.ja.hiddenInfoNoCandidates = "候補なし";
+UI.ja.hiddenInfoLegend = "% = そのゾーンに最低1枚ある確率 ／ 実際 = 神視点の実枚数";
+UI.ja.hiddenInfoLegendNote = "※ ビュアーは確率表示のみ。枚数など詳細は推定関数で取得できます。";
+UI.ja.hiddenInfoActualOwn = "実際(山/サイド)";
+UI.ja.hiddenInfoActualOpp = "実際(手/山/サイド)";
+UI.ja.valueEvalNoData = "この replay には盤面評価データがありません（古い replay か、値ネットが無効）。新しく生成すると出ます。";
+UI.ja.valueEvalNotReady = "値ネット未ロード（重みファイルが見つかりません）。";
+UI.ja.valueEvalSelfLabel = "自分";
+UI.ja.valueEvalOpponentLabel = "相手";
+UI.ja.valueEvalTurnLabel = "ターン";
+UI.ja.valueEvalCaveat = "※ 序盤(ターン1-2)は識別力が低いことが分かっています(オフライン評価: AUC≈0.53)。中盤以降の値を重視してください。";
 UI.en.debugHeading = "Debug";
 UI.en.debugViewOpponentKnowledge = "Opponent Knowledge";
 UI.en.debugViewDeckPredictor = "Deck Predictor";
 UI.en.debugViewMlDeckPredictor = "Deck Predictor (ML)";
+UI.en.debugViewHiddenInformation = "Deck / Hand / Prize Estimation";
+UI.en.debugViewValueEval = "Board Evaluation";
 UI.en.mlArchetypeOther = "Other (unclassified)";
 UI.en.observedCardsHeading = "Observed cards (by name)";
 UI.en.currentZonesHeading = "Current zones";
@@ -319,6 +338,21 @@ UI.en.noObservationYet = "No observation yet (waiting for player0's first decisi
 UI.en.noCardsObservedYet = "No cards observed yet";
 UI.en.noCardsVisible = "No cards currently visible";
 UI.en.noMismatchAtStep = "No mismatch at this step.";
+UI.en.hiddenInfoOwnHeading = "Own prize-card candidates (top)";
+UI.en.hiddenInfoOpponentHeading = "Opponent hand candidates (top)";
+UI.en.hiddenInfoPoolUnready = "Pool not loaded (archetype_card_pool.json not found; generate it with kaggle_replays/deck_predictor/build_archetype_pool.py).";
+UI.en.hiddenInfoNoData = "This replay has no deck/hand/prize estimation data (old replay, or the estimation layer is disabled). Regenerate the replay to see it.";
+UI.en.hiddenInfoNoCandidates = "No candidates";
+UI.en.hiddenInfoLegend = "% = probability ≥1 copy is in that zone / Actual = true count (god's-eye)";
+UI.en.hiddenInfoLegendNote = "Note: the viewer shows probabilities only; counts are available via the estimator functions.";
+UI.en.hiddenInfoActualOwn = "Actual (D/P)";
+UI.en.hiddenInfoActualOpp = "Actual (H/D/P)";
+UI.en.valueEvalNoData = "This replay has no board evaluation data (old replay, or the value network is disabled). Regenerate the replay to see it.";
+UI.en.valueEvalNotReady = "Value network not loaded (weights file not found).";
+UI.en.valueEvalSelfLabel = "You";
+UI.en.valueEvalOpponentLabel = "Opponent";
+UI.en.valueEvalTurnLabel = "Turn";
+UI.en.valueEvalCaveat = "Note: discriminative power is known to be low in the early game (turns 1-2, offline AUC≈0.53). Weight mid-game and later values more heavily.";
 
 const ZONE_LABEL = {
   active: { ja: "バトル場", en: "active" },
@@ -849,6 +883,9 @@ function applyLang() {
   set("observedCardsHeading", t("observedCardsHeading"));
   set("currentZonesHeading", t("currentZonesHeading"));
   set("groundTruthDiffHeading", t("groundTruthDiffHeading"));
+  set("hiddenInfoOwnHeading", t("hiddenInfoOwnHeading"));
+  set("hiddenInfoOpponentHeading", t("hiddenInfoOpponentHeading"));
+  set("valueEvalHeading", t("debugViewValueEval"));
   set("generatePlayerPolicyLabel", lang === "ja" ? "自分のCPU" : "Your CPU");
   set("generateOpponentLabel", lang === "ja" ? "相手のCPU" : "Opponent CPU");
   set("generatePlayerDeckLabel", lang === "ja" ? "自分のデッキ" : "Your deck");
@@ -1175,6 +1212,8 @@ function render() {
   renderOpponentKnowledge(debugEntry);
   renderDeckPredictor(debugEntry);
   renderMlDeckPredictor(debugEntry);
+  renderHiddenInformation(debugEntry);
+  renderValueEval(debugEntry);
   renderStadium(current.stadium || [], selectedRefs, actionableRefs);
 
   renderPlayer(opponent, OPPONENT_INDEX, selectedRefs, actionableRefs, {
@@ -2304,6 +2343,172 @@ function renderMlPredictionEvidence(explanation, entry) {
   evidenceEl.innerHTML = cardBlocks + ignoredNote;
 }
 
+// 非公開情報推定レイヤー（sample_submission/ptcg_ai/hidden_information/）のデバッグ表示。
+// OwnHiddenState（自分の山札∪サイド、超幾何分布）の「サイド落ち候補 top N」と、
+// OpponentHiddenState（相手アーキタイプ事後分布×ゾーン配分の混合モデル）の「手札候補 top N」を
+// テーブル表示する。生成は export_replay.py / live_match.py が hidden_info_debug.py の
+// build_hidden_info_debug() 経由で行い、同じ debug.hidden_info（opponentKnowledgeDebug と同居）に
+// 埋め込まれる。古い replay にはキー自体が無いので、その場合は「データなし」表示にフォールバックする。
+function hiddenInfoCardName(candidate) {
+  return cardDisplayName({ id: candidate.card_id, name: candidate.name });
+}
+
+function renderHiddenInformation(entry) {
+  const ownStatusEl = document.getElementById("hiddenInfoOwnStatus");
+  const ownTableEl = document.getElementById("hiddenInfoOwnTable");
+  const opponentStatusEl = document.getElementById("hiddenInfoOpponentStatus");
+  const opponentTableEl = document.getElementById("hiddenInfoOpponentTable");
+  if (!ownStatusEl || !ownTableEl || !opponentStatusEl || !opponentTableEl) return;
+
+  const legendEl = document.getElementById("hiddenInfoLegend");
+  if (legendEl) {
+    legendEl.innerHTML =
+      `${escapeHtml(t("hiddenInfoLegend"))}<br>` +
+      `<span class="hidden-info-note">${escapeHtml(t("hiddenInfoLegendNote"))}</span>`;
+  }
+
+  const clearAll = (statusClass, statusText) => {
+    ownStatusEl.className = statusClass;
+    ownStatusEl.textContent = statusText;
+    ownTableEl.innerHTML = "";
+    opponentStatusEl.className = "";
+    opponentStatusEl.textContent = "";
+    opponentTableEl.innerHTML = "";
+  };
+
+  const hiddenInfo = entry?.debug?.hidden_info;
+  if (!hiddenInfo) {
+    clearAll("diagnostic-status", t("hiddenInfoNoData"));
+    return;
+  }
+  if (hiddenInfo.error) {
+    clearAll("diagnostic-status diagnostic-bad", `${lang === "ja" ? "推定レイヤーエラー: " : "Estimation layer error: "}${hiddenInfo.error}`);
+    return;
+  }
+
+  const pctCell = (value, isTop) => `<span class="hidden-info-pct ${isTop ? "is-top" : ""}">${(Number(value || 0) * 100).toFixed(1)}%</span>`;
+  // 神視点の実枚数を "4 / 0" のように表示。全成分が null（神視点なし）なら "—"、個別 null は "·"。
+  const actualCell = (values) => {
+    const known = values.some((v) => v !== null && v !== undefined);
+    const body = known ? values.map((v) => (v === null || v === undefined ? "·" : String(v))).join(" / ") : "—";
+    return `<span class="hidden-info-actual">${body}</span>`;
+  };
+
+  const own = hiddenInfo.own;
+  if (!own) {
+    ownStatusEl.className = "diagnostic-status";
+    ownStatusEl.textContent = t("hiddenInfoNoData");
+    ownTableEl.innerHTML = "";
+  } else {
+    ownStatusEl.className = "diagnostic-status diagnostic-ok";
+    ownStatusEl.textContent = lang === "ja"
+      ? `サイド ${own.prize_count} 枚 / 未確認プール ${own.pool_size} 枚`
+      : `${own.prize_count} prize card(s) / ${own.pool_size} unconfirmed pool card(s)`;
+    const rows = own.top_prize_candidates || [];
+    ownTableEl.innerHTML = rows.length
+      ? [
+          `<div class="hidden-info-row hidden-info-row-2 hidden-info-row-head">
+            <span></span><span>${lang === "ja" ? "山札%" : "Deck%"}</span><span>${lang === "ja" ? "サイド落ち%" : "Prize%"}</span><span>${t("hiddenInfoActualOwn")}</span>
+          </div>`,
+          ...rows.map((c, i) => `
+          <div class="hidden-info-row hidden-info-row-2 ${i === 0 ? "is-top" : ""}">
+            <span class="hidden-info-name">${escapeHtml(hiddenInfoCardName(c))}</span>
+            ${pctCell(c.deck_prob, false)}
+            ${pctCell(c.prize_prob, i === 0)}
+            ${actualCell([c.actual_deck, c.actual_prize])}
+          </div>`),
+        ].join("")
+      : `<span class="chip chip-empty">${t("hiddenInfoNoCandidates")}</span>`;
+  }
+
+  const opponent = hiddenInfo.opponent;
+  if (!opponent) {
+    opponentStatusEl.className = "diagnostic-status";
+    opponentStatusEl.textContent = t("hiddenInfoNoData");
+    opponentTableEl.innerHTML = "";
+    return;
+  }
+  if (!opponent.is_ready) {
+    opponentStatusEl.className = "diagnostic-status";
+    opponentStatusEl.textContent = t("hiddenInfoPoolUnready");
+    opponentTableEl.innerHTML = "";
+    return;
+  }
+  opponentStatusEl.className = "diagnostic-status diagnostic-ok";
+  opponentStatusEl.textContent = lang === "ja" ? "推定プール読み込み済み" : "Estimation pool loaded";
+  const oRows = opponent.top_hand_candidates || [];
+  opponentTableEl.innerHTML = oRows.length
+    ? [
+        `<div class="hidden-info-row hidden-info-row-3 hidden-info-row-head">
+          <span></span><span>${lang === "ja" ? "山札%" : "Deck%"}</span><span>${lang === "ja" ? "手札%" : "Hand%"}</span><span>${lang === "ja" ? "サイド落ち%" : "Prize%"}</span><span>${t("hiddenInfoActualOpp")}</span>
+        </div>`,
+        ...oRows.map((c, i) => `
+        <div class="hidden-info-row hidden-info-row-3 ${i === 0 ? "is-top" : ""}">
+          <span class="hidden-info-name">${escapeHtml(hiddenInfoCardName(c))}</span>
+          ${pctCell(c.deck_prob, false)}
+          ${pctCell(c.hand_prob, i === 0)}
+          ${pctCell(c.prize_prob, false)}
+          ${actualCell([c.actual_hand, c.actual_deck, c.actual_prize])}
+        </div>`),
+      ].join("")
+    : `<span class="chip chip-empty">${t("hiddenInfoNoCandidates")}</span>`;
+}
+
+// Step1 で学習した勝率予測器(ValueModel)のデバッグ表示。build_value_eval_debug() が
+// export_replay.py / live_match.py 側で opponentKnowledgeDebug と同居させて埋め込む
+// debug.value_eval を読み、自分/相手視点の勝率を数値+横棒で見せる。古い replay には
+// キー自体が無いので、その場合は「データなし」表示にフォールバックする。
+function renderValueEval(entry) {
+  const statusEl = document.getElementById("valueEvalStatus");
+  const contentEl = document.getElementById("valueEvalContent");
+  if (!statusEl || !contentEl) return;
+
+  const valueEval = entry?.debug?.value_eval;
+  if (!valueEval) {
+    statusEl.className = "diagnostic-status";
+    statusEl.textContent = t("valueEvalNoData");
+    contentEl.innerHTML = "";
+    return;
+  }
+  if (valueEval.error) {
+    statusEl.className = "diagnostic-status diagnostic-bad";
+    statusEl.textContent = `${lang === "ja" ? "値ネットエラー: " : "Value network error: "}${valueEval.error}`;
+    contentEl.innerHTML = "";
+    return;
+  }
+  if (!valueEval.is_ready) {
+    statusEl.className = "diagnostic-status";
+    statusEl.textContent = t("valueEvalNotReady");
+    contentEl.innerHTML = "";
+    return;
+  }
+  if (valueEval.win_prob == null) {
+    statusEl.className = "diagnostic-status";
+    statusEl.textContent = t("valueEvalNoData");
+    contentEl.innerHTML = "";
+    return;
+  }
+
+  statusEl.className = "diagnostic-status diagnostic-ok";
+  const turnText = valueEval.turn != null ? `${t("valueEvalTurnLabel")} ${valueEval.turn}` : "";
+  statusEl.textContent = turnText;
+
+  const selfPct = Math.max(0, Math.min(100, valueEval.win_prob * 100));
+  const oppPct = Math.max(0, Math.min(100, valueEval.opponent_win_prob * 100));
+  contentEl.innerHTML = `
+    <div class="value-eval-row">
+      <span class="value-eval-label">${escapeHtml(t("valueEvalSelfLabel"))}</span>
+      <span class="value-eval-track"><span class="value-eval-fill value-eval-fill-self" style="width:${selfPct.toFixed(1)}%"></span></span>
+      <span class="value-eval-pct">${selfPct.toFixed(1)}%</span>
+    </div>
+    <div class="value-eval-row">
+      <span class="value-eval-label">${escapeHtml(t("valueEvalOpponentLabel"))}</span>
+      <span class="value-eval-track"><span class="value-eval-fill value-eval-fill-opp" style="width:${oppPct.toFixed(1)}%"></span></span>
+      <span class="value-eval-pct">${oppPct.toFixed(1)}%</span>
+    </div>
+    <div class="value-eval-caveat">${escapeHtml(t("valueEvalCaveat"))}</div>`;
+}
+
 function renderStadium(stadium, selectedRefs, actionableRefs) {
   const container = document.getElementById("stadiumSlot");
   if (!stadium.length) {
@@ -3137,6 +3342,8 @@ const DEBUG_VIEWS = [
   { id: "opponentKnowledge", labelKey: "debugViewOpponentKnowledge" },
   { id: "deckPredictor", labelKey: "debugViewDeckPredictor" },
   { id: "mlDeckPredictor", labelKey: "debugViewMlDeckPredictor" },
+  { id: "hiddenInformation", labelKey: "debugViewHiddenInformation" },
+  { id: "valueEval", labelKey: "debugViewValueEval" },
 ];
 let activeDebugView = DEBUG_VIEWS[0].id;
 

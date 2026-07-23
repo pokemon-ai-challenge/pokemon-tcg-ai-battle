@@ -55,6 +55,10 @@ kaggle_replays/training_data/*
 kaggle_replays/deck_predictor/output/*
 !kaggle_replays/deck_predictor/output/.gitkeep
 
+# kaggle_replays/value_net: features.npz (materialized encoder output, ~400MB) is re-derivable
+# from training_data/value_positions.jsonl.gz via build_features.py. Too large to track in git.
+kaggle_replays/value_net/*.npz
+
 # battle_review_viewer: card images are generated locally from the data/ PDF (not shared).
 # Missing on first run → the viewer regenerates them in the background.
 battle_review_viewer/web/card_images/*.jpg
