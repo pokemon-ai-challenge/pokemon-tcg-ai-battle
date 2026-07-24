@@ -77,8 +77,11 @@ _SEARCH_MODULES = {
 # ablation(docs/plans/decision-pipeline/ablation-results-2026-07-25.md)では、fullは素の
 # policy_only/searchN1 を有意に上回った一方、現行本番 ml_lethal_attackplan_v0only との
 # 直接A/B(200試合)では有意差なしだった。ミラー自己対戦では測れない「実フィールドでの
-# 転移」を確かめるための提出(既定OFFで保留という ablation の結論に対する、実戦での検証)。
-# 実フィールドで劣後が見えたら ml_lethal_attackplan_v0only に戻す。
+# 転移」を確かめるための提出(ref 54956037)。
+#
+# ※ Kaggleのこのコンペはレーティング型で publicScore は提出直後の初期値から時間をかけて
+#   収束する。投入直後の 600.0 は未収束の初期値であり、本番相当(717.2, ref 54883922)との
+#   比較は score が落ち着いてから行う。劣後が確定したら ml_lethal_attackplan_v0only に戻す。
 #
 # (履歴: 2026-07-22 は ml_lethal_attackplan_v0only を提出。ロック闘エネルギー等で攻撃が
 # 0ダメージになる局面の事後veto。ローカル400試合では有意差未確認・エラー0件だった。)
