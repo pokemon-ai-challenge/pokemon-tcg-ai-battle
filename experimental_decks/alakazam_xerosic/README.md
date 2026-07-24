@@ -64,3 +64,24 @@ python league/run_league.py --agent-a ml_policy --agent-b ml_policy \
 **A=新デッキ vs B=旧デッキ(現行deck.csv): A 142/200 = 0.710 (Wilson95%CI[0.644,0.768])** → 新デッキが有意に強い。
 先手0.730/後手0.690、エラー0。クセロシキ(手札干渉)+スタジアム/エネ調整でミラーが大きく改善。
 (結果json: results/newdeck_vs_olddeck.json、デスクトップ実行)
+
+## 対フィールド測定(2026-07-25、デスクトップ 各100試合、config=full固定)
+
+`league/field_gauntlet_deck.py`。契約者=full固定でデッキだけ new/cur を振り、メタ7アーキ相手の
+対フィールド期待勝率を比較。**結果: 新デッキはミラー特化で、フィールドでは逆に劣後。**
+
+| 相手 | new | cur | Δ |
+|---|---|---|---|
+| mega_lucario_ex | 72 | 80 | -8 |
+| archaludon_ex | 74 | 84 | -10 |
+| crustle | 43 | 36 | +7 |
+| dragapult_ex | 89 | 94 | -5 |
+| marnie | 58 | 59 | -1 |
+| rocket_mewtwo | 36 | 32 | +4 |
+| shirona | 75 | 72 | +3 |
+
+**対フィールド期待勝率(メタシェア加重): new 66.7% / cur 70.4%(Δ -3.8pt 劣後)。**
+mirror(alakazam)では new が cur に 0.710 で圧勝するが、フィールド2大シェア(mega_lucario/archaludon)で
+大きく落ちる。実対戦は非ミラーが多数派(~83%)なので、新デッキは実ラダーでNET劣後の可能性が高い。
+=> 「ミラーだけ強い ≠ 総合強い」。full+新デッキ提出(54959380)は旧デッキ(717付近)を下回るリスク。
+結果json: results/field_gauntlet_deck/_gauntlet_deck_matrix.json。
