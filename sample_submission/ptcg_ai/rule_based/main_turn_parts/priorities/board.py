@@ -13,7 +13,7 @@ from cg.api import CardType, Observation
 
 from ptcg_ai.opponent_modeling import tracker as opponent_tracker
 from ptcg_ai.rule_based.card_move import common
-from ptcg_ai.rule_based.main_turn_parts import buckets
+from ptcg_ai.rule_based.main_turn_parts import buckets, usage_gate
 from ptcg_ai.rule_based.main_turn_parts.proposals import ActionProposal
 from ptcg_ai.shared import card_cache, profile_registry
 
@@ -24,6 +24,7 @@ _OPENING_BASE_SCORE = 10.0
 def propose(obs: Observation) -> ActionProposal | None:
     """展開/進化/グッズ/スタジアム/どうぐ系の行動を1つ提案する。該当行動が無ければ None。"""
     candidates = [i for i, option in enumerate(obs.select.option) if buckets.classify(option, obs.current) == "board"]
+    candidates = [i for i in candidates if _is_option_usable(obs.select.option[i], obs.current)]
     if not candidates:
         return None
 
@@ -55,3 +56,11 @@ def propose(obs: Observation) -> ActionProposal | None:
 
     best_index = max(candidates, key=priority_score)
     return ActionProposal(category="board", select=[best_index], score=priority_score(best_index), reason="board development")
+
+
+def _is_option_usable(option, state) -> bool:
+    """usage_condition（担当Aの「今使うべきか」判定）を満たすかを見る。判定できなければ使用可扱い。"""
+    card_id = common.resolve_card_id(option, state)
+    if card_id is None:
+        return True
+    return usage_gate.is_usable(card_id, state, state.yourIndex)

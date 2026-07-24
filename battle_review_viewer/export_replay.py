@@ -29,6 +29,18 @@ try:
 except Exception:  # noqa: BLE001 -- 予測器が無い/壊れていてもリプレイ生成は続行する
     predict_deck = None
 try:
+    from ptcg_ai.opponent_modeling.hybrid_predictor import HybridDeckPredictor  # noqa: E402
+
+    _ml_predictor = HybridDeckPredictor()
+except Exception:  # noqa: BLE001 -- ML予測器が無い/壊れていてもリプレイ生成は続行する
+    _ml_predictor = None
+try:
+    from ptcg_ai.learning.value_model import ValueModel  # noqa: E402
+
+    _value_model = ValueModel()
+except Exception:  # noqa: BLE001 -- 値ネットが無い/壊れていてもリプレイ生成は続行する
+    _value_model = None
+try:
     from src.decision import trace  # noqa: E402
 except ImportError:
     # sample_submission/src はこのブランチにはまだ無い（B層の意思決定トレースは別ブランチ由来の
@@ -42,6 +54,24 @@ try:
     from .opponent_knowledge_diff import collect_ground_truth, diff_against_ground_truth  # noqa: E402
 except ImportError:
     from opponent_knowledge_diff import collect_ground_truth, diff_against_ground_truth  # noqa: E402
+try:
+    from .ml_prediction_debug import build_ml_prediction_debug  # noqa: E402
+except ImportError:
+    from ml_prediction_debug import build_ml_prediction_debug  # noqa: E402
+try:
+    from .hidden_info_debug import build_hidden_info_debug  # noqa: E402
+except ImportError:
+    from hidden_info_debug import build_hidden_info_debug  # noqa: E402
+try:
+    from .value_eval_debug import build_value_eval_debug  # noqa: E402
+except ImportError:
+    from value_eval_debug import build_value_eval_debug  # noqa: E402
+try:
+    from ptcg_ai.hidden_information.own_hidden_state import OwnHiddenState  # noqa: E402
+    from ptcg_ai.hidden_information.opponent_hidden_state import OpponentHiddenState  # noqa: E402
+except Exception:  # noqa: BLE001 -- 非公開情報推定レイヤーが無い/壊れていてもリプレイ生成は続行する
+    OwnHiddenState = None
+    OpponentHiddenState = None
 
 
 AgentFn = Callable[[dict], list[int]]
@@ -140,6 +170,9 @@ def build_opponent_knowledge_debug(
     knowledge: Any,
     real_state: Any,
     visual_current: dict[str, Any] | None,
+    own_state: Any = None,
+    opponent_state: Any = None,
+    select: Any = None,
 ) -> dict[str, Any]:
     """このフレーム時点の観測特徴量と、神視点との diff をまとめてビュアー向けに返す。
 
@@ -150,8 +183,8 @@ def build_opponent_knowledge_debug(
     """
     revealed_active = False
     if real_state is not None:
-        opponent_state = real_state.players[OPPONENT_SEAT]
-        revealed_active = bool(opponent_state.active and opponent_state.active[0] is not None)
+        opponent_player_state = real_state.players[OPPONENT_SEAT]
+        revealed_active = bool(opponent_player_state.active and opponent_player_state.active[0] is not None)
 
     ground_truth = (
         {}
@@ -168,10 +201,26 @@ def build_opponent_knowledge_debug(
         except Exception as exc:  # noqa: BLE001 -- 予測器が落ちてもリプレイ生成は止めない
             prediction = {"error": str(exc)}
 
+    # ML版予測器（学習済みロジスティック回帰）も同じ観測で走らせ、rough_predictor と並べて見比べられるようにする。
+    ml_prediction = build_ml_prediction_debug(_ml_predictor, knowledge, real_state)
+
+    # Step1 で学習した勝率予測器(ValueModel)による、この局面の自分視点勝率もここで一緒に埋め込む。
+    value_eval = build_value_eval_debug(_value_model, real_state)
+
+    # 非公開情報推定レイヤー（自分の山札∪サイド、相手の山札/手札/サイド）の周辺確率もここで一緒に埋め込む。
+    # own_state/opponent_state の update() 呼び出しはこの関数の内部（build_hidden_info_debug）が担う
+    # （このフレームにつき build_opponent_knowledge_debug は1回しか呼ばれないため二重更新にならない）。
+    hidden_info = build_hidden_info_debug(
+        own_state, opponent_state, _ml_predictor, knowledge, real_state, select, visual_current=visual_current
+    )
+
     return {
         "features": knowledge.get_prediction_features(),
         "diff": diff,
         "prediction": prediction,
+        "ml_prediction": ml_prediction,
+        "value_eval": value_eval,
+        "hidden_info": hidden_info,
     }
 
 
@@ -182,6 +231,10 @@ def run_match(player0: AgentFn, player1: AgentFn, deck0: list[int], deck1: list[
 
     # player0(提出エージェント)が実際に受け取れる情報だけから、相手(seat=1)の観測を組み立てる。
     knowledge = None if OpponentKnowledge is None else OpponentKnowledge(opponent_index=OPPONENT_SEAT)
+    # 非公開情報推定レイヤーも同じく player0 視点で独立に構築する（match_context シングルトンは
+    # player0/player1 が交互に同じインスタンスを踏み合ってしまうため、ビュアーのデバッグ表示には使わない）。
+    own_state = None if OwnHiddenState is None else OwnHiddenState(deck0)
+    opponent_state = None if OpponentHiddenState is None else OpponentHiddenState()
 
     frames: list[dict[str, Any]] = []
     result = None
@@ -202,7 +255,9 @@ def run_match(player0: AgentFn, player1: AgentFn, deck0: list[int], deck1: list[
             if knowledge is not None and obs.current is not None and obs.current.yourIndex == 0:
                 knowledge.update_from_logs(obs.logs)
                 knowledge.update_from_state(obs.current)
-                debug_payload = build_opponent_knowledge_debug(knowledge, obs.current, current)
+                debug_payload = build_opponent_knowledge_debug(
+                    knowledge, obs.current, current, own_state, opponent_state, obs.select
+                )
 
             if obs.current is not None and obs.current.result != -1:
                 result = obs.current.result

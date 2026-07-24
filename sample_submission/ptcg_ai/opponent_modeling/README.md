@@ -18,6 +18,80 @@
 - `opponent_knowledge.py` — 実装済み。相手の公開情報（`observed_cards`）を `OpponentKnowledge` で蓄積し、
   `get_prediction_features()` で `rough_predictor.py` 等に渡せる形にする。
   設計の詳細・未確定事項は [opponent-knowledge-plan.md](../../docs/plans/opponent-deck-predictor/opponent-knowledge-plan.md) を参照。
+- `ml_predictor.py` — 相手デッキ予測器の ML（学習済み重み）版ランタイム推論。
+  `kaggle_replays/deck_predictor/` のオフライン学習パイプライン（このリポジトリとは別スコープ）が
+  リプレイから多クラス softmax 回帰を学習し、`deck_predictor_weights.json` を出力する。
+  `ml_predictor.py` はその重みJSONを読み込み、`observed_cards`（`opponent_knowledge.py` の
+  `get_prediction_features()["observed_cards"]` と同じ形）+ `turn` から、純Python
+  （外部ライブラリ非依存）で確率分布を計算するだけ。重みファイルは学習完了後に配置される想定で、
+  現時点ではまだ存在しない（未配置でも `is_ready == False` で正常動作し、`predict()` は
+  `{"other": 1.0}` を返す）。スキーマの正は
+  [ml-predictor-plan.md](../../docs/plans/opponent-deck-predictor/ml-predictor-plan.md) の
+  「deck_predictor_weights.json」節。
+
+  ```python
+  from ptcg_ai.opponent_modeling.ml_predictor import MLDeckPredictor
+
+  predictor = MLDeckPredictor()  # 既定: 同ディレクトリの deck_predictor_weights.json
+  probs = predictor.predict(observed_cards, turn=state.turn)  # {"mega_lucario_ex": 0.8, ..., "other": 0.05}
+  top3 = predictor.predict_top(observed_cards, turn=state.turn, n=3)
+  ```
+
+- `nb_predictor.py` — 相手デッキ予測器の生成的ベイズ（Naive Bayes）版ランタイム推論。
+  `kaggle_replays/deck_predictor/train_nb.py` が「P(カード採用 | アーキタイプ)」をラベル付き
+  デッキから直接頻度推定し、`deck_predictor_nb.json` を出力する。LR と同じ `predict()` /
+  `predict_top()` / `is_ready` API に加え、観測カード別のクラス別 log 尤度寄与を返す
+  `explain()` を持つ（根拠表示用）。汎用カードは prior に留まり、専用カードは1枚で確信する
+  挙動を狙っており、evidence 0〜3 枚では LR より的中率と確信度が一致する（詳細は下記
+  `early-confidence-improvement-plan.md`）。evidence 7 枚以上は「観測カードの尤度が独立」という
+  仮定が崩れて LR より劣化するため、単体では使わず次の `hybrid_predictor.py` 経由で使う。
+
+  ```python
+  from ptcg_ai.opponent_modeling.nb_predictor import NBDeckPredictor
+
+  predictor = NBDeckPredictor()  # 既定: 同ディレクトリの deck_predictor_nb.json
+  probs = predictor.predict(observed_cards, turn=state.turn)
+  explanation = predictor.explain(observed_cards, turn=state.turn)  # カード別log尤度寄与
+  ```
+
+- `hybrid_predictor.py` — **本命・デプロイ対象。** LR（`ml_predictor.py`）と NB
+  （`nb_predictor.py`）を、観測エビデンス数（ユニークカード種類数）のバケットごとに
+  log-space の幾何ブレンドで混ぜる。バケット境界・重みは
+  `kaggle_replays/deck_predictor/fit_hybrid.py` がオフラインでフィットし
+  `deck_predictor_hybrid.json` に出力する。LR・NBどちらか一方しか重みが無い場合はその
+  単体にフォールバックし、両方無い場合は `{"other": 1.0}` を返す（`mode` 属性で
+  `"hybrid"` / `"lr_only"` / `"nb_only"` / `"unready"` のどれで動作しているか判定できる）。
+  API は `predict()` / `predict_top()` / `explain()` / `is_ready` で LR・NB と同一。
+  `live_match.py` / `export_replay.py` はこの `HybridDeckPredictor` を使う。
+
+  ```python
+  from ptcg_ai.opponent_modeling.hybrid_predictor import HybridDeckPredictor
+
+  predictor = HybridDeckPredictor()  # 既定: 同ディレクトリの3つのJSONを自動で読む
+  probs = predictor.predict(observed_cards, turn=state.turn)
+  top3 = predictor.predict_top(observed_cards, turn=state.turn, n=3)
+  ```
+
+- `prediction_summary.py` — 予測器の出力を「未確定判定つきの候補分布」に変換する共通関数
+  `summarize_prediction(predictor, observed_cards, turn, *, uncertain_threshold=0.6, top_n=3)`。
+  `MLDeckPredictor` / `NBDeckPredictor` / `HybridDeckPredictor` のいずれでも duck-typing で
+  動く。`top1_probability` が閾値未満なら `status: "uncertain"`（1位を断定せず候補列挙にする）、
+  予測器が未ロードなら `status: "unready"` を返す。**ビュアーと将来のエージェント本体の両方が
+  同じ基準を使うための一元化モジュール**（ビュアー側で独自に閾値判定を実装しない）。
+
+  ```python
+  from ptcg_ai.opponent_modeling.prediction_summary import summarize_prediction
+
+  summary = summarize_prediction(predictor, observed_cards, turn=state.turn)
+  # {"status": "confident"|"uncertain"|"unready", "top": [...], "top1_probability": ...,
+  #  "uncertain_threshold": 0.6, "evidence_count": 3, "explanation": {...} | None}
+  ```
+
+  設計方針・診断結果の詳細は
+  [early-confidence-improvement-plan.md](../../docs/plans/opponent-deck-predictor/early-confidence-improvement-plan.md)
+  と [phase-c-d-implementation.md](../../docs/plans/opponent-deck-predictor/phase-c-d-implementation.md) を参照。
+  学習パイプライン（`train_nb.py` / `fit_hybrid.py` 含む）の実行方法は
+  `kaggle_replays/deck_predictor/README.md` を参照。
 
 ## config リファレンス（`rough_predictor.json`）
 
