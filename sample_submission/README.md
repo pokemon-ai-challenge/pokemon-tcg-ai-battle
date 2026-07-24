@@ -82,23 +82,26 @@ sample_submission/
 対戦エンジンは `main.py` 内の `agent(obs_dict)` を呼び出します。  
 `deck.csv` は初回のデッキ返却で使い、`cg/` は実行に必要なゲームエンジンです。
 
-提出用アーカイブ `submission.tar.gz` には、次の3つを入れます。
+現在の `main.py` は `ptcg_ai.core.agent` 経由でルールベース判断・デッキ予測・リーサル探索を呼び出します。そのため提出用アーカイブ `submission.tar.gz` には、次の6つを入れます（`main.py`・`deck.csv`・`cg/` だけでは `ptcg_ai` の import に失敗して即エラーになるので注意）。
 
 ```text
 submission.tar.gz
 ├── main.py
 ├── deck.csv
-└── cg/
+├── cg/
+├── ptcg_ai/       # rule_based / action_selection / opponent_modeling / hidden_information / search など全部
+├── decks/         # deck.csv と対応する担当Aのデッキプロファイル（new_deck/ 以下）
+└── configs/       # 最低限 rule_lethal.json（core.config.load_config() が既定で読む設定）
 ```
 
 PowerShell で作る場合は、リポジトリ直下から次を実行します。
 
 ```powershell
 cd sample_submission
-tar -czvf submission.tar.gz main.py deck.csv cg
+tar -czvf submission.tar.gz main.py deck.csv cg ptcg_ai decks configs
 ```
 
-`sample_submission` フォルダに移動してから実行することで、`main.py`、`deck.csv`、`cg/` を正しい位置からまとめられます。
+`sample_submission` フォルダに移動してから実行することで、各フォルダを正しい位置からまとめられます。`__pycache__` が混ざっていても動作に影響はありませんが、気になる場合は事前に削除してください。
 
 作成後は、同じフォルダで中身を確認します。
 
@@ -107,6 +110,8 @@ tar -tzf submission.tar.gz
 ```
 
 `main.py` がアーカイブ直下にあり、`sample_submission/main.py` のように1段深く入っていないことを確認してください。
+
+提出前チェック（推奨）：新規ディレクトリに展開し、`__file__` が無い状態（Kaggleの実行と同条件）で `main.py` が読み込めるか、`agent({"select": None})` がデッキ60枚を返すか、`tests/local_sim/test_local_game.py` 相当の1試合が最後まで合法手のみでエラーなく終わるかを確認してから提出すると安全です。また `decks/new_deck/` のプロファイルは `deck.csv` の内容と対応している前提なので、デッキを差し替えた場合は両方を揃えて更新してください。
 
 その後、Kaggle の Simulation コンペページを開きます。  
 https://www.kaggle.com/competitions/pokemon-tcg-ai-battle
