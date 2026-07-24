@@ -197,7 +197,9 @@ class DeckPlan:
     win_condition_by_prize: dict[int, str] = field(default_factory=dict)  # 残りサイド枚数ごとの勝ち筋メモ
 
     # エネルギー周回コンボ（例: ACE SPECエネルギーを、山札に戻る特性持ちポケモンに一時的に
-    # 付けて再利用する）。該当が無いデッキでは None のままでよい。
-    energy_recycle_target_id: int | None = None  # 周回コンボの受け皿にするポケモンのcard_id
+    # 付けて再利用する）。該当が無いデッキでは空のままでよい。
+    # 受け皿は進化ライン全体（例: ノコッチ／ノココッチ）を集合で持つ。進化前に付けたエネルギーは
+    # 進化で引き継がれるため、ラインのどの段階で受け取っても周回コンボは成立する。
+    energy_recycle_target_ids: frozenset[int] = field(default_factory=frozenset)  # 周回コンボの受け皿にするポケモンのcard_id集合
     energy_recycle_card_id: int | None = None  # 周回させたいエネルギーカードのcard_id
     energy_recycle_backup_item_id: int | None = None  # 主力への代替エネルギー供給手段（グッズ等）のcard_id

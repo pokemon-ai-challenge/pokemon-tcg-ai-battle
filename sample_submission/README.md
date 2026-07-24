@@ -82,23 +82,28 @@ sample_submission/
 対戦エンジンは `main.py` 内の `agent(obs_dict)` を呼び出します。  
 `deck.csv` は初回のデッキ返却で使い、`cg/` は実行に必要なゲームエンジンです。
 
-提出用アーカイブ `submission.tar.gz` には、次の3つを入れます。
+提出用アーカイブ `submission.tar.gz` には、次の6つを入れます。
 
 ```text
 submission.tar.gz
 ├── main.py
 ├── deck.csv
-└── cg/
+├── cg/
+├── ptcg_ai/
+├── decks/
+└── configs/
 ```
 
-PowerShell で作る場合は、リポジトリ直下から次を実行します。
+PowerShell で作る場合は、`sample_submission` フォルダに移動してから次を実行します。
 
 ```powershell
 cd sample_submission
-tar -czvf submission.tar.gz main.py deck.csv cg
+tar -czvf submission.tar.gz main.py deck.csv cg ptcg_ai decks configs
 ```
 
-`sample_submission` フォルダに移動してから実行することで、`main.py`、`deck.csv`、`cg/` を正しい位置からまとめられます。
+`sample_submission` フォルダに移動してから実行することで、各ファイル・フォルダを正しい位置からまとめられます。
+`ptcg_ai/` や `decks/` を入れ忘れると `ModuleNotFoundError`（`No module named 'ptcg_ai'` や `'decks'`）に、
+`cg/` を入れ忘れると `No module named 'cg'` になるので、下の確認コマンドで6つ全部揃っているか必ず確認してください。
 
 作成後は、同じフォルダで中身を確認します。
 

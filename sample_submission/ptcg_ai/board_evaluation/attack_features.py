@@ -26,6 +26,7 @@ import re
 
 from cg.api import Attack, EnergyType, Pokemon
 
+from ptcg_ai.board_evaluation import energy_requirements
 from ptcg_ai.shared import card_cache
 
 # 現行ルール準拠の簡易モデル: 弱点は2倍、抵抗力は-30（攻撃の追加効果によるダメージ増減は考慮しない）。
@@ -97,6 +98,33 @@ def can_ko(
     defender_resistance: EnergyType | None,
     attacker_hand_size: int | None = None,
 ) -> bool:
-    """このワザで相手をきぜつさせられるか（残りHP <= 与ダメージ）を判定する。"""
+    """このワザで相手をきぜつさせられるか（残りHP <= 与ダメージ）を判定する。
+
+    エネルギー充足は判定しない（呼び出し側で is_energy_sufficient を先に確認すること）。
+    """
     damage = resolve_damage(attack, attacker, defender_weakness, defender_resistance, attacker_hand_size)
     return damage >= defender.hp
+
+
+def can_ko_with_any_available_attack(
+    attacker: Pokemon,
+    defender: Pokemon,
+    defender_weakness: EnergyType | None,
+    defender_resistance: EnergyType | None,
+    attacker_hand_size: int | None = None,
+) -> bool:
+    """attacker が今持っているエネルギーだけで使えるワザのうち、defender をきぜつさせられる
+    ものが1つでもあるかを判定する。
+
+    「使用可能などのワザでもKOできるか」を判定する処理（attack.py の KO 判定、
+    priorities/retreat.py のトリガーB、pokemon_value.py の即KOボーナスで共通して必要）を
+    1箇所に集約する。attacker が今バトル場にいるかどうかは問わない（ベンチ候補にもそのまま使える）。
+    """
+    attacker_card = card_cache.get_card(attacker.id)
+    for attack_id in attacker_card.attacks:
+        attack = card_cache.get_attack(attack_id)
+        if not energy_requirements.is_energy_sufficient(attack, attacker.energies):
+            continue
+        if can_ko(attack, attacker, defender, defender_weakness, defender_resistance, attacker_hand_size):
+            return True
+    return False

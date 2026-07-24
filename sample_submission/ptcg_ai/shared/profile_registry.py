@@ -58,7 +58,7 @@ def _build_deck_plan() -> DeckPlan:
         # 空のままにしておく（必要になれば plan.WIN_CONDITIONS_BY_PRIZE を直接使う専用の
         # アクセサを別途用意する）。
         win_condition_by_prize={},
-        energy_recycle_target_id=getattr(plan, "ENERGY_RECYCLE_TARGET_CARD_ID", None),
+        energy_recycle_target_ids=frozenset(getattr(plan, "ENERGY_RECYCLE_TARGET_CARD_IDS", frozenset())),
         energy_recycle_card_id=getattr(plan, "ENERGY_RECYCLE_CARD_ID", None),
         energy_recycle_backup_item_id=getattr(plan, "ENERGY_RECYCLE_BACKUP_ITEM_ID", None),
     )
@@ -68,6 +68,15 @@ def reset_deck_plan_cache() -> None:
     """テスト用: DeckPlan のキャッシュを破棄する（通常の対戦では不要）。"""
     global _deck_plan_cache
     _deck_plan_cache = None
+
+
+def get_opponent_effect_lock_energy_ids() -> frozenset[int]:
+    """decks.active.deck_plan.OPPONENT_EFFECT_LOCK_ENERGY_IDS を返す。
+
+    相手の「ワザの効果を無効化する特殊エネルギー」（ミストエネルギー等）の card_id 集合。
+    改造ハンマーの破壊対象選択で優先的に壊すために使う。デッキが未定義なら空集合。
+    """
+    return frozenset(getattr(active.deck_plan, "OPPONENT_EFFECT_LOCK_ENERGY_IDS", frozenset()))
 
 
 def get_ko_replacement_priority() -> list[int]:

@@ -65,6 +65,11 @@ class UsageNote:
 
 FUDIN_LINE_CARD_IDS: list[int] = [741, 742, 743]  # ケーシィ / ユンゲラー / フーディン
 
+# ノコッチ系列（ノコッチ→ノココッチ）。エネルギー周回コンボ（下記 ENERGY_RECYCLE_TARGET_CARD_IDS）で
+# リッチエネルギーの一時置き場として使う対象。進化前のノコッチに付けたエネルギーも進化で
+# ノココッチにそのまま引き継がれるため、周回の受け皿はどちらの段階でも構わない。
+DUNSPARCE_LINE_CARD_IDS: list[int] = [65, 66]  # ノコッチ / ノココッチ
+
 
 # ---------------------------------------------------------------------------
 # 主力・サブアタッカー
@@ -272,6 +277,12 @@ TELEPATH_ENERGY_CARD_ID = 19
 RICH_ENERGY_CARD_ID = 13
 ENERGY_RECYCLE_TOOL_CARD_ID = 1146  # ワンダーパッチ：トラッシュの基本超エネルギーをベンチの超ポケモンに再利用
 
+# 相手が使う「ワザの効果を無効化する特殊エネルギー」。改造ハンマー(1081)で優先的に破壊したい対象。
+# ミストエネルギー(11): 付いているポケモンは相手のワザの効果を受けない（ダメージは効果ではないので防がない）。
+# → こちらの効果付きワザ（キチキギスexのクルーエルアロー＝ベンチ狙撃など）を通したい局面で壊す価値が高い。
+# 将来同種のカードが増えたらこの集合に追加する。
+OPPONENT_EFFECT_LOCK_ENERGY_IDS: frozenset[int] = frozenset({11})
+
 def _fudin_line_needs_first_energy(ctx: EnergyCardContext) -> bool:
     """付与先がフーディン系列（ケーシィ／ユンゲラー／フーディン）で、まだエネルギーが0個の場合。
 
@@ -312,10 +323,15 @@ ENERGY_CARD_PRIORITY_RULES: list[EnergyPriorityRule] = [
 # （3ドロー後、自身と付いているカード全てを山札に戻す。特性自体にエネルギーコストは無い）
 # で回収し直せる。バトル場の主力に攻撃可能なだけのエネルギーが既に付いている、または
 # ワンダーパッチでトラッシュから後から補給できる場合に限り、余っているリッチエネルギーを
-# ノココッチに預けて回す（③実装時: energy_eval.py が ENERGY_REQUIRED_COUNT /
+# ノコッチ系列に預けて回す（③実装時: energy_eval.py が ENERGY_REQUIRED_COUNT /
 # ワンダーパッチの usage_condition と組み合わせて判定する）。
+#
+# 受け皿は DUNSPARCE_LINE_CARD_IDS（ノコッチ／ノココッチ）の両方を許可する。進化前のノコッチに
+# 付けたリッチエネルギーも進化時にノココッチへそのまま引き継がれるため、どちらの段階で
+# 受け取っても周回コンボは成立する（超エネルギー等の攻撃用エネルギーは対象外のまま。
+# ノコッチ系はどちらの段階でも攻撃しないデッキ方針のため、超エネを付ける価値は無い）。
 
-ENERGY_RECYCLE_TARGET_CARD_ID = 66  # ノココッチ
+ENERGY_RECYCLE_TARGET_CARD_IDS = frozenset(DUNSPARCE_LINE_CARD_IDS)  # ノコッチ / ノココッチ
 ENERGY_RECYCLE_CARD_ID = RICH_ENERGY_CARD_ID  # リッチエネルギー
 ENERGY_RECYCLE_BACKUP_ITEM_ID = ENERGY_RECYCLE_TOOL_CARD_ID  # ワンダーパッチ
 
