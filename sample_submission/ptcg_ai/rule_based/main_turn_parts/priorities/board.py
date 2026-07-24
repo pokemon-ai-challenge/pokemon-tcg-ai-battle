@@ -16,6 +16,10 @@ from ptcg_ai.shared import card_cache, profile_registry
 
 _EVOLUTION_BASE_SCORE = 20.0
 _OPENING_BASE_SCORE = 10.0
+# ドローエンジンの予約ベンチ枠が埋まっていないとき、そのたね（ノコッチ）の展開に与える最優先スコア。
+# 進化(_EVOLUTION_BASE_SCORE=20)より高くして「予備ノコッチのベンチ確保」を board 内で最優先にする
+# （にげあしドローを毎ターン穴なく回すには次ターン用の予備ノコッチが常時必要なため）。
+_RESERVED_BENCH_SCORE = 30.0
 
 
 def propose(obs: Observation) -> ActionProposal | None:
@@ -26,11 +30,15 @@ def propose(obs: Observation) -> ActionProposal | None:
         return None
 
     plan = profile_registry.get_deck_plan()
+    reserve_underfilled = _draw_engine_bench_underfilled(obs, plan)
 
     def priority_score(index: int) -> float:
         card_id = common.resolve_card_id(obs.select.option[index], obs.current)
         if card_id is None:
             return 0.0
+        # ドローエンジンの予約ベンチ枠が不足しているなら、そのたね（ノコッチ）の展開を最優先。
+        if reserve_underfilled and card_id == plan.reserved_bench_basic_id:
+            return _RESERVED_BENCH_SCORE
         if card_id in plan.evolution_priority:
             return _EVOLUTION_BASE_SCORE - plan.evolution_priority.index(card_id) * 0.01
         if card_id in plan.opening_priority:
@@ -48,6 +56,21 @@ def propose(obs: Observation) -> ActionProposal | None:
 
     best_index = max(candidates, key=priority_score)
     return ActionProposal(category="board", select=[best_index], score=priority_score(best_index), reason="board development")
+
+
+def _draw_engine_bench_underfilled(obs: Observation, plan) -> bool:
+    """ドローエンジンの予約ベンチ枠（reserved_bench_line_ids）が reserved_bench_slots 未満か。
+
+    盤面（バトル場＋ベンチ）にいる予約ライン（ノコッチ／ノココッチ）の数が確保枠数に満たなければ
+    True。展開するたね（reserved_bench_basic_id）が定義されていないデッキでは常に False。
+    """
+    if plan.reserved_bench_slots <= 0 or plan.reserved_bench_basic_id is None:
+        return False
+    state = obs.current
+    player = state.players[state.yourIndex]
+    on_board = [p for p in (player.active or []) if p is not None] + list(player.bench)
+    line_count = sum(1 for p in on_board if p.id in plan.reserved_bench_line_ids)
+    return line_count < plan.reserved_bench_slots
 
 
 def _is_option_usable(option, state) -> bool:

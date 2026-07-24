@@ -114,6 +114,14 @@ SUB_ATTACKERS: list[AttackerPlan] = [
 
 RESERVED_BENCH_SLOTS_FOR_DRAW_ENGINE = 2
 
+# ↑の予約枠を「占有するとみなす」ライン（ノコッチ／ノココッチ）と、枠が空いているときに
+# 優先展開するたね（ノコッチ）。にげあしドローは使うとノコッチ＋ノココッチが山札に戻るため、
+# 毎ターン穴なく回すには「次ターン進化させる予備ノコッチ」を常にベンチへ確保し続ける必要がある。
+# 盤面のノコッチ／ノココッチ数が RESERVED_BENCH_SLOTS_FOR_DRAW_ENGINE 未満なら、
+# ノコッチのベンチ展開を最優先にする（priorities/board.py が参照）。
+RESERVED_BENCH_LINE_IDS = frozenset({65, 66})  # ノコッチ / ノココッチ
+RESERVED_BENCH_BASIC_ID = 65  # ノコッチ（枠が空いていれば優先展開するたね）
+
 BENCH_ONLY_SUPPORT: list[PriorityEntry] = [
     PriorityEntry(
         card_id=343,
