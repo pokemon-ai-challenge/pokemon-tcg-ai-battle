@@ -100,6 +100,36 @@ full と v0only で同じデッキ・同じ重み・同じ相手・同じ seed �
 全field集計 full 63.9% CI[60.2,67.3] vs v0only 64.6% CI[61.0,68.0] = **有意差なし**。full が有意に勝つ
 相手は無し。ミラーの限界を埋めた実フィールド寄りの読みでも full は本番を上回らない。
 
+## 第5弾: 実 Kaggle 提出(full)の収束スコアと相手アーキタイプ別 W-L
+
+full を Kaggle 提出(ref 54956037)。**このコンペはレーティング型で publicScore は提出直後の
+初期値から時間をかけて収束する**(投入直後 600.0 → 収束 **702.8**)。本番相当(構成C+リーサル+
+attack_plan, ref 54883922)の 717.2 に肉薄(−14.4)。決定的な劣後ではないが上回りもせず、ローカル
+gauntlet(full −1.1pt)とも整合。
+
+実対戦46試合を相手アーキタイプ別に集計(`kaggle_replays/_archetype_winloss.py`。自エージェントの
+観測カードを production `rough_predictor.predict()` に通し、全ステップで最も証拠の多い判定を採用。
+勝敗は replay の rewards)。**総合 22-24(勝率 0.478)**:
+
+| 相手 | W-L | 勝率 | 試合 |
+|---|---|---|---|
+| unknown(off-meta/その他) | 6-3 | .67 | 9 |
+| mega_lucario_ex | 4-5 | .44 | 9 |
+| **alakazam(フーディン・ミラー)** | **2-6** | **.25** | 8 |
+| archaludon_ex | 3-3 | .50 | 6 |
+| crustle | 3-2 | .60 | 5 |
+| marnie_grimmsnarl_ex | 1-3 | .25 | 4 |
+| shirona_garchomp_ex | 1-1 | .50 | 2 |
+| mega_abomasnow_ex | 1-0 | 1.0 | 1 |
+| mega_starmie_ex | 0-1 | .00 | 1 |
+| dragapult_ex | 1-0 | 1.0 | 1 |
+
+- **最大の弱点はフーディン・ミラー(alakazam)2-6(25%)**。ローカル gauntlet は同型を除外していた
+  ため新情報。次いで marnie 1-3、mega_lucario 4-5 も負け越し。
+- 注意: 46試合の小標本で各アーキ別は n=1〜9 とノイズ大(傾向の目安)。unknown 9件は主軸カード
+  不一致=off-meta/その他デッキで分類不能(バグではない)。
+- 生データ: `kaggle_replays/_archetype_winloss_54956037.json`。
+
 ## まとめ
 
 - パイプライン統合の実装は健全に動作し(unit 277 pass、e2e エラー0)、探索・belief 層は**弱い基準線に対しては
