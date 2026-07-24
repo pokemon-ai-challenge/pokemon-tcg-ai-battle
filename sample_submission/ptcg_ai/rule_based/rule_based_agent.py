@@ -14,6 +14,7 @@ from cg.api import Observation
 
 from ptcg_ai.action_selection import selector
 from ptcg_ai.hidden_information import match_context
+from ptcg_ai.opponent_modeling import tracker as opponent_tracker
 
 _DECK_CACHE: list[int] | None = None
 
@@ -33,6 +34,9 @@ def agent(obs: Observation) -> list[int]:
     match_context.update(obs)
 
     if obs.select is None:
+        # 新しい試合の開始（match_context と同じ検知方法）。前試合の相手デッキ予測が
+        # 次の試合に持ち越されないよう、opponent_modeling.tracker の状態を破棄する。
+        opponent_tracker.reset()
         return _select_deck()
     return selector.select_action(obs, _full_deck())
 
