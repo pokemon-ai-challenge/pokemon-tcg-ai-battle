@@ -70,11 +70,19 @@ _SEARCH_MODULES = {
 # ml_policy 専用の config に分けている。
 # `PTCG_AI_ML_CONFIG` で上書き可能(Stage1 A/B計測で ml_lethal_estimated 等に
 # 切り替えるため)。Kaggle提出時はこの環境変数を設定できないため、提出したい config を
-# デフォルト値としてここに直接指定する(2026-07-22: ml_lethal_attackplan_v0only を提出。
-# ロック闘エネルギー等で攻撃が0ダメージになる局面の事後veto。design-and-implementation-plan.md
-# 参照。ローカル400試合では勝率への有意差は未確認だが、同一seedペア比較で46/300試合の
-# 展開が変化し23勝23敗と方向性は五分五分、エラー・タイムアウトは0件)。
-_CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "ml_lethal_attackplan_v0only")
+# デフォルト値としてここに直接指定する。
+#
+# 2026-07-25: 意思決定パイプライン full(abl_5_full: belief決定化N=8 + 相手デッキ推定
+# + Policy top-k先読み + lethal_simple)を提出用の既定に採用。ローカルのミラー自己対戦
+# ablation(docs/plans/decision-pipeline/ablation-results-2026-07-25.md)では、fullは素の
+# policy_only/searchN1 を有意に上回った一方、現行本番 ml_lethal_attackplan_v0only との
+# 直接A/B(200試合)では有意差なしだった。ミラー自己対戦では測れない「実フィールドでの
+# 転移」を確かめるための提出(既定OFFで保留という ablation の結論に対する、実戦での検証)。
+# 実フィールドで劣後が見えたら ml_lethal_attackplan_v0only に戻す。
+#
+# (履歴: 2026-07-22 は ml_lethal_attackplan_v0only を提出。ロック闘エネルギー等で攻撃が
+# 0ダメージになる局面の事後veto。ローカル400試合では有意差未確認・エラー0件だった。)
+_CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "abl_5_full")
 
 _model: PolicyModel | None = None
 _config_cache: dict | None = None
