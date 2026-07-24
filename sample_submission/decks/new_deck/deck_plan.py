@@ -80,22 +80,10 @@ MAIN_ATTACKER = AttackerPlan(
     ),
 )
 
-SUB_ATTACKERS: list[AttackerPlan] = [
-    AttackerPlan(
-        card_id=140,
-        name="キチキギスex",
-        note=(
-            "クルーエルアロー（●●●）で相手ポケモン1匹に100ダメージの単体除去。"
-            "ex なので被弾時サイド2枚。特性さかてにとる（前の相手の番に自分のポケモンが"
-            "きぜつしていれば3ドロー）と組み合わせて使うと損失を相殺しやすい。"
-            "「特性を使用済み」「フーディンがバトル場にいない」「攻撃に必要な"
-            "エネルギー3個が既に付いている」の3条件がそろった場合はメイン（バトル場）に"
-            "出すのもあり。1枚しか入っていないため、それ以外の場面では温存する。"
-        ),
-    ),
-]
+# キチキギスex（旧サブアタッカー）はデッキから抜けたため現在は空。
 # ノココッチはランドクラッシュ（●●●,90dmg）を持つが、下記 BENCH_ONLY_SUPPORT の通り
 # 基本的にバトル場に出さない運用のためサブアタッカー扱いにしない。
+SUB_ATTACKERS: list[AttackerPlan] = []
 
 
 # ---------------------------------------------------------------------------
@@ -155,15 +143,6 @@ OPENING_BENCH_PRIORITY: list[PriorityEntry] = [
         card_id=743,
         name="フーディン",
         reason="フーディン系列。ケーシィと同格の最優先ライン。",
-    ),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex",
-        reason=(
-            "特性さかてにとるが主目的。SUB_ATTACKERS に挙げた3条件"
-            "（特性使用済み・フーディン不在・エネルギー3付与済み）がそろった場合は"
-            "メインに出すのもあり。"
-        ),
     ),
     PriorityEntry(
         card_id=65,
@@ -241,16 +220,11 @@ ENERGY_TARGET_PRIORITY: list[PriorityEntry] = [
         name="ケーシィ",
         reason="フーディン系列。進化前でもエネルギーを付けて構わない（フーディン743と同格）。",
     ),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex",
-        reason="クルーエルアロー（●●●）用。フーディン系列の次点として扱う。",
-    ),
 ]
 # 上記以外（ノコッチ／ノココッチ、シェイミなど）には基本的にエネルギーを付けない。
 # ノココッチはバトル場に出さない運用（BENCH_ONLY_SUPPORT参照）のため、
 # 攻撃用のエネルギー付与対象には含めない。
-ENERGY_TARGET_CARD_IDS: list[int] = [*FUDIN_LINE_CARD_IDS, 140]
+ENERGY_TARGET_CARD_IDS: list[int] = list(FUDIN_LINE_CARD_IDS)
 
 # 各ポケモンの攻撃に必要なエネルギー総数。これ以上は付けない。
 ENERGY_REQUIRED_COUNT: dict[int, int] = {
@@ -260,7 +234,6 @@ ENERGY_REQUIRED_COUNT: dict[int, int] = {
     65: 2,  # ノコッチ
     66: 3,  # ノココッチ
     343: 2,  # シェイミ
-    140: 3,  # キチキギスex
 }
 
 # エネルギーカードの種別:
@@ -419,19 +392,13 @@ SEARCH_PRIORITY_RULES: list[SearchPriorityRule] = [
 #
 # 夜のタンカ(1097)・スイレンのお世話(1184)・せいなるはい(1129)は
 # トラッシュの「ポケモン」「基本エネルギー」を回収できるため、
-# それらは多少捨てても後で回収できる。回収手段のないグッズ・サポート・
-# ex（1枚しかないキチキギスex）を優先的に守りたい。
+# それらは多少捨てても後で回収できる。回収手段のないグッズ・サポートを優先的に守りたい。
 
 PROTECT_CARDS: list[PriorityEntry] = [
     PriorityEntry(
         card_id=RARE_CANDY_CARD_ID,
         name="ふしぎなアメ",
         reason="グッズは夜のタンカ等のトラッシュ回収対象外。フーディンルートの生命線。",
-    ),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex",
-        reason="1枚しか入っていないポケモン。捨て札からの回収対象にはなるが手札への戻し漏れは重い。",
     ),
     PriorityEntry(
         card_id=1231,
@@ -469,9 +436,9 @@ ITEM_USAGE_NOTES: list[UsageNote] = [
         card_id=1086,
         name="なかよしポフィン",
         note=(
-            "ケーシィ・キチキギスex・ノコッチのうち場にも手札にもいないものを、"
-            "それぞれ1枚ずつ優先してベンチに出す。キチキギスexとノコッチが両方すでに"
-            "場にいる場合は、ケーシィの2枚目以降、またはノコッチの2枚目を優先する。"
+            "ケーシィ・ノコッチのうち場にも手札にもいないものを、"
+            "それぞれ1枚ずつ優先してベンチに出す。両方すでに場にいる場合は、"
+            "ケーシィの2枚目以降、またはノコッチの2枚目を優先する。"
         ),
     ),
     UsageNote(
@@ -544,25 +511,11 @@ STADIUM_USAGE_NOTES: list[UsageNote] = [
 # ---------------------------------------------------------------------------
 # きぜつ後の後継優先順位（バトル場の入れ替え）
 # ---------------------------------------------------------------------------
-#
-# キチキギスexは付与済みエネルギー数で2グループに分けて扱う
-# （グループA: 2個以上／グループB: 2個未満）。Aの方がクルーエルアロー
-# （必要エネルギー3）の起動に近いため優先度が高い。
 
 KO_REPLACEMENT_PRIORITY: list[PriorityEntry] = [
     PriorityEntry(card_id=743, name="フーディン", reason="立て直しの主砲。最優先で後継に。"),
     PriorityEntry(card_id=742, name="ユンゲラー", reason="フーディンまで進化1段のため次点。"),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex（グループA：エネルギー2個以上）",
-        reason="クルーエルアローの起動に近いため、ケーシィより優先する。",
-    ),
     PriorityEntry(card_id=741, name="ケーシィ", reason="フーディン系列の最初期。"),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex（グループB：エネルギー2個未満）",
-        reason="攻撃準備が薄いため、フーディン系列を優先させたあとに回す。",
-    ),
     PriorityEntry(card_id=65, name="ノコッチ", reason="ドローエンジンの前段。他に候補がない場合の後継。"),
     PriorityEntry(card_id=66, name="ノココッチ", reason="本来はベンチ固定だが、他に候補がない場合の最終手段。"),
     PriorityEntry(card_id=343, name="シェイミ", reason="攻撃力が低いため最終手段。"),
@@ -598,21 +551,16 @@ WIN_CONDITIONS_BY_PRIZE: list[PrizeStageWinCondition] = [
         prize_range="3〜2枚（中盤）",
         plan=(
             "フーディンのハンドパワーを継続して打ち、手札枚数を維持しながら"
-            "大ダメージを通す。相手の重要な後続はキチキギスexのクルーエルアローや"
-            "ボスの指令＋ハンドパワーで刈り取る。"
+            "大ダメージを通す。相手の重要な後続はボスの指令＋ハンドパワーで刈り取る。"
         ),
     ),
     PrizeStageWinCondition(
         prize_range="1枚（詰め）",
-        plan=(
-            "相手の残りポケモンのHPを見て、ハンドパワーで一撃、"
-            "またはキチキギスexのクルーエルアロー（100固定）で正確に処理する。"
-        ),
+        plan="相手の残りポケモンのHPを見て、ハンドパワーで正確に処理する。",
     ),
-    PrizeStageWinCondition(
-        prize_range="自分のポケモンが取られた直後",
-        plan="キチキギスexのさかてにとるで3ドローし、手札とベンチを立て直す。",
-    ),
+    # 元々「自分のポケモンが取られた直後」の立て直しはキチキギスexの特性さかてにとる
+    # （3ドロー）が担っていたが、デッキから抜けたため現在この場面の専用プランは無い。
+    # 1197（ゼロシックの策略）を含め、代替の立て直し方はまだ検討していない。
 ]
 
 
@@ -639,7 +587,7 @@ WIN_CONDITIONS_BY_PRIZE: list[PrizeStageWinCondition] = [
 #
 # attack_priority_boost は「現在バトル場にいる1体が持つ複数ワザ」の中でしか選ばれない
 # （cg/api.py: attack.py は player.active[0] の技だけを見る）。このデッキで技を2つ以上
-# 持つのはノコッチ(65: かじる/ほる)だけで、フーディン・キチキギスex・シェイミなどは
+# 持つのはノコッチ(65: かじる/ほる)だけで、フーディン・シェイミなどは
 # 技が1つしかないため、「相手がこのアーキタイプなら別の攻撃役に切り替える」判断は
 # retreat.py 側（バトル場に誰を出すか）の役目であり、attack_priority_boost では
 # 実現できない。そのためここでは attack_priority_boost の使用は見送っている。

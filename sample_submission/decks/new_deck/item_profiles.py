@@ -14,7 +14,6 @@ from ptcg_ai.shared.profile_types import ItemProfile, UsageContext
 _CASEY_ID = 741  # ケーシィ
 _KADABRA_ID = 742  # ユンゲラー
 _ALAKAZAM_ID = 743  # フーディン
-_FEZANDIPITI_EX_ID = 140  # キチキギスex
 _DUNSPARCE_ID = 65  # ノコッチ
 
 
@@ -33,8 +32,8 @@ def _enhanced_hammer_condition(ctx: UsageContext) -> bool:
 
 
 def _buddy_buddy_poffin_condition(ctx: UsageContext) -> bool:
-    """なかよしポフィン: ケーシィ/キチキギスex/ノコッチのいずれかが場にも手札にも無い場合。"""
-    key_ids = (_CASEY_ID, _FEZANDIPITI_EX_ID, _DUNSPARCE_ID)
+    """なかよしポフィン: ケーシィ/ノコッチのいずれかが場にも手札にも無い場合。"""
+    key_ids = (_CASEY_ID, _DUNSPARCE_ID)
     return any(card_id not in ctx.own_board_ids and card_id not in ctx.own_hand_ids for card_id in key_ids)
 
 
