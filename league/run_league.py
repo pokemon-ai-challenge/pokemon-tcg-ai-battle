@@ -200,7 +200,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--config-base", default="ml_lethal_attackplan_v0only",
         help="ml_policy に注入する base config 名(default: 現行 production の "
-        "ml_lethal_attackplan_v0only)。weights だけを変えた ablation にするため両者で共有する。",
+        "ml_lethal_attackplan_v0only)。weights だけを変えた ablation にするため両者で共有する。"
+        "--config-base-a/--config-base-b を指定するとそちらが優先され、A/B で別 config を注入できる。",
+    )
+    parser.add_argument(
+        "--config-base-a", default=None,
+        help="A側 ml_policy に注入する config 名(未指定なら --config-base)。A/B で異なる config を "
+        "直接対戦させるための上書き(例: 現行 production vs abl_5_full の昇格 A/B)。",
+    )
+    parser.add_argument(
+        "--config-base-b", default=None,
+        help="B側 ml_policy に注入する config 名(未指定なら --config-base)。",
     )
     parser.add_argument("--seed-start", type=int, default=0, help="試合iにはseed_start+iを渡す")
     parser.add_argument(
@@ -290,14 +300,15 @@ def _worker_init(
     deck_b_path: str | Path | None,
     weights_a_path: str | Path | None,
     weights_b_path: str | Path | None,
-    config_base: str,
+    config_base_a: str,
+    config_base_b: str,
 ) -> None:
     """ProcessPoolExecutor の各ワーカー起動時に1回だけ呼ばれ、agent/deck を構築する。"""
     # ml_policy/rule_based は deck.csv や重み等を cwd 相対で参照するため、main() と同じく
     # sample_submission/ を cwd にそろえる(spawn された子プロセスでは cwd が継承されない）。
     os.chdir(_SAMPLE_SUBMISSION_DIR)
-    _WORKER_STATE["agent_a"] = build_agent(agent_a_name, weights_a_path, config_base)
-    _WORKER_STATE["agent_b"] = build_agent(agent_b_name, weights_b_path, config_base)
+    _WORKER_STATE["agent_a"] = build_agent(agent_a_name, weights_a_path, config_base_a)
+    _WORKER_STATE["agent_b"] = build_agent(agent_b_name, weights_b_path, config_base_b)
     _WORKER_STATE["deck_a"] = read_deck_csv_file(deck_a_path)
     _WORKER_STATE["deck_b"] = read_deck_csv_file(deck_b_path)
 
@@ -379,6 +390,8 @@ def run_league(
     weights_a_path: str | Path | None = None,
     weights_b_path: str | Path | None = None,
     config_base: str = "ml_lethal_attackplan_v0only",
+    config_base_a: str | None = None,
+    config_base_b: str | None = None,
     workers: int | None = 1,
     log: Callable[[str], None] = lambda msg: print(msg, file=sys.stderr),
 ) -> dict:
@@ -400,6 +413,10 @@ def run_league(
         )
     if games <= 0:
         raise ValueError("--games must resolve to a positive even number (>= 2)")
+
+    # A/B 個別 config は未指定なら共有 config_base にフォールバック(従来挙動と完全一致)。
+    cfg_a = config_base_a or config_base
+    cfg_b = config_base_b or config_base
 
     n_workers = resolve_workers(workers)
     tasks: list[tuple[int, int]] = [(i, seed_start + i) for i in range(games)]
@@ -424,8 +441,8 @@ def run_league(
     game_records: list[dict] = []
 
     if n_workers <= 1:
-        agent_a = build_agent(agent_a_name, weights_a_path, config_base)
-        agent_b = build_agent(agent_b_name, weights_b_path, config_base)
+        agent_a = build_agent(agent_a_name, weights_a_path, cfg_a)
+        agent_b = build_agent(agent_b_name, weights_b_path, cfg_b)
         deck_a = read_deck_csv_file(deck_a_path)
         deck_b = read_deck_csv_file(deck_b_path)
         for index, seed in tasks:
@@ -435,7 +452,7 @@ def run_league(
         log(f"[info] running {games} games across {n_workers} worker processes")
         initargs = (
             agent_a_name, agent_b_name, deck_a_path, deck_b_path,
-            weights_a_path, weights_b_path, config_base,
+            weights_a_path, weights_b_path, cfg_a, cfg_b,
         )
         with ProcessPoolExecutor(
             max_workers=n_workers, initializer=_worker_init, initargs=initargs
@@ -480,6 +497,8 @@ def run_league(
         "weights_a_path": str(resolve_weights_path(weights_a_path)) if weights_a_path else None,
         "weights_b_path": str(resolve_weights_path(weights_b_path)) if weights_b_path else None,
         "config_base": config_base,
+        "config_base_a": cfg_a,
+        "config_base_b": cfg_b,
         "games_requested": requested_games,
         "games_run": games,
         "workers": n_workers,
@@ -575,6 +594,8 @@ def main(argv: list[str] | None = None) -> None:
         weights_a_path=args.weights_a,
         weights_b_path=args.weights_b,
         config_base=args.config_base,
+        config_base_a=args.config_base_a,
+        config_base_b=args.config_base_b,
         workers=args.workers,
     )
 
