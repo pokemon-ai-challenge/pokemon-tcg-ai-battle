@@ -55,11 +55,38 @@
 - ここの `policy_only` は lethal OFF で、現行本番 config(`ml_lethal_attackplan_v0only` = lethal+attackplan)
   より弱い基準線。昇格判断の本命比較は「**パイプライン config vs 現行本番 config**」。
 
-## 次の一手
+## 第3弾: 本命 A/B — 現行本番 vs full(200ゲーム、ミラー、エラー0)
 
-`full` を既定 OFF のまま、現行本番 `ml_lethal_attackplan_v0only` との**直接 A/B**(実相手、200試合〜)に
-かけるのが本当の判定。そのため `run_league` を **A/B で別 config を注入できるよう拡張**してから実行する
-(下記 §実行ログに追記予定)。
+`run_league` を A/B 別 config 対応に拡張(`--config-base-a`/`--config-base-b`)して実行:
+
+```
+python league/run_league.py --agent-a ml_policy --agent-b ml_policy \
+  --config-base-a ml_lethal_attackplan_v0only --config-base-b abl_5_full \
+  --games 200 --workers 6 --out league/results/ab_prod_vs_full.json
+```
+
+| | 勝率 | Wilson 95%CI |
+|---|---|---|
+| A = `ml_lethal_attackplan_v0only`(現行本番) | 0.490 | [0.422, 0.559] |
+| B = `abl_5_full`(パイプライン full) | 0.510 | [0.441, 0.578] |
+
+先手/後手内訳(A視点): 先手 0.570 / 後手 0.410。平均12.5ターン。
+
+### 判定: 有意差なし → 昇格しない
+
+**full は現行本番 config を上回らなかった**(CI が 0.5 を含む)。ablation では full が素の `policy_only` を
+有意に上回り belief 層の価値も示せたが、**すでに lethal+attackplan を備えた本番 config が相手だと測定可能な
+優位は消える**。[[project_pimc_prod_validation]](PIMC 本番非転移)と完全に整合。n=200 で CI 半幅±0.07 なので
+7% を超える優位ならほぼ検出できたはず。**パイプラインは既定 OFF のまま維持**が妥当。
+
+## まとめ
+
+- パイプライン統合の実装は健全に動作し(unit 277 pass、e2e エラー0)、探索・belief 層は**弱い基準線に対しては
+  有意に効く**ことを確認できた(searchN1→policy_only 0.593、full→searchN1 0.607)。
+- しかし**現行本番 config を上回る証拠は得られず**、採用は見送り。実装・config・ablation 基盤は残し、
+  将来デッキやモデルが変わったときに再計測できる状態にしておく。
+- 次に本気で勝率を上げるなら、パイプラインの微調整より **deck.csv/Policy 重み側**か、**実フィールド相手での
+  評価**(ミラー自己対戦の限界)に投資するのが筋。
 
 ## 生成物
 
