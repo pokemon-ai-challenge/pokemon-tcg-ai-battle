@@ -7,13 +7,17 @@ decision.evaluation.attack_features / energy_requirements を使い、使用可�
 きぜつが取れるかに関わらず、AttackProfile（担当A）が示す追加効果
 （ベンチ狙撃・状態異常・ドロー・次ターン攻撃封じ）があるワザには加点し、
 単純なダメージ量だけでは測れない価値も評価に含める。
+相手デッキ予測が確信を持てている（opponent_modeling.tracker.current_matchup_plan）場合は、
+デッキ側の対アーキタイプ加点（MatchupPlan.attack_priority_boost）もここで加算する。
 """
 
 from cg.api import Observation, OptionType
 
 from ptcg_ai.board_evaluation import attack_features, energy_requirements
+from ptcg_ai.opponent_modeling import tracker as opponent_tracker
 from ptcg_ai.rule_based.main_turn_parts.proposals import ActionProposal
 from ptcg_ai.shared import card_cache, profile_registry
+from ptcg_ai.shared.profile_types import MatchupPlan
 
 # きぜつを取れるワザは、ダメージ量に関わらず最優先にする。
 _KO_BONUS = 1000.0
@@ -43,6 +47,8 @@ def propose(obs: Observation) -> ActionProposal | None:
     # 可変ダメージ技（手札枚数依存など）の推定に使う、攻撃側自身の手札枚数。
     attacker_hand_size = player.handCount
 
+    matchup_plan = opponent_tracker.current_matchup_plan()
+
     usable: list[tuple[int, float]] = []  # (option_index, value)
     ko_candidates: list[tuple[int, float]] = []  # (option_index, value)
     for i, option in enumerate(obs.select.option):
@@ -54,7 +60,7 @@ def propose(obs: Observation) -> ActionProposal | None:
         damage = attack_features.resolve_damage(
             attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size
         )
-        value = float(damage) + _effect_bonus(option.attackId)
+        value = float(damage) + _effect_bonus(option.attackId) + _matchup_bonus(option.attackId, matchup_plan)
         usable.append((i, value))
         if attack_features.can_ko(
             attack, attacker, defender, defender_card.weakness, defender_card.resistance, attacker_hand_size
@@ -88,3 +94,10 @@ def _effect_bonus(attack_id: int) -> float:
     if profile.disables_next_attack:
         bonus += _DISABLE_NEXT_ATTACK_BONUS
     return bonus
+
+
+def _matchup_bonus(attack_id: int, matchup_plan: MatchupPlan | None) -> float:
+    """相手デッキ予測が確信を持てている場合の対アーキタイプ加点（無ければ0）。"""
+    if matchup_plan is None:
+        return 0.0
+    return matchup_plan.attack_priority_boost.get(attack_id, 0.0)

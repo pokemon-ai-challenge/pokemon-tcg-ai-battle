@@ -14,7 +14,6 @@ from ptcg_ai.shared.profile_types import ItemProfile, UsageContext
 _CASEY_ID = 741  # ケーシィ
 _KADABRA_ID = 742  # ユンゲラー
 _ALAKAZAM_ID = 743  # フーディン
-_FEZANDIPITI_EX_ID = 140  # キチキギスex
 _DUNSPARCE_ID = 65  # ノコッチ
 
 
@@ -55,6 +54,7 @@ def _buddy_buddy_poffin_condition(ctx: UsageContext) -> bool:
     missing_dunsparce_line = not _has_any(_DUNSPARCE_LINE_IDS)
     missing_fezandipiti = _FEZANDIPITI_EX_ID not in ctx.own_board_ids and _FEZANDIPITI_EX_ID not in ctx.own_hand_ids
     return missing_fudin_line or missing_dunsparce_line or missing_fezandipiti
+
 
 
 def _night_stretcher_condition(ctx: UsageContext) -> bool:

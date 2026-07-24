@@ -298,38 +298,45 @@ def main() -> None:
 
         summary: list[dict[str, Any]] = []
         for index, archetype in enumerate(archetypes):
-            recipe_info = _pick_representative_recipe(
-                cache_payload,
-                archetype["deck_type"],
-                archetype["display_name"],
-                normalized_name_to_ids,
-                exact_name_to_ids,
-            )
-            recipe_info["deck_type"] = archetype["deck_type"]
-            recipe_info["display_name"] = archetype["display_name"]
+            # 1アーキタイプの構築・対戦に失敗しても（tier_ranking の表記ゆれでカード名が
+            # 解決できない等）、残りのアーキタイプの生成は続行する。
+            try:
+                recipe_info = _pick_representative_recipe(
+                    cache_payload,
+                    archetype["deck_type"],
+                    archetype["display_name"],
+                    normalized_name_to_ids,
+                    exact_name_to_ids,
+                )
+                recipe_info["deck_type"] = archetype["deck_type"]
+                recipe_info["display_name"] = archetype["display_name"]
 
-            opponent_seed = args.seed_base + index
-            output_name = f"predictor-{archetype['deck_type']}-seed{opponent_seed}.json"
-            output_path = args.output_dir / output_name
-            if output_path.exists() and not args.overwrite:
-                raise FileExistsError(f"{output_path} already exists. Use --overwrite to replace it.")
+                opponent_seed = args.seed_base + index
+                output_name = f"predictor-{archetype['deck_type']}-seed{opponent_seed}.json"
+                output_path = args.output_dir / output_name
+                if output_path.exists() and not args.overwrite:
+                    print(f"[skip] {output_path} は既に存在します（--overwrite で上書き可能）")
+                    continue
 
-            random.seed(opponent_seed)
-            player1_agent = _fixed_deck_agent(_random_turn_agent, recipe_info["deck_card_ids"])
-            replay = run_match(
-                player0_agent,
-                player1_agent,
-                player_deck,
-                recipe_info["deck_card_ids"],
-                max_steps=args.max_steps,
-            )
-            _write_replay(
-                output_path,
-                replay,
-                opponent_seed=opponent_seed,
-                source_cache_path=source_cache_path,
-                recipe_info=recipe_info,
-            )
+                random.seed(opponent_seed)
+                player1_agent = _fixed_deck_agent(_random_turn_agent, recipe_info["deck_card_ids"])
+                replay = run_match(
+                    player0_agent,
+                    player1_agent,
+                    player_deck,
+                    recipe_info["deck_card_ids"],
+                    max_steps=args.max_steps,
+                )
+                _write_replay(
+                    output_path,
+                    replay,
+                    opponent_seed=opponent_seed,
+                    source_cache_path=source_cache_path,
+                    recipe_info=recipe_info,
+                )
+            except Exception as exc:  # noqa: BLE001 -- 1件の失敗で残りの生成を止めない
+                print(f"[skip] {archetype['deck_type']}: {exc}")
+                continue
             summary.append(
                 {
                     "deck_type": archetype["deck_type"],

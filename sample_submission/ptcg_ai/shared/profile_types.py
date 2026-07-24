@@ -138,6 +138,19 @@ class EnergyProfile:
 
 
 @dataclass
+class MatchupPlan:
+    """相手デッキのアーキタイプ（opponent_modeling.rough_predictor の deck_type）ごとの対策データ。
+
+    キーは DeckPlan.matchup_plans の dict キー（deck_type 文字列）側で持つため、
+    ここには「そのアーキタイプに対してどう加点するか」だけを持たせる。
+    """
+
+    attack_priority_boost: dict[int, float] = field(default_factory=dict)  # attack_id -> 加点
+    card_priority_boost: dict[int, float] = field(default_factory=dict)  # card_id -> 加点（board系）
+    note: str = ""  # なぜその加点かの理由メモ
+
+
+@dataclass
 class EnergyCardContext:
     """ENERGY_CARD_PRIORITY_RULES の条件関数に渡す、エネルギー付与1回ぶんの状況。"""
 
@@ -195,6 +208,9 @@ class DeckPlan:
     search_priority_rules: list[SearchPriorityRule] = field(default_factory=list)  # 条件付きサーチ優先順（無条件のsearch_priorityより優先）
     protected_card_ids: set[int] = field(default_factory=set)  # 捨てたくないカードIDの集合
     win_condition_by_prize: dict[int, str] = field(default_factory=dict)  # 残りサイド枚数ごとの勝ち筋メモ
+    # 相手デッキのアーキタイプ（opponent_modeling.rough_predictor の deck_type）ごとの対策。
+    # キーは rough_predictor.json の archetypes キーと一致させること。
+    matchup_plans: dict[str, MatchupPlan] = field(default_factory=dict)
 
     # エネルギー周回コンボ（例: ACE SPECエネルギーを、山札に戻る特性持ちポケモンに一時的に
     # 付けて再利用する）。該当が無いデッキでは空のままでよい。
