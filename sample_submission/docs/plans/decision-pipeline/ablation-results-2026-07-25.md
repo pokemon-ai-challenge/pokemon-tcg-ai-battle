@@ -79,6 +79,27 @@ python league/run_league.py --agent-a ml_policy --agent-b ml_policy \
 優位は消える**。[[project_pimc_prod_validation]](PIMC 本番非転移)と完全に整合。n=200 で CI 半幅±0.07 なので
 7% を超える優位ならほぼ検出できたはず。**パイプラインは既定 OFF のまま維持**が妥当。
 
+## 第4弾: 多様フィールド対戦(ミラーの限界を埋める controlled 比較)
+
+`league/field_gauntlet.py`。alakazam(フーディン=現提出インカンベント、weights=構成C)を config だけ
+full/v0only で振り、メタ7アーキ(各 deck+専用重み、config は v0only 固定)相手に対戦(100G/ペア)。
+full と v0only で同じデッキ・同じ重み・同じ相手・同じ seed にそろえ、違いを意思決定パイプライン
+有無だけに絞った。フィールド定義は `round_robin.ARCHS` を再利用。
+
+| 相手 | full | v0only | Δ | share |
+|---|---|---|---|---|
+| mega_lucario_ex | 78.0 | 82.0 | −4.0 | 1257 |
+| archaludon_ex | 79.0 | 78.0 | +1.0 | 1078 |
+| crustle | 40.0 | 43.0 | −3.0 | 737 |
+| dragapult_ex | 85.0 | 83.0 | +2.0 | 625 |
+| marnie_grimmsnarl_ex | 56.0 | 56.0 | 0.0 | 591 |
+| rocket_mewtwo_ex | 34.0 | 39.0 | −5.0 | 247 |
+| shirona_garchomp_ex | 75.0 | 71.0 | +4.0 | 181 |
+
+**対フィールド期待勝率(メタシェア加重): full 68.0% / v0only 69.2%(full −1.1pt)。**
+全field集計 full 63.9% CI[60.2,67.3] vs v0only 64.6% CI[61.0,68.0] = **有意差なし**。full が有意に勝つ
+相手は無し。ミラーの限界を埋めた実フィールド寄りの読みでも full は本番を上回らない。
+
 ## まとめ
 
 - パイプライン統合の実装は健全に動作し(unit 277 pass、e2e エラー0)、探索・belief 層は**弱い基準線に対しては
