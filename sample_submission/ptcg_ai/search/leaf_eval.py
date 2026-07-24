@@ -78,6 +78,14 @@ class HandcraftedEvaluator:
         "bench_advantage": 0.10,   # ベンチ展開数の差
     }
 
+    def __init__(self, card_advantage_coeff: float = 0.0):
+        # 汎用「カードアドバンテージ」項の係数(手札枚数差 self-opp のロジット重み)。
+        # 既定 0.0 = 無効(従来挙動そのまま)。>0 にすると「引く/回収する」局面を評価が
+        # 高く見るようになる。特定コンボを名指ししないデッキ非依存の項で、ドローエンジン全般
+        # (例: リッチエネルギー付与の+4ドローや、にげあしドロー特性の+3ドロー)を自然に
+        # 後押しするのが狙い(decision-pipeline の card-advantage 実験)。
+        self.card_advantage_coeff = card_advantage_coeff
+
     def evaluate(self, state: State, me: int) -> float:
         try:
             if state is None:
@@ -104,6 +112,10 @@ class HandcraftedEvaluator:
                 + c["energy_advantage"] * energy
                 + c["bench_advantage"] * bench
             )
+            if self.card_advantage_coeff:
+                my_hand = getattr(mine, "handCount", 0) or 0
+                opp_hand = getattr(opp, "handCount", 0) or 0
+                logit += self.card_advantage_coeff * (my_hand - opp_hand)
             return _sigmoid(logit)
         except Exception:
             return _NEUTRAL
@@ -140,8 +152,13 @@ class ValueModelEvaluator:
 
 
 def build_evaluator(config: dict | None = None) -> LeafEvaluator:
-    """``config["kind"]`` に応じた LeafEvaluator を返す(既定 handcrafted)。"""
-    kind = (config or {}).get("kind", "handcrafted")
+    """``config["kind"]`` に応じた LeafEvaluator を返す(既定 handcrafted)。
+
+    handcrafted の場合、``config["card_advantage_coeff"]``(既定 0.0=無効)で汎用の
+    カードアドバンテージ項を有効化できる。
+    """
+    cfg = config or {}
+    kind = cfg.get("kind", "handcrafted")
     if kind == "value":
         return ValueModelEvaluator()
-    return HandcraftedEvaluator()
+    return HandcraftedEvaluator(card_advantage_coeff=float(cfg.get("card_advantage_coeff", 0.0)))

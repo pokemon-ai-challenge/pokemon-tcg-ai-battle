@@ -94,3 +94,37 @@ def test_build_evaluator_selects_kind(leaf_eval):
     assert isinstance(leaf_eval.build_evaluator(None), leaf_eval.HandcraftedEvaluator)
     assert isinstance(leaf_eval.build_evaluator({"kind": "handcrafted"}), leaf_eval.HandcraftedEvaluator)
     assert isinstance(leaf_eval.build_evaluator({"kind": "value"}), leaf_eval.ValueModelEvaluator)
+
+
+def _state_hand(me=0, my_hand=5, opp_hand=5):
+    mine = SimpleNamespace(prize=[None] * 3, active=[_pokemon()], bench=[], handCount=my_hand)
+    opp = SimpleNamespace(prize=[None] * 3, active=[_pokemon()], bench=[], handCount=opp_hand)
+    players = [None, None]
+    players[me] = mine
+    players[1 - me] = opp
+    return SimpleNamespace(result=-1, players=players, yourIndex=me)
+
+
+def test_card_advantage_coeff_zero_is_noop(leaf_eval):
+    """card_advantage_coeff=0(既定)なら手札枚数はスコアに影響しない(従来挙動)。"""
+    ev = leaf_eval.HandcraftedEvaluator(card_advantage_coeff=0.0)
+    assert ev.evaluate(_state_hand(my_hand=12, opp_hand=3), me=0) == ev.evaluate(
+        _state_hand(my_hand=3, opp_hand=3), me=0
+    )
+
+
+def test_card_advantage_rewards_bigger_hand(leaf_eval):
+    """coeff>0 なら自分の手札が多い(=引いた)局面ほど高評価。ドローエンジンを後押しする。"""
+    ev = leaf_eval.HandcraftedEvaluator(card_advantage_coeff=0.1)
+    drew = ev.evaluate(_state_hand(my_hand=12, opp_hand=5), me=0)   # +4/+3ドロー後を想定
+    base = ev.evaluate(_state_hand(my_hand=5, opp_hand=5), me=0)
+    assert drew > base
+    # 相手視点では符号が反転する。
+    assert ev.evaluate(_state_hand(me=0, my_hand=12, opp_hand=5), me=1) < 0.5
+
+
+def test_build_evaluator_passes_card_advantage_coeff(leaf_eval):
+    assert leaf_eval.build_evaluator({"kind": "handcrafted"}).card_advantage_coeff == 0.0
+    assert leaf_eval.build_evaluator(
+        {"kind": "handcrafted", "card_advantage_coeff": 0.07}
+    ).card_advantage_coeff == 0.07

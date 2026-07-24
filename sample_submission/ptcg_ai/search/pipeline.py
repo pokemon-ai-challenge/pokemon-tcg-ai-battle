@@ -30,7 +30,7 @@ import time
 from typing import Callable
 
 from cg import api as cg_api
-from cg.api import Observation, SelectData, SelectType, State
+from cg.api import Observation, OptionType, SelectData, SelectType, State
 
 from ptcg_ai.search import leaf_eval as leaf_eval_module
 
@@ -45,6 +45,12 @@ DEFAULTS: dict = {
     "time_limit_ms": 400,       # search() 全体の壁時計予算
     "tie_eps": 0.02,            # 平均スコア差がこれ以下なら Policy 上位で決める
     "leaf_eval": {"kind": "handcrafted"},
+    # 模倣が低評価しがちな手(特性使用・エネ付与など)を Policy top-k に関係なく候補へ
+    # 含めるための OptionType 名リスト(例: ["ABILITY","ATTACH"])。既定 [] = 従来挙動。
+    # デッキ非依存: 「模倣が見落とす強い手ほど探索対象から外れる」構造穴を塞ぐための口。
+    "extra_candidate_types": [],
+    # extra で追加する候補の上限(policy top-k と合わせた総数はこれで頭打ち)。
+    "max_candidates": 8,
 }
 
 
@@ -100,6 +106,28 @@ def _hidden_state_factory(context: dict) -> Callable[[], dict | None] | None:
     if hidden_state is not None:
         return lambda: hidden_state
     return None
+
+
+def _select_candidate_indices(select: SelectData, ranked: list[int], config: dict) -> list[int]:
+    """探索する first-move 候補のインデックス集合を返す。
+
+    Policy スコア上位 ``top_k`` に加え、``extra_candidate_types``(OptionType 名)に該当する
+    合法手を Policy ランクに関係なく含める(模倣が低評価する特性使用・エネ付与などを探索から
+    外さないため)。総数は ``max_candidates`` で頭打ち。``ranked`` はスコア降順の全インデックス。
+    """
+    k = max(1, int(config.get("top_k", 4)))
+    indices = list(ranked[:k])
+    extra_types = config.get("extra_candidate_types") or []
+    if extra_types:
+        wanted = {getattr(OptionType, t, None) for t in extra_types}
+        wanted.discard(None)
+        for i in ranked:  # スコア順で走査し、該当タイプを追記(重複は除く)
+            if select.option[i].type in wanted and i not in indices:
+                indices.append(i)
+    max_candidates = int(config.get("max_candidates", 8))
+    if max_candidates > 0:
+        indices = indices[:max_candidates]
+    return indices
 
 
 def _greedy_selection(policy_model, obs: Observation) -> list[int]:
@@ -227,8 +255,7 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
             top1 = [ranked[0]]
             return top1 if _is_legal_selection(top1, select) else None
 
-        k = max(1, int(config["top_k"]))
-        candidate_indices = ranked[:k]
+        candidate_indices = _select_candidate_indices(select, ranked, config)
         candidates = [[i] for i in candidate_indices]
 
         evaluator = context.get("leaf_evaluator") or leaf_eval_module.build_evaluator(config.get("leaf_eval"))

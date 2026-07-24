@@ -162,3 +162,48 @@ def test_missing_policy_model_returns_none(pipeline, fixtures):
     obs = _obs(fixtures, "mid_game")
     ctx = {"observation": obs, "config": _base_config()}
     assert pipeline.search(obs.current, obs.select.option, ctx) is None
+
+
+def test_extra_candidate_types_included_regardless_of_policy_rank(pipeline):
+    """extra_candidate_types の手(ABILITY/ATTACH)は Policy 低ランクでも候補に入る。
+
+    模倣が低評価する特性使用・エネ付与(例: リッチエネルギー付与→+4ドロー、
+    にげあしドロー特性)を探索対象から外さないための仕組みの検証。
+    """
+    from cg.api import OptionType
+
+    def _opt(t):
+        return SimpleNamespace(type=t)
+
+    # options: PLAY(0), ATTACH(1), ABILITY(2), PLAY(3), PLAY(4)
+    select = SimpleNamespace(option=[
+        _opt(OptionType.PLAY), _opt(OptionType.ATTACH), _opt(OptionType.ABILITY),
+        _opt(OptionType.PLAY), _opt(OptionType.PLAY),
+    ])
+    # policy スコア順(降順): PLAYたちが上位、ATTACH/ABILITY は最下位。
+    ranked = [0, 3, 4, 1, 2]
+
+    # extra 無し: top_k=2 のみ。
+    base = pipeline._select_candidate_indices(select, ranked, {"top_k": 2, "extra_candidate_types": []})
+    assert set(base) == {0, 3}
+
+    # extra 有り: top-2 に加え ATTACH(1)/ABILITY(2) も低ランクだが含まれる。
+    got = pipeline._select_candidate_indices(
+        select, ranked, {"top_k": 2, "extra_candidate_types": ["ABILITY", "ATTACH"], "max_candidates": 8}
+    )
+    assert {0, 3, 1, 2} <= set(got)
+
+    # max_candidates で頭打ち。
+    capped = pipeline._select_candidate_indices(
+        select, ranked, {"top_k": 2, "extra_candidate_types": ["ABILITY", "ATTACH"], "max_candidates": 3}
+    )
+    assert len(capped) == 3
+
+
+def test_extra_candidate_types_default_off_matches_top_k(pipeline, fixtures):
+    """既定(extra_candidate_types 未指定)では従来どおり top-k のみ(挙動不変)。"""
+    obs = _obs(fixtures, "mid_game")
+    n = len(obs.select.option)
+    ranked = list(range(n))
+    idx = pipeline._select_candidate_indices(obs.select, ranked, {"top_k": 2})
+    assert idx == ranked[:2]
