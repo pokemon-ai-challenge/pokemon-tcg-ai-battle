@@ -61,6 +61,9 @@ def _build_deck_plan() -> DeckPlan:
         energy_recycle_target_id=getattr(plan, "ENERGY_RECYCLE_TARGET_CARD_ID", None),
         energy_recycle_card_id=getattr(plan, "ENERGY_RECYCLE_CARD_ID", None),
         energy_recycle_backup_item_id=getattr(plan, "ENERGY_RECYCLE_BACKUP_ITEM_ID", None),
+        # matchup_plans: 対アーキタイプ戦略。担当Aがまだ書いていないデッキでは
+        # plan.MATCHUP_PLANS 自体が無いこともあるため getattr で欠損時は空dictにする。
+        matchup_plans=getattr(plan, "MATCHUP_PLANS", {}),
     )
 
 

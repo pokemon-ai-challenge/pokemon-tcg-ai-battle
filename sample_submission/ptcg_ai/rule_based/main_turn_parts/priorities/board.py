@@ -5,10 +5,13 @@
 ベンチ展開・進化・場を強化するグッズ/スタジアム/どうぐの使用を提案する。
 展開・進化の優先順位は knowledge.profile_registry.get_deck_plan() の
 opening_priority / evolution_priority を参照する。
+相手デッキ予測が確信を持てている場合は、デッキ側の対アーキタイプ加点
+（MatchupPlan.card_priority_boost）も加算する。
 """
 
 from cg.api import CardType, Observation
 
+from ptcg_ai.opponent_modeling import tracker as opponent_tracker
 from ptcg_ai.rule_based.card_move import common
 from ptcg_ai.rule_based.main_turn_parts import buckets, usage_gate
 from ptcg_ai.rule_based.main_turn_parts.proposals import ActionProposal
@@ -26,15 +29,19 @@ def propose(obs: Observation) -> ActionProposal | None:
         return None
 
     plan = profile_registry.get_deck_plan()
+    matchup_plan = opponent_tracker.current_matchup_plan()
 
     def priority_score(index: int) -> float:
         card_id = common.resolve_card_id(obs.select.option[index], obs.current)
         if card_id is None:
             return 0.0
+
+        matchup_bonus = matchup_plan.card_priority_boost.get(card_id, 0.0) if matchup_plan is not None else 0.0
+
         if card_id in plan.evolution_priority:
-            return _EVOLUTION_BASE_SCORE - plan.evolution_priority.index(card_id) * 0.01
+            return _EVOLUTION_BASE_SCORE - plan.evolution_priority.index(card_id) * 0.01 + matchup_bonus
         if card_id in plan.opening_priority:
-            return _OPENING_BASE_SCORE - plan.opening_priority.index(card_id) * 0.01
+            return _OPENING_BASE_SCORE - plan.opening_priority.index(card_id) * 0.01 + matchup_bonus
 
         card = card_cache.get_card(card_id)
         profile = None
@@ -44,7 +51,8 @@ def propose(obs: Observation) -> ActionProposal | None:
             profile = profile_registry.get_tool_profile(card_id)
         elif card.cardType == CardType.STADIUM:
             profile = profile_registry.get_stadium_profile(card_id)
-        return profile.priority if profile is not None else 0.0
+        base_score = profile.priority if profile is not None else 0.0
+        return base_score + matchup_bonus
 
     best_index = max(candidates, key=priority_score)
     return ActionProposal(category="board", select=[best_index], score=priority_score(best_index), reason="board development")
