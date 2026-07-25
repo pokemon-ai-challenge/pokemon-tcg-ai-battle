@@ -18,6 +18,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ptcg_ai.shared.profile_types import (
+    EnergyCardContext,
+    EnergyPriorityRule,
+    MatchupPlan,
+    SearchPriorityRule,
+    UsageContext,
+)
+
 
 @dataclass(frozen=True)
 class AttackerPlan:
@@ -37,14 +45,6 @@ class PriorityEntry:
 class PrizeStageWinCondition:
     prize_range: str
     plan: str
-
-
-@dataclass(frozen=True)
-class EnergyPriorityRule:
-    """特定条件下でのエネルギーカード付与優先順位（カードIDを優先度順に並べたもの）。"""
-
-    condition: str
-    order: list[int]
 
 
 @dataclass(frozen=True)
@@ -80,22 +80,10 @@ MAIN_ATTACKER = AttackerPlan(
     ),
 )
 
-SUB_ATTACKERS: list[AttackerPlan] = [
-    AttackerPlan(
-        card_id=140,
-        name="キチキギスex",
-        note=(
-            "クルーエルアロー（●●●）で相手ポケモン1匹に100ダメージの単体除去。"
-            "ex なので被弾時サイド2枚。特性さかてにとる（前の相手の番に自分のポケモンが"
-            "きぜつしていれば3ドロー）と組み合わせて使うと損失を相殺しやすい。"
-            "「特性を使用済み」「フーディンがバトル場にいない」「攻撃に必要な"
-            "エネルギー3個が既に付いている」の3条件がそろった場合はメイン（バトル場）に"
-            "出すのもあり。1枚しか入っていないため、それ以外の場面では温存する。"
-        ),
-    ),
-]
+# キチキギスex（旧サブアタッカー）はデッキから抜けたため現在は空。
 # ノココッチはランドクラッシュ（●●●,90dmg）を持つが、下記 BENCH_ONLY_SUPPORT の通り
 # 基本的にバトル場に出さない運用のためサブアタッカー扱いにしない。
+SUB_ATTACKERS: list[AttackerPlan] = []
 
 
 # ---------------------------------------------------------------------------
@@ -155,15 +143,6 @@ OPENING_BENCH_PRIORITY: list[PriorityEntry] = [
         card_id=743,
         name="フーディン",
         reason="フーディン系列。ケーシィと同格の最優先ライン。",
-    ),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex",
-        reason=(
-            "特性さかてにとるが主目的。SUB_ATTACKERS に挙げた3条件"
-            "（特性使用済み・フーディン不在・エネルギー3付与済み）がそろった場合は"
-            "メインに出すのもあり。"
-        ),
     ),
     PriorityEntry(
         card_id=65,
@@ -241,16 +220,11 @@ ENERGY_TARGET_PRIORITY: list[PriorityEntry] = [
         name="ケーシィ",
         reason="フーディン系列。進化前でもエネルギーを付けて構わない（フーディン743と同格）。",
     ),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex",
-        reason="クルーエルアロー（●●●）用。フーディン系列の次点として扱う。",
-    ),
 ]
 # 上記以外（ノコッチ／ノココッチ、シェイミなど）には基本的にエネルギーを付けない。
 # ノココッチはバトル場に出さない運用（BENCH_ONLY_SUPPORT参照）のため、
 # 攻撃用のエネルギー付与対象には含めない。
-ENERGY_TARGET_CARD_IDS: list[int] = [*FUDIN_LINE_CARD_IDS, 140]
+ENERGY_TARGET_CARD_IDS: list[int] = list(FUDIN_LINE_CARD_IDS)
 
 # 各ポケモンの攻撃に必要なエネルギー総数。これ以上は付けない。
 ENERGY_REQUIRED_COUNT: dict[int, int] = {
@@ -260,7 +234,6 @@ ENERGY_REQUIRED_COUNT: dict[int, int] = {
     65: 2,  # ノコッチ
     66: 3,  # ノココッチ
     343: 2,  # シェイミ
-    140: 3,  # キチキギスex
 }
 
 # エネルギーカードの種別:
@@ -273,20 +246,52 @@ TELEPATH_ENERGY_CARD_ID = 19
 RICH_ENERGY_CARD_ID = 13
 ENERGY_RECYCLE_TOOL_CARD_ID = 1146  # ワンダーパッチ：トラッシュの基本超エネルギーをベンチの超ポケモンに再利用
 
+def _fudin_line_needs_first_energy(ctx: EnergyCardContext) -> bool:
+    """付与先がフーディン系列（ケーシィ／ユンゲラー／フーディン）で、まだエネルギーが0個の場合。
+
+    フーディン系列は ENERGY_REQUIRED_COUNT がいずれも1のため、無エネルギーのリッチ
+    エネルギーを最初に付けてしまうと「必要数を満たした」扱いになり、以後エネルギーが
+    付かなくなる（ハンドパワーは【超】1個指定でリッチエネルギーだけでは支払えないため、
+    実際には攻撃できないまま止まってしまう）。ケーシィ／ユンゲラーの段階でも同じ問題が
+    起きるため、フーディンだけでなく系列全体を対象にする。
+    """
+    return ctx.target_card_id in FUDIN_LINE_CARD_IDS and ctx.target_energy_count == 0
+
+
+def _otherwise(ctx: EnergyCardContext) -> bool:
+    """それ以外（フーディン以外への付与、またはフーディンに既にエネルギーが付いている場合）。
+
+    常に True を返す、フォールバック用の最終ルール。
+    """
+    return True
+
+
 ENERGY_CARD_PRIORITY_RULES: list[EnergyPriorityRule] = [
     EnergyPriorityRule(
-        condition=(
-            "付与先がフーディンで、まだエネルギーが0個の場合"
-            "（ハンドパワーのコストは【超】1個指定で、無エネルギーのリッチエネルギーでは"
-            "支払えないため、まず超エネルギーで攻撃可能な状態にする）"
-        ),
+        condition=_fudin_line_needs_first_energy,
         order=[TELEPATH_ENERGY_CARD_ID, BASIC_PSYCHIC_ENERGY_CARD_ID],
     ),
     EnergyPriorityRule(
-        condition="それ以外（フーディン以外への付与、またはフーディンに既にエネルギーが付いている場合）",
+        condition=_otherwise,
         order=[RICH_ENERGY_CARD_ID, TELEPATH_ENERGY_CARD_ID, BASIC_PSYCHIC_ENERGY_CARD_ID],
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# エネルギー周回コンボ（ノココッチ×リッチエネルギー）
+# ---------------------------------------------------------------------------
+#
+# リッチエネルギー(ACE SPEC・1枚)は、ノココッチの特性「にげあしドロー」
+# （3ドロー後、自身と付いているカード全てを山札に戻す。特性自体にエネルギーコストは無い）
+# で回収し直せる。バトル場の主力に攻撃可能なだけのエネルギーが既に付いている、または
+# ワンダーパッチでトラッシュから後から補給できる場合に限り、余っているリッチエネルギーを
+# ノココッチに預けて回す（③実装時: energy_eval.py が ENERGY_REQUIRED_COUNT /
+# ワンダーパッチの usage_condition と組み合わせて判定する）。
+
+ENERGY_RECYCLE_TARGET_CARD_ID = 66  # ノココッチ
+ENERGY_RECYCLE_CARD_ID = RICH_ENERGY_CARD_ID  # リッチエネルギー
+ENERGY_RECYCLE_BACKUP_ITEM_ID = ENERGY_RECYCLE_TOOL_CARD_ID  # ワンダーパッチ
 
 # 付与ルール:
 # - ENERGY_REQUIRED_COUNT に定めた必要数以上は付けない。
@@ -329,6 +334,55 @@ SEARCH_PRIORITY: list[PriorityEntry] = [
         name="ふしぎなアメ",
         reason="フーディンへの進化短縮用。基本的に手札に来たら温存し、進化ルートのために使う。",
     ),
+    PriorityEntry(
+        card_id=ENERGY_RECYCLE_CARD_ID,
+        name="リッチエネルギー",
+        reason=(
+            "ACE SPEC・1枚のみ。ノココッチの特性で山札に戻した後は、"
+            "トウコ等のエネルギーサーチで優先的に回収し直す。"
+        ),
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# 条件付きサーチ優先順位（トウコ等の「進化ポケモン1体」選択で使用）
+# ---------------------------------------------------------------------------
+#
+# SEARCH_PRIORITY にはポケモンのcard_idを含めていない（サポート/グッズ/エネルギーの
+# 優先順であり、トウコの進化ポケモン選択のような「複数の進化ポケモンから1体選ぶ」
+# 場面では使えないため）。ここではその選択に限定した条件付き優先順を定義する。
+#
+# ノココッチ（進化先）だけを先にサーチしても、進化元のノコッチが場に無ければ
+# 進化させられず手札で腐る。そのため、ノコッチが既に場にいる／ポケパッド・
+# なかよしポフィンで今すぐ持ってこられる場合に限りノココッチを最優先にし、
+# そうでなければユンゲラー系列（進化前でもエネルギーを付けて使い回せる）を優先する。
+
+_DUNSPARCE_ID = 65  # ノコッチ
+_DUNSPARCE_STAGE1_ID = 66  # ノココッチ
+_POKE_PAD_CARD_ID = 1152  # ポケパッド
+_FRIENDSHIP_MUFFIN_CARD_ID = 1086  # なかよしポフィン
+
+
+def _dunsparce_reachable(ctx: UsageContext) -> bool:
+    """ノコッチが既に自分の場にいる、またはポケパッド／なかよしポフィンで今すぐ持ってこれる場合。"""
+    if _DUNSPARCE_ID in ctx.own_board_ids or _DUNSPARCE_STAGE1_ID in ctx.own_board_ids:
+        return True
+    return _POKE_PAD_CARD_ID in ctx.own_hand_ids or _FRIENDSHIP_MUFFIN_CARD_ID in ctx.own_hand_ids
+
+
+def _search_otherwise(ctx: UsageContext) -> bool:
+    return True
+
+
+SEARCH_PRIORITY_RULES: list[SearchPriorityRule] = [
+    SearchPriorityRule(
+        condition=_dunsparce_reachable,
+        order=[_DUNSPARCE_STAGE1_ID, 742, 743],  # ノココッチ最優先、次点でユンゲラー系列
+    ),
+    SearchPriorityRule(
+        condition=_search_otherwise,
+        order=[742, 743, _DUNSPARCE_STAGE1_ID],  # ノコッチ未確保時はユンゲラー系列を優先
+    ),
 ]
 
 
@@ -338,19 +392,13 @@ SEARCH_PRIORITY: list[PriorityEntry] = [
 #
 # 夜のタンカ(1097)・スイレンのお世話(1184)・せいなるはい(1129)は
 # トラッシュの「ポケモン」「基本エネルギー」を回収できるため、
-# それらは多少捨てても後で回収できる。回収手段のないグッズ・サポート・
-# ex（1枚しかないキチキギスex）を優先的に守りたい。
+# それらは多少捨てても後で回収できる。回収手段のないグッズ・サポートを優先的に守りたい。
 
 PROTECT_CARDS: list[PriorityEntry] = [
     PriorityEntry(
         card_id=RARE_CANDY_CARD_ID,
         name="ふしぎなアメ",
         reason="グッズは夜のタンカ等のトラッシュ回収対象外。フーディンルートの生命線。",
-    ),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex",
-        reason="1枚しか入っていないポケモン。捨て札からの回収対象にはなるが手札への戻し漏れは重い。",
     ),
     PriorityEntry(
         card_id=1231,
@@ -388,9 +436,9 @@ ITEM_USAGE_NOTES: list[UsageNote] = [
         card_id=1086,
         name="なかよしポフィン",
         note=(
-            "ケーシィ・キチキギスex・ノコッチのうち場にも手札にもいないものを、"
-            "それぞれ1枚ずつ優先してベンチに出す。キチキギスexとノコッチが両方すでに"
-            "場にいる場合は、ケーシィの2枚目以降、またはノコッチの2枚目を優先する。"
+            "ケーシィ・ノコッチのうち場にも手札にもいないものを、"
+            "それぞれ1枚ずつ優先してベンチに出す。両方すでに場にいる場合は、"
+            "ケーシィの2枚目以降、またはノコッチの2枚目を優先する。"
         ),
     ),
     UsageNote(
@@ -423,8 +471,11 @@ SUPPORTER_USAGE_NOTES: list[UsageNote] = [
         card_id=1225,
         name="トウコ",
         note=(
-            "手札にあれば基本的に使用する。サーチ対象は OPENING_BENCH_PRIORITY の並びに"
-            "準拠しつつ、場・手札に進化先がいないポケモンの確保を優先する。"
+            "手札にあれば基本的に使用する。進化ポケモンとエネルギーを1枚ずつサーチできる。"
+            "エネルギーは基本的にリッチエネルギーを回収する（SEARCH_PRIORITY参照）。"
+            "進化ポケモンの対象は SEARCH_PRIORITY_RULES に従い、ノコッチが場にいる／"
+            "ポケパッド・なかよしポフィンで持ってこれる場合はノココッチを、"
+            "そうでなければユンゲラー系列を優先する。"
         ),
     ),
     UsageNote(
@@ -460,25 +511,11 @@ STADIUM_USAGE_NOTES: list[UsageNote] = [
 # ---------------------------------------------------------------------------
 # きぜつ後の後継優先順位（バトル場の入れ替え）
 # ---------------------------------------------------------------------------
-#
-# キチキギスexは付与済みエネルギー数で2グループに分けて扱う
-# （グループA: 2個以上／グループB: 2個未満）。Aの方がクルーエルアロー
-# （必要エネルギー3）の起動に近いため優先度が高い。
 
 KO_REPLACEMENT_PRIORITY: list[PriorityEntry] = [
     PriorityEntry(card_id=743, name="フーディン", reason="立て直しの主砲。最優先で後継に。"),
     PriorityEntry(card_id=742, name="ユンゲラー", reason="フーディンまで進化1段のため次点。"),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex（グループA：エネルギー2個以上）",
-        reason="クルーエルアローの起動に近いため、ケーシィより優先する。",
-    ),
     PriorityEntry(card_id=741, name="ケーシィ", reason="フーディン系列の最初期。"),
-    PriorityEntry(
-        card_id=140,
-        name="キチキギスex（グループB：エネルギー2個未満）",
-        reason="攻撃準備が薄いため、フーディン系列を優先させたあとに回す。",
-    ),
     PriorityEntry(card_id=65, name="ノコッチ", reason="ドローエンジンの前段。他に候補がない場合の後継。"),
     PriorityEntry(card_id=66, name="ノココッチ", reason="本来はベンチ固定だが、他に候補がない場合の最終手段。"),
     PriorityEntry(card_id=343, name="シェイミ", reason="攻撃力が低いため最終手段。"),
@@ -514,20 +551,160 @@ WIN_CONDITIONS_BY_PRIZE: list[PrizeStageWinCondition] = [
         prize_range="3〜2枚（中盤）",
         plan=(
             "フーディンのハンドパワーを継続して打ち、手札枚数を維持しながら"
-            "大ダメージを通す。相手の重要な後続はキチキギスexのクルーエルアローや"
-            "ボスの指令＋ハンドパワーで刈り取る。"
+            "大ダメージを通す。相手の重要な後続はボスの指令＋ハンドパワーで刈り取る。"
         ),
     ),
     PrizeStageWinCondition(
         prize_range="1枚（詰め）",
-        plan=(
-            "相手の残りポケモンのHPを見て、ハンドパワーで一撃、"
-            "またはキチキギスexのクルーエルアロー（100固定）で正確に処理する。"
+        plan="相手の残りポケモンのHPを見て、ハンドパワーで正確に処理する。",
+    ),
+    # 元々「自分のポケモンが取られた直後」の立て直しはキチキギスexの特性さかてにとる
+    # （3ドロー）が担っていたが、デッキから抜けたため現在この場面の専用プランは無い。
+    # 1197（ゼロシックの策略）を含め、代替の立て直し方はまだ検討していない。
+]
+
+
+# ---------------------------------------------------------------------------
+# 対アーキタイプ戦略（相手デッキ予測との連携）
+# ---------------------------------------------------------------------------
+#
+# opponent_modeling.rough_predictor が「相手はこのアーキタイプらしい」と確信を持てた
+# （status == "confident"）場合にだけ参照される、技/カードの優先度加点。
+# キーは rough_predictor.json の archetypes キーと一致させること。
+#
+# card_priority_boost はスコア10前後の OPENING_BENCH_PRIORITY クラスタ（ケーシィ〜シェイミの
+# 7枚、差は0.01刻み）の中での順位を入れ替える程度の大きさ（+-1.5〜3.0）にしてある。
+# 大きくしすぎると評価値20の進化行動より優先されてしまうため、あくまで
+# 「このクラスタ内での優先変更」に留まる範囲で加点している。
+# 改造ハンマー(1081)は ItemProfile.priority=0.5（グッズは0.0〜1.0のスケール）なので、
+# 同スケールに合わせて+0.4程度の加点にしている。
+#
+# シェイミは特性はなのカーテン（ベンチへのダメージ無効化）が唯一の役割で、攻撃力
+# （スマッシュキック30）は低い。ベンチ狙撃技を持たない相手には「出しても腐る」1枠に
+# なるため、ベンチ狙撃が無いと確認できたアーキタイプにはマイナス加点（-3.0）を入れ、
+# シェイミより他の展開（進化ルート等）を優先させる。減点しても、他に合法な選択肢が
+# 無いターンではシェイミが選ばれる（board.py は毎ターンの合法候補の中からしか選ばない）。
+#
+# attack_priority_boost は「現在バトル場にいる1体が持つ複数ワザ」の中でしか選ばれない
+# （cg/api.py: attack.py は player.active[0] の技だけを見る）。このデッキで技を2つ以上
+# 持つのはノコッチ(65: かじる/ほる)だけで、フーディン・シェイミなどは
+# 技が1つしかないため、「相手がこのアーキタイプなら別の攻撃役に切り替える」判断は
+# retreat.py 側（バトル場に誰を出すか）の役目であり、attack_priority_boost では
+# 実現できない。そのためここでは attack_priority_boost の使用は見送っている。
+#
+# 各エントリの根拠は cg.api.all_card_data()/all_attack() で実際のワザ・特性テキストを
+# 確認して判断した（date取得時点。カードデータはコンペ提供の cg エンジン内蔵データで、
+# data/*_Card_Data.csv とは別に実行時取得できる）。
+MATCHUP_PLANS: dict[str, MatchupPlan] = {
+    "dragapult_ex": MatchupPlan(
+        card_priority_boost={343: 3.0},  # シェイミ
+        note=(
+            "ドラパルトexの「ファントムダイブ」はダメカン6個（=60ダメージ）を相手の"
+            "ベンチに自由配分できるベンチ狙撃技。シェイミの特性はなのカーテンは"
+            "ルール（ex/V等）を持たないベンチポケモンへのダメージを完全無効化するため、"
+            "確信を持てた時点でシェイミの展開を優先する。"
         ),
     ),
-    PrizeStageWinCondition(
-        prize_range="自分のポケモンが取られた直後",
-        plan="キチキギスexのさかてにとるで3ドローし、手札とベンチを立て直す。",
+    "gekkouga_ex": MatchupPlan(
+        card_priority_boost={343: 3.0},  # シェイミ
+        note=(
+            "ゲッコウガexの「幻影らんげき」は相手のポケモン2体（ベンチ含む、弱点/抵抗力"
+            "無視）に120ダメージを与えるため、ドラパルトex以上にベンチ全体への脅威が大きい。"
+            "シェイミのはなのカーテンで無効化できるので優先して場に出す。"
+        ),
     ),
-]
+    "oliva_ex": MatchupPlan(
+        card_priority_boost={343: 3.0},  # シェイミ
+        note=(
+            "オリーヴァexの「オイルサルボ」は相手の場のポケモンを合計6回選んで"
+            "1回20ダメージ（弱点/抵抗力無視）を割り振れる技で、ベンチ複数体を"
+            "同時に削られうる。シェイミのはなのカーテンで無効化できるため優先する。"
+        ),
+    ),
+    "mega_starmie_ex": MatchupPlan(
+        card_priority_boost={343: 1.5},  # シェイミ（主砲に添える程度の付随ベンチ狙撃）
+        note=(
+            "メガスターミーexの「ジェットブロー」は主目的（120ダメージ）に加えて"
+            "ベンチに50ダメージが付随する程度で、上記3アーキタイプほど深刻ではないため"
+            "加点は控えめにする。"
+        ),
+    ),
+    "marnie_grimmsnarl_ex": MatchupPlan(
+        card_priority_boost={343: 1.5},  # シェイミ（30ダメージの付随ベンチ狙撃のみ）
+        note="マリィのオーロンゲexの「シャドウバレット」はベンチへの付随ダメージが30と小さいため軽めの加点にする。",
+    ),
+    "mega_lucario_ex": MatchupPlan(
+        card_priority_boost={1081: 0.4, 343: -3.0},  # 改造ハンマー / シェイミ
+        note=(
+            "メガルカリオexは基本ではない「ロック【闘】エネルギー」（特殊エネルギー）を"
+            "前提にした構築。改造ハンマー（相手の特殊エネルギーを破壊するグッズ、"
+            "通常優先度0.5）を通常のグッズ優先度より少し上げ、エネルギー加速を崩しにいく。"
+            "「メガブレイブ」270ダメージは単体特化でベンチ狙撃技を持たないため、"
+            "シェイミは温存してよい（他の展開を優先）。"
+        ),
+    ),
+    "alakazam": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note=(
+            "このアーキタイプはフーディン系列＋シェイミ＋改造ハンマーなど本デッキと"
+            "近い構築（ミラー、または似た構築のフーディン系デッキ）を指す。"
+            "「サイコウェーブ」「ふしぎハッキング」共にベンチ狙撃技ではないため、"
+            "ミラー戦ではベンチ防御より進化ルートの構築速度を優先する。"
+        ),
+    ),
+    "kamitsuorochi_ex": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note="カミツオロチexの「シロップストーム」は自分のエネルギー数依存の単体攻撃で、ベンチ狙撃技を持たない。",
+    ),
+    "takeruraiko_ex": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note=(
+            "タケルライコexの「ワイルドボルト」はエネルギーを捨てて火力を伸ばす単体攻撃、"
+            "「バーストロア」は手札入れ替え。どちらもベンチ狙撃技ではない。"
+        ),
+    ),
+    "ogerpon_teal_ex": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note="オーガポンみどりのめんexの「みだれ葉シャワー」は両者の場のエネルギー数依存の単体攻撃で、ベンチ狙撃技を持たない。",
+    ),
+    "shirona_garchomp_ex": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note=(
+            "シロナのガブリアスexの「ドラゴンバスター」（260、自身のエネルギー全て捨てる）"
+            "「コークスクリューダイブ」（ドロー）はどちらも単体攻撃で、ベンチ狙撃技を持たない。"
+        ),
+    ),
+    "toxtricity": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note="ストリンダーの「ジェントルスラップ」は単体100ダメージで、ベンチ狙撃技を持たない。",
+    ),
+    "rocket_honchkrow": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note="ロケット団のドンカラスの技はどちらも手札のサポートを捨てて火力を伸ばす単体攻撃で、ベンチ狙撃技を持たない。",
+    ),
+    "crustle": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note=(
+            "イワパレスは単体攻撃のみでベンチ狙撃技を持たない。特性で相手の"
+            "ex/メガポケモンからのダメージを自身が無効化する低速デッキのため、"
+            "こちらもベンチ防御より押し切りを優先する。"
+        ),
+    ),
+    "mega_froslass_ex": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note=(
+            "メガユキメノコexの「リセントフルリフレイン」は相手（＝こちら）の手札枚数"
+            "依存の単体攻撃で、ベンチ狙撃技ではない。むしろ本デッキが手札を溜めるほど"
+            "被弾が大きくなる相性なので、ベンチ展開より打点確保を優先すべき相手。"
+        ),
+    ),
+    "mega_abomasnow_ex": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note="メガユキノオーexの「ハンマーアバランチ」は自分の山札を掘って火力を伸ばす単体攻撃で、ベンチ狙撃技を持たない。",
+    ),
+    "archaludon_ex": MatchupPlan(
+        card_priority_boost={343: -3.0},  # シェイミ
+        note="ブリジュラスexの「メタルディフェンダー」は単体攻撃＋次ターン弱点無効化で、ベンチ狙撃技を持たない。",
+    ),
+}
 

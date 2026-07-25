@@ -32,15 +32,6 @@ PROFILES: dict[int, PokemonProfile] = {
         ability_category="draw",
         ability_priority=0.7,  # サイコドロー：手札から進化させたとき1回、3ドロー
     ),
-    # --- サブアタッカー（条件付きでメインに出す） ---
-    140: PokemonProfile(  # キチキギスex
-        role="sub_attacker",
-        role_score=0.6,
-        bench_value=0.4,
-        has_ability=True,
-        ability_category="draw",
-        ability_priority=0.8,  # さかてにとる：前の相手の番に自分のポケモンがきぜつしていれば3ドロー
-    ),
     # --- ベンチ固定の特性要員（deck_plan.BENCH_ONLY_SUPPORT参照） ---
     65: PokemonProfile(  # ノコッチ
         role="support",
