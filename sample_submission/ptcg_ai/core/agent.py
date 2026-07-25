@@ -15,7 +15,7 @@ Kaggle 提出の入口は sample_submission/main.py の agent(obs_dict) のま�
 
 from cg.api import Observation
 
-AGENT_TYPE = "rule_based"
+AGENT_TYPE = "custom_rule_based"
 
 
 def agent(obs: Observation) -> list[int]:
@@ -31,5 +31,10 @@ def agent(obs: Observation) -> list[int]:
         from ptcg_ai.rule_based.rule_based_agent import agent as rule_based_agent
 
         return rule_based_agent(obs)
+
+    if AGENT_TYPE == "custom_rule_based":
+        from ptcg_ai.custom_agent.agent import agent as custom_agent
+
+        return custom_agent(obs)
 
     raise ValueError(f"Unknown AGENT_TYPE: {AGENT_TYPE!r}")
