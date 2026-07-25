@@ -71,6 +71,7 @@ from ptcg_ai.hidden_information import match_context  # noqa: E402
 from ptcg_ai.opponent_modeling import tracker as opponent_tracker  # noqa: E402
 from ptcg_ai.rule_based.main_turn_parts import proposals  # noqa: E402
 from ptcg_ai.rule_based.rule_based_agent import read_deck_csv  # noqa: E402
+from ptcg_ai.search import risk_determinization  # noqa: E402
 
 AgentFn = Callable[[dict], list[int]]
 
@@ -318,6 +319,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hang-threshold-ms", type=float, default=5000.0, help="この時間を超えた1手をハング扱いにする。")
     parser.add_argument("--max-steps-per-game", type=int, default=500, help="この手数を超えたら試合を打ち切りハング扱いにする。")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--override-check",
+        action="store_true",
+        help=(
+            "要件書 §5.10: 勝率A/Bを回す前に override率(overrides/fired)を実測するモード。"
+            "--treatment のconfigをTreatment/Control両陣営に使い、risk_determinization.get_stats() "
+            "を集計して report する（勝率は見ない）。"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -329,8 +339,79 @@ def _load_opponent_deck(path: str | None) -> list[int] | None:
     return [int(lines[i]) for i in range(60)]
 
 
+def run_override_check(args: argparse.Namespace) -> None:
+    """要件書 §5.10: 勝率A/Bを回す前の override率(overrides/fired)チェック。
+
+    ``--treatment`` の config を両陣営（player0/player1）に使い、``args.pairs`` ペア
+    （= 2*pairs 試合）を自己対戦で回して ``risk_determinization.get_stats()`` を集計する。
+    勝率は見ない（Controlを使わないので比較対象が無い）。tie_ratio 等のチューニングに使う。
+    """
+    deck = read_deck_csv()
+    treatment_config = load_config(args.treatment)
+    agent = make_agent_for_config(treatment_config)
+
+    risk_determinization.reset_stats()
+
+    illegal = 0
+    exceptions = 0
+    games = 0
+
+    for pair_index in range(args.pairs):
+        for deck0, deck1 in ((deck, deck), (deck, deck)):
+            obs_dict, start_data = battle_start(deck0, deck1)
+            if start_data.errorType != 0:
+                raise RuntimeError(f"battle_start failed with errorType={start_data.errorType}")
+            steps = 0
+            try:
+                while True:
+                    obs: Observation = to_observation_class(obs_dict)
+                    if obs.current is not None and obs.current.result != -1:
+                        break
+                    if steps >= args.max_steps_per_game:
+                        break
+                    try:
+                        action = agent(obs_dict)
+                    except Exception:
+                        exceptions += 1
+                        break
+                    if not validate_action(obs, action):
+                        illegal += 1
+                        break
+                    obs_dict = battle_select(action)
+                    steps += 1
+            finally:
+                battle_finish()
+            games += 1
+        print(f"pair {pair_index + 1}/{args.pairs} done")
+
+    stats = risk_determinization.get_stats()
+    fired = stats["fired"]
+    overrides = stats["overrides"]
+    override_rate = (overrides / fired) if fired else float("nan")
+
+    print()
+    print("=== EXP-A44 override-rate check (要件書 §5.10) ===")
+    print(f"config={args.treatment} games={games} illegal={illegal} exceptions={exceptions}")
+    print(f"invocations={stats['invocations']} fired={fired} overrides={overrides} "
+          f"override_rate={override_rate:.4f}")
+    print(f"reject_reasons={stats['reject_reasons']}")
+    print(f"tie_set_sizes(all)={stats['tie_set_sizes']}")
+    print(f"tie_set_size_histogram={stats['tie_set_size_histogram']}")
+    print(f"avg_tie_set_size={stats['avg_tie_set_size']:.3f}")
+    print(f"truncated={stats['truncated']} evaluations_total={stats['evaluations_total']}")
+    print(f"avg_override_score_delta={stats['avg_override_score_delta']:.4f}")
+    print(f"decision_ms P50/P95/P99={stats['p50_ms']:.1f}/{stats['p95_ms']:.1f}/{stats['p99_ms']:.1f}")
+    threshold = 0.05
+    verdict = "PASS" if fired > 0 and override_rate >= threshold else "FAIL"
+    print(f"criterion: overrides/fired >= {threshold} -> {verdict}")
+
+
 def main() -> None:
     args = parse_args()
+    if args.override_check:
+        run_override_check(args)
+        return
+
     deck = read_deck_csv()
     opponent_deck = _load_opponent_deck(args.opponent_deck)
 

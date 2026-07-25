@@ -61,7 +61,8 @@ DEFAULTS: dict = {
     "beta": 1.0,
     "determinizations": 6,
     "top_k": 4,
-    "risk_weight": 0.25,
+    "tie_ratio": 0.05,
+    "tie_abs": 1.0,
     "min_turn": 3,
     "time_limit_ms": 1200,
     "min_remaining_game_ms": 120000,
@@ -104,6 +105,7 @@ def _fresh_stats() -> dict:
     stats["reject_reasons"] = {}
     stats["override_score_deltas"] = []
     stats["elapsed_ms"] = []
+    stats["tie_set_sizes"] = []  # T(タイブレーク集合)のサイズの実測分布(§5.9)
     return stats
 
 
@@ -134,6 +136,17 @@ def get_stats() -> dict:
     stats["p99_ms"] = _percentile(elapsed, 0.99)
     deltas = _stats["override_score_deltas"]
     stats["avg_override_score_delta"] = (sum(deltas) / len(deltas)) if deltas else 0.0
+    tie_sizes = _stats["tie_set_sizes"]
+    stats["tie_set_sizes"] = list(tie_sizes)
+    if tie_sizes:
+        counts: dict[int, int] = {}
+        for size in tie_sizes:
+            counts[size] = counts.get(size, 0) + 1
+        stats["tie_set_size_histogram"] = counts
+        stats["avg_tie_set_size"] = sum(tie_sizes) / len(tie_sizes)
+    else:
+        stats["tie_set_size_histogram"] = {}
+        stats["avg_tie_set_size"] = 0.0
     return stats
 
 
@@ -159,14 +172,22 @@ def _remaining_game_ms(state: State) -> float:
     return _TOTAL_MATCH_BUDGET_MS - elapsed_ms
 
 
-def _normalize(scores: list[float]) -> list[float]:
-    """ルールスコアを [0, 1] へ min-max 正規化する（全て同値なら 0.5 で埋める）。"""
-    if not scores:
+def _tie_margin(top: float, tie_ratio: float, tie_abs: float) -> float:
+    """タイブレーク方式（§5.2 v2）の許容差。``max(tie_abs, tie_ratio * |top|)``。"""
+    return max(tie_abs, tie_ratio * abs(top))
+
+
+def _tie_set(candidates: list[tuple[list[int], float]], tie_ratio: float, tie_abs: float) -> list[int]:
+    """ルールスコアが先頭候補と「互角」とみなせる候補のインデックス集合 T を返す（§5.2 v2）。
+
+    ``top - candidates[k].rule_score <= tie_margin(top)`` を満たす k の集合。
+    先頭候補（差分0）は必ず含まれる。``candidates`` はルールスコア降順が前提。
+    """
+    if not candidates:
         return []
-    lo, hi = min(scores), max(scores)
-    if hi - lo <= 0.0:
-        return [0.5 for _ in scores]
-    return [(s - lo) / (hi - lo) for s in scores]
+    top = candidates[0][1]
+    margin = _tie_margin(top, tie_ratio, tie_abs)
+    return [idx for idx, (_action, score) in enumerate(candidates) if (top - score) <= margin]
 
 
 def _prize_diff(state: State) -> int:
@@ -290,10 +311,21 @@ def _search_impl(
     top_k = max(1, int(config["top_k"]))
     candidates = all_candidates[:top_k]
 
+    # タイブレーク方式（§5.2 v2）: ルールスコアが先頭候補と「互角」な候補集合 T を、
+    # 決定化評価を行う前に確定する。T の外の候補は一切評価しない（無駄な評価をしない）。
+    tie_ratio = float(config["tie_ratio"])
+    tie_abs = float(config["tie_abs"])
+    tie_indices = _tie_set(candidates, tie_ratio, tie_abs)
+    _stats["tie_set_sizes"].append(len(tie_indices))
+
+    if len(tie_indices) < 2:
+        # ルールがすでに優劣を決めきっている＝介入しない。評価もしないので "fired" にはしない。
+        return _reject("tie_set_too_small")
+
     determinizations = max(1, int(config["determinizations"]))
     max_evaluations = max(1, int(config["max_evaluations"]))
 
-    values_by_candidate: list[list[float]] = [[] for _ in candidates]
+    values_by_candidate: dict[int, list[float]] = {idx: [] for idx in tie_indices}
     evaluations_done = 0
     truncated = False
 
@@ -310,7 +342,8 @@ def _search_impl(
             break
 
         stop = False
-        for idx, (action, _rule_score) in enumerate(candidates):
+        for idx in tie_indices:
+            action, _rule_score = candidates[idx]
             if time.perf_counter() > deadline or evaluations_done >= max_evaluations:
                 truncated = True
                 stop = True
@@ -326,31 +359,28 @@ def _search_impl(
         _stats["truncated"] += 1
     _stats["evaluations_total"] += evaluations_done
 
-    if all(not values for values in values_by_candidate):
+    if all(not values for values in values_by_candidate.values()):
         return _reject("no_samples")
 
     prize_diff = _prize_diff(state)
     mode = config["mode"]
     beta = float(config["beta"])
     alpha = float(config["alpha"])
-    risk_weight = float(config["risk_weight"])
 
-    normalized_rule_scores = _normalize([score for _, score in candidates])
-
-    risk_scores: list[float | None] = []
+    # T の中だけをリスク集約スコアで並べ替える。T の外の候補には一切触らない(§5.2 v2)。
+    risk_scores: dict[int, float] = {}
     best_idx: int | None = None
-    best_final_score: float | None = None
-    for idx, values in enumerate(values_by_candidate):
+    best_risk_score: float | None = None
+    for idx in tie_indices:
+        values = values_by_candidate[idx]
         if not values:
-            risk_scores.append(None)
             continue
         risk_score = risk_aggregation.aggregate(
             values, mode=mode, beta=beta, alpha=alpha, prize_diff=prize_diff
         )
-        risk_scores.append(risk_score)
-        final_score = (1.0 - risk_weight) * normalized_rule_scores[idx] + risk_weight * risk_score
-        if best_final_score is None or final_score > best_final_score:
-            best_final_score = final_score
+        risk_scores[idx] = risk_score
+        if best_risk_score is None or risk_score > best_risk_score:
+            best_risk_score = risk_score
             best_idx = idx
 
     if best_idx is None:
@@ -363,6 +393,6 @@ def _search_impl(
         return None
 
     _stats["overrides"] += 1
-    if risk_scores[0] is not None and risk_scores[best_idx] is not None:
+    if 0 in risk_scores and best_idx in risk_scores:
         _stats["override_score_deltas"].append(risk_scores[best_idx] - risk_scores[0])
     return candidates[best_idx][0]

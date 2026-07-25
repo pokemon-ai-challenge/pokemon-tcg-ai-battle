@@ -126,7 +126,9 @@ def good_context(obs: Observation, **config_overrides) -> dict:
         "observation": obs,
         "config": config,
         "hidden_state_factory": lambda: hidden_state,
-        "candidate_provider": lambda: [([0], 10.0), ([1], 5.0)],
+        # tie_ratio/tie_abs 既定(0.05/1.0)で T に入るよう、スコア差を margin 以内にする
+        # (top=10.0 → margin=max(1.0, 0.5)=1.0)。
+        "candidate_provider": lambda: [([0], 10.0), ([1], 9.5)],
     }
 
 

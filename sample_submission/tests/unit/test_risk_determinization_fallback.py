@@ -109,7 +109,9 @@ def base_context(obs: Observation, **overrides) -> dict:
     ctx = {
         "observation": obs,
         "config": config,
-        "candidate_provider": lambda: [([0], 10.0), ([1], 5.0)],
+        # tie_ratio/tie_abs 既定(0.05/1.0)で T に入るよう、スコア差を margin 以内にする
+        # (top=10.0 → margin=max(1.0, 0.5)=1.0)。
+        "candidate_provider": lambda: [([0], 10.0), ([1], 9.5)],
     }
     ctx.update(overrides)
     return ctx
