@@ -1,0 +1,28 @@
+{
+  "name": "rule_risk",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 2,
+    "time_limit_ms": 100,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1
+  },
+  "risk_determinization": {
+    "enabled": true,
+    "module": "risk_determinization",
+    "mode": "mean",
+    "alpha": 0.3,
+    "beta": 1.0,
+    "determinizations": 6,
+    "top_k": 4,
+    "risk_weight": 0.25,
+    "min_turn": 3,
+    "time_limit_ms": 1200,
+    "min_remaining_game_ms": 120000,
+    "max_evaluations": 32,
+    "rng_seed": null
+  }
+}
