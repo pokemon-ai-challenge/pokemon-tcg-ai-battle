@@ -33,7 +33,12 @@ from cg.api import (
     to_observation_class,
 )
 
-from ptcg_ai.board_evaluation import attack_features, board_features, energy_requirements
+from ptcg_ai.board_evaluation import board_features, energy_requirements
+
+# ダメージ解決とその派生(次ターン被KO判定)は board_evaluation ではなく学習時点で凍結した
+# コピーを使う(train/inference skew を避けるため。理由は _frozen_features 参照)。
+# board_features.attacker_score / prize_diff はダメージ非依存なので本家のまま使う。
+from ptcg_ai.learning import _frozen_features as frozen
 from ptcg_ai.shared import card_cache
 
 # ベンチ上限。cg/api.py の PlayerState.benchMax は実データで 5。固定スロット数として扱い、
@@ -192,11 +197,11 @@ def _pokemon_features(
             min_shortfall = min(min_shortfall, shortfall_sum)
             if not shortfall:
                 has_ready = 1.0
-            damage = attack_features.resolve_damage(
+            damage = frozen.resolve_damage(
                 attack, pokemon, defender_weakness, defender_resistance, attacker_hand_size
             )
             best_damage = max(best_damage, float(damage))
-            if defender is not None and attack_features.can_ko(
+            if defender is not None and frozen.can_ko(
                 attack, pokemon, defender, defender_weakness, defender_resistance, attacker_hand_size
             ):
                 can_ko = 1.0
@@ -204,7 +209,7 @@ def _pokemon_features(
     min_shortfall = min(min_shortfall, _MAX_SHORTFALL)
 
     attacker_score = board_features.attacker_score(pokemon)
-    likely_ko = 1.0 if board_features.is_likely_ko_next_turn(pokemon, state, owner_index) else 0.0
+    likely_ko = 1.0 if frozen.is_likely_ko_next_turn(pokemon, state, owner_index) else 0.0
 
     return [
         1.0,  # present
@@ -411,7 +416,7 @@ def encode_obs_dict(obs_dict: dict, extra_features: list[float] | None = None) -
 # --- 選択肢エンコーダ(Step2: 模倣ポリシー) --------------------------------------------
 #
 # SelectData.option の各要素を固定長ベクトルへ変換する。状態エンコーダ(上)とは独立に
-# 呼べるが、対象ポケモンの特徴には上の _pokemon_features / attack_features /
+# 呼べるが、対象ポケモンの特徴には上の _pokemon_features / frozen(ダメージ解決) /
 # energy_requirements をそのまま再利用し、二重実装しない(design.md の踏襲方針)。
 #
 # 対象カード/ポケモンの解決(area/index -> 実体)は ptcg_ai/rule_based/card_move/common.py
@@ -676,11 +681,11 @@ def _option_features(
         shortfall = energy_requirements.energy_shortfall(attack, me_active.energies or [])
         shortfall_sum = min(float(sum(shortfall.values())), _MAX_SHORTFALL)
         has_ready = 1.0 if not shortfall else 0.0
-        damage = attack_features.resolve_damage(
+        damage = frozen.resolve_damage(
             attack, me_active, defender_weakness, defender_resistance, hand_size
         )
         can_ko = 0.0
-        if opp_active is not None and attack_features.can_ko(
+        if opp_active is not None and frozen.can_ko(
             attack, me_active, opp_active, defender_weakness, defender_resistance, hand_size
         ):
             can_ko = 1.0
