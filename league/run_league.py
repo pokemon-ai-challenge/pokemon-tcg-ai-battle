@@ -51,7 +51,14 @@ from run_match import AgentFn, MatchResult, play_match  # noqa: E402
 AGENT_REGISTRY: dict[str, str] = {
     "rule_based": "ptcg_ai.rule_based.rule_based_agent",
     "ml_policy": "ptcg_ai.ml_policy.ml_policy_agent",
+    # 外部ベースライン(対戦相手)。ドラパルトex ルールベース(opponents/ 配下)。
+    # config も重みも取らない素の agent(obs) なので PLAIN_AGENTS 側で扱う。
+    "dragapult_rule": "opponents.dragapult_rule_agent",
 }
+
+# config/重みを注入しない「素の agent(obs)」を提供するエージェント名。ml_policy 以外は
+# build_agent で config を渡さずそのまま module.agent を使う(rule_based と同じ扱い)。
+PLAIN_AGENTS: frozenset[str] = frozenset({"rule_based", "dragapult_rule"})
 
 
 def load_agent(name: str) -> AgentFn:
@@ -83,9 +90,9 @@ def build_agent(name: str, weights_path: str | Path | None, config_base: str) ->
         raise ValueError(f"unknown agent: {name!r} (choices: {sorted(AGENT_REGISTRY)})")
     module = importlib.import_module(AGENT_REGISTRY[name])
 
-    if name == "rule_based":
+    if name in PLAIN_AGENTS:
         if weights_path is not None:
-            raise ValueError("--weights-* は ml_policy 専用です(rule_based は重みを取りません)")
+            raise ValueError("--weights-* は ml_policy 専用です(素のルールベースは重みを取りません)")
         return module.agent
 
     # ml_policy: base config をコピーし、weights_path があれば policy_weights_path を注入。
