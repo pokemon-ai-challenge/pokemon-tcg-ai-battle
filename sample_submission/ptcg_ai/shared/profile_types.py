@@ -213,7 +213,18 @@ class DeckPlan:
     matchup_plans: dict[str, MatchupPlan] = field(default_factory=dict)
 
     # エネルギー周回コンボ（例: ACE SPECエネルギーを、山札に戻る特性持ちポケモンに一時的に
-    # 付けて再利用する）。該当が無いデッキでは None のままでよい。
-    energy_recycle_target_id: int | None = None  # 周回コンボの受け皿にするポケモンのcard_id
+    # 付けて再利用する）。該当が無いデッキでは空のままでよい。
+    # 受け皿は進化ライン全体（例: ノコッチ／ノココッチ）を集合で持つ。進化前に付けたエネルギーは
+    # 進化で引き継がれるため、ラインのどの段階で受け取っても周回コンボは成立する。
+    energy_recycle_target_ids: frozenset[int] = field(default_factory=frozenset)  # 周回コンボの受け皿にするポケモンのcard_id集合
     energy_recycle_card_id: int | None = None  # 周回させたいエネルギーカードのcard_id
     energy_recycle_backup_item_id: int | None = None  # 主力への代替エネルギー供給手段（グッズ等）のcard_id
+
+    # ドローエンジン維持のためベンチに確保しておきたいライン（例: ノコッチ／ノココッチ）と枠数。
+    # にげあしドローは使うとノコッチ＋ノココッチが山札に戻るため、毎ターン穴なく回すには
+    # 「次ターン進化させる予備のノコッチ」を常にベンチに確保し続ける必要がある。
+    # 盤面（バトル場＋ベンチ）にいる reserved_bench_line_ids の数が reserved_bench_slots 未満なら、
+    # そのラインのたね（reserved_bench_basic_id）のベンチ展開を board 内で最優先にする。
+    reserved_bench_line_ids: frozenset[int] = field(default_factory=frozenset)  # 予約枠を占有するとみなすcard_id集合
+    reserved_bench_slots: int = 0  # 確保したいベンチ枠数（0なら機能無効）
+    reserved_bench_basic_id: int | None = None  # 枠が空いているとき優先して展開するたねポケモンのcard_id

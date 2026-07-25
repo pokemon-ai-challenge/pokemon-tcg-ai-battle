@@ -15,6 +15,7 @@ from cg.api import Observation
 from ptcg_ai.action_selection import selector
 from ptcg_ai.hidden_information import match_context
 from ptcg_ai.opponent_modeling import tracker as opponent_tracker
+from ptcg_ai.rule_based.main_turn_parts import proposals
 
 _DECK_CACHE: list[int] | None = None
 
@@ -37,6 +38,9 @@ def agent(obs: Observation) -> list[int]:
         # 新しい試合の開始（match_context と同じ検知方法）。前試合の相手デッキ予測が
         # 次の試合に持ち越されないよう、opponent_modeling.tracker の状態を破棄する。
         opponent_tracker.reset()
+        # 1プロセス内で複数ゲームを回す自己対戦・テストでのターン跨ぎ状態汚染を避けるため、
+        # proposals.py の下準備採用状態も明示リセットする。
+        proposals.reset_turn_state()
         return _select_deck()
     return selector.select_action(obs, _full_deck())
 

@@ -62,7 +62,9 @@ def propose(obs: Observation) -> ActionProposal | None:
         )
         value = float(damage) + _effect_bonus(option.attackId) + _matchup_bonus(option.attackId, matchup_plan)
         usable.append((i, value))
-        if damage >= defender.hp:
+        if attack_features.can_ko(
+            attack, attacker, defender, defender_card.weakness, defender_card.resistance, attacker_hand_size
+        ):
             ko_candidates.append((i, value))
 
     if not usable:

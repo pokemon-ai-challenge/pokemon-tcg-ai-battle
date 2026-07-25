@@ -56,13 +56,29 @@ def _choose_attach_target(obs: Observation) -> list[int]:
     選択肢」の中だけで energy_eval.energy_target_value を比較する
     （提示範囲の制約を守りつつ、フーディンのように役割の大きいポケモンがベンチにいれば
     自然に選ばれる）。
+
+    best_energy_target と同様、ENERGY_REQUIRED_COUNT に既に達しているポケモンは
+    （周回コンボ対象で無い限り）候補から外す。energy_target_value の active_value は
+    エネルギー本数が多いほど加点されるため、このフィルタが無いと「既に足りているポケモン」が
+    「まだ不足しているポケモン」より優先されてしまい、無駄にエネルギーが積まれうる。
     """
     state = obs.current
     scored = [
         (i, energy_eval.energy_target_value(pokemon, state))
         for i, option in enumerate(obs.select.option)
         if (pokemon := common.resolve_pokemon(option, state)) is not None
+        and energy_eval.is_attach_eligible(pokemon, state)
+        and not energy_eval.is_energy_already_sufficient(pokemon)
     ]
+    if not scored:
+        # デッキ方針上の付与対象（アタッカー）が選択肢に無い、または全員既に充足済みの場合は、
+        # 制約を外して提示された中から最良を選ぶ（合法手を必ず返すためのフォールバック。
+        # ATTACH_FROM は Wonder Patch 等の効果解決中のため選択自体は必須で、辞退はできない）。
+        scored = [
+            (i, energy_eval.energy_target_value(pokemon, state))
+            for i, option in enumerate(obs.select.option)
+            if (pokemon := common.resolve_pokemon(option, state)) is not None
+        ]
     if not scored:
         return fallback.safe_choice(obs)
     best_index = max(scored, key=lambda item: item[1])[0]

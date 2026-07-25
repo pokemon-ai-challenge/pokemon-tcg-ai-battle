@@ -13,8 +13,8 @@ deck_plan.energy_priority を混ぜているのと同じ構造）。
 
 from cg.api import Pokemon, State
 
-from ptcg_ai.board_evaluation import board_features, switch_eval
-from ptcg_ai.shared import profile_registry
+from ptcg_ai.board_evaluation import attack_features, board_features, switch_eval
+from ptcg_ai.shared import card_cache, profile_registry
 
 # PokemonProfile.role_score（0.0〜1.0想定）の重み。
 _ROLE_SCORE_WEIGHT = 3.0
@@ -24,6 +24,14 @@ _BENCH_VALUE_PENALTY_WEIGHT = 2.0
 _COMBO_BONUS = 1.5
 # KO_REPLACEMENT_PRIORITY での順位に応じた加点の基準値（順位が下がるほど少しずつ減らす）。
 _KO_REPLACEMENT_BASE_SCORE = 4.0
+# このポケモンに交代すれば「今持っているエネルギーだけで」相手アクティブを即きぜつさせられる場合の
+# 加点。switch_target_value の他項（attacker_score・_SAFE_BONUS・_profile_bonus・
+# _ko_replacement_bonus）の実運用上の合計はおおむね20未満に収まるため、これを1桁以上
+# 上回る値にして「即KOできる候補は他のどんな理由があっても最優先で選ばれる」ことを保証する
+# （attack.py の _KO_BONUS=1000 と同じ考え方。retreat.py のトリガーB＝「後退で相手を今ターン中に
+# きぜつさせられるか」が、この値のおかげで retreat.py 側から交代先を明示的に指定しなくても
+# best_switch_target 経由で自然に成立する）。
+_IMMEDIATE_KO_BONUS = 100.0
 
 
 def active_value(pokemon: Pokemon, state: State, your_index: int) -> float:
@@ -32,11 +40,13 @@ def active_value(pokemon: Pokemon, state: State, your_index: int) -> float:
 
 
 def switch_target_value(candidate: Pokemon, state: State, your_index: int) -> float:
-    """交代先候補としての総合評価（B の switch_eval + A の PokemonProfile + KO_REPLACEMENT_PRIORITY）。"""
+    """交代先候補としての総合評価（B の switch_eval + A の PokemonProfile + KO_REPLACEMENT_PRIORITY +
+    即KOボーナス）。"""
     return (
         switch_eval.switch_target_score(candidate, state, your_index)
         + _profile_bonus(candidate, state, your_index)
         + _ko_replacement_bonus(candidate)
+        + _immediate_ko_bonus(candidate, state, your_index)
     )
 
 
@@ -67,6 +77,29 @@ def _combo_partner_in_play(combo_with: list[int], state: State, your_index: int)
     own_card_ids = {pokemon.id for pokemon in player.active if pokemon is not None}
     own_card_ids |= {pokemon.id for pokemon in player.bench}
     return any(card_id in own_card_ids for card_id in combo_with)
+
+
+def _immediate_ko_bonus(pokemon: Pokemon, state: State, your_index: int) -> float:
+    """このポケモンに交代すれば、今持っているエネルギーだけで相手アクティブを即きぜつ
+    させられるワザを1つでも持つ場合に `_IMMEDIATE_KO_BONUS` を返す（無ければ0.0）。
+
+    attack.py / retreat.py と共通の `attack_features.can_ko_with_any_available_attack` を使う
+    （ロジックの重複を避ける）。手札依存の可変ダメージ推定には、交代の有無に関わらず変わらない
+    「自分の」手札枚数（state.players[your_index].handCount）を渡す。
+    """
+    opponent = state.players[1 - your_index]
+    opponent_active = opponent.active[0] if opponent.active else None
+    if opponent_active is None:
+        return 0.0
+
+    opponent_card = card_cache.get_card(opponent_active.id)
+    hand_size = state.players[your_index].handCount
+
+    if attack_features.can_ko_with_any_available_attack(
+        pokemon, opponent_active, opponent_card.weakness, opponent_card.resistance, hand_size
+    ):
+        return _IMMEDIATE_KO_BONUS
+    return 0.0
 
 
 def _ko_replacement_bonus(pokemon: Pokemon) -> float:

@@ -58,12 +58,18 @@ def _build_deck_plan() -> DeckPlan:
         # 空のままにしておく（必要になれば plan.WIN_CONDITIONS_BY_PRIZE を直接使う専用の
         # アクセサを別途用意する）。
         win_condition_by_prize={},
-        energy_recycle_target_id=getattr(plan, "ENERGY_RECYCLE_TARGET_CARD_ID", None),
+        energy_recycle_target_ids=frozenset(getattr(plan, "ENERGY_RECYCLE_TARGET_CARD_IDS", frozenset())),
         energy_recycle_card_id=getattr(plan, "ENERGY_RECYCLE_CARD_ID", None),
         energy_recycle_backup_item_id=getattr(plan, "ENERGY_RECYCLE_BACKUP_ITEM_ID", None),
+
+        reserved_bench_line_ids=frozenset(getattr(plan, "RESERVED_BENCH_LINE_IDS", frozenset())),
+        reserved_bench_slots=getattr(plan, "RESERVED_BENCH_SLOTS_FOR_DRAW_ENGINE", 0),
+        reserved_bench_basic_id=getattr(plan, "RESERVED_BENCH_BASIC_ID", None),
+
         # matchup_plans: 対アーキタイプ戦略。担当Aがまだ書いていないデッキでは
         # plan.MATCHUP_PLANS 自体が無いこともあるため getattr で欠損時は空dictにする。
         matchup_plans=getattr(plan, "MATCHUP_PLANS", {}),
+
     )
 
 
@@ -71,6 +77,28 @@ def reset_deck_plan_cache() -> None:
     """テスト用: DeckPlan のキャッシュを破棄する（通常の対戦では不要）。"""
     global _deck_plan_cache
     _deck_plan_cache = None
+
+
+def get_opponent_effect_lock_energy_ids() -> frozenset[int]:
+    """decks.active.deck_plan.OPPONENT_EFFECT_LOCK_ENERGY_IDS を返す。
+
+    相手の「ワザの効果を無効化する特殊エネルギー」（ミストエネルギー等）の card_id 集合。
+    改造ハンマーの破壊対象選択で優先的に壊すために使う。デッキが未定義なら空集合。
+    """
+    return frozenset(getattr(active.deck_plan, "OPPONENT_EFFECT_LOCK_ENERGY_IDS", frozenset()))
+
+
+def get_draw_ability_deck_floor() -> int:
+    """decks.active.deck_plan.DRAW_ABILITY_MIN_DECK を返す。
+
+    ドロー系特性（にげあしドロー等）を温存する山札残枚数の閾値。デッキが未定義なら0。
+    """
+    return int(getattr(active.deck_plan, "DRAW_ABILITY_MIN_DECK", 0))
+
+
+def get_draw_ability_max_hand() -> int:
+    """decks.active.deck_plan.DRAW_ABILITY_MAX_HAND を返す。デッキが未定義なら999（実質無効）。"""
+    return int(getattr(active.deck_plan, "DRAW_ABILITY_MAX_HAND", 999))
 
 
 def get_ko_replacement_priority() -> list[int]:

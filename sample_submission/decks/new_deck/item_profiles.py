@@ -31,10 +31,30 @@ def _enhanced_hammer_condition(ctx: UsageContext) -> bool:
     return ctx.opponent_active_has_special_energy
 
 
+_KADABRA_LINE_IDS = (_CASEY_ID, _KADABRA_ID, _ALAKAZAM_ID)  # フーディン系列（ケーシィ/ユンゲラー/フーディン）
+_DUNSPARCE_LINE_IDS = (_DUNSPARCE_ID, 66)  # ノコッチ/ノココッチ
+
+
 def _buddy_buddy_poffin_condition(ctx: UsageContext) -> bool:
-    """なかよしポフィン: ケーシィ/ノコッチのいずれかが場にも手札にも無い場合。"""
-    key_ids = (_CASEY_ID, _DUNSPARCE_ID)
-    return any(card_id not in ctx.own_board_ids and card_id not in ctx.own_hand_ids for card_id in key_ids)
+    """なかよしポフィン: まだ確保できていない主要パーツがある時だけ使う。
+
+    以前は「ケーシィ/キチキギスex/ノコッチのいずれかが場にも手札にも無い場合」に発火していたため、
+    既にユンゲラー／フーディンまで進化していて『ケーシィ』が手札・場に無いだけの状況でも発火し、
+    勝ち筋に絡まないケーシィをわざわざ持ってきてしまっていた。系列単位で「1体でも確保できているか」を
+    見るように変更する:
+      ・フーディン系列（ケーシィ/ユンゲラー/フーディン）が1体も場にも手札にも無い
+      ・またはノコッチ系列（ノコッチ/ノココッチ）が1体も無い
+      ・またはキチキギスexが無い
+    のいずれかの時だけ、盤面展開が不足しているとみなして使う。
+    """
+    def _has_any(ids: tuple[int, ...]) -> bool:
+        return any(card_id in ctx.own_board_ids or card_id in ctx.own_hand_ids for card_id in ids)
+
+    missing_fudin_line = not _has_any(_KADABRA_LINE_IDS)
+    missing_dunsparce_line = not _has_any(_DUNSPARCE_LINE_IDS)
+    missing_fezandipiti = _FEZANDIPITI_EX_ID not in ctx.own_board_ids and _FEZANDIPITI_EX_ID not in ctx.own_hand_ids
+    return missing_fudin_line or missing_dunsparce_line or missing_fezandipiti
+
 
 
 def _night_stretcher_condition(ctx: UsageContext) -> bool:
