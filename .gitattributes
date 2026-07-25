@@ -1,0 +1,3 @@
+kaggle_replays/index/episodes_master.jsonl linguist-generated=true
+kaggle_replays/index/leaderboard_history/*.json linguist-generated=true
+sample_submission/ptcg_ai/opponent_modeling/deck_predictor_*.json linguist-generated=true

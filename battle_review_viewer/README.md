@@ -39,6 +39,8 @@ battle_review_viewer/
 ├─ Launch Human vs CPU.cmd      # クリック起動（対戦）
 ├─ export_replay.py             # replay 生成（CLI）
 ├─ serve_viewer.py              # ローカルサーバー（UI からの生成 API を含む）
+├─ ml_prediction_debug.py       # 相手デッキ予測器(ML)の推論結果を各フレームに埋め込む
+├─ build_archetype_names.py     # rough_predictor.json → web/archetype_display_names.json(日本語表示名)を生成
 ├─ replays/                     # 生成された replay JSON 置き場
 └─ web/                         # index.html / app.js / styles.css
 ```
@@ -134,13 +136,45 @@ python -m venv .\cardlist_referenced\pdf_card_editor\.venv
 
 突き合わせロジックは `opponent_knowledge_diff.py` にあります。
 
+非公開ゾーン（山札・手札・サイド）版の検証ツールは `hidden_info_diff.py`（手動実行のレポートツール、
+自動テスト対象外）。`sample_submission/ptcg_ai/hidden_information/` の `OpponentHiddenState.marginals()`
+が出す確率と、`cg.game.visualize_data()` の神視点（未取得のサイドカードの中身まで含む）を突き合わせて
+reliability/ECE を測る。
+
+```powershell
+python .\battle_review_viewer\hidden_info_diff.py --matches 5
+```
+
+出力: `battle_review_viewer/output/hidden_info_diff_report.md`。
+
 画面上部のタブ `Debug` を押すと右からドロワーが開き、観測特徴量と diff 結果が表示されます
 （盤面以外の情報は「必要な時だけ」1パネルずつ大きく見せるタブ式ドロワー方式）。
 
 ### Debug のサブビュー（拡張可能）
 
 `Debug` パネル内は**サブタブで複数のデバッグビューを切り替えられます**。現状は
-`Opponent Knowledge`（観測情報）と `Deck Predictor`（相手デッキ予測器・未実装のプレースホルダー）。
+`Opponent Knowledge`（観測情報）と `Deck Predictor`（相手デッキ予測器・ML版、実装済み）。
+
+`Deck Predictor` サブタブは `sample_submission/ptcg_ai/opponent_modeling/hybrid_predictor.py`
+（LR×NBハイブリッド）の推論結果を `prediction_summary.summarize_prediction()` 経由で表示する。
+確信度が閾値（既定0.6）未満のときは「未確定」バッジと候補一覧、閾値以上のときは1位デッキを
+断定表示し、いずれもカード別の根拠（evidence）を展開できる。生成は `export_replay.py` /
+`live_match.py` が `ml_prediction_debug.py`（`opponentKnowledgeDebug` と同様に各フレームへ
+`mlPredictionDebug` キーを埋め込む）を経由して行う。日本語の表示名は
+`web/archetype_display_names.json`（生成: `build_archetype_names.py`、`rough_predictor.json` の
+アーキタイプキーから変換）を使う。モデルの学習・評価は `kaggle_replays/deck_predictor/`
+（パイプラインの実行方法は同ディレクトリの README.md を参照）。
+
+`山札・手札・サイド推定` サブタブは `sample_submission/ptcg_ai/hidden_information/`（`OwnHiddenState` /
+`OpponentHiddenState`）の推定結果を表示する。自分側は「サイド落ち候補 top N」（超幾何分布による
+山札/サイドの周辺確率）、相手側は「手札候補 top N」（`HybridDeckPredictor` のアーキタイプ事後分布
+×ゾーン配分の混合モデルによる山札/手札/サイドの周辺確率）をテーブル表示する。相手側の代表リスト
+（`archetype_card_pool.json`）が未配置の場合は「プール未配置」と表示する。生成は `export_replay.py` /
+`live_match.py` が `hidden_info_debug.py`（`opponentKnowledgeDebug` の中に `hidden_info` キーとして
+`ml_prediction` と同居させる）を経由して行う。`match_context.py`（提出エージェント本番用の
+プロセス全体シングルトン）はここでは使わず、`OpponentKnowledge` と同様に replay/live セッション内で
+独立したインスタンスを構築する（`--opponent self` では両プレイヤーとも `main.agent` を使うため、
+シングルトンを流用すると player0/player1 が交互に上書きし合ってしまうため）。
 
 デバッグ項目を増やすときは 2 箇所を足すだけです:
 

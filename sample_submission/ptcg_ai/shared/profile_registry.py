@@ -61,9 +61,15 @@ def _build_deck_plan() -> DeckPlan:
         energy_recycle_target_ids=frozenset(getattr(plan, "ENERGY_RECYCLE_TARGET_CARD_IDS", frozenset())),
         energy_recycle_card_id=getattr(plan, "ENERGY_RECYCLE_CARD_ID", None),
         energy_recycle_backup_item_id=getattr(plan, "ENERGY_RECYCLE_BACKUP_ITEM_ID", None),
+
         reserved_bench_line_ids=frozenset(getattr(plan, "RESERVED_BENCH_LINE_IDS", frozenset())),
         reserved_bench_slots=getattr(plan, "RESERVED_BENCH_SLOTS_FOR_DRAW_ENGINE", 0),
         reserved_bench_basic_id=getattr(plan, "RESERVED_BENCH_BASIC_ID", None),
+
+        # matchup_plans: 対アーキタイプ戦略。担当Aがまだ書いていないデッキでは
+        # plan.MATCHUP_PLANS 自体が無いこともあるため getattr で欠損時は空dictにする。
+        matchup_plans=getattr(plan, "MATCHUP_PLANS", {}),
+
     )
 
 

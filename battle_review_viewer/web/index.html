@@ -6,7 +6,7 @@
     <title>Battle Review Viewer</title>
     <!-- app.js/styles.css の ?v= はブラウザキャッシュ避け。編集したら両方とも必ず値を変えること
          （変え忘れると通常のリロードでは古いキャッシュのまま反映されない）。 -->
-    <link rel="stylesheet" href="./styles.css?v=20260720d" />
+    <link rel="stylesheet" href="./styles.css?v=20260720f" />
   </head>
   <body class="replay-mode">
     <!-- ================= Top bar (slim, dark) ================= -->
@@ -243,6 +243,29 @@
               <h3 class="panel-subhead">Candidates（候補）</h3>
               <div id="deckPredictorCandidates" class="predictor-candidates"></div>
             </div>
+            <div class="debug-view" data-debug-view="mlDeckPredictor" id="mlDeckPredictorCard">
+              <div id="mlDeckPredictorTop" class="predictor-top"></div>
+              <h3 class="panel-subhead">確率分布（全アーキタイプ・合計100%）</h3>
+              <div id="mlDeckPredictorBars" class="ml-predictor-bars"></div>
+              <!-- 観測カード別の寄与（NB explain() の結果）。古い replay（新キー未対応）や
+                   LR優勢で NB を使っていない場面では空になるので、JS 側で hidden を切り替える。 -->
+              <h3 class="panel-subhead" id="mlDeckPredictorEvidenceHeading" hidden>Evidence（観測カード別の寄与）</h3>
+              <div id="mlDeckPredictorEvidence" class="ml-evidence-list"></div>
+            </div>
+            <div class="debug-view" data-debug-view="hiddenInformation" id="hiddenInformationCard">
+              <p id="hiddenInfoLegend" class="hidden-info-legend"></p>
+              <h3 class="panel-subhead" id="hiddenInfoOwnHeading">Own prize-card candidates (top)</h3>
+              <div id="hiddenInfoOwnStatus" class="diagnostic-status"></div>
+              <div id="hiddenInfoOwnTable" class="hidden-info-table"></div>
+              <h3 class="panel-subhead" id="hiddenInfoOpponentHeading">Opponent hand candidates (top)</h3>
+              <div id="hiddenInfoOpponentStatus" class="diagnostic-status"></div>
+              <div id="hiddenInfoOpponentTable" class="hidden-info-table"></div>
+            </div>
+            <div class="debug-view" data-debug-view="valueEval" id="valueEvalCard">
+              <h3 class="panel-subhead" id="valueEvalHeading">Board Evaluation</h3>
+              <div id="valueEvalStatus" class="diagnostic-status"></div>
+              <div id="valueEvalContent"></div>
+            </div>
           </div>
         </section>
 
@@ -378,6 +401,6 @@
          中央モーダル(imageBuildBanner)は毎回×で閉じる手間があるので使わない。 -->
     <div id="imageReadyToast" class="image-ready-toast" hidden></div>
 
-    <script src="./app.js?v=20260720d"></script>
+    <script src="./app.js?v=20260720f"></script>
   </body>
 </html>

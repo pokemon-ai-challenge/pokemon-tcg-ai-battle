@@ -9,9 +9,11 @@ Kaggleコンペ [pokemon-tcg-ai-battle](https://www.kaggle.com/competitions/poke
 ```
 kaggle_replays/
 ├── README.md                       このファイル
-├── _common.py                      2つの fetch スクリプトが共有するヘルパー
-├── fetch_top_episodes.py           リーダーボード上位N チームのリプレイを取得
+├── _common.py                      fetch スクリプトが共有するヘルパー
+├── fetch_top_episodes.py           リーダーボード上位N チームのリプレイを取得(全量)
+├── fetch_deep_decks.py             リーダーボード深い順位帯からチームあたり少数のリプレイを取得(デッキリスト収集用)
 ├── fetch_my_episodes.py            自分のチームのリプレイを取得
+├── fetch_minority_archetype_episodes.py  少数クラス(アーキタイプ)のデッキを使うチームを狙い撃ちして追加取得
 ├── extract_training_data.py        replays/ + index/ を学習用JSONLに変換
 │
 ├── replays/                        [Git管理外] リプレイ本体(episode-<id>-replay.json)
@@ -22,8 +24,11 @@ kaggle_replays/
 │   └── leaderboard_history/
 │       └── leaderboard-<run_id>.json   [Git管理] 実行ごとのリーダーボードのスナップショット
 │
-└── training_data/
-    └── pairs.jsonl                 [Git管理外] 学習用の (observation, action) ペア(生成物)
+├── training_data/
+│   └── pairs.jsonl                 [Git管理外] 学習用の (observation, action) ペア(生成物)
+│
+└── deck_predictor/                 相手デッキ予測器(ML版)の学習パイプライン。詳細は
+                                     deck_predictor/README.md を参照
 ```
 
 ## 何がGit管理下で、何がそうでないか
@@ -46,14 +51,88 @@ cd kaggle_replays
 # 上位20チームのリプレイを取得(リーダーボードは日々変わるので、定期的に実行する想定)
 python fetch_top_episodes.py --top 20
 
+# 201〜2000位の深い順位帯から、チームあたり最新2件だけリプレイを取得
+python fetch_deep_decks.py --rank-from 201 --rank-to 2000 --episodes-per-team 2
+
 # 自分のチームの直近5提出のリプレイを取得
 python fetch_my_episodes.py --submissions 5
+
+# 少数クラス(N<50デッキ)を使っているチームを deck_labels.jsonl から逆引きして追加取得
+# (事前に deck_predictor/extract_decks.py と deck_predictor/label_decks.py の実行が必要)
+python fetch_minority_archetype_episodes.py --min-decks 50 --max-episodes 200
 
 # 集めたリプレイを学習用JSONLに変換(rank_at_fetch 等の重み付け情報つき)
 python extract_training_data.py
 ```
 
+### 少数アーキタイプの追加取得(`fetch_minority_archetype_episodes.py`)
+
+`deck_predictor/` の学習パイプラインでは、デッキ数(N)が少ないアーキタイプ(既定 N<50)ほど
+NB/LRの学習・評価が不安定になる。1チームはほぼ同じデッキを使い続ける傾向を利用し、
+`deck_labels.jsonl`(各エピソードのアーキタイプ判定結果)から少数クラスのデッキを使っていた
+`(episode_id, player_index)` を集め、`episodes_master.jsonl` で `team_id` を逆引きして、
+そのチームの他のエピソードを Kaggle API から探して追加ダウンロードする。
+
+- `--min-decks`: このデッキ数未満のアーキタイプを少数クラスとみなす(既定50)
+- `--max-episodes` / `--max-episodes-per-team`: 1runで新規取得する件数の上限(全体/チームあたり、既定200/30)
+- `--submissions-per-team`: 各チームの直近何件の提出からエピソードを探すか(既定5)
+
+`fetch_top_episodes.py` / `fetch_deep_decks.py` と同じ `_common.py` 経由の冪等な取得機構を使うため、
+何度実行しても安全(既取得分はスキップされる)。`team_id` がリーダーボードスナップショットの
+取得済み範囲に無いチームは解決できず、スキップされる(その場合は手動でのリーダーボード再取得が必要)。
+
 いずれも既にダウンロード済みの `episode_id` はスキップするので、同じコマンドを何度実行しても安全(差分だけ取得・追記される)。
+
+### 二層データ取得戦略(`fetch_top_episodes.py` と `fetch_deep_decks.py` の役割分担)
+
+背景・設計原理の詳細は
+[`sample_submission/docs/plans/opponent-deck-predictor/ml-predictor-phase2-scaling.md`](../sample_submission/docs/plans/opponent-deck-predictor/ml-predictor-phase2-scaling.md)
+の「二層データ取得戦略」節を参照。
+
+| スクリプト | 層 | 範囲 | チームあたり取得量 | 目的 |
+|---|---|---|---|---|
+| `fetch_top_episodes.py` | 上位層(狭く深く) | 〜200位 + 自チーム対戦分 | 全量 | 観測シーケンスの量・実戦で当たる相手の分布 |
+| `fetch_deep_decks.py` | 深層(広く浅く) | 200位超(既定 201〜2000位) | 1〜2件 | デッキリスト収集(ラベル分布・事前分布・多様性把握) |
+
+1チームはほぼ同じデッキを使い続けるため、深層側は対局数を稼ぐ必要がない。
+そのかわりチーム数(=ユニークデッキ数)を広く稼ぐことを優先し、1チームあたり
+1〜2エピソードだけ取得する。両スクリプトとも同じ `replays/` フラットプールと
+`index/episodes_master.jsonl` を共有するので、取得後は区別なく1つの学習データセットとして扱える。
+
+#### 実装メモ: 200位を超えるリーダーボードの取得方法
+
+`kaggle competitions leaderboard <comp> -s` は `--page-size` の上限が200のため、
+1回の呼び出しでは最大200位までしか取れない。実機検証の結果、以下の経路で
+200位より深い順位も取得できることを確認した:
+
+- レスポンスの先頭に(`--format json` を付けても)非JSON行
+  `Next Page Token = <token>` が出力される。このトークンを次回呼び出しの
+  `--page-token` に渡すとページが連続する(公式ドキュメントには載っていないが
+  `kaggle competitions leaderboard --help` に `--page-token` オプションが存在し、
+  実際にランクが連番で続くことを確認済み)。
+- ページトークンは「直前のページの続き」しか指せず、任意の順位へ
+  ジャンプすることはできない。そのため `fetch_deep_decks.py` は1位からページを
+  送り、`--rank-from` 未満のページは中身を捨てて読み進める
+  (1ページ200件なので `--rank-to 2000` でも高々10回のAPI呼び出しで済む)。
+- `kaggle competitions team-submissions <teamId>` / `kaggle competitions episodes <submissionId>`
+  は順位に関係なく同じ形式で使える(201位付近のチームでも動作確認済み)ため、
+  `fetch_top_episodes.py` と同じ `_common.fetch_episodes()` をそのまま流用している。
+
+`fetch_deep_decks.py` の主なオプション:
+
+```bash
+python fetch_deep_decks.py \
+  --rank-from 201 --rank-to 2000 \
+  --episodes-per-team 2 \
+  --sleep 0.3
+```
+
+- `--rank-from` / `--rank-to`: 対象順位範囲(両端含む、1始まり)。既定 201〜2000。
+- `--episodes-per-team`: 1チームあたり何件(最新のものから)取得するか。既定2。
+- 高速化・冪等性: `episodes_master.jsonl` を見て、そのチームが既に
+  `--episodes-per-team` 件以上プールにあればAPI呼び出し自体をスキップする。
+  チームを処理するたびに即座にマスターインデックスへ追記するため、
+  Ctrl+C で中断しても再実行すれば続きから進められる。
 
 ### エピソード件数に注意
 
