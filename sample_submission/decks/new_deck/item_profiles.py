@@ -44,16 +44,17 @@ def _buddy_buddy_poffin_condition(ctx: UsageContext) -> bool:
     見るように変更する:
       ・フーディン系列（ケーシィ/ユンゲラー/フーディン）が1体も場にも手札にも無い
       ・またはノコッチ系列（ノコッチ/ノココッチ）が1体も無い
-      ・またはキチキギスexが無い
     のいずれかの時だけ、盤面展開が不足しているとみなして使う。
+
+    キチキギスex(140)の条件は、デッキから同カードを抜いた時点（deck.csv でゼロシックの策略に
+    差し替え）で判定する意味が無くなったため削除した。
     """
     def _has_any(ids: tuple[int, ...]) -> bool:
         return any(card_id in ctx.own_board_ids or card_id in ctx.own_hand_ids for card_id in ids)
 
     missing_fudin_line = not _has_any(_KADABRA_LINE_IDS)
     missing_dunsparce_line = not _has_any(_DUNSPARCE_LINE_IDS)
-    missing_fezandipiti = _FEZANDIPITI_EX_ID not in ctx.own_board_ids and _FEZANDIPITI_EX_ID not in ctx.own_hand_ids
-    return missing_fudin_line or missing_dunsparce_line or missing_fezandipiti
+    return missing_fudin_line or missing_dunsparce_line
 
 
 
