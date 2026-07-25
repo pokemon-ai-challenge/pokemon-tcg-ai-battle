@@ -11,9 +11,12 @@
     代替供給手段（ワンダーパッチ等）が使える
 の両方が揃った場合のみ成立する（_energy_recycle_bonus > 0 と同じゲート）。
 
-is_attach_eligible は、対象がフーディン系列/キチキギスex（ENERGY_TARGET_PRIORITY）なら
+is_attach_eligible は、対象がフーディン系列（ENERGY_TARGET_PRIORITY）なら
 state を参照せず True/False を返す。ノコッチ系列（65/66）は周回条件の判定に state が
 必要なため、state=None のときは安全側で False を返す。
+
+注: キチキギスex(140)はPR #89（デッキ入れ替え）でこのデッキから抜けたため、
+ENERGY_TARGET_PRIORITY からも削除済み。エネルギー付与対象としてのテストも不要。
 """
 
 from types import SimpleNamespace
@@ -61,8 +64,8 @@ def test_shaymin_is_not_energy_eligible():
 
 
 def test_attackers_are_energy_eligible():
-    # フーディン系列(741/742/743)とキチキギスex(140)は付与対象。
-    for card_id in (741, 742, 743, 140):
+    # フーディン系列(741/742/743)は付与対象。
+    for card_id in (741, 742, 743):
         assert energy_eval.is_attach_eligible(_pokemon(card_id), state=None) is True
 
 
