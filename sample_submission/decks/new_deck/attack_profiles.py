@@ -31,13 +31,6 @@ PROFILES: dict[int, AttackProfile] = {
         draws_cards=False,
         disables_next_attack=False,
     ),
-    183: AttackProfile(  # キチキギスex「クルーエルアロー」
-        # 相手ポケモン1匹を任意選択（ベンチも含む）できる単体除去。
-        bench_snipe=True,
-        inflicts_special_condition=False,
-        draws_cards=False,
-        disables_next_attack=False,
-    ),
     477: AttackProfile(  # シェイミ「けとばす」
         bench_snipe=False,
         inflicts_special_condition=False,
