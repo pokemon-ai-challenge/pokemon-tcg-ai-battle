@@ -13,6 +13,7 @@ import os
 from cg.api import Observation
 
 from ptcg_ai.action_selection import selector
+from ptcg_ai.rule_based.main_turn_parts import proposals
 
 _DECK_CACHE: list[int] | None = None
 
@@ -27,6 +28,9 @@ def agent(obs: Observation) -> list[int]:
         list[int]: 初回はデッキの60枚のカードIDリスト。通常ターンは選択肢インデックスのリスト。
     """
     if obs.select is None:
+        # 新規ゲーム開始点。1プロセス内で複数ゲームを回す自己対戦・テストでの
+        # ターン跨ぎ状態汚染を避けるため、proposals.py の下準備採用状態を明示リセットする。
+        proposals.reset_turn_state()
         return _select_deck()
     return selector.select_action(obs, _full_deck())
 

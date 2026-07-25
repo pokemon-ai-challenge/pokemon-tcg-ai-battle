@@ -52,9 +52,37 @@ _SELF_DEPLETING_SETUP = ("board", "energy", "draw", "ability")
 # （＝いずれ attack/end が選ばれてターンが進む）。無限ループ・タイムアウトの安全弁。
 _SETUP_ACTION_CAP = 24
 
-# 直近に下準備を採用したターン番号と、そのターン内での採用回数。ターンが変わるとリセットする。
-_setup_turn: int | None = None
-_setup_count = 0
+
+@dataclass
+class _SetupTurnBudget:
+    """直近に下準備を採用したターン番号と、そのターン内での採用回数を持つ状態。
+
+    ターンが変わると自動でリセットされる（turn != self.turn）。1プロセス内で複数ゲームを
+    回す自己対戦・テストでは、ゲーム跨ぎでターン番号が偶然一致すると自己修復に頼れないため、
+    新規ゲーム開始時に reset_turn_state() で明示リセットする。
+    """
+
+    turn: int | None = None
+    count: int = 0
+
+    def take(self, turn: int | None, cap: int) -> bool:
+        if turn != self.turn:
+            self.turn, self.count = turn, 0
+        if self.count >= cap:
+            return False
+        self.count += 1
+        return True
+
+    def reset(self) -> None:
+        self.turn, self.count = None, 0
+
+
+_setup_budget = _SetupTurnBudget()
+
+
+def reset_turn_state() -> None:
+    """新規ゲーム開始時（rule_based_agent.agent が obs.select is None を受けた時）に呼ぶ。"""
+    _setup_budget.reset()
 
 
 def collect_proposals(obs: Observation) -> list[ActionProposal]:
@@ -82,18 +110,12 @@ def decide(obs: Observation) -> list[int]:
     下準備が尽きたら、残り（retreat/attack/end）を weights.py の基礎重み補正込みの
     スコアで比較する。
     """
-    global _setup_turn, _setup_count
     proposals = collect_proposals(obs)
 
     if SETUP_BEFORE_ATTACK:
         turn = obs.current.turn if obs.current is not None else None
-        if turn != _setup_turn:
-            _setup_turn = turn
-            _setup_count = 0
-
         setup = [p for p in proposals if p.category in _SELF_DEPLETING_SETUP]
-        if setup and _setup_count < _SETUP_ACTION_CAP:
-            _setup_count += 1
+        if setup and _setup_budget.take(turn, _SETUP_ACTION_CAP):
             return max(setup, key=_total_score).select
 
     best = max(proposals, key=_total_score)

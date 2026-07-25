@@ -82,6 +82,19 @@ def get_opponent_effect_lock_energy_ids() -> frozenset[int]:
     return frozenset(getattr(active.deck_plan, "OPPONENT_EFFECT_LOCK_ENERGY_IDS", frozenset()))
 
 
+def get_draw_ability_deck_floor() -> int:
+    """decks.active.deck_plan.DRAW_ABILITY_MIN_DECK を返す。
+
+    ドロー系特性（にげあしドロー等）を温存する山札残枚数の閾値。デッキが未定義なら0。
+    """
+    return int(getattr(active.deck_plan, "DRAW_ABILITY_MIN_DECK", 0))
+
+
+def get_draw_ability_max_hand() -> int:
+    """decks.active.deck_plan.DRAW_ABILITY_MAX_HAND を返す。デッキが未定義なら999（実質無効）。"""
+    return int(getattr(active.deck_plan, "DRAW_ABILITY_MAX_HAND", 999))
+
+
 def get_ko_replacement_priority() -> list[int]:
     """decks.active.deck_plan.KO_REPLACEMENT_PRIORITY の card_id 列を返す。
 

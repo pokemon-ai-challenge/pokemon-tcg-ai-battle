@@ -31,8 +31,17 @@ from ptcg_ai.shared import profile_registry
 # 山札の安定域(2枚)に速く到達して穴が致命傷になるため。ただしミラーは両者同時消耗で、非対称
 # マッチアップでの真価は測れない。保守的に戻したい場合は env `PTCG_DRAW_ABILITY_MIN_DECK=14`。
 # （手札上限 _DRAW_ABILITY_MAX_HAND は既定で実質無効。手札を絞りたいデッキだけ env で設定する。）
-_DRAW_ABILITY_MIN_DECK = int(os.environ.get("PTCG_DRAW_ABILITY_MIN_DECK", "0"))
-_DRAW_ABILITY_MAX_HAND = int(os.environ.get("PTCG_DRAW_ABILITY_MAX_HAND", "999"))
+#
+# コミットされる既定値は decks/new_deck/deck_plan.py の DRAW_ABILITY_MIN_DECK /
+# DRAW_ABILITY_MAX_HAND（提出物の実挙動はここで確定する）。env は任意の実行時オーバーライド。
+_env_min_deck = os.environ.get("PTCG_DRAW_ABILITY_MIN_DECK")
+_env_max_hand = os.environ.get("PTCG_DRAW_ABILITY_MAX_HAND")
+_DRAW_ABILITY_MIN_DECK = (
+    int(_env_min_deck) if _env_min_deck is not None else profile_registry.get_draw_ability_deck_floor()
+)
+_DRAW_ABILITY_MAX_HAND = (
+    int(_env_max_hand) if _env_max_hand is not None else profile_registry.get_draw_ability_max_hand()
+)
 
 
 def propose(obs: Observation) -> ActionProposal | None:
