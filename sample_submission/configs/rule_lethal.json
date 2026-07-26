@@ -8,6 +8,7 @@
     "max_depth": 20,
     "max_nodes": 10000,
     "max_combinations_per_select": 128,
-    "verify_shuffles": 1
+    "verify_shuffles": 1,
+    "gust_card_ids": [1182]
   }
 }

@@ -111,6 +111,36 @@ def make_obs(state: State, select: SelectData | None) -> Observation:
     return Observation(select=select, logs=[], current=state, search_begin_input="{}")
 
 
+def make_opt_select(
+    options: list[Option],
+    *,
+    select_type: SelectType = SelectType.MAIN,
+    min_count: int = 1,
+    max_count: int = 1,
+) -> SelectData:
+    """Like ``make_select`` but takes pre-built ``Option`` objects, so a
+    PLAY option can carry the ``index`` that maps it to a hand card."""
+    return SelectData(
+        type=select_type,
+        context=SelectContext.MAIN,
+        minCount=min_count,
+        maxCount=max_count,
+        remainDamageCounter=0,
+        remainEnergyCost=0,
+        option=list(options),
+        deck=None,
+        contextCard=None,
+        effect=None,
+    )
+
+
+def set_hand(state: State, card_ids: list[int], your_index: int = 0) -> State:
+    state.players[your_index].hand = [
+        Card(id=c, serial=i, playerIndex=your_index) for i, c in enumerate(card_ids)
+    ]
+    return state
+
+
 DUMMY_HIDDEN_STATE = {
     "your_deck": [],
     "your_prize": [],
@@ -562,6 +592,127 @@ def test_stats_record_timeouts(install_engine):
     assert stats["searches"] == 1
     assert stats["found"] == 0
     assert stats["timeouts"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Gust prioritization (Boss's Orders): try the gust Trainer right after
+# attacks so "gust an ex Active, then KO it" lethals are reached before the
+# time/node budget is spent on the rest of a big hand.
+# ---------------------------------------------------------------------------
+
+GUST_ID = 1182  # Boss's Orders
+
+
+def _root_gust_scenario() -> tuple[Observation, FakeEngine]:
+    """A root where attacking now loses tempo but Boss's Orders (option 3,
+    hand[0]) drags a benched ex Active and the follow-up attack wins."""
+    root_obs = make_obs(
+        set_hand(make_state(my_prizes=2), [GUST_ID, 700, 701, 702]),
+        make_opt_select([
+            Option(type=OptionType.ATTACH, index=1),  # 0 decoy
+            Option(type=OptionType.EVOLVE, index=2),  # 1 decoy
+            Option(type=OptionType.PLAY, index=3),    # 2 non-gust play decoy
+            Option(type=OptionType.PLAY, index=0),    # 3 gust (hand[0] == 1182)
+            Option(type=OptionType.ATTACK),           # 4 attack (does not win)
+            Option(type=OptionType.END),              # 5
+        ]),
+    )
+    target_obs = make_obs(
+        make_state(my_prizes=2, action_count=1),
+        make_opt_select(
+            [Option(type=OptionType.CARD), Option(type=OptionType.CARD)],
+            select_type=SelectType.CARD,
+        ),
+    )
+    after_obs = make_obs(
+        make_state(my_prizes=2, action_count=2),
+        make_opt_select([Option(type=OptionType.ATTACK), Option(type=OptionType.END)]),
+    )
+    engine = FakeEngine(
+        {
+            "root": FakeNode(root_obs, {(3,): "target", (4,): "opp"}),
+            "target": FakeNode(target_obs, {(1,): "after", (0,): "opp"}),
+            "after": FakeNode(after_obs, {(0,): "win"}),
+            "win": WIN,
+            "opp": OPP_TURN,
+        },
+        default="opp",
+    )
+    return root_obs, engine
+
+
+def _first_step(step_log, entry) -> float:
+    return step_log.index(entry) if entry in step_log else float("inf")
+
+
+def test_candidate_selections_orders_gust_right_after_attack():
+    hand = [Card(id=GUST_ID, serial=0, playerIndex=0), Card(id=999, serial=1, playerIndex=0)]
+    select = make_opt_select([
+        Option(type=OptionType.ATTACH, index=1),  # 0
+        Option(type=OptionType.PLAY, index=1),    # 1 non-gust play
+        Option(type=OptionType.PLAY, index=0),    # 2 gust play
+        Option(type=OptionType.EVOLVE, index=1),  # 3
+        Option(type=OptionType.ATTACK),           # 4
+        Option(type=OptionType.END),              # 5
+    ])
+    order = [
+        sel[0]
+        for sel in lethal_simple._candidate_selections(
+            select, {"max_combinations_per_select": 128}, hand, frozenset({GUST_ID})
+        )
+    ]
+    assert 5 not in order      # END pruned
+    assert order[0] == 4       # ATTACK still first
+    assert order[1] == 2       # gust PLAY right after the attack
+    assert order.index(2) < order.index(1)  # before the non-gust PLAY
+    assert order.index(2) < order.index(0)  # before ATTACH
+    assert order.index(2) < order.index(3)  # before EVOLVE
+
+
+def test_candidate_selections_keeps_normal_order_without_gust_ids():
+    hand = [Card(id=GUST_ID, serial=0, playerIndex=0)]
+    select = make_opt_select([
+        Option(type=OptionType.ATTACH, index=0),  # 0
+        Option(type=OptionType.PLAY, index=0),    # 1 (would be gust, but not configured)
+        Option(type=OptionType.ATTACK),           # 2
+    ])
+    order = [
+        sel[0]
+        for sel in lethal_simple._candidate_selections(
+            select, {"max_combinations_per_select": 128}, hand, frozenset()
+        )
+    ]
+    # PLAY keeps its default (lowest) priority: attack, then attach, then play.
+    assert order == [2, 0, 1]
+
+
+def test_gust_lethal_is_found_end_to_end(install_engine):
+    root_obs, engine = _root_gust_scenario()
+    install_engine(engine)
+    assert run_search(root_obs, gust_card_ids=[GUST_ID]) == [3]
+
+
+def test_gust_is_explored_before_decoys_when_configured(install_engine):
+    root_obs, engine = _root_gust_scenario()
+    install_engine(engine)
+    assert run_search(root_obs, gust_card_ids=[GUST_ID]) == [3]
+    log = engine.step_log
+    assert _first_step(log, ("root", (3,))) < _first_step(log, ("root", (0,)))
+    assert _first_step(log, ("root", (3,))) < _first_step(log, ("root", (1,)))
+    assert _first_step(log, ("root", (3,))) < _first_step(log, ("root", (2,)))
+
+
+def test_gust_is_explored_after_decoys_without_configuration(install_engine):
+    # Same winning line, but with no gust card configured the gust PLAY keeps
+    # its low priority, so the decoys are stepped first -- exactly the
+    # ordering that let the 100ms budget run out before the gust line in the
+    # replayed game (episode 88154084, turn 16).
+    root_obs, engine = _root_gust_scenario()
+    install_engine(engine)
+    assert run_search(root_obs, gust_card_ids=[]) == [3]  # still found, just later
+    log = engine.step_log
+    assert _first_step(log, ("root", (3,))) > _first_step(log, ("root", (0,)))
+    assert _first_step(log, ("root", (3,))) > _first_step(log, ("root", (1,)))
 
 
 # ---------------------------------------------------------------------------
