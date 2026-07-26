@@ -28,9 +28,24 @@
 
 | ファイル | 役割 |
 |---|---|
-| `semantic_action.py` | Option の位置参照を `observation.current` で解決する（v2 §4.2 の唯一の実装）。方策学習と再マッピングの両方がここに乗る |
 | `build_dataset.py` | リプレイ → BC データセット(JSONL) |
+| `build_card_attributes.py` | `data/EN_Card_Data.csv` → カードID別の静的属性表 |
+| `train.py` | 線形 pointwise ranking の学習。`sample_submission/ptcg_ai/learning/policy_weights.json` を出力 |
+| `evaluate.py` | 一致率の評価。ベースラインと lookup 非ヒット限定の一致率を併記する |
 | `output/` | 生成物。本体は `.gitignore` 済み（再生成可能・107MB）。`*.summary.json` のみ追跡する |
+
+### 実装は提出側にある
+
+**特徴抽出と Option 解決の実装は `sample_submission/ptcg_ai/learning/` にしか存在しない。** 本ディレクトリはそれを import する。
+
+| 提出側のモジュール | 役割 |
+|---|---|
+| `ptcg_ai/learning/semantic_action.py` | Option の位置参照を `observation.current` で解決する（v2 §4.2 の唯一の実装） |
+| `ptcg_ai/learning/observable_state.py` | observation → 観測可能な状態 dict |
+| `ptcg_ai/learning/policy_features.py` | 特徴抽出 |
+| `ptcg_ai/learning/policy_model.py` | 純Python推論 |
+
+学習側にコピーを置いてはならない。学習時と推論時で特徴がズレるのは最も見つけにくい欠陥で、精度が出なかったときにモデルの問題か特徴の問題かを切り分けられなくなる。`kaggle_replays/tests/test_policy_parity.py` が、学習時のスコアと `PolicyModel` のスコアの一致を検証している。
 
 ## 使い方
 
