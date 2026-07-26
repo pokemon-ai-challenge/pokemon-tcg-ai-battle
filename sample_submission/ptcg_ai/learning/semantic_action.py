@@ -2,6 +2,17 @@
 """Option の位置参照を observation.current で解決し、選択肢集合に依存しない
 行動ラベルを得る（要件定義 v2 §4.2 の実装）。
 
+## このモジュールの位置づけ（唯一の実装）
+
+方策の推論(``ptcg_ai.learning.policy_features`` / ``policy_model``、提出側・試合中に動く)と
+方策の学習データ生成(``kaggle_replays/policy_prior/build_dataset.py``、オフライン)の
+両方が、Option を Semantic Action へ解決するのに**このモジュールだけ**を使う。
+train/serve で解決規則がズレると最も見つけにくいバグになるため、コピーを作らないこと。
+``kaggle_replays`` 側は ``sample_submission`` を ``sys.path`` に足したうえで
+``from ptcg_ai.learning.semantic_action import ...`` としてこれを import する
+(既存の ``kaggle_replays/deck_predictor/*.py`` が ``ptcg_ai.opponent_modeling`` を
+import しているのと同じ配線パターン)。
+
 ## なぜ解決が要るか
 
 `cg/api.py` の `Option` は「カードが何であるか」を持たない。持つのは位置参照

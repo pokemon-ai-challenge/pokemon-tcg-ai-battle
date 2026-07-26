@@ -18,11 +18,14 @@ import sys
 
 import pytest
 
-POLICY_PRIOR = Path(__file__).resolve().parents[1] / "policy_prior"
-if str(POLICY_PRIOR) not in sys.path:
-    sys.path.insert(0, str(POLICY_PRIOR))
+# semantic_action.py は sample_submission 側(唯一の実装)へ移した。
+# kaggle_replays/policy_prior/build_dataset.py と同じ配線パターンで import する。
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_SAMPLE_SUBMISSION_DIR = _REPO_ROOT / "sample_submission"
+if str(_SAMPLE_SUBMISSION_DIR) not in sys.path:
+    sys.path.insert(0, str(_SAMPLE_SUBMISSION_DIR))
 
-from semantic_action import (  # noqa: E402
+from ptcg_ai.learning.semantic_action import (  # noqa: E402
     ABILITY,
     ATTACH,
     ATTACK,

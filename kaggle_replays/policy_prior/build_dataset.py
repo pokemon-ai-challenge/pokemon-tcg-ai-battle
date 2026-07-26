@@ -42,8 +42,14 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from semantic_action import (  # noqa: E402
+# semantic_action.py / observable_state() は sample_submission 側(唯一の実装)へ移した。
+# kaggle_replays はここを sys.path に足して import するだけ(deck_predictor/*.py と同じ配線)。
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_SAMPLE_SUBMISSION_DIR = _REPO_ROOT / "sample_submission"
+sys.path.insert(0, str(_SAMPLE_SUBMISSION_DIR))
+
+from ptcg_ai.learning.observable_state import observable_state  # noqa: E402
+from ptcg_ai.learning.semantic_action import (  # noqa: E402
     ResolutionStats,
     action_label,
     check_invariants,
@@ -83,53 +89,6 @@ def assign_split(episode_id: str, ratios=(0.8, 0.1, 0.1)) -> str:
     if h < ratios[0] + ratios[1]:
         return "val"
     return "test"
-
-
-def observable_state(current: dict, me: int) -> dict:
-    """その手番のプレイヤーが見えている盤面だけを取り出す。"""
-    players = current.get("players") or [{}, {}]
-    own, opp = players[me], players[1 - me]
-
-    def in_play(entity):
-        if not isinstance(entity, dict):
-            return None
-        return {
-            "card_id": entity.get("id"),
-            "hp": entity.get("hp"),
-            "max_hp": entity.get("maxHp"),
-            "n_energy": len(entity.get("energies") or []),
-            "n_tool": len(entity.get("tools") or []),
-            "appear_this_turn": entity.get("appearThisTurn"),
-        }
-
-    def side(player: dict) -> dict:
-        return {
-            "active": in_play((player.get("active") or [None])[0]),
-            "bench": [in_play(e) for e in (player.get("bench") or [])],
-            "n_prize": len(player.get("prize") or []),
-            "n_hand": player.get("handCount"),
-            "n_deck": player.get("deckCount"),
-            # トラッシュは公開領域。カード種の列として持つ
-            "discard": [e.get("id") for e in (player.get("discard") or []) if isinstance(e, dict)],
-            "asleep": player.get("asleep"),
-            "confused": player.get("confused"),
-            "paralyzed": player.get("paralyzed"),
-            "poisoned": player.get("poisoned"),
-            "burned": player.get("burned"),
-        }
-
-    return {
-        "turn": current.get("turn"),
-        "turn_action_count": current.get("turnActionCount"),
-        "first_player": current.get("firstPlayer"),
-        "energy_attached": current.get("energyAttached"),
-        "retreated": current.get("retreated"),
-        "supporter_played": current.get("supporterPlayed"),
-        "stadium_played": current.get("stadiumPlayed"),
-        "stadium": [e.get("id") for e in (current.get("stadium") or []) if isinstance(e, dict)],
-        "own": side(own),
-        "opponent": side(opp),
-    }
 
 
 def iter_decisions(replay: dict, episode_id: str, master_row: dict | None, args):
