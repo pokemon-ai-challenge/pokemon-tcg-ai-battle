@@ -112,12 +112,15 @@ def _own_opp_prize(state: dict) -> tuple[int | None, int | None]:
 
 
 class LookupBaseline:
-    """3段バックオフの lookup 方策。
+    """4段バックオフの lookup 方策。
 
     Level A: (行動集合, own_active_card_id, own_n_prize, opp_n_prize) -> 最頻ラベル
     Level B: (行動集合, own_active_card_id) -> 最頻ラベル
     Level C: (行動集合,) -> 最頻ラベル
-    Level D(最終フォールバック): type 事前分布順(自明ベースライン)
+    Level D(最終フォールバック): type(option_type)事前分布順(自明ベースライン)
+
+    Level D を欠くと「lookup が一切当たらない decision」が常にハズレ扱いになり、
+    lookup ベースラインの一致率が不当に低く出る(要件どおり、必ず4段目まで実装する)。
     """
 
     def __init__(self, train_rows: list[dict]):
@@ -187,38 +190,60 @@ def model_accuracy(model: PolicyModel, rows: list[dict]) -> tuple[int, int]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--dataset", type=Path, default=_DEFAULT_DATASET)
-    parser.add_argument("--weights", type=Path, default=_DEFAULT_WEIGHTS)
+    parser.add_argument(
+        "--weights", type=Path, nargs="+", default=[_DEFAULT_WEIGHTS],
+        help="評価する重みJSON。複数指定すると同じ test 集合上で比較する"
+             "(例: --weights .../policy_weights.json ./output/policy_weights_archetype1.json)",
+    )
+    parser.add_argument(
+        "--labels", type=str, nargs="+", default=None,
+        help="--weights に対応する表示名(省略時はファイル名から自動生成)",
+    )
+    parser.add_argument(
+        "--archetype", type=str, default=None,
+        help="指定したアーキタイプ(archetypes.py / build_dataset.py の archetype フィールド)"
+             "の行だけに絞って評価する(train.py --archetype と同じ絞り込み)",
+    )
     args = parser.parse_args()
+
+    if args.labels and len(args.labels) != len(args.weights):
+        raise SystemExit("--labels の個数は --weights の個数と揃えてください")
+    labels = args.labels or [w.stem for w in args.weights]
 
     print(f"データセット読み込み中: {args.dataset}")
     rows = load_dataset(args.dataset)
+    print(f"  decision 総数: {len(rows):,}")
+    if args.archetype:
+        before = len(rows)
+        rows = [r for r in rows if r.get("archetype") == args.archetype]
+        print(f"  --archetype={args.archetype} で絞り込み: {before:,} -> {len(rows):,} 行")
+
     train_rows = _valid_rows([r for r in rows if r["split"] == "train"])
     val_rows = _valid_rows([r for r in rows if r["split"] == "val"])
     test_rows = _valid_rows([r for r in rows if r["split"] == "test"])
-    print(f"  train={len(train_rows):,} val={len(val_rows):,} test={len(test_rows):,}")
+    scope = f"(アーキタイプ={args.archetype})" if args.archetype else "(全アーキタイプ)"
+    print(f"  train={len(train_rows):,} val={len(val_rows):,} test={len(test_rows):,} {scope}")
+    n = len(test_rows)
+    if n == 0:
+        raise SystemExit("test 行が0件のため評価できません(--archetype の指定を確認してください)")
 
-    print(f"重みロード中: {args.weights}")
-    model = PolicyModel(weights_path=args.weights)
-    if not model.is_ready:
-        raise SystemExit(f"重みJSONの読み込みに失敗しました: {args.weights}")
-
-    # --- 1. 学習方策の test 一致率(主要な数字) ---------------------------------
-    correct, n = model_accuracy(model, test_rows)
-    test_acc = correct / n if n else 0.0
+    # --- ベースライン(比較対象の全モデルに共通。train_rows から一度だけ計算) --------------
     print()
     print("=" * 70)
-    print(f"[1] 学習方策の test 一致率: {test_acc:.4f} ({correct:,}/{n:,})")
+    print(f"[baseline] test 集合の件数: {n:,} 件 {scope}")
 
-    # --- 2. ベースライン再計算 -------------------------------------------------
     type_priority = build_type_priority(train_rows)
     naive_correct = sum(
         1 for row in test_rows
         if predict_type_priority(row["actions"], type_priority) == row["chosen"][0]
     )
-    naive_acc = naive_correct / n if n else 0.0
-    print(f"[2] 自明ベースライン(type事前分布順)test 一致率: {naive_acc:.4f} "
-          f"({naive_correct:,}/{n:,})  [参考値: README記載 32.2%]")
+    naive_acc = naive_correct / n
+    print(f"[baseline] 自明ベースライン(type事前分布順)test 一致率: {naive_acc:.4f} "
+          f"({naive_correct:,}/{n:,})  [全体参考値: README記載 32.2%]")
 
+    # lookup ベースラインは4段バックオフ(Level A/B/C/D)。Level D は type 事前分布順
+    # (自明ベースライン)で、これが無いと lookup が一切当たらない decision の予測が
+    # 常にハズレ扱いになり、lookup ベースラインの数字が不当に低くなる。
     lookup = LookupBaseline(train_rows)
     lookup_correct = 0
     lookup_levels: Counter[str] = Counter()
@@ -237,70 +262,95 @@ def main() -> None:
             lookup_hit_total += 1
             if is_correct:
                 lookup_hit_correct += 1
-    lookup_acc = lookup_correct / n if n else 0.0
-    print(f"[3] lookup ベースライン(バックオフ付き)test 一致率: {lookup_acc:.4f} "
-          f"({lookup_correct:,}/{n:,})  [参考値: README記載 41.8%]")
+    lookup_acc = lookup_correct / n
+    print(f"[baseline] lookup ベースライン(4段バックオフ A/B/C/D)test 一致率: {lookup_acc:.4f} "
+          f"({lookup_correct:,}/{n:,})  [全体参考値: README記載 41.8%]")
     print(f"    バックオフ段の内訳: {dict(lookup_levels)}")
     if lookup_hit_total:
         print(f"    (参考) lookup がヒットした decision に限った lookup 自身の一致率: "
               f"{lookup_hit_correct / lookup_hit_total:.4f} ({lookup_hit_total:,} decisions)")
+    print(f"    ★lookup非ヒット(miss) decision: {len(miss_test_rows):,} 件"
+          f" (test全体の {len(miss_test_rows) / n:.1%})。汎化能力を見るならここに限定した一致率を見る。")
 
-    # --- 3. 【最重要】lookup が当たらない decision に限定した学習方策の一致率 ---
-    print()
-    print("-" * 70)
-    print(f"[4] ★lookup非ヒット(miss)の decision に限定した一致率(汎化能力の本体)")
-    print(f"    対象: test の miss decision {len(miss_test_rows):,} 件"
-          f" (test全体の {len(miss_test_rows) / n:.1%})")
+    naive_miss_acc = None
     if miss_test_rows:
-        miss_correct, miss_n = model_accuracy(model, miss_test_rows)
-        miss_acc = miss_correct / miss_n
-        print(f"    学習方策の一致率: {miss_acc:.4f} ({miss_correct:,}/{miss_n:,})")
         miss_naive_correct = sum(
             1 for row in miss_test_rows
             if predict_type_priority(row["actions"], type_priority) == row["chosen"][0]
         )
+        naive_miss_acc = miss_naive_correct / len(miss_test_rows)
         print(f"    (参考) 自明ベースラインの一致率(miss限定): "
-              f"{miss_naive_correct / miss_n:.4f} ({miss_naive_correct:,}/{miss_n:,})")
-    else:
-        print("    miss decision が0件のため測定不能")
-    print("-" * 70)
+              f"{naive_miss_acc:.4f} ({miss_naive_correct:,}/{len(miss_test_rows):,})")
 
-    # --- 4. 判定 ---------------------------------------------------------------
-    print()
-    beat_lookup = test_acc > lookup_acc
-    print(f"[5] 41.8%(lookupベースライン, 実測 {lookup_acc:.1%})を超えたか: "
-          f"{'YES' if beat_lookup else 'NO'} (学習方策 {test_acc:.1%})")
+    # --- 各モデルを同じ test 集合(と miss 部分集合)で評価 ---------------------------
+    results: list[dict] = []
+    for weights_path, label in zip(args.weights, labels):
+        print()
+        print("-" * 70)
+        print(f"モデル [{label}]  重み: {weights_path}")
+        model = PolicyModel(weights_path=weights_path)
+        if not model.is_ready:
+            print(f"  ! 重みJSONの読み込みに失敗しました: {weights_path} (このモデルは比較から除外)")
+            continue
 
-    # --- 5. context / 選択肢数 別の内訳 -----------------------------------------
-    print()
-    print("[6] 選択肢数(n_options)別の内訳(test)")
-    by_n: dict[int, list[dict]] = defaultdict(list)
-    for row in test_rows:
-        by_n[row["n_options"]].append(row)
-    for n_opt in sorted(by_n):
-        sub = by_n[n_opt]
-        c, t = model_accuracy(model, sub)
-        print(f"    n_options={n_opt:>2}: {c:>4}/{t:<4} = {c / t:.3f}  (test中 {t:,} 件)")
+        correct, n_test = model_accuracy(model, test_rows)
+        test_acc = correct / n_test if n_test else 0.0
+        print(f"  test 一致率: {test_acc:.4f} ({correct:,}/{n_test:,})")
 
-    print()
-    print("[6b] select_context 別の内訳(test)")
-    by_ctx: dict[int, list[dict]] = defaultdict(list)
-    for row in test_rows:
-        by_ctx[row.get("select_context")].append(row)
-    for ctx in sorted(by_ctx, key=lambda k: (k is None, k)):
-        sub = by_ctx[ctx]
-        c, t = model_accuracy(model, sub)
-        print(f"    select_context={ctx}: {c:>4}/{t:<4} = {c / t:.3f}")
+        miss_acc = miss_n = miss_correct = None
+        if miss_test_rows:
+            miss_correct, miss_n = model_accuracy(model, miss_test_rows)
+            miss_acc = miss_correct / miss_n
+            print(f"  ★lookup非ヒット(miss)限定 一致率: {miss_acc:.4f} ({miss_correct:,}/{miss_n:,})")
 
+        if len(args.weights) == 1:
+            # 単一モデルのときは従来どおり選択肢数/contextの内訳も出す。
+            print()
+            print("  [選択肢数(n_options)別の内訳(test)]")
+            by_n: dict[int, list[dict]] = defaultdict(list)
+            for row in test_rows:
+                by_n[row["n_options"]].append(row)
+            for n_opt in sorted(by_n):
+                sub = by_n[n_opt]
+                c, t = model_accuracy(model, sub)
+                print(f"    n_options={n_opt:>2}: {c:>4}/{t:<4} = {c / t:.3f}  (test中 {t:,} 件)")
+
+            print("  [select_context 別の内訳(test)]")
+            by_ctx: dict[int, list[dict]] = defaultdict(list)
+            for row in test_rows:
+                by_ctx[row.get("select_context")].append(row)
+            for ctx in sorted(by_ctx, key=lambda k: (k is None, k)):
+                sub = by_ctx[ctx]
+                c, t = model_accuracy(model, sub)
+                print(f"    select_context={ctx}: {c:>4}/{t:<4} = {c / t:.3f}")
+
+        results.append({
+            "label": label, "weights": str(weights_path),
+            "test_acc": test_acc, "n_test": n_test,
+            "miss_acc": miss_acc, "miss_n": miss_n,
+        })
+
+    # --- 比較サマリ(汎用モデル vs アーキタイプ専用モデル等) -----------------------------
     print()
     print("=" * 70)
     print("サマリ")
-    print(f"  test 一致率           : {test_acc:.4f}")
-    print(f"  自明ベースライン(test): {naive_acc:.4f}")
-    print(f"  lookupベースライン(test): {lookup_acc:.4f}")
-    if miss_test_rows:
-        print(f"  lookup非ヒット限定一致率: {miss_acc:.4f} (n={len(miss_test_rows):,})")
-    print(f"  41.8%超え: {'YES' if beat_lookup else 'NO'}")
+    print(f"  test 集合件数           : {n:,} {scope}")
+    print(f"  自明ベースライン(test)  : {naive_acc:.4f}")
+    print(f"  lookupベースライン(test): {lookup_acc:.4f}  (miss {len(miss_test_rows):,}件"
+          f" / {len(miss_test_rows) / n:.1%})")
+    if naive_miss_acc is not None:
+        print(f"  自明ベースライン(miss限定): {naive_miss_acc:.4f} (n={len(miss_test_rows):,})")
+    print(f"  {'モデル':20s} {'test一致率':>12s} {'test件数':>8s} {'miss限定一致率':>14s} {'miss件数':>8s}")
+    for r in sorted(results, key=lambda r: -r["test_acc"]):
+        miss_str = f"{r['miss_acc']:.4f}" if r["miss_acc"] is not None else "-"
+        miss_n_str = f"{r['miss_n']:,}" if r["miss_n"] is not None else "-"
+        print(f"  {r['label']:20s} {r['test_acc']:>12.4f} {r['n_test']:>8,} {miss_str:>14s} {miss_n_str:>8s}")
+        beat_lookup = r["test_acc"] > lookup_acc
+        print(f"    ({'lookupベースラインを超えた' if beat_lookup else 'lookupベースラインを超えられなかった'})")
+
+    if len(results) >= 2:
+        best = max(results, key=lambda r: r["test_acc"])
+        print(f"  -> test一致率が最も高いモデル: [{best['label']}] {best['test_acc']:.4f}")
 
 
 if __name__ == "__main__":

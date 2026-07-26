@@ -56,6 +56,9 @@ from ptcg_ai.learning.semantic_action import (  # noqa: E402
     resolve_option,
 )
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from archetypes import build_archetype_map  # noqa: E402
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -96,6 +99,7 @@ def iter_decisions(replay: dict, episode_id: str, master_row: dict | None, args)
     meta = {p["player_index"]: p for p in (master_row or {}).get("players", [])}
     stats: ResolutionStats = args._stats
     skipped: Counter = args._skipped
+    archetype_map: dict[tuple[str, int], str] = args._archetype_map
 
     for i in range(len(steps) - 1):
         for player_index in (0, 1):
@@ -135,6 +139,8 @@ def iter_decisions(replay: dict, episode_id: str, master_row: dict | None, args)
                 "player_index": player_index,
                 "step_index": i,
                 "split": assign_split(episode_id),
+                # --- その手番のプレイヤーが使っているデッキのアーキタイプ（archetypes.py） ---
+                "archetype": archetype_map.get((episode_id, player_index)),
                 # --- 教師の出所（サンプル重み付けに使う） ---
                 "agent": player_meta.get("team_name"),
                 "rank_at_fetch": player_meta.get("rank_at_fetch"),
@@ -165,6 +171,8 @@ def main() -> None:
     parser.add_argument("--include-multi", action="store_true", help="複数選択も含める")
     parser.add_argument("--include-forced", action="store_true", help="強制手も含める")
     parser.add_argument("--limit", type=int, default=None, help="先頭N件のリプレイのみ")
+    parser.add_argument("--archetype-threshold", type=int, default=50,
+                         help="アーキタイプ貪欲クラスタリングの一致枚数しきい値(archetypes.py)")
     args = parser.parse_args()
 
     args._stats = ResolutionStats()
@@ -177,9 +185,17 @@ def main() -> None:
     if not paths:
         raise SystemExit(f"リプレイが見つかりません: {args.replays_dir}")
 
+    # アーキタイプは常に replays_dir の全リプレイから一度だけクラスタリングする(--limit で
+    # decision の行数を絞っても、アーキタイプの境界自体が母集団によってずれないようにするため)。
+    archetype_map, archetype_summary = build_archetype_map(args.replays_dir, args.archetype_threshold)
+    args._archetype_map = archetype_map
+    print(f"アーキタイプ: 標本{len(archetype_map):,} / {len(archetype_summary)}クラスタ "
+          f"(threshold={args.archetype_threshold})")
+
     args.out.parent.mkdir(parents=True, exist_ok=True)
     split_counts: Counter = Counter()
     agents: Counter = Counter()
+    archetype_counts: Counter = Counter()
     n_rows = n_bad = 0
 
     with args.out.open("w", encoding="utf-8") as f:
@@ -195,12 +211,14 @@ def main() -> None:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
                 split_counts[row["split"]] += 1
                 agents[row["agent"]] += 1
+                archetype_counts[row["archetype"]] += 1
                 n_rows += 1
 
     stats = args._stats
     print(f"リプレイ {len(paths)} 件 (読込失敗 {n_bad})")
     print(f"decision {n_rows:,} 行を書き出し: {args.out}")
     print(f"  split: {dict(split_counts)}")
+    print(f"  アーキタイプ別: {dict(archetype_counts.most_common())}")
     print(f"  エージェント {len(agents)} 種 (上位5: {agents.most_common(5)})")
     print(f"  除外: {dict(args._skipped)}")
     print(f"  Option 解決: 成功 {sum(stats.ok.values()):,} / 失敗 "
@@ -218,6 +236,8 @@ def main() -> None:
                 "n_rows": n_rows,
                 "splits": dict(split_counts),
                 "n_agents": len(agents),
+                "archetypes": dict(archetype_counts.most_common()),
+                "n_archetype_clusters": len(archetype_summary),
                 "skipped": dict(args._skipped),
                 "resolution": stats.as_dict(),
             },

@@ -29,6 +29,8 @@ from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 
 _HERE = Path(__file__).resolve().parent
 _REPO_ROOT = _HERE.parents[1]
@@ -60,6 +62,11 @@ def load_dataset(path: Path) -> list[dict]:
             if line:
                 rows.append(json.loads(line))
     return rows
+
+
+# アーキタイプ専用モデルは全件モデルよりデータ量が少ないため、学習が不安定になりうる
+# 目安の件数。下回っても学習は止めない(エラーにしない)が、警告を出す(要件どおり)。
+_MIN_ARCHETYPE_TRAIN_ROWS = 1000
 
 
 def _log_frequent_card_rationale(train_rows: list[dict], chosen_n: int) -> None:
@@ -154,6 +161,9 @@ def main() -> None:
     parser.add_argument("--dataset", type=Path, default=_DEFAULT_DATASET)
     parser.add_argument("--card-csv", type=Path, default=_DEFAULT_CARD_CSV)
     parser.add_argument("--out", type=Path, default=_DEFAULT_WEIGHTS_OUT)
+    parser.add_argument("--archetype", type=str, default=None,
+                         help="指定したアーキタイプ(例: archetype1)の行だけで学習する。"
+                              "省略時は全アーキタイプ混合(従来どおり)")
     parser.add_argument("--max-frequent-cards", type=int, default=_DEFAULT_MAX_FREQUENT_CARDS)
     parser.add_argument("--C", type=float, default=1.0, help="L2正則化の逆数(sklearn LogisticRegression)")
     parser.add_argument("--balanced", action="store_true", default=True,
@@ -162,15 +172,34 @@ def main() -> None:
     parser.add_argument("--max-iter", type=int, default=2000)
     args = parser.parse_args()
 
+    if args.archetype and args.out == _DEFAULT_WEIGHTS_OUT:
+        raise SystemExit(
+            "--archetype 指定時は --out で明示的な出力先を指定してください"
+            f"(汎用モデル {_DEFAULT_WEIGHTS_OUT} を誤って上書きしないため)。"
+            " 例: --out ./output/policy_weights_archetype1.json"
+        )
+
     print(f"データセット読み込み中: {args.dataset}")
     rows = load_dataset(args.dataset)
     print(f"  decision 総数: {len(rows):,}")
+
+    if args.archetype:
+        before = len(rows)
+        rows = [r for r in rows if r.get("archetype") == args.archetype]
+        print(f"  --archetype={args.archetype} で絞り込み: {before:,} -> {len(rows):,} 行")
+        if not rows:
+            raise SystemExit(f"アーキタイプ '{args.archetype}' に該当する行がありません")
 
     train_rows = [r for r in rows if r.get("split") == "train"]
     val_rows = [r for r in rows if r.get("split") == "val"]
     test_rows = [r for r in rows if r.get("split") == "test"]
     print(f"  split: train={len(train_rows):,} val={len(val_rows):,} test={len(test_rows):,}"
           f" (既存の split フィールドをそのまま使用。再分割はしない)")
+
+    if args.archetype and len(train_rows) < _MIN_ARCHETYPE_TRAIN_ROWS:
+        print(f"  ! 警告: train行数が {len(train_rows):,} 件しかありません"
+              f"(目安 {_MIN_ARCHETYPE_TRAIN_ROWS:,} 件未満)。"
+              f"アーキタイプ専用モデルの学習には不十分な可能性があります。")
 
     print(f"カード静的属性を構築中: {args.card_csv}")
     card_attributes = build_attributes(args.card_csv)
@@ -249,6 +278,7 @@ def main() -> None:
             "C": args.C,
             "class_weight": class_weight,
             "backend": "scikit-learn LogisticRegression",
+            "archetype": args.archetype,
         },
     }
 
