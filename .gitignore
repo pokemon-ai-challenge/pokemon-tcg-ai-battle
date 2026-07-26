@@ -55,6 +55,14 @@ kaggle_replays/training_data/*
 kaggle_replays/deck_predictor/output/*
 !kaggle_replays/deck_predictor/output/.gitkeep
 
+# kaggle_replays/policy_prior: main_decisions.jsonl (~107MB) is re-derivable from
+# replays/ + index/ via build_dataset.py. The summary JSON is small and worth tracking
+# because it records the resolution failure rate / invariant violations of each build.
+# See kaggle_replays/policy_prior/README.md.
+kaggle_replays/policy_prior/output/*
+!kaggle_replays/policy_prior/output/.gitkeep
+!kaggle_replays/policy_prior/output/*.summary.json
+
 # kaggle_replays/value_net: features.npz (materialized encoder output, ~400MB) is re-derivable
 # from training_data/value_positions.jsonl.gz via build_features.py. Too large to track in git.
 kaggle_replays/value_net/*.npz

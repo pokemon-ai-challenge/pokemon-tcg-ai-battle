@@ -1,0 +1,22 @@
+{
+  "n_replays": 300,
+  "n_rows": 24150,
+  "splits": {
+    "train": 18122,
+    "test": 3173,
+    "val": 2855
+  },
+  "n_agents": 131,
+  "skipped": {
+    "no_select_or_current": 600,
+    "other_context": 22497,
+    "forced": 635
+  },
+  "resolution": {
+    "resolved": 161866,
+    "failed": 0,
+    "failure_rate": 0.0,
+    "failed_by_option_type": {},
+    "invariant_violations": {}
+  }
+}
