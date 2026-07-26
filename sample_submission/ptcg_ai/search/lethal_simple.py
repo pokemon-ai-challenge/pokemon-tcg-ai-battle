@@ -59,6 +59,14 @@ DEFAULTS: dict = {
     # Extra replays with reshuffled hidden info to confirm the line is
     # deterministic. 0 disables verification.
     "verify_shuffles": 1,
+    # Card IDs of "gust" Trainers (play from hand to drag an opponent's
+    # Benched Pokemon into the Active Spot). Inside the search these PLAY
+    # options are tried right after attacks so that "gust an ex out and KO
+    # it" lethals are reached before the time/node budget runs out (they
+    # are otherwise buried among all the other PLAY options). Default is
+    # Boss's Orders; extend for other gust Trainers a deck runs (e.g.
+    # Prime Catcher 1088, Lisia's Appeal 1204, Team Rocket's Giovanni 1218).
+    "gust_card_ids": [1182],
 }
 
 # Option ordering for MAIN selections (#58 探索優先順位): attacks first
@@ -76,6 +84,11 @@ _MAIN_OPTION_PRIORITY = {
     OptionType.DISCARD: 6,
 }
 _DEFAULT_PRIORITY = 50
+# A gust Trainer (see DEFAULTS["gust_card_ids"]) is tried just after
+# ATTACK (0) and before everything else, so the "gust an ex to the Active
+# Spot, then KO it" line is explored before the budget is spent on the
+# large ATTACH/EVOLVE/PLAY subtrees a big hand generates.
+_GUST_PLAY_PRIORITY = 0.5
 
 
 class _SearchAbort(Exception):
@@ -232,11 +245,14 @@ def _find_winning_path(
     """
     root = _begin(obs, hidden_state)
     budget = {"nodes": 0, "depth_cutoff": False}
+    gust_ids = frozenset(config.get("gust_card_ids") or ())
     try:
         for depth_limit in range(1, int(config["max_depth"]) + 1):
             visited: dict[str, int] = {}
             budget["depth_cutoff"] = False
-            path = _dfs(root, me, depth_limit, config, deadline, budget, visited)
+            path = _dfs(
+                root, me, depth_limit, config, deadline, budget, visited, gust_ids
+            )
             if path is not None:
                 return path
             if not budget["depth_cutoff"]:
@@ -265,6 +281,7 @@ def _dfs(
     deadline: float,
     budget: dict,
     visited: dict[str, int],
+    gust_ids: frozenset[int],
 ) -> list[list[int]] | None:
     obs = node.observation
     if obs.select is None or not obs.select.option:
@@ -278,7 +295,8 @@ def _dfs(
         return None
     visited[key] = depth_left
 
-    for selection in _candidate_selections(obs.select, config):
+    my_hand = _own_hand(obs, me)
+    for selection in _candidate_selections(obs.select, config, my_hand, gust_ids):
         if time.perf_counter() > deadline:
             raise _SearchAbort("time")
         if budget["nodes"] >= int(config["max_nodes"]):
@@ -298,7 +316,7 @@ def _dfs(
             if child_state.yourIndex != me:
                 continue  # turn ended or control moved to the opponent
             sub_path = _dfs(
-                child, me, depth_left - 1, config, deadline, budget, visited
+                child, me, depth_left - 1, config, deadline, budget, visited, gust_ids
             )
             if sub_path is not None:
                 return [selection] + sub_path
@@ -310,23 +328,52 @@ def _dfs(
     return None
 
 
-def _candidate_selections(select: SelectData, config: dict) -> Iterator[list[int]]:
+def _own_hand(obs: Observation, me: int) -> list | None:
+    """Our hand cards in the observation, or None if unavailable."""
+    state = obs.current
+    if state is None or not (0 <= me < len(state.players)):
+        return None
+    return state.players[me].hand
+
+
+def _main_option_rank(option, hand: list | None, gust_ids: frozenset[int]) -> float:
+    """Exploration rank of a MAIN option (lower is tried first).
+
+    A gust Trainer (``option.index`` points at a ``gust_ids`` card in our
+    hand) sorts just after ATTACK; everything else keeps its
+    ``_MAIN_OPTION_PRIORITY``.
+    """
+    if (
+        option.type == OptionType.PLAY
+        and gust_ids
+        and hand
+        and option.index is not None
+        and 0 <= option.index < len(hand)
+    ):
+        card = hand[option.index]
+        if card is not None and card.id in gust_ids:
+            return _GUST_PLAY_PRIORITY
+    return _MAIN_OPTION_PRIORITY.get(option.type, _DEFAULT_PRIORITY)
+
+
+def _candidate_selections(
+    select: SelectData,
+    config: dict,
+    hand: list | None = None,
+    gust_ids: frozenset[int] = frozenset(),
+) -> Iterator[list[int]]:
     """Generate index selections satisfying min/max count, no duplicates.
 
-    MAIN options are reordered by ``_MAIN_OPTION_PRIORITY`` and END is
-    pruned (sound: the search only covers the current own turn, so
-    ending the turn can never lead to a win). Other select types keep
-    their natural order. Output is capped by
-    ``max_combinations_per_select``.
+    MAIN options are reordered by ``_main_option_rank`` (attacks first,
+    then gust Trainers, then ``_MAIN_OPTION_PRIORITY``) and END is pruned
+    (sound: the search only covers the current own turn, so ending the
+    turn can never lead to a win). Other select types keep their natural
+    order. Output is capped by ``max_combinations_per_select``.
     """
     order = list(range(len(select.option)))
     if select.type == SelectType.MAIN:
         order = [i for i in order if select.option[i].type != OptionType.END]
-        order.sort(
-            key=lambda i: _MAIN_OPTION_PRIORITY.get(
-                select.option[i].type, _DEFAULT_PRIORITY
-            )
-        )
+        order.sort(key=lambda i: _main_option_rank(select.option[i], hand, gust_ids))
 
     min_count = max(select.minCount, 0)
     max_count = min(select.maxCount, len(order))
