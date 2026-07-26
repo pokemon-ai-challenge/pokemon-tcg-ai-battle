@@ -1,6 +1,9 @@
 {
   "name": "rule_lethal",
   "use_real_hidden_state": false,
+  "ml_policy": {
+    "enabled": false
+  },
   "lethal_search": {
     "enabled": true,
     "module": "lethal_simple",
