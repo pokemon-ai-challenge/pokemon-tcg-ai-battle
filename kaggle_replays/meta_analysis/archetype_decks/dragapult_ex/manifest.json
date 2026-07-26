@@ -1,0 +1,45 @@
+{
+  "archetype": "dragapult_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "KawattaTaido",
+      "rank_at_fetch": 16,
+      "leaderboard_score": 1103.5,
+      "episode_id": "85618230",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "hoshi18",
+      "rank_at_fetch": 82,
+      "leaderboard_score": 1000.0,
+      "episode_id": "85503804",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "JZ",
+      "rank_at_fetch": 202,
+      "leaderboard_score": 937.5,
+      "episode_id": "86806408",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "yaki-imo",
+      "rank_at_fetch": 206,
+      "leaderboard_score": 936.3,
+      "episode_id": "86808640",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "Rojiomote",
+      "rank_at_fetch": 218,
+      "leaderboard_score": 934.2,
+      "episode_id": "86796657",
+      "player_index": 1
+    }
+  ]
+}

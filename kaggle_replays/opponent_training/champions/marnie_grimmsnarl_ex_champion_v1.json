@@ -1,0 +1,61 @@
+{
+  "archetype": "marnie_grimmsnarl_ex",
+  "version": "v1",
+  "status": "CHAMPION",
+  "promoted_at": "2026-07-26",
+  "algorithm_type": "archetype_specific_bc_policy_only",
+  "note": "Strong Opponent Initiative Phase 3 第3号。elite rank<=20 が 23% と候補中唯一 elite データ豊富。online mirror aggregate 0.8855(3者中最高)で昇格。strong-opponent diagnostic で Alakazam を 0.840→0.442(−39.8pt、3者中最大)へ。中位でなく上位者由来の模倣を含む可能性。Reference Pool v1 は変更せず strong opponent pool として別管理。",
+
+  "model": {
+    "policy_weights": "sample_submission/ptcg_ai/learning/policy_weights_marnie_grimmsnarl_ex.json",
+    "policy_weights_hash": "f82175a94177e2fb",
+    "value_weights": null,
+    "config": "abl_2_policy_only", "config_hash": "bd89340c3bd5da8c", "own_deck_safe": true
+  },
+
+  "deck_recipes": [
+    {"recipe_id": "01", "deck_hash": "48f1a03e8ab8162f"}, {"recipe_id": "02", "deck_hash": "e74108866afe41ed"},
+    {"recipe_id": "03", "deck_hash": "c2cd5fdbcd9099db"}, {"recipe_id": "04", "deck_hash": "c896a95b5154bae0"},
+    {"recipe_id": "05", "deck_hash": "5d8763b47f61f903"}
+  ],
+
+  "training_origin": {
+    "pipeline": "run_archetype_pipeline.py --archetype marnie_grimmsnarl_ex",
+    "dataset": "kaggle_replays/training_data/policy_positions_marnie_grimmsnarl_ex.jsonl.gz",
+    "dataset_hash": "5043c086dcf07c44",
+    "replays": 4975, "episode_players": 591, "samples": 45063,
+    "split": {"train": 34810, "val": 4943, "test": 5310, "method": "episode-level md5 (no leakage)"},
+    "rank_dist_test": {"<=20": 1206, "21-50": 0, "51-200": 0, "201-1000": 2321, "1000+": 800, "unknown": 983},
+    "elite_share_test": 0.227, "weight_scheme": "concentrated (elite 23% で本来の skill 集中が効く)"
+  },
+
+  "predecessor": {"id": "generic_policy_only", "policy_weights_hash": "735dd38a1b33a052"},
+  "promotion_contract": {"file": "contracts/marnie_grimmsnarl_ex_opponent_gate_v1.json", "hash": "2e7d4b254120f5cd"},
+
+  "evaluation_reports": {
+    "offline": {"metric": "Marnie held-out test top1", "generic": 0.5249, "candidate": 0.6384, "delta": 0.1135},
+    "online_mirror": {
+      "report": "results/marnie_grimmsnarl_ex/mirror_v1/marnie_grimmsnarl_ex_mirror_report.json", "report_hash": "7ef7340d10d75e82",
+      "sprt": {"delta_min": 0.03, "alpha": 0.05, "beta": 0.10, "n_max": 600},
+      "per_recipe": {"01": {"winrate": 0.870, "sprt": "PROMOTE"}, "02": {"winrate": 0.903, "sprt": "PROMOTE"},
+                     "03": {"winrate": 0.831, "sprt": "PROMOTE"}, "04": {"winrate": 0.931, "sprt": "PROMOTE"},
+                     "05": {"winrate": 0.892, "sprt": "PROMOTE"}},
+      "aggregate": {"point": 0.8855, "one_sided_95_lower": 0.8570, "promote_recipes": "5/5", "collapse": [], "errors": 0},
+      "decision": "PROMOTE"
+    },
+    "strong_opponent_diagnostic": {
+      "report": "results/marnie_grimmsnarl_ex/strong_diagnostic_v1/marnie_grimmsnarl_ex_strong_diagnostic_report.json",
+      "report_hash": "05fb989a56feb533",
+      "matchup": "abl_5_full(Alakazam Champion) vs Marnie Champion v1",
+      "games_per_recipe": 200, "total_games": 1000, "errors": 0,
+      "per_recipe_alakazam_winrate": {"01": 0.535, "02": 0.325, "03": 0.485, "04": 0.415, "05": 0.450},
+      "aggregate_alakazam_winrate": 0.4420,
+      "baseline_vs_generic_marnie_frozen": 0.840,
+      "delta_vs_baseline": -0.398,
+      "interpretation": "強い Marnie opponent により Alakazam の対 Marnie 勝率が 0.840→0.442(−39.8pt)。opponent 強化の証拠で Alakazam の弱化ではない。Reference Pool v1 の 0.840 は不変。"
+    }
+  },
+
+  "scope_guard": {"reference_pool_v1_unchanged_hash": "96868ca9ee34ea4f",
+                  "gate2_contract_v1_unchanged_hash": "ea496e9a23839c39"}
+}

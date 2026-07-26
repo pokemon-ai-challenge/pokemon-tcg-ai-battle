@@ -1,0 +1,13 @@
+{
+  "archetype": "gekkouga_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "CrazyDave111",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86824605",
+      "player_index": 0
+    }
+  ]
+}

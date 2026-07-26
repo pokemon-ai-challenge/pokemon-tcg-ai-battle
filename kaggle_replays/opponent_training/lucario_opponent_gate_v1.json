@@ -1,0 +1,77 @@
+{
+  "version": "lucario_opponent_gate_v1",
+  "created_at": "2026-07-26",
+  "status": "FROZEN (pre-registration, ユーザー承認済 2026-07-26)。online 結果を見た後に閾値を変更しない。",
+  "purpose": "Mega Lucario 専用 BC(policy_weights_mega_lucario_ex.json)が現 generic policy-only Lucario opponent より明確に強い Lucario 操縦者かを判定し、将来の Reference Pool v2 用 strong opponent 昇格可否を決める。Reference Pool v1 / Gate2 Contract v1 は変更しない。",
+
+  "scope_guard": {
+    "reference_pool_v1_frozen_hash": "96868ca9ee34ea4f",
+    "gate2_contract_v1_frozen_hash": "ea496e9a23839c39",
+    "alakazam_vs_generic_lucario_baseline": 0.820,
+    "note": "この2つの hash と 0.820 baseline は本 gate 実行中も不変。Lucario 強化結果は strong-opponent diagnostic として別保存。"
+  },
+
+  "candidate": {"agent": "ml_policy", "config": "abl_2_policy_only", "config_hash": "bd89340c3bd5da8c",
+                "weights": "policy_weights_mega_lucario_ex.json", "weights_hash": "c4ca3599ec89a520",
+                "own_deck_safe": true, "own_deck_safe_reason": "consequence_fields=[] → policy 判定に own-deck identity 不使用(Open #9)"},
+  "control": {"agent": "ml_policy", "config": "abl_2_policy_only", "config_hash": "bd89340c3bd5da8c",
+              "weights": "policy_weights.json (generic)", "weights_hash": "735dd38a1b33a052",
+              "own_deck_safe": true},
+  "explicit_own_deck_injection": false,
+  "run_type": "lucario_opponent_promotion",
+  "gate2_contract_used": false,
+
+  "recipes": {
+    "source": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/",
+    "allocation": "fixed per-recipe(各 recipe 独立 mirror stratum)。実験開始後に変更しない。",
+    "list": [
+      {"recipe_id": "01", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/01.csv", "deck_hash": "fa5a4930844f6440"},
+      {"recipe_id": "02", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/02.csv", "deck_hash": "b9e592461cc3aa19"},
+      {"recipe_id": "03", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/03.csv", "deck_hash": "199b7489f984ec61"},
+      {"recipe_id": "04", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/04.csv", "deck_hash": "548ab92430293fb3"},
+      {"recipe_id": "05", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/05.csv", "deck_hash": "406e2e9bd6ae82b8"}
+    ]
+  },
+
+  "sprt": {"delta_min": 0.03, "alpha": 0.05, "beta": 0.10, "n_max": 600,
+           "per_recipe": true, "note": "recipe 単位は同一デッキ mirror=iid Bernoulli で valid。混合 5-recipe 系列に単一 SPRT を使わない。"},
+
+  "aggregate": {
+    "weighting": "recipe_uniform (各 recipe 等重み)。全 game を pool した単一 Bernoulli にはしない。",
+    "point_metric": "recipe-uniform mean Candidate 勝率 = (1/k)Σ p_r",
+    "ci_method": "stratified_wald_one_sided_95 (Var=Σ(1/k)² p_r(1−p_r)/n_r, z=1.6449)",
+    "practical_threshold": 0.53,
+    "statistical_threshold": "one_sided_95_lower > 0.50",
+    "rationale": "mirror tie=0.50。Gate2 同様 practical(点 ≥ 0.53=最低+3pt)と statistical(下限 > 0.50=generic 超えに統計的根拠)を分離。両方満たすことを要求。"
+  },
+
+  "recipe_requirement": {"promote_count_min": 4, "total": 5,
+                         "rationale": "5/5 は単一 recipe の noise で阻害され得る。3/5 は Champion を名乗るには弱い。ほぼ全 recipe で改善=4/5 に固定。"},
+
+  "collapse_guard": {"point_winrate_lt": 0.45, "wilson95_upper_lt": 0.50,
+                     "rationale": "ある recipe で BC が generic より明確に大幅悪化。48% 程度の noise で即 FAIL にしない(0.45 かつ CI 上端<0.50 を要求)。"},
+
+  "decision": {
+    "offline_precondition": {"metric": "Lucario held-out test top1", "generic": 0.4393, "lucario_bc": 0.7037,
+                             "delta": 0.2644, "status": "MET(+26.4pt)"},
+    "PROMOTE": "offline MET ∧ (≥4/5 recipe SPRT=PROMOTE) ∧ (aggregate point ≥ 0.53 ∧ one-sided 95% lower > 0.50) ∧ collapse なし ∧ integrity OK(error≤1%)。",
+    "FAIL": "過半 recipe が FUTILITY ∨ collapse 発火 ∨ integrity failure。",
+    "REVIEW": "上記いずれでもない(例: 3/5 PROMOTE+2/5 TRUNCATED、aggregate 正だが CI 不足)。N 使い切りで無理に二値化しない。「昇格せず」≠「弱い」。"
+  },
+
+  "strong_opponent_diagnostic": {
+    "run_when": "PROMOTE 時のみ(診断価値が高いと別途判断すれば分離実行可)",
+    "matchup": {"alakazam": {"agent": "ml_policy", "config": "abl_5_full", "weights": "production"},
+                "lucario": {"agent": "ml_policy", "config": "abl_2_policy_only", "weights": "policy_weights_mega_lucario_ex.json"}},
+    "allocation": "各 recipe fixed-N 200 = 1000 games、手番交互。単一 pool SPRT にしない=fixed-N diagnostic。",
+    "run_type": "strong_opponent_diagnostic",
+    "report": "recipe 別 Alakazam 勝率 + Wilson CI + P0/P1 + terminal、recipe-uniform aggregate + stratified CI。frozen 0.820 との差(診断のみ、Reference Pool v1 非変更)。"
+  },
+
+  "champion_registry_schema": {
+    "fields": ["archetype", "version", "algorithm_type", "deck_recipes", "policy_weights", "value_weights",
+               "training_origin", "predecessor", "promotion_contract", "evaluation_reports", "status"]
+  },
+
+  "freeze_hash": "TBD (この JSON 自身の hash。書き出し後に記録)"
+}
