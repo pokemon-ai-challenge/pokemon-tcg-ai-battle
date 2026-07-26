@@ -2,7 +2,7 @@
   "name": "rule_lethal",
   "use_real_hidden_state": false,
   "ml_policy": {
-    "enabled": false
+    "enabled": true
   },
   "lethal_search": {
     "enabled": true,

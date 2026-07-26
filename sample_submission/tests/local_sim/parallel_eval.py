@@ -104,13 +104,38 @@ def _run_chunk(job: dict) -> dict:
             return opp_deck
         return rng.sample(range(len(obs.select.option)), obs.select.maxCount)
 
+    # --- 直接対戦モード -----------------------------------------------------
+    # 両プレイヤーが同じ agent() を通るため、フラグをプレイヤー単位で切り替える。
+    # 本番コードは変更せず、ハーネス側で「手番のプレイヤーが対照群側なら方策を
+    # 使わない(None を返す)」ようにラップする。None は既存の素通し経路であり、
+    # 呼び出し側はそのまま router.route へ落ちる。
+    ml_seat = {"value": 0}
+    if job["head_to_head"]:
+        from ptcg_ai.action_selection import selector
+
+        _orig_ml = selector._ml_policy_action
+
+        def _per_player(obs, select):
+            acting = obs.current.yourIndex if obs.current is not None else 0
+            if acting != ml_seat["value"]:
+                return None                      # 対照群: ルールベースのみ
+            return _orig_ml(obs, select)
+
+        selector._ml_policy_action = _per_player
+
     counts = Counter()
     steps_total = 0
     for i in range(job["games"]):
         match_context.reset()
-        seat = (job["seat_start"] + i) % 2      # 自分が先手か後手か
-        p0, p1 = (agent, random_agent) if seat == 0 else (random_agent, agent)
-        d0, d1 = (my_deck, opp_deck) if seat == 0 else (opp_deck, my_deck)
+        seat = (job["seat_start"] + i) % 2      # 自分（実験群）が先手か後手か
+        if job["head_to_head"]:
+            # 両者とも agent()。学習方策を使うのは seat 側だけ
+            ml_seat["value"] = seat
+            p0 = p1 = agent
+            d0, d1 = my_deck, opp_deck
+        else:
+            p0, p1 = (agent, random_agent) if seat == 0 else (random_agent, agent)
+            d0, d1 = (my_deck, opp_deck) if seat == 0 else (opp_deck, my_deck)
 
         obs_dict, start = battle_start(d0, d1)
         if start.errorType != 0:
@@ -147,7 +172,7 @@ def _run_chunk(job: dict) -> dict:
     }
 
 
-def build_jobs(arms, opponents, my_deck, games, workers, seed):
+def build_jobs(arms, opponents, my_deck, games, workers, seed, head_to_head=False):
     """条件 × 相手デッキ を、ワーカー数ぶんのチャンクに割る。"""
     jobs = []
     for arm in arms:
@@ -169,6 +194,7 @@ def build_jobs(arms, opponents, my_deck, games, workers, seed):
                     # hash() は文字列に対しプロセスごとにランダム化されるため使えない
                     # (実行するたびに種が変わり再現しなくなる)。crc32 を使う。
                     "seed": seed + w * 7919 + zlib.crc32(opp_name.encode()) % 100000,
+                    "head_to_head": head_to_head,
                 })
                 offset += n
     return jobs
@@ -184,9 +210,12 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
                     help="並列プロセス数。既定は 論理コア数-2（操作不能を避けるため）")
     ap.add_argument("--seed", type=int, default=20260727)
+    ap.add_argument("--head-to-head", action="store_true",
+                    help="学習方策 vs ルールベースの直接対戦。両者とも agent() を通し、"
+                         "手番のプレイヤーに応じて方策を切り替える。--arm は on 固定")
     args = ap.parse_args()
 
-    arms = args.arm or ["off", "on"]
+    arms = ["on"] if args.head_to_head else (args.arm or ["off", "on"])
 
     sys.path.insert(0, str(SAMPLE_SUBMISSION_ROOT))
     os.chdir(SAMPLE_SUBMISSION_ROOT)
@@ -200,8 +229,13 @@ def main() -> None:
         names = sorted(pool) if args.opponents == "all" else args.opponents.split(",")
         opponents = [(n, pool[n]["deck"]) for n in names]
 
-    jobs = build_jobs(arms, opponents, my_deck, args.games, args.workers, args.seed)
+    jobs = build_jobs(arms, opponents, my_deck, args.games, args.workers, args.seed,
+                      head_to_head=args.head_to_head)
     total = sum(j["games"] for j in jobs)
+    if args.head_to_head:
+        print("直接対戦モード: 学習方策 vs ルールベース（勝率50%が「差なし」の基準）")
+        print("  注意: match_context は両プレイヤーで共有され Belief が汚染される。"
+              "両者に等しく影響するため比較は成立するが、完全にクリーンではない。")
     print(f"{len(arms)}条件 × 相手{len(opponents)}種 × {args.games}試合 = {total:,}試合")
     print(f"{args.workers} プロセスで実行（論理コア {os.cpu_count()}）", flush=True)
 
