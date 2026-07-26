@@ -1,0 +1,148 @@
+{
+  "competition": "pokemon-tcg-ai-battle",
+  "run_id": "20260725T160856Z",
+  "fetched_at": "2026-07-25T16:08:56.488077+00:00",
+  "top_n": 20,
+  "leaderboard": [
+    {
+      "rank": 1,
+      "teamId": 16400014,
+      "teamName": "__Taichicchi__",
+      "submissionDate": "2026-07-23T18:40:47.763000",
+      "score": "1188.4"
+    },
+    {
+      "rank": 2,
+      "teamId": 16489606,
+      "teamName": "junseo lee",
+      "submissionDate": "2026-07-25T15:06:17.576000",
+      "score": "1153.9"
+    },
+    {
+      "rank": 3,
+      "teamId": 16376653,
+      "teamName": "szlachetny snieg",
+      "submissionDate": "2026-07-25T11:04:49.150000",
+      "score": "1138.5"
+    },
+    {
+      "rank": 4,
+      "teamId": 16375647,
+      "teamName": "zoroark190",
+      "submissionDate": "2026-07-24T15:18:14.033000",
+      "score": "1136.9"
+    },
+    {
+      "rank": 5,
+      "teamId": 16374395,
+      "teamName": "Majkel1337",
+      "submissionDate": "2026-07-25T00:37:15.153000",
+      "score": "1125.9"
+    },
+    {
+      "rank": 6,
+      "teamId": 16514212,
+      "teamName": "Dieter",
+      "submissionDate": "2026-07-23T22:01:43.286000",
+      "score": "1125.2"
+    },
+    {
+      "rank": 7,
+      "teamId": 16381823,
+      "teamName": "Yushin Ito",
+      "submissionDate": "2026-07-17T02:27:09.746000",
+      "score": "1123.8"
+    },
+    {
+      "rank": 8,
+      "teamId": 16425135,
+      "teamName": "Rmy",
+      "submissionDate": "2026-07-22T09:24:03.466000",
+      "score": "1116.1"
+    },
+    {
+      "rank": 9,
+      "teamId": 16371427,
+      "teamName": "bono",
+      "submissionDate": "2026-07-25T02:08:11.096000",
+      "score": "1115.5"
+    },
+    {
+      "rank": 10,
+      "teamId": 16514272,
+      "teamName": "Dominic Peel",
+      "submissionDate": "2026-07-24T08:14:43.220000",
+      "score": "1115.5"
+    },
+    {
+      "rank": 11,
+      "teamId": 16371653,
+      "teamName": "213tubo",
+      "submissionDate": "2026-07-25T09:18:23.633000",
+      "score": "1114.0"
+    },
+    {
+      "rank": 12,
+      "teamId": 16587379,
+      "teamName": "matheus",
+      "submissionDate": "2026-07-25T10:23:55.740000",
+      "score": "1111.0"
+    },
+    {
+      "rank": 13,
+      "teamId": 16422150,
+      "teamName": "junlee789",
+      "submissionDate": "2026-07-24T00:54:45.286000",
+      "score": "1105.3"
+    },
+    {
+      "rank": 14,
+      "teamId": 16372380,
+      "teamName": "THIRD PTCG Club",
+      "submissionDate": "2026-07-24T12:02:18.160000",
+      "score": "1095.0"
+    },
+    {
+      "rank": 15,
+      "teamId": 16461850,
+      "teamName": "Eduardo Rocha de Andrade",
+      "submissionDate": "2026-07-22T17:57:59.293000",
+      "score": "1092.8"
+    },
+    {
+      "rank": 16,
+      "teamId": 16446951,
+      "teamName": "NIWATORI",
+      "submissionDate": "2026-07-25T01:07:32.150000",
+      "score": "1092.1"
+    },
+    {
+      "rank": 17,
+      "teamId": 16385372,
+      "teamName": "kashiwashira",
+      "submissionDate": "2026-07-25T15:21:18.876000",
+      "score": "1092.1"
+    },
+    {
+      "rank": 18,
+      "teamId": 16401597,
+      "teamName": "Benarg",
+      "submissionDate": "2026-07-23T23:55:46.573000",
+      "score": "1091.9"
+    },
+    {
+      "rank": 19,
+      "teamId": 16408505,
+      "teamName": "JZ",
+      "submissionDate": "2026-07-25T04:59:03.830000",
+      "score": "1085.9"
+    },
+    {
+      "rank": 20,
+      "teamId": 16411724,
+      "teamName": "me and the lads",
+      "submissionDate": "2026-07-24T08:19:19.816000",
+      "score": "1085.4"
+    }
+  ]
+}
