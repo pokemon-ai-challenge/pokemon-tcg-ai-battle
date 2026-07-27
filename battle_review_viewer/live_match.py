@@ -44,6 +44,10 @@ try:
 except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォールバック
     from value_eval_debug import build_value_eval_debug  # noqa: E402
 try:
+    from .retreat_debug import build_retreat_debug  # noqa: E402
+except ImportError:  # noqa: BLE001 -- スクリプト実行時のフォールバック
+    from retreat_debug import build_retreat_debug  # noqa: E402
+try:
     from ptcg_ai.hidden_information.own_hidden_state import OwnHiddenState  # noqa: E402
     from ptcg_ai.hidden_information.opponent_hidden_state import OpponentHiddenState  # noqa: E402
 except Exception:  # noqa: BLE001 -- 非公開情報推定レイヤーが無い/壊れていてもライブモードは続行する
@@ -272,6 +276,9 @@ class LiveMatchSession:
             visual_current=current,
         )
 
+        # にげる判断の確率化(probabilistic_ko)。feature/bayesian-agent 参照。
+        retreat_ko = build_retreat_debug(obs.current)
+
         return {
             "features": self.opponent_knowledge.get_prediction_features(),
             "diff": diff,
@@ -279,6 +286,7 @@ class LiveMatchSession:
             "ml_prediction": ml_prediction,
             "value_eval": value_eval,
             "hidden_info": hidden_info,
+            "retreat_ko": retreat_ko,
         }
 
     def _apply_action_locked(self, action: list[int], player_index: int) -> None:

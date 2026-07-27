@@ -67,6 +67,10 @@ try:
 except ImportError:
     from value_eval_debug import build_value_eval_debug  # noqa: E402
 try:
+    from .retreat_debug import build_retreat_debug  # noqa: E402
+except ImportError:
+    from retreat_debug import build_retreat_debug  # noqa: E402
+try:
     from ptcg_ai.hidden_information.own_hidden_state import OwnHiddenState  # noqa: E402
     from ptcg_ai.hidden_information.opponent_hidden_state import OpponentHiddenState  # noqa: E402
 except Exception:  # noqa: BLE001 -- 非公開情報推定レイヤーが無い/壊れていてもリプレイ生成は続行する
@@ -214,6 +218,9 @@ def build_opponent_knowledge_debug(
         own_state, opponent_state, _ml_predictor, knowledge, real_state, select, visual_current=visual_current
     )
 
+    # にげる判断の確率化(probabilistic_ko)。feature/bayesian-agent 参照。
+    retreat_ko = build_retreat_debug(real_state)
+
     return {
         "features": knowledge.get_prediction_features(),
         "diff": diff,
@@ -221,6 +228,7 @@ def build_opponent_knowledge_debug(
         "ml_prediction": ml_prediction,
         "value_eval": value_eval,
         "hidden_info": hidden_info,
+        "retreat_ko": retreat_ko,
     }
 
 

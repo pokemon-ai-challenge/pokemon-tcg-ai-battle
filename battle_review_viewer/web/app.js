@@ -324,6 +324,23 @@ UI.ja.valueEvalSelfLabel = "自分";
 UI.ja.valueEvalOpponentLabel = "相手";
 UI.ja.valueEvalTurnLabel = "ターン";
 UI.ja.valueEvalCaveat = "※ 序盤(ターン1-2)は識別力が低いことが分かっています(オフライン評価: AUC≈0.53)。中盤以降の値を重視してください。";
+UI.ja.debugViewRetreatKo = "にげる判断";
+UI.ja.retreatKoNoData = "この replay にはにげる判断データがありません（古い replay か、推定レイヤーが無効）。新しく生成すると出ます。";
+UI.ja.retreatKoNoActive = "自分のアクティブポケモンがいません。";
+UI.ja.retreatKoActiveHeading = "アクティブ";
+UI.ja.retreatKoCandidateHeading = "にげ先候補（最有力）";
+UI.ja.retreatKoNoCandidate = "にげ先候補なし（ベンチが空）";
+UI.ja.retreatKoProbabilityLabel = "確率(新)";
+UI.ja.retreatKoBooleanLabel = "旧ブール判定";
+UI.ja.retreatKoConfigLabel = "config";
+UI.ja.retreatKoThresholdLabel = "閾値";
+UI.ja.retreatKoDecisionHeading = "トリガーA判定（次ターンKO回避）";
+UI.ja.retreatKoDecisionNew = "新（確率版）";
+UI.ja.retreatKoDecisionOld = "旧（ブール版）";
+UI.ja.retreatKoYes = "にげる";
+UI.ja.retreatKoNo = "にげない";
+UI.ja.retreatKoNotApplicable = "判定不可（にげ先候補なし）";
+UI.ja.retreatKoNote = "※ ここに表示されるのはトリガーA（次ターンKO回避）のみ。トリガーB（後退での即きぜつ）は別ロジックのため対象外。";
 UI.en.debugHeading = "Debug";
 UI.en.debugViewOpponentKnowledge = "Opponent Knowledge";
 UI.en.debugViewDeckPredictor = "Deck Predictor";
@@ -353,6 +370,23 @@ UI.en.valueEvalSelfLabel = "You";
 UI.en.valueEvalOpponentLabel = "Opponent";
 UI.en.valueEvalTurnLabel = "Turn";
 UI.en.valueEvalCaveat = "Note: discriminative power is known to be low in the early game (turns 1-2, offline AUC≈0.53). Weight mid-game and later values more heavily.";
+UI.en.debugViewRetreatKo = "Retreat Decision";
+UI.en.retreatKoNoData = "This replay has no retreat-decision data (old replay, or the estimation layer is disabled). Regenerate the replay to see it.";
+UI.en.retreatKoNoActive = "No active Pokemon.";
+UI.en.retreatKoActiveHeading = "Active";
+UI.en.retreatKoCandidateHeading = "Best retreat candidate";
+UI.en.retreatKoNoCandidate = "No retreat candidate (bench is empty)";
+UI.en.retreatKoProbabilityLabel = "Probability (new)";
+UI.en.retreatKoBooleanLabel = "Old boolean";
+UI.en.retreatKoConfigLabel = "config";
+UI.en.retreatKoThresholdLabel = "threshold";
+UI.en.retreatKoDecisionHeading = "Trigger A verdict (avoid next-turn KO)";
+UI.en.retreatKoDecisionNew = "New (probability)";
+UI.en.retreatKoDecisionOld = "Old (boolean)";
+UI.en.retreatKoYes = "Retreat";
+UI.en.retreatKoNo = "Stay";
+UI.en.retreatKoNotApplicable = "N/A (no retreat candidate)";
+UI.en.retreatKoNote = "Note: only Trigger A (avoid next-turn KO) is shown here. Trigger B (immediate KO via switch) is a separate mechanism and out of scope.";
 
 const ZONE_LABEL = {
   active: { ja: "バトル場", en: "active" },
@@ -886,6 +920,7 @@ function applyLang() {
   set("hiddenInfoOwnHeading", t("hiddenInfoOwnHeading"));
   set("hiddenInfoOpponentHeading", t("hiddenInfoOpponentHeading"));
   set("valueEvalHeading", t("debugViewValueEval"));
+  set("retreatKoHeading", t("debugViewRetreatKo"));
   set("generatePlayerPolicyLabel", lang === "ja" ? "自分のCPU" : "Your CPU");
   set("generateOpponentLabel", lang === "ja" ? "相手のCPU" : "Opponent CPU");
   set("generatePlayerDeckLabel", lang === "ja" ? "自分のデッキ" : "Your deck");
@@ -1214,6 +1249,7 @@ function render() {
   renderMlDeckPredictor(debugEntry);
   renderHiddenInformation(debugEntry);
   renderValueEval(debugEntry);
+  renderRetreatKoDebug(debugEntry);
   renderStadium(current.stadium || [], selectedRefs, actionableRefs);
 
   renderPlayer(opponent, OPPONENT_INDEX, selectedRefs, actionableRefs, {
@@ -2509,6 +2545,72 @@ function renderValueEval(entry) {
     <div class="value-eval-caveat">${escapeHtml(t("valueEvalCaveat"))}</div>`;
 }
 
+// feature/bayesian-agent: probabilistic_ko（にげる判断の確率化）のデバッグ表示。
+// board_features.likely_ko_probability_next_turn() / is_likely_ko_next_turn() の値と
+// トリガーA相当の判定結果を表示する。生成は export_replay.py / live_match.py が
+// retreat_debug.py の build_retreat_debug() 経由で行い、debug.retreat_ko に入る。
+function retreatKoPokemonRow(pokemon) {
+  const prob = Math.max(0, Math.min(100, pokemon.probability * 100));
+  return `
+    <div class="value-eval-row">
+      <span class="value-eval-label">${escapeHtml(t("retreatKoProbabilityLabel"))}</span>
+      <span class="value-eval-track"><span class="value-eval-fill value-eval-fill-opp" style="width:${prob.toFixed(1)}%"></span></span>
+      <span class="value-eval-pct">${prob.toFixed(1)}%</span>
+    </div>
+    <div class="hidden-info-note">${escapeHtml(t("retreatKoBooleanLabel"))}: ${pokemon.old_boolean ? escapeHtml(t("retreatKoYes")) : escapeHtml(t("retreatKoNo"))}</div>`;
+}
+
+function retreatKoDecisionText(value) {
+  if (value === null || value === undefined) return t("retreatKoNotApplicable");
+  return value ? t("retreatKoYes") : t("retreatKoNo");
+}
+
+function renderRetreatKoDebug(entry) {
+  const statusEl = document.getElementById("retreatKoStatus");
+  const contentEl = document.getElementById("retreatKoContent");
+  if (!statusEl || !contentEl) return;
+
+  const retreatKo = entry?.debug?.retreat_ko;
+  if (!retreatKo) {
+    statusEl.className = "diagnostic-status";
+    statusEl.textContent = t("retreatKoNoData");
+    contentEl.innerHTML = "";
+    return;
+  }
+  if (retreatKo.error) {
+    statusEl.className = "diagnostic-status diagnostic-bad";
+    statusEl.textContent = `${lang === "ja" ? "推定レイヤーエラー: " : "Estimation layer error: "}${retreatKo.error}`;
+    contentEl.innerHTML = "";
+    return;
+  }
+  if (!retreatKo.has_active) {
+    statusEl.className = "diagnostic-status";
+    statusEl.textContent = t("retreatKoNoActive");
+    contentEl.innerHTML = "";
+    return;
+  }
+
+  statusEl.className = "diagnostic-status diagnostic-ok";
+  statusEl.textContent = `${t("retreatKoConfigLabel")}: enabled=${retreatKo.config.enabled} / ${t("retreatKoThresholdLabel")}=${(retreatKo.config.threshold * 100).toFixed(0)}%`;
+
+  const active = retreatKo.active;
+  const candidate = retreatKo.candidate;
+  const decision = retreatKo.would_retreat || {};
+
+  const candidateHtml = candidate
+    ? `<h4 class="panel-subhead">${escapeHtml(t("retreatKoCandidateHeading"))}: ${escapeHtml(candidate.name)} (HP ${candidate.hp}/${candidate.max_hp})</h4>${retreatKoPokemonRow(candidate)}`
+    : `<h4 class="panel-subhead">${escapeHtml(t("retreatKoCandidateHeading"))}</h4><span class="chip chip-empty">${escapeHtml(t("retreatKoNoCandidate"))}</span>`;
+
+  contentEl.innerHTML = `
+    <h4 class="panel-subhead">${escapeHtml(t("retreatKoActiveHeading"))}: ${escapeHtml(active.name)} (HP ${active.hp}/${active.max_hp})</h4>
+    ${retreatKoPokemonRow(active)}
+    ${candidateHtml}
+    <h4 class="panel-subhead">${escapeHtml(t("retreatKoDecisionHeading"))}</h4>
+    <div class="hidden-info-note">${escapeHtml(t("retreatKoDecisionNew"))}: ${escapeHtml(retreatKoDecisionText(decision.new))}</div>
+    <div class="hidden-info-note">${escapeHtml(t("retreatKoDecisionOld"))}: ${escapeHtml(retreatKoDecisionText(decision.old))}</div>
+    <div class="value-eval-caveat">${escapeHtml(t("retreatKoNote"))}</div>`;
+}
+
 function renderStadium(stadium, selectedRefs, actionableRefs) {
   const container = document.getElementById("stadiumSlot");
   if (!stadium.length) {
@@ -3344,6 +3446,7 @@ const DEBUG_VIEWS = [
   { id: "mlDeckPredictor", labelKey: "debugViewMlDeckPredictor" },
   { id: "hiddenInformation", labelKey: "debugViewHiddenInformation" },
   { id: "valueEval", labelKey: "debugViewValueEval" },
+  { id: "retreatKo", labelKey: "debugViewRetreatKo" },
 ];
 let activeDebugView = DEBUG_VIEWS[0].id;
 
