@@ -21,6 +21,10 @@ DEFAULT_CONFIG: dict = {
     "lethal_search": {
         "enabled": False,
     },
+    "probabilistic_ko": {
+        "enabled": False,
+        "threshold": 0.2,
+    },
 }
 
 

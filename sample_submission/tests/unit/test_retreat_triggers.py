@@ -50,6 +50,10 @@ def _make_obs(*, active, bench, retreated=False):
 
 def _patch_common(monkeypatch, *, can_afford_retreat=True):
     monkeypatch.setattr(energy_requirements, "can_afford_retreat", lambda cost, energies: can_afford_retreat)
+    # 既定では probabilistic_ko を無効化し、実ファイル(configs/rule_lethal.json)の値に関わらず
+    # 従来のブール判定(is_likely_ko_next_turn)経路を決定的にテストする。確率経路自体のテストは
+    # 下の「probabilistic_ko」セクションで個別に _CONFIG_CACHE を上書きする。
+    monkeypatch.setattr(retreat, "_CONFIG_CACHE", {"probabilistic_ko": {"enabled": False}})
 
 
 def test_no_retreat_when_no_threat_and_no_ko_opportunity(monkeypatch):
@@ -184,4 +188,104 @@ def test_no_retreat_when_bench_is_empty(monkeypatch):
 
     monkeypatch.setattr(board_features, "is_likely_ko_next_turn", lambda pokemon, state, your_index: True)
 
+    assert retreat.propose(obs) is None
+
+
+# --- probabilistic_ko (ベイズ推定によるトリガーAの確率化) -----------------------------------
+#
+# is_likely_ko_next_turn の代わりに board_features.likely_ko_probability_next_turn +
+# config の threshold で判定する分岐。retreat._CONFIG_CACHE を直接差し替えて
+# core.config.load_config() の実ファイル読み込みを経由せず決定的にテストする
+# （monkeypatch はテスト終了時に元の値へ自動的に戻す）。
+
+
+def test_trigger_a_probabilistic_fires_when_active_above_threshold_and_candidate_below(monkeypatch):
+    """有効時: active確率が閾値以上・候補確率が閾値未満なら逃げを提案する。"""
+    _patch_common(monkeypatch)
+    candidate = _pokemon(65, energies=[])
+    active = _pokemon(_ALAKAZAM_ID, energies=[])
+    obs = _make_obs(active=active, bench=[candidate])
+
+    monkeypatch.setattr(pokemon_value, "best_switch_target", lambda bench, state, your_index: candidate)
+    monkeypatch.setattr(retreat, "_CONFIG_CACHE", {"probabilistic_ko": {"enabled": True, "threshold": 0.5}})
+    monkeypatch.setattr(
+        board_features,
+        "likely_ko_probability_next_turn",
+        lambda pokemon, state, your_index: 0.8 if pokemon is active else 0.2,
+    )
+    monkeypatch.setattr(attack_features, "can_ko_with_any_available_attack", lambda *a, **k: False)
+
+    proposal = retreat.propose(obs)
+    assert proposal is not None
+    assert proposal.category == "retreat"
+
+
+def test_trigger_a_probabilistic_does_not_fire_when_active_below_threshold(monkeypatch):
+    """active確率が閾値未満なら、旧ブール判定ならTrue相当のケースでも逃げない。"""
+    _patch_common(monkeypatch)
+    candidate = _pokemon(65, energies=[])
+    active = _pokemon(_ALAKAZAM_ID, energies=[])
+    obs = _make_obs(active=active, bench=[candidate])
+
+    monkeypatch.setattr(pokemon_value, "best_switch_target", lambda bench, state, your_index: candidate)
+    monkeypatch.setattr(retreat, "_CONFIG_CACHE", {"probabilistic_ko": {"enabled": True, "threshold": 0.5}})
+    monkeypatch.setattr(board_features, "likely_ko_probability_next_turn", lambda pokemon, state, your_index: 0.3)
+    monkeypatch.setattr(attack_features, "can_ko_with_any_available_attack", lambda *a, **k: False)
+
+    assert retreat.propose(obs) is None
+
+
+def test_trigger_a_probabilistic_does_not_fire_when_candidate_also_above_threshold(monkeypatch):
+    """active・候補どちらも閾値以上なら、逃げても意味が無いので提案しない。"""
+    _patch_common(monkeypatch)
+    candidate = _pokemon(65, energies=[])
+    active = _pokemon(_ALAKAZAM_ID, energies=[])
+    obs = _make_obs(active=active, bench=[candidate])
+
+    monkeypatch.setattr(pokemon_value, "best_switch_target", lambda bench, state, your_index: candidate)
+    monkeypatch.setattr(retreat, "_CONFIG_CACHE", {"probabilistic_ko": {"enabled": True, "threshold": 0.5}})
+    monkeypatch.setattr(board_features, "likely_ko_probability_next_turn", lambda pokemon, state, your_index: 0.9)
+    monkeypatch.setattr(attack_features, "can_ko_with_any_available_attack", lambda *a, **k: False)
+
+    assert retreat.propose(obs) is None
+
+
+def test_trigger_a_falls_back_to_boolean_when_flag_disabled(monkeypatch):
+    """probabilistic_ko.enabled が False なら、確率関数を呼ばず従来のブール判定を使う（非回帰）。"""
+    _patch_common(monkeypatch)
+    candidate = _pokemon(65, energies=[])
+    active = _pokemon(_ALAKAZAM_ID, energies=[])
+    obs = _make_obs(active=active, bench=[candidate])
+
+    monkeypatch.setattr(pokemon_value, "best_switch_target", lambda bench, state, your_index: candidate)
+    monkeypatch.setattr(retreat, "_CONFIG_CACHE", {"probabilistic_ko": {"enabled": False, "threshold": 0.5}})
+
+    def fail_if_called(*a, **k):
+        raise AssertionError("probabilistic_ko 無効時は likely_ko_probability_next_turn を呼ばないはず")
+
+    monkeypatch.setattr(board_features, "likely_ko_probability_next_turn", fail_if_called)
+    monkeypatch.setattr(board_features, "is_likely_ko_next_turn", lambda pokemon, state, your_index: pokemon is active)
+    monkeypatch.setattr(attack_features, "can_ko_with_any_available_attack", lambda *a, **k: False)
+
+    proposal = retreat.propose(obs)
+    assert proposal is not None
+
+
+def test_trigger_a_respects_custom_threshold(monkeypatch):
+    """threshold をカスタム値にすると、その値で発火有無が変わる。"""
+    _patch_common(monkeypatch)
+    candidate = _pokemon(65, energies=[])
+    active = _pokemon(_ALAKAZAM_ID, energies=[])
+    obs = _make_obs(active=active, bench=[candidate])
+
+    monkeypatch.setattr(pokemon_value, "best_switch_target", lambda bench, state, your_index: candidate)
+    monkeypatch.setattr(retreat, "_CONFIG_CACHE", {"probabilistic_ko": {"enabled": True, "threshold": 0.9}})
+    monkeypatch.setattr(
+        board_features,
+        "likely_ko_probability_next_turn",
+        lambda pokemon, state, your_index: 0.8 if pokemon is active else 0.1,
+    )
+    monkeypatch.setattr(attack_features, "can_ko_with_any_available_attack", lambda *a, **k: False)
+
+    # active確率0.8 < 閾値0.9 なので発火しない（デフォルト閾値0.5なら発火するケース）。
     assert retreat.propose(obs) is None

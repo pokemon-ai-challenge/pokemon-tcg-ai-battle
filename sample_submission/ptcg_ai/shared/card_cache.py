@@ -4,10 +4,11 @@ cg.api.all_card_data() / all_attack() の結果をカードID/技IDでキャッ�
 実行中に何度も呼ぶと重い可能性があるため、プロセス内で一度だけ取得して使い回す。
 """
 
-from cg.api import Attack, CardData, all_attack, all_card_data
+from cg.api import Attack, CardData, CardType, EnergyType, all_attack, all_card_data
 
 _card_cache: dict[int, CardData] | None = None
 _attack_cache: dict[int, Attack] | None = None
+_energy_card_ids_by_type: dict[EnergyType, list[int]] | None = None
 
 
 def get_card(card_id: int) -> CardData:
@@ -26,8 +27,25 @@ def get_attack(attack_id: int) -> Attack:
     return _attack_cache[attack_id]
 
 
+def energy_card_ids_by_type() -> dict[EnergyType, list[int]]:
+    """EnergyType -> 該当する基本エネルギーカードの card_id 一覧（同タイプの再録違いを含む）。
+
+    初回呼び出し時に all_card_data() から構築してキャッシュする。
+    """
+    global _energy_card_ids_by_type
+    if _energy_card_ids_by_type is None:
+        grouped: dict[EnergyType, list[int]] = {}
+        for card in all_card_data():
+            if card.cardType != CardType.BASIC_ENERGY:
+                continue
+            grouped.setdefault(card.energyType, []).append(card.cardId)
+        _energy_card_ids_by_type = grouped
+    return _energy_card_ids_by_type
+
+
 def reset_cache() -> None:
     """テスト用: キャッシュを破棄する（対戦間でカードデータが変わることは無いため、通常は不要）。"""
-    global _card_cache, _attack_cache
+    global _card_cache, _attack_cache, _energy_card_ids_by_type
     _card_cache = None
     _attack_cache = None
+    _energy_card_ids_by_type = None

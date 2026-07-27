@@ -10,5 +10,9 @@
     "max_combinations_per_select": 128,
     "verify_shuffles": 1,
     "gust_card_ids": [1182]
+  },
+  "probabilistic_ko": {
+    "enabled": true,
+    "threshold": 0.2
   }
 }

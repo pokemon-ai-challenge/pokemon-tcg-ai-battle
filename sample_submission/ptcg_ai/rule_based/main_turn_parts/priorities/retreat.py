@@ -23,12 +23,26 @@ main_turn_parts.pokemon_value.best_switch_target に委ねる。トリガーBで
 from cg.api import Observation, OptionType
 
 from ptcg_ai.board_evaluation import attack_features, board_features, energy_requirements
+from ptcg_ai.core.config import load_config
 from ptcg_ai.rule_based.main_turn_parts import pokemon_value
 from ptcg_ai.rule_based.main_turn_parts.proposals import ActionProposal
 from ptcg_ai.shared import card_cache
 
 _URGENT_RETREAT_SCORE = 5.0  # トリガーA（回避）
 _OFFENSIVE_RETREAT_SCORE = 5.0  # トリガーB（後退での即きぜつ）。どちらも「明確に価値のある逃げ」として同格に扱う。
+
+# トリガーAの確率化（probabilistic_ko）関連。selector.py の _CONFIG_CACHE と同じパターンで、
+# retreat.propose() は router.route(obs) 経由で呼ばれ config を引数で受け取らないため、
+# 自前で core.config.load_config() を読む。
+_CONFIG_CACHE: dict | None = None
+_DEFAULT_PROBABILISTIC_KO_THRESHOLD = 0.2
+
+
+def _config() -> dict:
+    global _CONFIG_CACHE
+    if _CONFIG_CACHE is None:
+        _CONFIG_CACHE = load_config()
+    return _CONFIG_CACHE
 
 
 def propose(obs: Observation) -> ActionProposal | None:
@@ -71,7 +85,23 @@ def propose(obs: Observation) -> ActionProposal | None:
 
 
 def _trigger_a_avoid_ko(active, best_bench_target, state, your_index: int) -> bool:
-    """トリガーA: 次ターンKOされそう、かつ逃げれば実際に助かる（候補も即死しない）。"""
+    """トリガーA: 次ターンKOされそう、かつ逃げれば実際に助かる（候補も即死しない）。
+
+    config の probabilistic_ko.enabled が真の場合は、is_likely_ko_next_turn の
+    ブール判定の代わりに board_features.likely_ko_probability_next_turn（ベイズ推定による
+    確率）と threshold を比較する。active/候補どちらも必ず同じ判定方式（確率 or ブール）で
+    揃える（片方だけ確率化すると「安全」の意味がズレるため）。フラグが偽（既定）なら
+    従来のブール判定のまま（非回帰）。
+    """
+    cfg = (_config() or {}).get("probabilistic_ko") or {}
+    if cfg.get("enabled", False):
+        threshold = cfg.get("threshold", _DEFAULT_PROBABILISTIC_KO_THRESHOLD)
+        active_prob = board_features.likely_ko_probability_next_turn(active, state, your_index)
+        if active_prob < threshold:
+            return False
+        candidate_prob = board_features.likely_ko_probability_next_turn(best_bench_target, state, your_index)
+        return candidate_prob < threshold
+
     if not board_features.is_likely_ko_next_turn(active, state, your_index):
         return False
     return not board_features.is_likely_ko_next_turn(best_bench_target, state, your_index)
