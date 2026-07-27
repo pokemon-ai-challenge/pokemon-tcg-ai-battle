@@ -23,6 +23,12 @@
     # 上位アーキタイプ5種を相手にしたガントレット
     python tests/local_sim/parallel_eval.py --games 200 --opponents all --arm off --arm on
 
+    # 直接対戦: 汎用方策 vs ルールベース（ミラーデッキ）
+    python tests/local_sim/parallel_eval.py --games 1000 --head-to-head
+
+    # 直接対戦: 汎用方策 vs アーキタイプ専用方策（相手は専用デッキ＋専用モデル）
+    python tests/local_sim/parallel_eval.py --games 200 --head-to-head --opponent-pool         --opponents archetype1,archetype2,archetype3,archetype4
+
 相手の方策はランダム固定。したがって本スクリプトが測るのは「相手のデッキ構成が
 変わっても勝てるか」であって「強い相手に勝てるか」ではない。
 """
@@ -42,6 +48,11 @@ from pathlib import Path
 LOCAL_SIM_DIR = Path(__file__).resolve().parent
 SAMPLE_SUBMISSION_ROOT = LOCAL_SIM_DIR.parents[1]
 OPPONENT_DECKS = LOCAL_SIM_DIR / "opponent_decks.json"
+# アーキタイプ別の学習済み重み（再生成可能なので .gitignore 済み。
+# 無ければ相手はルールベースになる旨を警告して続行する）
+ARCHETYPE_WEIGHTS_DIR = (
+    SAMPLE_SUBMISSION_ROOT.parent / "kaggle_replays" / "policy_prior" / "output"
+)
 
 # 機能フラグの組み合わせ。名前 -> 環境変数
 ARMS: dict[str, dict[str, str]] = {
@@ -112,13 +123,29 @@ def _run_chunk(job: dict) -> dict:
     ml_seat = {"value": 0}
     if job["head_to_head"]:
         from ptcg_ai.action_selection import selector
+        from ptcg_ai.learning import policy_model
 
         _orig_ml = selector._ml_policy_action
+        # 自分側は既定の重み（提出しているモデル）
+        own_model = policy_model.PolicyModel()
+        # 相手側: 重みが指定されていればそれを使う。無指定なら相手はルールベース
+        opp_model = (
+            policy_model.PolicyModel(job["opp_weights"]) if job["opp_weights"] else None
+        )
 
         def _per_player(obs, select):
+            """手番のプレイヤーごとに使うモデルを差し替える。
+
+            selector はモデルをモジュール変数に1つだけ持つ設計なので、呼ぶ直前に
+            差し替える。本番コードは変更しない（差し替えはこのハーネス内だけ）。
+            """
             acting = obs.current.yourIndex if obs.current is not None else 0
-            if acting != ml_seat["value"]:
-                return None                      # 対照群: ルールベースのみ
+            if acting == ml_seat["value"]:
+                selector._POLICY_MODEL_CACHE = own_model
+                return _orig_ml(obs, select)
+            if opp_model is None:
+                return None                      # 相手はルールベース
+            selector._POLICY_MODEL_CACHE = opp_model
             return _orig_ml(obs, select)
 
         selector._ml_policy_action = _per_player
@@ -172,8 +199,10 @@ def _run_chunk(job: dict) -> dict:
     }
 
 
-def build_jobs(arms, opponents, my_deck, games, workers, seed, head_to_head=False):
+def build_jobs(arms, opponents, my_deck, games, workers, seed, head_to_head=False,
+               opp_weights=None):
     """条件 × 相手デッキ を、ワーカー数ぶんのチャンクに割る。"""
+    opp_weights = opp_weights or {}
     jobs = []
     for arm in arms:
         for opp_name, opp_deck in opponents:
@@ -195,6 +224,7 @@ def build_jobs(arms, opponents, my_deck, games, workers, seed, head_to_head=Fals
                     # (実行するたびに種が変わり再現しなくなる)。crc32 を使う。
                     "seed": seed + w * 7919 + zlib.crc32(opp_name.encode()) % 100000,
                     "head_to_head": head_to_head,
+                    "opp_weights": opp_weights.get(opp_name),
                 })
                 offset += n
     return jobs
@@ -210,6 +240,9 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
                     help="並列プロセス数。既定は 論理コア数-2（操作不能を避けるため）")
     ap.add_argument("--seed", type=int, default=20260727)
+    ap.add_argument("--opponent-pool", action="store_true",
+                    help="相手にアーキタイプ専用の学習方策を使わせる（--head-to-head と併用）。"
+                         "相手は「そのアーキタイプのデッキ + そのアーキタイプ専用モデル」になる")
     ap.add_argument("--head-to-head", action="store_true",
                     help="学習方策 vs ルールベースの直接対戦。両者とも agent() を通し、"
                          "手番のプレイヤーに応じて方策を切り替える。--arm は on 固定")
@@ -229,11 +262,29 @@ def main() -> None:
         names = sorted(pool) if args.opponents == "all" else args.opponents.split(",")
         opponents = [(n, pool[n]["deck"]) for n in names]
 
+    opp_weights: dict[str, str] = {}
+    if args.opponent_pool:
+        if not args.head_to_head:
+            raise SystemExit("--opponent-pool は --head-to-head と併用してください")
+        missing = []
+        for name, _ in opponents:
+            path = ARCHETYPE_WEIGHTS_DIR / f"policy_weights_{name}.json"
+            if path.exists():
+                opp_weights[name] = str(path)
+            else:
+                missing.append(name)
+        if missing:
+            print(f"  ! 専用モデルが見つからない相手（ルールベースになります）: {missing}")
+            print(f"    {ARCHETYPE_WEIGHTS_DIR} に policy_weights_<name>.json が必要です。")
+            print("    再生成: python policy_prior/train.py --archetype <name> "
+                  "--out policy_prior/output/policy_weights_<name>.json")
+
     jobs = build_jobs(arms, opponents, my_deck, args.games, args.workers, args.seed,
-                      head_to_head=args.head_to_head)
+                      head_to_head=args.head_to_head, opp_weights=opp_weights)
     total = sum(j["games"] for j in jobs)
     if args.head_to_head:
-        print("直接対戦モード: 学習方策 vs ルールベース（勝率50%が「差なし」の基準）")
+        who = "アーキタイプ専用の学習方策" if args.opponent_pool else "ルールベース"
+        print(f"直接対戦モード: 汎用の学習方策 vs {who}（勝率50%が「差なし」の基準）")
         print("  注意: match_context は両プレイヤーで共有され Belief が汚染される。"
               "両者に等しく影響するため比較は成立するが、完全にクリーンではない。")
     print(f"{len(arms)}条件 × 相手{len(opponents)}種 × {args.games}試合 = {total:,}試合")
