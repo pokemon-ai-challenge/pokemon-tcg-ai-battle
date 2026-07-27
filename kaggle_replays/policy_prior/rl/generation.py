@@ -127,6 +127,7 @@ def run_generations(
     accept_margin: float = 0.0,
     max_relative_step: float = 0.02,
     selfplay_opponents: str | None = None,
+    base_weights: str | None = None,
 ) -> None:
     out_dir = out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
