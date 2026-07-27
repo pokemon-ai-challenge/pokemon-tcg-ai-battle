@@ -18,6 +18,8 @@ Delta_w = alpha * Sum_t (R + F_t - b) * grad_w log pi(a_t)
 
 from __future__ import annotations
 
+import math
+
 from .policy import LinearPolicy, log_prob_gradient, softmax
 from .shaping import shaping_reward
 
@@ -82,29 +84,62 @@ def compute_batch_gradient(
         for name, value in g.items():
             grad_accum[name] += advantage * value
 
+    # decision 数で平均する。合計のままにすると歩幅がバッチサイズに比例して
+    # 変わってしまう。実際に踏んだ: 95,000 decision の合計に lr=0.05 を掛けた結果、
+    # ||Δw|| = 185 に対し ||w|| = 6.17 と元の重みの30倍動き、BCモデルが1手で
+    # 壊れた(プール勝率 48.4% -> 40.5%)。
+    # 平均にしておけば、--games-per-gen を変えても lr の意味が変わらない。
+    for name in grad_accum:
+        grad_accum[name] /= n
+
+    grad_norm = math.sqrt(sum(g * g for g in grad_accum.values()))
     diagnostics = {
         "n_decisions": n,
         "n_episodes": len(episodes),
         "baseline": baseline,
         "mean_shaping": sum_f / n,
         "mean_advantage": sum_advantage / n,
+        # 歩幅の異常に早く気づくための診断。||lr*grad|| / ||w|| が数十%を超えたら
+        # 学習率が大きすぎる(この値を見ていれば上記の事故を1世代で検知できた)。
+        "grad_norm": grad_norm,
+        "weight_norm": math.sqrt(sum(w * w for w in policy.weights)),
     }
     return grad_accum, diagnostics
 
 
-def apply_update(policy: LinearPolicy, grad: dict[str, float], lr: float) -> LinearPolicy:
+def apply_update(
+    policy: LinearPolicy,
+    grad: dict[str, float],
+    lr: float,
+    max_relative_step: float | None = None,
+) -> LinearPolicy:
     """勾配を適用した新しい ``LinearPolicy`` を返す(元の ``policy`` は変更しない)。
 
     ``intercept`` は更新しない: 全選択肢に同じ定数を足すだけなので softmax の下では
     ``softmax(score + c) == softmax(score)`` となり、方策勾配に対して不変
     (``score_i = intercept + w・x_i`` の intercept 部分は decision 内で全選択肢に共通)。
+
+    Args:
+        max_relative_step: ``||Δw|| / ||w||`` の上限。超える場合は縮小する。
+            素の ``lr`` だけで歩幅を制御するのは危うい。勾配の大きさは世代ごとに
+            変わるので、ある世代で適切だった ``lr`` が次の世代では大きすぎることが
+            ある。BCモデルを1手で壊した事故(相対変化3004%)の再発防止として、
+            **相対歩幅そのものに上限を課す**。``None`` なら無制限。
     """
+    scale = lr
+    if max_relative_step is not None:
+        w_norm = math.sqrt(sum(w * w for w in policy.weights))
+        g_norm = math.sqrt(sum(g * g for g in grad.values()))
+        if w_norm > 0 and g_norm > 0:
+            limit = max_relative_step * w_norm / g_norm
+            scale = min(lr, limit)
+
     new_weights = list(policy.weights)
     index = policy._index
     for name, g in grad.items():
         i = index.get(name)
         if i is not None:
-            new_weights[i] += lr * g
+            new_weights[i] += scale * g
     return LinearPolicy(
         feature_names=policy.feature_names,
         weights=new_weights,

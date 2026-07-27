@@ -125,6 +125,7 @@ def run_generations(
     out_dir: Path,
     seed: int,
     accept_margin: float = 0.0,
+    max_relative_step: float = 0.02,
 ) -> None:
     out_dir = out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -178,8 +179,12 @@ def run_generations(
         policy = LinearPolicy.load(accepted_path)
         grad, diag = compute_batch_gradient(policy, episodes, temperature=temperature, gamma=gamma)
         print(f"  勾配診断: {diag}")
+        _rel = min(lr, (max_relative_step * diag["weight_norm"] / diag["grad_norm"])
+                   if (max_relative_step and diag["grad_norm"]) else lr)             * diag["grad_norm"] / diag["weight_norm"] if diag["weight_norm"] else 0.0
+        print(f"  実効歩幅: ||Δw||/||w|| = {_rel:.2%}（上限 {max_relative_step:.1%}）")
 
-        candidate = apply_update(policy, grad, lr=lr)
+        candidate = apply_update(policy, grad, lr=lr,
+                                 max_relative_step=max_relative_step or None)
         candidate.meta["rl_generation"] = gen
         candidate.meta["rl_parent"] = str(accepted_path)
         candidate.meta["rl_temperature"] = temperature
@@ -242,7 +247,12 @@ def main() -> None:
                     help="評価時の相手1体あたりの試合数(--opponents の相手数倍が総試合数)")
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--gamma", type=float, default=0.99)
-    ap.add_argument("--lr", type=float, default=0.05)
+    ap.add_argument("--lr", type=float, default=5.0,
+                    help="学習率。勾配は decision 数で平均されるので、合計だった頃の"
+                         "値(0.05)とは意味が違う。実効歩幅は --max-relative-step で頭打ちになる")
+    ap.add_argument("--max-relative-step", type=float, default=0.02,
+                    help="1世代あたりの ||Δw||/||w|| の上限。勾配の大きさは世代ごとに"
+                         "変わるため lr だけでの制御は危うい。0 で無制限")
     ap.add_argument("--selfplay-workers", type=int, default=None)
     ap.add_argument("--eval-workers", type=int, default=None)
     ap.add_argument("--opponents", default=_DEFAULT_OPPONENTS)
@@ -270,6 +280,7 @@ def main() -> None:
         out_dir=args.out_dir,
         seed=args.seed,
         accept_margin=args.accept_margin,
+        max_relative_step=args.max_relative_step,
     )
 
 

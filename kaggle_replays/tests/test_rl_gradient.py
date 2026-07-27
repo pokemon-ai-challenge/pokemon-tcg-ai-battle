@@ -227,3 +227,72 @@ def test_shaping_sum_telescopes_to_terminal_term_random_trajectories():
             assert abs(total - expected) < 1e-9, (
                 f"gamma={gamma} length={length}: telescoped_sum={total} expected={expected}"
             )
+
+
+# --- バッチサイズに対する不変性（実際に踏んだ事故の回帰テスト） --------------
+
+
+def _tiny_episode(result: int) -> dict:
+    """2 decision ぶんの最小エピソード。特徴名は下の policy と揃える。"""
+    return {
+        "result": result,
+        "decisions": [
+            {
+                "features": [{"a": 1.0, "b": 0.0}, {"a": 0.0, "b": 1.0}],
+                "chosen_index": 0,
+                "own_n_prize": 6, "opp_n_prize": 6,
+            },
+            {
+                "features": [{"a": 0.5, "b": 0.5}, {"a": 0.0, "b": 2.0}],
+                "chosen_index": 1,
+                "own_n_prize": 5, "opp_n_prize": 6,
+            },
+        ],
+        "terminal": {"own_n_prize": 5, "opp_n_prize": 5},
+    }
+
+
+def test_batch_gradient_is_averaged_not_summed():
+    """勾配は decision 数で平均されること。
+
+    合計のままだと歩幅がバッチサイズに比例して変わる。実際に 95,000 decision の
+    合計に lr=0.05 を掛け、||Δw||=185（||w||=6.17 の30倍）となって BC モデルが
+    1手で壊れた（凍結プール勝率 48.4% -> 40.5%、4回とも再現）。
+    同じエピソードを2倍に複製しても勾配が変わらないことで、平均を保証する。
+    """
+    from rl.policy import LinearPolicy
+    from rl.reinforce import compute_batch_gradient
+
+    policy = LinearPolicy(
+        feature_names=["a", "b"], weights=[0.3, -0.2], intercept=0.0,
+        frequent_card_ids=[], card_attributes={}, meta={},
+    )
+    episodes = [_tiny_episode(1), _tiny_episode(-1)]
+
+    grad_1x, diag_1x = compute_batch_gradient(policy, episodes, temperature=1.0, gamma=1.0)
+    grad_2x, diag_2x = compute_batch_gradient(policy, episodes * 2, temperature=1.0, gamma=1.0)
+
+    assert diag_2x["n_decisions"] == 2 * diag_1x["n_decisions"]
+    for name, g in grad_1x.items():
+        assert abs(g - grad_2x[name]) < 1e-9, (
+            f"{name}: バッチを2倍にしたら勾配が変わった（{g} -> {grad_2x[name]}）。"
+            "平均ではなく合計になっている疑い"
+        )
+
+
+def test_diagnostics_expose_step_size():
+    """歩幅の異常を検知できる診断が出ること。
+
+    grad_norm と weight_norm があれば ||lr*grad|| / ||w|| を見て、学習率が
+    大きすぎることに1世代で気づける。上記の事故はこれが無くて見逃した。
+    """
+    from rl.policy import LinearPolicy
+    from rl.reinforce import compute_batch_gradient
+
+    policy = LinearPolicy(
+        feature_names=["a", "b"], weights=[0.3, -0.2], intercept=0.0,
+        frequent_card_ids=[], card_attributes={}, meta={},
+    )
+    _, diag = compute_batch_gradient(policy, [_tiny_episode(1)], temperature=1.0, gamma=1.0)
+    assert "grad_norm" in diag and "weight_norm" in diag
+    assert diag["weight_norm"] > 0
