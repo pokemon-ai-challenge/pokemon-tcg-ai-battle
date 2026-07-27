@@ -38,6 +38,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ptcg_ai.learning import policy_features
+
 _DEFAULT_WEIGHTS_FILENAME = "policy_weights.json"
 
 
@@ -56,6 +58,11 @@ class PolicyModel:
         self._feature_index: dict[str, int] | None = None
         self._frequent_card_ids: list[int] = []
         self._card_attributes: dict[str, dict[str, float]] = {}
+        # own/opp active card_id × option_type 交互作用に使うN。重みJSONに無ければ
+        # policy_features.py の既定値を使う(古い重みJSONとの後方互換。この交互作用
+        # 自体が存在しない古いJSONでは、この値がどうであれ一致する特徴名が無いので
+        # 実害は無い)。
+        self._active_card_top_n: int = policy_features.DEFAULT_ACTIVE_CARD_TOP_N
         self._meta: dict = {}
 
         self._load()
@@ -92,6 +99,9 @@ class PolicyModel:
             self._feature_index = {name: i for i, name in enumerate(feature_names)}
             self._frequent_card_ids = [int(c) for c in payload.get("frequent_card_ids", [])]
             self._card_attributes = dict(payload.get("card_attributes", {}) or {})
+            self._active_card_top_n = int(
+                payload.get("active_card_top_n", policy_features.DEFAULT_ACTIVE_CARD_TOP_N)
+            )
             self._meta = dict(payload.get("meta", {}) or {})
         except Exception:  # noqa: BLE001 -- 壊れた重みファイルで試合を止めない
             self._feature_names = None
@@ -123,12 +133,12 @@ class PolicyModel:
         """
         if not self.is_ready:
             return [0.0] * len(actions)
-        from ptcg_ai.learning import policy_features
 
         return [
             self.score(
                 policy_features.extract_features(
-                    state, action, self._card_attributes, self._frequent_card_ids
+                    state, action, self._card_attributes, self._frequent_card_ids,
+                    self._active_card_top_n,
                 )
             )
             for action in actions

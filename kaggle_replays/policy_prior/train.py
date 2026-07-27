@@ -103,6 +103,7 @@ def build_examples(
     rows: list[dict],
     card_attributes: dict[str, dict[str, float]],
     frequent_card_ids: list[int],
+    active_card_top_n: int = policy_features.DEFAULT_ACTIVE_CARD_TOP_N,
 ) -> tuple[list[dict[str, float]], list[int], list[int]]:
     """decision の集合から (特徴dictのリスト, ラベルのリスト, group_idのリスト) を作る。
 
@@ -124,7 +125,9 @@ def build_examples(
             continue
         state = row["state"]
         for i, action in enumerate(actions):
-            feats = policy_features.extract_features(state, action, card_attributes, frequent_card_ids)
+            feats = policy_features.extract_features(
+                state, action, card_attributes, frequent_card_ids, active_card_top_n
+            )
             feature_dicts.append(feats)
             labels.append(1 if i == chosen_index else 0)
             group_ids.append(group_id)
@@ -165,6 +168,11 @@ def main() -> None:
                          help="指定したアーキタイプ(例: archetype1)の行だけで学習する。"
                               "省略時は全アーキタイプ混合(従来どおり)")
     parser.add_argument("--max-frequent-cards", type=int, default=_DEFAULT_MAX_FREQUENT_CARDS)
+    parser.add_argument(
+        "--active-card-top-n", type=int, default=policy_features.DEFAULT_ACTIVE_CARD_TOP_N,
+        help="own/opp active の card_id × option_type 交互作用に使う頻出上位N種"
+             "(frequent_card_ids の先頭N件を流用する。policy_features.py 参照)",
+    )
     parser.add_argument("--C", type=float, default=1.0, help="L2正則化の逆数(sklearn LogisticRegression)")
     parser.add_argument("--balanced", action="store_true", default=True,
                          help="class_weight='balanced' を使う(既定: 有効)")
@@ -216,7 +224,9 @@ def main() -> None:
     frequent_card_ids = [cid for cid, _ in counts.most_common(args.max_frequent_cards)]
 
     print("特徴抽出中(train)...")
-    X_train_dicts, y_train, group_train = build_examples(train_rows, card_attributes, frequent_card_ids)
+    X_train_dicts, y_train, group_train = build_examples(
+        train_rows, card_attributes, frequent_card_ids, args.active_card_top_n
+    )
     print(f"  展開後の事例数(train, 選択肢単位): {len(X_train_dicts):,} "
           f"(decision数 {len(set(group_train)):,})")
 
@@ -245,7 +255,9 @@ def main() -> None:
     print(f"  train 一致率(decision単位): {train_acc:.4f} ({n_train_decisions:,} decisions)")
 
     def eval_split(split_rows: list[dict], name: str) -> float:
-        feats, labels, groups = build_examples(split_rows, card_attributes, frequent_card_ids)
+        feats, labels, groups = build_examples(
+            split_rows, card_attributes, frequent_card_ids, args.active_card_top_n
+        )
         if not feats:
             return 0.0
         X = vectorizer.transform(feats)
@@ -265,6 +277,9 @@ def main() -> None:
         "intercept": intercept,
         "frequent_card_ids": frequent_card_ids,
         "card_attributes": card_attributes,
+        # own/opp active card_id × option_type 交互作用に使ったN(policy_model.py が
+        # 読んで extract_features に渡す。学習/推論のパリティをJSON経由で保証する)。
+        "active_card_top_n": args.active_card_top_n,
         "meta": {
             "trained_at": datetime.now(timezone.utc).isoformat(),
             "train_rows": len(X_train_dicts),
@@ -275,6 +290,7 @@ def main() -> None:
             "val_accuracy": round(val_acc, 6),
             "test_accuracy": round(test_acc, 6),
             "max_frequent_cards": args.max_frequent_cards,
+            "active_card_top_n": args.active_card_top_n,
             "C": args.C,
             "class_weight": class_weight,
             "backend": "scikit-learn LogisticRegression",

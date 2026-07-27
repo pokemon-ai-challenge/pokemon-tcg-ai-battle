@@ -13,7 +13,7 @@ if str(SAMPLE_SUBMISSION_ROOT) not in sys.path:
     sys.path.insert(0, str(SAMPLE_SUBMISSION_ROOT))
 
 from ptcg_ai.learning import policy_features
-from ptcg_ai.learning.semantic_action import ATTACH, END, PLAY, resolve_option
+from ptcg_ai.learning.semantic_action import ATTACH, ATTACK, END, PLAY, resolve_option
 
 
 def _state() -> dict:
@@ -157,3 +157,119 @@ def test_unknown_card_id_has_no_attribute_features():
     action = resolve_option({"type": PLAY, "index": 0}, _current(), 0)  # card_id=7
     features = policy_features.action_features(action, card_attributes={"999": {"hp": 1.0}})
     assert "card_attr_hp" not in features
+
+
+# --- 状態×行動 交互作用 ------------------------------------------------------
+#
+# ここが本モジュールの中心的な回帰テスト。実測(200 decision)で state_features()
+# の出力の61%が同一 decision 内の全選択肢で同じ値になっており、softmax/argmax は
+# ``softmax(score + c) == softmax(score)`` の性質上、全選択肢に同じ値が乗る特徴を
+# 完全に無視する。つまり状態特徴を単体で足しても方策は盤面を一切見ない。
+# state_action_interaction_features() は状態を option_type と外積することで、
+# 「同じ decision でも選択肢(option_type)が変われば値が変わる」特徴を作る。
+# これらのテストは、その性質(=選択肢間で実際に変化すること)を直接検証する。
+# 将来この関数が state 単体の特徴に戻されたり、外積が壊れたりした場合に検知する。
+
+
+def _min_state(**overrides) -> dict:
+    base = {
+        "turn": 1,
+        "energy_attached": False,
+        "retreated": False,
+        "supporter_played": False,
+        "stadium_played": False,
+        "own": {"active": None, "bench": [], "n_prize": 6, "n_hand": 0, "n_deck": 0, "discard": []},
+        "opponent": {"active": None, "bench": [], "n_prize": 6, "n_hand": 0, "n_deck": 0, "discard": []},
+    }
+    base.update(overrides)
+    return base
+
+
+def test_state_features_alone_are_identical_across_options_but_interactions_differ():
+    """同一 decision(同一 state)で option_type だけが違う2つの行動を比較する。
+
+    state_features(state) は両者で完全に同一(状態は decision 内で不変なため)。
+    これが「61%が定数だった」問題そのもの。extract_features() はこれに
+    state_action_interaction_features() を足すことで、選択肢間で異なる特徴
+    (option_type_{t}__turn_opening 等)を持つようになっていることを確認する。
+    """
+    state = _min_state(turn=1)
+    action_play = resolve_option({"type": PLAY, "index": 0}, _current(), 0)
+    action_end = resolve_option({"type": END}, _current(), 0)
+
+    # state_features 単体は action に依存しないので当然同一(これは仕様どおり)。
+    assert policy_features.state_features(state) == policy_features.state_features(state)
+
+    feats_play = policy_features.extract_features(state, action_play)
+    feats_end = policy_features.extract_features(state, action_end)
+
+    # option_type ごとに別の特徴名になるため、交互作用特徴のキー自体が異なる
+    # (= 選択肢間で「値が変化する」特徴として現れる)。
+    assert f"option_type_{PLAY}__turn_opening" in feats_play
+    assert f"option_type_{END}__turn_opening" in feats_end
+    assert f"option_type_{PLAY}__turn_opening" not in feats_end
+    assert f"option_type_{END}__turn_opening" not in feats_play
+
+
+def test_interaction_own_and_opp_active_card_id():
+    state = _min_state()
+    state["own"]["active"] = {"card_id": 646, "hp": 90, "max_hp": 90}
+    state["opponent"]["active"] = {"card_id": 743, "hp": 90, "max_hp": 90}
+    action = resolve_option({"type": ATTACH, "area": 2, "index": 0, "inPlayArea": 4, "inPlayIndex": 0}, _current(), 0)
+
+    interactions = policy_features.state_action_interaction_features(
+        state, action, frequent_card_ids=[646, 743, 1]
+    )
+    assert interactions[f"option_type_{ATTACH}__own_active_card_646"] == 1.0
+    assert interactions[f"option_type_{ATTACH}__opp_active_card_743"] == 1.0
+
+    # 上位N(active_card_top_n)に入らないカードは one-hot にならない。
+    interactions_excluded = policy_features.state_action_interaction_features(
+        state, action, frequent_card_ids=[1], active_card_top_n=1
+    )
+    assert f"option_type_{ATTACH}__own_active_card_646" not in interactions_excluded
+
+
+def test_interaction_prize_bucket_changes_with_prize_count():
+    action = resolve_option({"type": END}, _current(), 0)
+
+    state_early = _min_state()
+    state_early["own"]["n_prize"] = 6
+    state_late = _min_state()
+    state_late["own"]["n_prize"] = 0
+
+    feats_early = policy_features.state_action_interaction_features(state_early, action)
+    feats_late = policy_features.state_action_interaction_features(state_late, action)
+
+    assert feats_early[f"option_type_{END}__own_prize_early"] == 1.0
+    assert feats_late[f"option_type_{END}__own_prize_late"] == 1.0
+    # 同じ特徴名が両方には立たない(バケットが変わっている)。
+    assert f"option_type_{END}__own_prize_early" not in feats_late
+
+
+def test_interaction_hp_ratio_bucket():
+    action = resolve_option({"type": ATTACK}, _current(), 0)
+
+    state_low_hp = _min_state()
+    state_low_hp["opponent"]["active"] = {"card_id": 1, "hp": 10, "max_hp": 100}
+    feats = policy_features.state_action_interaction_features(state_low_hp, action)
+    assert feats[f"option_type_{ATTACK}__opp_active_hp_low"] == 1.0
+
+    state_high_hp = _min_state()
+    state_high_hp["opponent"]["active"] = {"card_id": 1, "hp": 95, "max_hp": 100}
+    feats_high = policy_features.state_action_interaction_features(state_high_hp, action)
+    assert feats_high[f"option_type_{ATTACK}__opp_active_hp_high"] == 1.0
+
+
+def test_interaction_turn_restriction_flags():
+    action = resolve_option({"type": PLAY, "index": 0}, _current(), 0)
+    state = _min_state(energy_attached=True, supporter_played=False)
+    feats = policy_features.state_action_interaction_features(state, action)
+    assert feats[f"option_type_{PLAY}__flag_energy_attached"] == 1.0
+    assert f"option_type_{PLAY}__flag_supporter_played" not in feats
+
+
+def test_interaction_features_absent_when_option_type_missing():
+    """option_type が無い行動には交互作用特徴を作らない(_tag が組み立てられないため)。"""
+    interactions = policy_features.state_action_interaction_features(_min_state(), {})
+    assert interactions == {}
