@@ -48,7 +48,7 @@ if str(_POLICY_PRIOR_DIR) not in sys.path:
 
 from rl.policy import LinearPolicy  # noqa: E402
 from rl.reinforce import apply_update, compute_batch_gradient  # noqa: E402
-from rl.selfplay import collect_selfplay  # noqa: E402
+from rl.selfplay import collect_selfplay, resolve_opponent_pool  # noqa: E402
 
 
 def wilson(wins: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -126,11 +126,26 @@ def run_generations(
     seed: int,
     accept_margin: float = 0.0,
     max_relative_step: float = 0.02,
+    selfplay_opponents: str | None = None,
 ) -> None:
     out_dir = out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     history_path = out_dir / "history.json"
     history: list[dict] = []
+
+    # 自己対戦の相手プール(評価用の凍結プールとは別物。学習時に相手を多様化する
+    # ためのもので、既定(None)なら従来どおりの純粋な自己対戦)。
+    # 専用モデルが見つからなければ resolve_opponent_pool が警告して None に
+    # フォールバックする(例外にしない)。
+    selfplay_opponent_pool = resolve_opponent_pool(selfplay_opponents)
+    if selfplay_opponents is None:
+        print("自己対戦: 純粋な自己対戦(同デッキ・同方策)")
+    elif selfplay_opponent_pool is None:
+        print(f"自己対戦: 相手プール({selfplay_opponents})を要求されたが専用モデルが"
+              "揃っていないため純粋な自己対戦にフォールバック")
+    else:
+        print(f"自己対戦: 相手プール({[o['name'] for o in selfplay_opponent_pool]})と対戦"
+              "(自分側の decision のみ記録)")
 
     # --- 世代0: 現行BC(汎用)モデルをそのままコピーして出発点にする(上書きしない) ---
     gen0_path = out_dir / "gen000.json"
@@ -169,11 +184,16 @@ def run_generations(
             temperature=temperature,
             workers=selfplay_workers,
             seed=seed + gen * 100003,
+            opponent_pool=selfplay_opponent_pool,
         )
         n_decisions = sum(len(ep["decisions"]) for ep in episodes)
         wins = sum(1 for ep in episodes if ep["result"] == 1)
+        win_note = (
+            "自己対戦なので勝敗はほぼ50%になるはず" if selfplay_opponent_pool is None
+            else "相手プールとの対戦なので50%からずれてよい"
+        )
         print(f"  収集完了 ({time.time() - t0:.0f}s): エピソード{len(episodes)}件"
-              f"(自己対戦なので勝敗はほぼ50%になるはず: {wins}/{len(episodes)})"
+              f"({win_note}: {wins}/{len(episodes)})"
               f", decision数 {n_decisions}")
 
         policy = LinearPolicy.load(accepted_path)
@@ -261,6 +281,15 @@ def main() -> None:
                     help="前世代の勝率からこの幅まで下がっても採用する(既定0=厳格)。"
                          "評価のノイズ(1,200試合で±2.8pt)で良い世代を捨てるのを防ぐ")
     ap.add_argument("--seed", type=int, default=20260727)
+    ap.add_argument("--selfplay-opponents", default=None,
+                    help="自己対戦(学習用データ収集)の相手を多様化する。省略時(既定)は"
+                         "従来どおり純粋な自己対戦(同デッキ・同方策)。カンマ区切りの"
+                         "アーキタイプ名(例 'archetype1,archetype2')、または 'all' で "
+                         "opponent_decks.json の全種。1試合ごとに巡回で選び、各相手が"
+                         "ほぼ均等に当たる。相手専用モデル(policy_prior/output/"
+                         "policy_weights_<name>.json)が無ければ警告して純粋な自己対戦に"
+                         "フォールバックする(--opponents で使う評価用の凍結プールとは"
+                         "別物)")
     args = ap.parse_args()
 
     import os
@@ -279,6 +308,7 @@ def main() -> None:
         opponents=args.opponents,
         out_dir=args.out_dir,
         seed=args.seed,
+        selfplay_opponents=args.selfplay_opponents,
         accept_margin=args.accept_margin,
         max_relative_step=args.max_relative_step,
     )
