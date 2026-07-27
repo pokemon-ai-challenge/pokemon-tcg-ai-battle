@@ -126,8 +126,12 @@ def _run_chunk(job: dict) -> dict:
         from ptcg_ai.learning import policy_model
 
         _orig_ml = selector._ml_policy_action
-        # 自分側は既定の重み（提出しているモデル）
-        own_model = policy_model.PolicyModel()
+        # 自分側: --own-weights が指定されていればそれを使う（RL世代の重み等の評価用）。
+        # 無指定なら既定の重み（提出しているモデル）のまま、従来どおり。
+        own_model = (
+            policy_model.PolicyModel(job["own_weights"]) if job.get("own_weights")
+            else policy_model.PolicyModel()
+        )
         # 相手側: 重みが指定されていればそれを使う。無指定なら相手はルールベース
         opp_model = (
             policy_model.PolicyModel(job["opp_weights"]) if job["opp_weights"] else None
@@ -200,8 +204,13 @@ def _run_chunk(job: dict) -> dict:
 
 
 def build_jobs(arms, opponents, my_deck, games, workers, seed, head_to_head=False,
-               opp_weights=None):
-    """条件 × 相手デッキ を、ワーカー数ぶんのチャンクに割る。"""
+               opp_weights=None, own_weights=None):
+    """条件 × 相手デッキ を、ワーカー数ぶんのチャンクに割る。
+
+    ``own_weights``: head-to-head モードで自分側に使う重みJSONのパス（任意）。
+    省略時は従来どおり既定の重み（``ptcg_ai.learning.policy_model.PolicyModel()``）。
+    RL世代の重みを凍結プールに対して評価する際に使う（``rl/generation.py`` 参照）。
+    """
     opp_weights = opp_weights or {}
     jobs = []
     for arm in arms:
@@ -225,6 +234,7 @@ def build_jobs(arms, opponents, my_deck, games, workers, seed, head_to_head=Fals
                     "seed": seed + w * 7919 + zlib.crc32(opp_name.encode()) % 100000,
                     "head_to_head": head_to_head,
                     "opp_weights": opp_weights.get(opp_name),
+                    "own_weights": own_weights,
                 })
                 offset += n
     return jobs
@@ -246,6 +256,13 @@ def main() -> None:
     ap.add_argument("--head-to-head", action="store_true",
                     help="学習方策 vs ルールベースの直接対戦。両者とも agent() を通し、"
                          "手番のプレイヤーに応じて方策を切り替える。--arm は on 固定")
+    ap.add_argument("--own-weights", default=None,
+                    help="head-to-head モードで自分側に使う重みJSONのパス（省略時は既定の"
+                         "提出モデル）。RL世代の重みを評価する用途("
+                         "kaggle_replays/policy_prior/rl/generation.py)")
+    ap.add_argument("--json-out", default=None,
+                    help="集計結果(arm×opponentごとのwin/loss/invalid、および全体合算)を"
+                         "JSONで書き出す（任意。プログラムからの呼び出し用）")
     args = ap.parse_args()
 
     arms = ["on"] if args.head_to_head else (args.arm or ["off", "on"])
@@ -280,7 +297,8 @@ def main() -> None:
                   "--out policy_prior/output/policy_weights_<name>.json")
 
     jobs = build_jobs(arms, opponents, my_deck, args.games, args.workers, args.seed,
-                      head_to_head=args.head_to_head, opp_weights=opp_weights)
+                      head_to_head=args.head_to_head, opp_weights=opp_weights,
+                      own_weights=args.own_weights)
     total = sum(j["games"] for j in jobs)
     if args.head_to_head:
         who = "アーキタイプ専用の学習方策" if args.opponent_pool else "ルールベース"
@@ -334,6 +352,32 @@ def main() -> None:
             d, hw, p = two_proportion(ca["win"], n0, cb["win"], n1)
             mark = "有意" if p < 0.05 else "有意差なし"
             print(f"  {opp_name:<14}{d:+7.1%}  [{d-hw:+6.1%},{d+hw:+6.1%}]  p={p:.3f}  {mark}")
+
+    if args.json_out:
+        # プログラムから読みやすいよう、arm×opponent の内訳に加えて全相手合算
+        # (「合計勝率」。設計書 §5.2: 多重比較を避けるため主指標は合算にする)も書き出す。
+        by_arm_opponent = {}
+        combined = {}
+        for arm in arms:
+            combined_c = Counter()
+            for opp_name, _ in opponents:
+                c = agg.get((arm, opp_name))
+                if not c:
+                    continue
+                by_arm_opponent[f"{arm}:{opp_name}"] = dict(c)
+                combined_c += c
+            combined[arm] = dict(combined_c)
+        payload = {
+            "arms": arms,
+            "opponents": [n for n, _ in opponents],
+            "games_per_cell": args.games,
+            "by_arm_opponent": by_arm_opponent,
+            "combined": combined,
+        }
+        out_path = Path(args.json_out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"\nJSON集計を書き出しました: {out_path}")
 
 
 if __name__ == "__main__":
