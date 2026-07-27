@@ -149,11 +149,12 @@ def run_generations(
 
     # --- 世代0: 現行BC(汎用)モデルをそのままコピーして出発点にする(上書きしない) ---
     gen0_path = out_dir / "gen000.json"
-    base_policy = LinearPolicy.load(_BASE_BC_WEIGHTS)
+    base = Path(base_weights) if base_weights else _BASE_BC_WEIGHTS
+    base_policy = LinearPolicy.load(base)
     base_policy.meta["rl_generation"] = 0
     base_policy.meta["rl_parent"] = None
     base_policy.save(gen0_path)
-    print(f"世代0(出発点): {_BASE_BC_WEIGHTS} をコピー -> {gen0_path}")
+    print(f"世代0(出発点): {base} をコピー -> {gen0_path}")
 
     print(f"世代0を凍結プール({opponents})に対して評価中 "
           f"({eval_games_per_opponent}試合×{len(opponents.split(','))}相手)...")
@@ -277,6 +278,9 @@ def main() -> None:
     ap.add_argument("--eval-workers", type=int, default=None)
     ap.add_argument("--opponents", default=_DEFAULT_OPPONENTS)
     ap.add_argument("--out-dir", type=Path, default=_DEFAULT_OUT_DIR)
+    ap.add_argument("--base-weights", default=None,
+                    help="世代0の出発点にする重みJSON。省略時は提出中のBCモデル。"
+                         "交互作用版など別の表現から始めるときに指定する")
     ap.add_argument("--accept-margin", type=float, default=0.0,
                     help="前世代の勝率からこの幅まで下がっても採用する(既定0=厳格)。"
                          "評価のノイズ(1,200試合で±2.8pt)で良い世代を捨てるのを防ぐ")
@@ -311,6 +315,7 @@ def main() -> None:
         selfplay_opponents=args.selfplay_opponents,
         accept_margin=args.accept_margin,
         max_relative_step=args.max_relative_step,
+        base_weights=args.base_weights,
     )
 
 
