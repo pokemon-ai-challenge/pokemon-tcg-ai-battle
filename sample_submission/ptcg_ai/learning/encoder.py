@@ -20,9 +20,25 @@ Observation(現在盤面)を固定長・決定的な特徴ベクトルへ変換�
 
 from __future__ import annotations
 
-from cg.api import CardType, Observation, Pokemon, State, to_observation_class
+from cg.api import (
+    AreaType,
+    CardType,
+    Observation,
+    Option,
+    OptionType,
+    Pokemon,
+    SelectData,
+    SelectType,
+    State,
+    to_observation_class,
+)
 
-from ptcg_ai.board_evaluation import attack_features, board_features, energy_requirements
+from ptcg_ai.board_evaluation import board_features, energy_requirements
+
+# ダメージ解決とその派生(次ターン被KO判定)は board_evaluation ではなく学習時点で凍結した
+# コピーを使う(train/inference skew を避けるため。理由は _frozen_features 参照)。
+# board_features.attacker_score / prize_diff はダメージ非依存なので本家のまま使う。
+from ptcg_ai.learning import _frozen_features as frozen
 from ptcg_ai.shared import card_cache
 
 # ベンチ上限。cg/api.py の PlayerState.benchMax は実データで 5。固定スロット数として扱い、
@@ -181,11 +197,11 @@ def _pokemon_features(
             min_shortfall = min(min_shortfall, shortfall_sum)
             if not shortfall:
                 has_ready = 1.0
-            damage = attack_features.resolve_damage(
+            damage = frozen.resolve_damage(
                 attack, pokemon, defender_weakness, defender_resistance, attacker_hand_size
             )
             best_damage = max(best_damage, float(damage))
-            if defender is not None and attack_features.can_ko(
+            if defender is not None and frozen.can_ko(
                 attack, pokemon, defender, defender_weakness, defender_resistance, attacker_hand_size
             ):
                 can_ko = 1.0
@@ -193,7 +209,7 @@ def _pokemon_features(
     min_shortfall = min(min_shortfall, _MAX_SHORTFALL)
 
     attacker_score = board_features.attacker_score(pokemon)
-    likely_ko = 1.0 if board_features.is_likely_ko_next_turn(pokemon, state, owner_index) else 0.0
+    likely_ko = 1.0 if frozen.is_likely_ko_next_turn(pokemon, state, owner_index) else 0.0
 
     return [
         1.0,  # present
@@ -396,13 +412,355 @@ def encode_obs_dict(obs_dict: dict, extra_features: list[float] | None = None) -
     return encode_state(obs, extra_features=extra_features)
 
 
-def encode_options(obs: Observation) -> list[list[float]]:
-    """選択肢(SelectData.option)ごとの特徴量(Step2 スコープ)。
+#
+# --- 選択肢エンコーダ(Step2: 模倣ポリシー) --------------------------------------------
+#
+# SelectData.option の各要素を固定長ベクトルへ変換する。状態エンコーダ(上)とは独立に
+# 呼べるが、対象ポケモンの特徴には上の _pokemon_features / frozen(ダメージ解決) /
+# energy_requirements をそのまま再利用し、二重実装しない(design.md の踏襲方針)。
+#
+# 対象カード/ポケモンの解決(area/index -> 実体)は ptcg_ai/rule_based/card_move/common.py
+# の resolve_card_id / resolve_pokemon と同じ規則を使うが、learning 側を rule_based に
+# 依存させない(design.md の「rule_based は変更しない・依存を増やさない」方針)ため、
+# 解決ロジックをここに複製する。
 
-    ``ml-agent-plan.md`` の Step2(模倣ポリシー: 各選択肢をスコアリングして選ぶ)で実装する。
-    本 Step1(バリューネットワーク)では状態特徴のみを扱うため未実装。インターフェースの
-    空きだけをここに確保する。
+# Option.type の既知値(cg/api.py 記載時点)。CLAUDE.md が警告する通りコンペ期間中に
+# Enum へ要素が追加される可能性があるため、未知値は "other" バケットへ落として
+# ベクトル長を固定に保つ。
+_KNOWN_OPTION_TYPES: list[OptionType] = [
+    OptionType.NUMBER,
+    OptionType.YES,
+    OptionType.NO,
+    OptionType.CARD,
+    OptionType.TOOL_CARD,
+    OptionType.ENERGY_CARD,
+    OptionType.ENERGY,
+    OptionType.PLAY,
+    OptionType.ATTACH,
+    OptionType.EVOLVE,
+    OptionType.ABILITY,
+    OptionType.DISCARD,
+    OptionType.RETREAT,
+    OptionType.ATTACK,
+    OptionType.END,
+    OptionType.SKILL,
+    OptionType.SPECIAL_CONDITION,
+]
+
+# SelectData.type の既知値。同一 select 内の全選択肢に共通する文脈特徴として使う。
+_KNOWN_SELECT_TYPES: list[SelectType] = [
+    SelectType.MAIN,
+    SelectType.CARD,
+    SelectType.ATTACHED_CARD,
+    SelectType.CARD_OR_ATTACHED_CARD,
+    SelectType.ENERGY,
+    SelectType.SKILL,
+    SelectType.ATTACK,
+    SelectType.EVOLVE,
+    SelectType.COUNT,
+    SelectType.YES_NO,
+    SelectType.SPECIAL_CONDITION,
+]
+
+_CARD_TYPE_ORDER: list[CardType] = [
+    CardType.POKEMON,
+    CardType.ITEM,
+    CardType.TOOL,
+    CardType.SUPPORTER,
+    CardType.STADIUM,
+    CardType.BASIC_ENERGY,
+    CardType.SPECIAL_ENERGY,
+]
+
+# area から PlayerState の属性名への対応(rule_based/card_move/common.py の
+# _AREA_TO_PLAYER_ZONE と同じ表)。DECK(非公開)/ PRE_EVOLUTION・PLAYER・ENERGY・TOOL
+# (親ポケモン側から辿るべき情報)はここでは解決しない。
+_AREA_TO_PLAYER_ZONE: dict[AreaType, str] = {
+    AreaType.HAND: "hand",
+    AreaType.DISCARD: "discard",
+    AreaType.PRIZE: "prize",
+    AreaType.ACTIVE: "active",
+    AreaType.BENCH: "bench",
+}
+
+
+def _build_option_feature_names() -> list[str]:
+    names: list[str] = []
+    names += [f"opttype_{t.name.lower()}" for t in _KNOWN_OPTION_TYPES]
+    names.append("opttype_other")
+    names += [f"seltype_{t.name.lower()}" for t in _KNOWN_SELECT_TYPES]
+    names.append("seltype_other")
+    names += ["is_own", "number_norm", "count_norm", "option_position_norm", "n_options"]
+    names.append("has_target_pokemon")
+    names += [f"target_pokemon_{feat}" for feat in _POKEMON_FEATURE_NAMES]
+    names.append("has_target_card")
+    names += [f"target_card_is_{t.name.lower()}" for t in _CARD_TYPE_ORDER]
+    names += [
+        "target_card_hp_norm",
+        "target_card_is_basic",
+        "target_card_is_stage1",
+        "target_card_is_stage2",
+        "target_card_is_ex",
+    ]
+    names.append("has_attack")
+    names += ["attack_damage_norm", "attack_can_ko", "attack_min_shortfall_norm", "attack_has_ready"]
+    return names
+
+
+#: 選択肢1件あたりの特徴ベクトルの各次元の名前。_option_features() と同じ順序。
+OPTION_FEATURE_NAMES: list[str] = _build_option_feature_names()
+
+#: 選択肢1件あたりの特徴ベクトルの長さ。
+OPTION_FEATURE_COUNT: int = len(OPTION_FEATURE_NAMES)
+
+
+def _zone_entries_for_option(area: AreaType, player, state: State) -> list | None:
+    if area == AreaType.STADIUM:
+        return state.stadium
+    attr = _AREA_TO_PLAYER_ZONE.get(area)
+    if attr is None:
+        return None
+    return getattr(player, attr, None)
+
+
+def _resolve_card_id(option: Option, state: State) -> int | None:
+    """Option が指すカード/ポケモンの card_id (CardData.id) を特定する。
+
+    OptionType.SKILL 以外は option.cardId が None のことが多いため、area/index
+    (PLAY は area 省略・index は hand 内インデックス)と、どうぐ/エネルギーの場合は
+    toolIndex/energyIndex を辿って解決する。解決できない場合は None。
     """
-    raise NotImplementedError(
-        "encode_options() は Step2(模倣ポリシー)のスコープ。Step1 では状態特徴のみを扱う。"
-    )
+    if option.cardId is not None:
+        return option.cardId
+
+    area = option.area
+    if area is None and option.type == OptionType.PLAY:
+        area = AreaType.HAND
+
+    player_index = option.playerIndex if option.playerIndex is not None else state.yourIndex
+    if area is None or option.index is None or not (0 <= player_index < len(state.players)):
+        return None
+
+    zone = _zone_entries_for_option(area, state.players[player_index], state)
+    if zone is None or not (0 <= option.index < len(zone)):
+        return None
+    target = zone[option.index]
+    if target is None:
+        return None
+
+    if option.toolIndex is not None:
+        tools = getattr(target, "tools", None)
+        if tools is None or not (0 <= option.toolIndex < len(tools)):
+            return None
+        return tools[option.toolIndex].id
+    if option.energyIndex is not None:
+        energy_cards = getattr(target, "energyCards", None)
+        if energy_cards is None or not (0 <= option.energyIndex < len(energy_cards)):
+            return None
+        return energy_cards[option.energyIndex].id
+
+    return target.id
+
+
+def _resolve_pokemon(option: Option, state: State) -> Pokemon | None:
+    """area/index が ACTIVE/BENCH を指す Option を Pokemon に解決する(SWITCH/DAMAGE 等)。"""
+    if option.area not in (AreaType.ACTIVE, AreaType.BENCH) or option.index is None:
+        return None
+    player_index = option.playerIndex if option.playerIndex is not None else state.yourIndex
+    if not (0 <= player_index < len(state.players)):
+        return None
+    player = state.players[player_index]
+    zone = player.active if option.area == AreaType.ACTIVE else player.bench
+    if not (0 <= option.index < len(zone)):
+        return None
+    return zone[option.index]
+
+
+def _resolve_in_play_pokemon(option: Option, state: State) -> Pokemon | None:
+    """inPlayArea/inPlayIndex が指す場のポケモンを解決する(ATTACH/EVOLVE の対象側)。
+
+    ATTACH/EVOLVE は「area/index = 手札等にあるカード」「inPlayArea/inPlayIndex =
+    それを適用する場のポケモン」という2系統のフィールドを持つ(cg/api.py の OptionType
+    コメント参照)。_resolve_pokemon は前者(area が直接 ACTIVE/BENCH の場合)しか
+    見ないため、こちらは後者専用。
+    """
+    area = option.inPlayArea
+    index = option.inPlayIndex
+    if area not in (AreaType.ACTIVE, AreaType.BENCH) or index is None:
+        return None
+    player_index = option.playerIndex if option.playerIndex is not None else state.yourIndex
+    if not (0 <= player_index < len(state.players)):
+        return None
+    player = state.players[player_index]
+    zone = player.active if area == AreaType.ACTIVE else player.bench
+    if not (0 <= index < len(zone)):
+        return None
+    return zone[index]
+
+
+def _option_features(
+    option: Option,
+    select: SelectData,
+    position: int,
+    n_options: int,
+    state: State,
+) -> list[float]:
+    """選択肢1件を固定長ベクトル化する。長さは OPTION_FEATURE_COUNT に一致する。"""
+    feats: list[float] = []
+
+    # --- Option.type / SelectData.type の one-hot(未知値は other) ---
+    for known in _KNOWN_OPTION_TYPES:
+        feats.append(1.0 if option.type == known else 0.0)
+    feats.append(1.0 if option.type not in _KNOWN_OPTION_TYPES else 0.0)
+
+    for known in _KNOWN_SELECT_TYPES:
+        feats.append(1.0 if select.type == known else 0.0)
+    feats.append(1.0 if select.type not in _KNOWN_SELECT_TYPES else 0.0)
+
+    # --- 汎用スカラー ---
+    your_index = state.yourIndex
+    player_index = option.playerIndex if option.playerIndex is not None else your_index
+    if not (0 <= player_index < len(state.players)):
+        player_index = your_index
+    is_own = 1.0 if player_index == your_index else 0.0
+
+    number_norm = (float(option.number) / 10.0) if option.number is not None else 0.0
+    count_norm = (float(option.count) / 10.0) if option.count is not None else 0.0
+    position_norm = float(position) / float(max(1, n_options - 1))
+    feats += [is_own, number_norm, count_norm, position_norm, float(n_options)]
+
+    # --- 対象ポケモン(area/index、または ATTACH/EVOLVE の inPlayArea/inPlayIndex) ---
+    # _pokemon_features をそのまま再利用し、盤面評価ロジックを二重実装しない。
+    target_pokemon = _resolve_pokemon(option, state)
+    if target_pokemon is None:
+        target_pokemon = _resolve_in_play_pokemon(option, state)
+    if target_pokemon is not None:
+        owner_index = player_index
+        defender = _active_pokemon(state.players[1 - owner_index])
+        hand_size = state.players[owner_index].handCount
+        feats.append(1.0)
+        feats += _pokemon_features(target_pokemon, defender, hand_size, state, owner_index)
+    else:
+        feats.append(0.0)
+        feats += list(_ZERO_POKEMON)
+
+    # --- 対象カード(手札・トラッシュ・サイド等。場に出ているポケモンではない) ---
+    card_id = _resolve_card_id(option, state)
+    card = _card_or_none(card_id) if card_id is not None else None
+    if card is not None:
+        feats.append(1.0)
+        for known in _CARD_TYPE_ORDER:
+            feats.append(1.0 if card.cardType == known else 0.0)
+        if card.cardType == CardType.POKEMON:
+            feats += [
+                float(card.hp) / 300.0,
+                1.0 if card.basic else 0.0,
+                1.0 if card.stage1 else 0.0,
+                1.0 if card.stage2 else 0.0,
+                1.0 if card.ex else 0.0,
+            ]
+        else:
+            feats += [0.0, 0.0, 0.0, 0.0, 0.0]
+    else:
+        feats.append(0.0)
+        feats += [0.0] * len(_CARD_TYPE_ORDER)
+        feats += [0.0, 0.0, 0.0, 0.0, 0.0]
+
+    # --- 攻撃(ATTACK/SKILL 選択肢): 自分のバトル場ポケモンでこの技を使った場合の打点 ---
+    attack = _attack_or_none(option.attackId) if option.attackId is not None else None
+    me_active = _active_pokemon(state.players[your_index])
+    opp_active = _active_pokemon(state.players[1 - your_index])
+    if attack is not None and me_active is not None:
+        defender_weakness = defender_resistance = None
+        if opp_active is not None:
+            opp_card = _card_or_none(opp_active.id)
+            if opp_card is not None:
+                defender_weakness = opp_card.weakness
+                defender_resistance = opp_card.resistance
+        hand_size = state.players[your_index].handCount
+        shortfall = energy_requirements.energy_shortfall(attack, me_active.energies or [])
+        shortfall_sum = min(float(sum(shortfall.values())), _MAX_SHORTFALL)
+        has_ready = 1.0 if not shortfall else 0.0
+        damage = frozen.resolve_damage(
+            attack, me_active, defender_weakness, defender_resistance, hand_size
+        )
+        can_ko = 0.0
+        if opp_active is not None and frozen.can_ko(
+            attack, me_active, opp_active, defender_weakness, defender_resistance, hand_size
+        ):
+            can_ko = 1.0
+        feats += [1.0, float(damage) / 200.0, can_ko, shortfall_sum, has_ready]
+    else:
+        feats += [0.0, 0.0, 0.0, 0.0, 0.0]
+
+    return feats
+
+
+def encode_options_from_state(state: State | None, select: SelectData | None) -> list[list[float]]:
+    """``encode_options()`` の本体。State/SelectData を直接受け取る版(単体テスト向け)。
+
+    ``state`` か ``select`` が None、または選択肢が0件の場合は空リストを返す(壊れない)。
+
+    Returns:
+        list[list[float]]: 選択肢と同じ長さのリスト。各要素は長さ OPTION_FEATURE_COUNT の
+        決定的ベクトル(``select.option`` と同じ順序)。
+    """
+    if state is None or select is None or not select.option:
+        return []
+    n_options = len(select.option)
+    return [
+        _option_features(option, select, position, n_options, state)
+        for position, option in enumerate(select.option)
+    ]
+
+
+def encode_options(obs: Observation) -> list[list[float]]:
+    """選択肢(SelectData.option)ごとの特徴量(Step2: 模倣ポリシー)。
+
+    ``obs.current`` / ``obs.select`` が無い場合(初回デッキ選択など)は空リストを返す。
+    実体は :func:`encode_options_from_state`。
+    """
+    return encode_options_from_state(obs.current, obs.select)
+
+
+def encode_option_card_ids(state: State | None, select: SelectData | None) -> list[int]:
+    """選択肢ごとの対象カード/ポケモンの identity(``CardData.cardId``)を返す。
+
+    ``encode_options()`` の連続値ベクトルとは別枠の、埋め込み(embedding)用の生の整数キー列
+    (標準化はしない。埋め込みテーブルへの直接のインデックスとして使う想定)。
+
+    背景: ``_option_features()`` の「対象カード」ブロックはカード種別(ポケモン/アイテム/
+    どうぐ/…)までしか区別せず、同じ種別内の個別カード(例:「博士の研究」と「ハイパーボール」、
+    「基本超エネルギー」と「基本闘エネルギー」)を識別できない。この識別情報の欠如が
+    PLAY/ATTACH 選択肢の精度低下の主因と特定された(step2-algorithm-selection.md §7 参照)。
+    本関数はカード名をロジックに直書きせず、``card_id`` を特徴として渡すことで学習側が
+    データから個別カードの傾向を獲得できるようにする。
+
+    解決順序は ``_option_features()`` と同じ: まず ``_resolve_card_id``(手札/トラッシュ/
+    サイド等の対象カード)を試し、解決できなければ ``_resolve_pokemon`` /
+    ``_resolve_in_play_pokemon``(場のポケモン)の ``.id`` を使う。どちらも解決できない
+    (END/RETREAT の宣言そのもの等)場合は 0(識別なし)。
+
+    デッキ非依存: ``card_id`` はデッキではなくゲーム全体のカードデータ(``all_card_data()``)
+    に基づく識別子であり、特定デッキ用のコードではない。埋め込みテーブルは学習時に
+    ``all_card_data()`` から動的にサイズを決める想定(将来別デッキで再学習しても本関数・
+    ``policy_model.py`` のコードは変更不要。学習データに出現しないカードは埋め込みが
+    ただ未学習のままになるだけで、安全側にフォールバックする)。
+
+    Returns:
+        list[int]: ``select.option`` と同じ長さ・順序の card_id 列(未解決は 0)。
+        ``state``/``select`` が無い、または選択肢が0件の場合は空リスト。
+    """
+    if state is None or select is None or not select.option:
+        return []
+
+    card_ids: list[int] = []
+    for option in select.option:
+        card_id = _resolve_card_id(option, state)
+        if card_id is None:
+            pokemon = _resolve_pokemon(option, state)
+            if pokemon is None:
+                pokemon = _resolve_in_play_pokemon(option, state)
+            card_id = pokemon.id if pokemon is not None else None
+        card_ids.append(card_id if card_id is not None else 0)
+    return card_ids

@@ -13,11 +13,14 @@ import os
 from cg.api import Observation
 
 from ptcg_ai.action_selection import selector
+from ptcg_ai.core.config import load_config
 from ptcg_ai.hidden_information import match_context
+from ptcg_ai.learning import value_shadow_log
 from ptcg_ai.opponent_modeling import tracker as opponent_tracker
 from ptcg_ai.rule_based.main_turn_parts import proposals
 
 _DECK_CACHE: list[int] | None = None
+_VALUE_SHADOW_CONFIG_CACHE: dict | None = None
 
 
 def agent(obs: Observation) -> list[int]:
@@ -34,6 +37,12 @@ def agent(obs: Observation) -> list[int]:
     # router.route以降の判断ロジックには一切影響しない。
     match_context.update(obs)
 
+    # value network の shadow mode ログ(#72 Step1 の続き、stage1-wiring-implementation-plan.md
+    # Step4)。config の value_shadow_logging が true のときだけ、勝率予測をログに残すだけの
+    # 純粋な副作用追加(value_shadow_log.record 内部でtry/exceptしている)。意思決定には使わない。
+    if _value_shadow_logging_enabled():
+        value_shadow_log.record(obs)
+
     if obs.select is None:
         # 新しい試合の開始（match_context と同じ検知方法）。前試合の相手デッキ予測が
         # 次の試合に持ち越されないよう、opponent_modeling.tracker の状態を破棄する。
@@ -43,6 +52,16 @@ def agent(obs: Observation) -> list[int]:
         proposals.reset_turn_state()
         return _select_deck()
     return selector.select_action(obs, _full_deck())
+
+
+def _value_shadow_logging_enabled() -> bool:
+    global _VALUE_SHADOW_CONFIG_CACHE
+    if _VALUE_SHADOW_CONFIG_CACHE is None:
+        try:
+            _VALUE_SHADOW_CONFIG_CACHE = load_config()
+        except Exception:
+            _VALUE_SHADOW_CONFIG_CACHE = {}
+    return bool(_VALUE_SHADOW_CONFIG_CACHE.get("value_shadow_logging", False))
 
 
 def _full_deck() -> list[int]:

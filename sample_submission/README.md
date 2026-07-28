@@ -118,6 +118,43 @@ https://www.kaggle.com/competitions/pokemon-tcg-ai-battle
 
 `Submit Agent` から `submission.tar.gz` を選択し、提出します。
 
+### CLI から提出する場合
+
+ブラウザを開かずに `kaggle` CLI からも提出できる(動作確認済み)。事前に
+`kaggle.json`(APIトークン)が `~/.kaggle/` に配置され、認証済みであること
+(`kaggle competitions submissions -c pokemon-tcg-ai-battle` が一覧を返せば認証済み)。
+
+複数ファイル(`main.py` 単体ではなく `deck.csv`/`cg/`/`ptcg_ai/`/`configs/` 一式)を
+提出する場合は tar.gz にまとめてから提出する
+([Kaggle CLI公式ドキュメント](https://github.com/Kaggle/kaggle-cli/blob/main/docs/simulation_competitions.md)
+のシミュレーションコンペ向け手順と同じ形):
+
+```powershell
+cd sample_submission
+tar -czvf submission.tar.gz main.py deck.csv cg configs ptcg_ai decks
+kaggle competitions submit pokemon-tcg-ai-battle -f submission.tar.gz -m "提出内容の説明"
+```
+
+> **重要（`decks/` を必ず含める）**: 現在の agent は import 連鎖で `decks/`（`ptcg_ai/shared/profile_registry.py` → `from decks import active`）に依存する。`decks` を tar に含め忘れると、Kaggle 側で agent が **import すらできず即 `SubmissionStatus.ERROR`** になる（ローカルはリポジトリ全体があるため気づけない。実例: 提出 54876982）。
+> 提出前の確認として、tarball を**空のディレクトリに展開して**（＝Kaggle と同じ「tarball の中身しか無い」状態）1ゲーム走らせると、この種の欠落を事前に検出できる。
+
+提出後の確認:
+
+```powershell
+# 提出一覧・スコア(publicScore)の確認。提出直後はスコアがまだ収束していないことがある
+kaggle competitions submissions -c pokemon-tcg-ai-battle
+
+# 実際の対戦ログ(勝敗)を取得して分析する場合は kaggle_replays/fetch_my_episodes.py を使う
+# (自分の直近N件の提出に紐づくエピソードをダウンロードし、replays/ + index/episodes_master.jsonl に追記する)
+cd ../kaggle_replays
+python fetch_my_episodes.py --submissions 1 --max-episodes 500
+```
+
+`fetch_my_episodes.py` が出力するリプレイJSON(`replays/episode-<id>-replay.json`)の
+`info.TeamNames` で対戦相手のチーム名、`rewards`(player_index順、勝ち側が正の値)で
+勝敗が分かる。両陣営とも自分のチーム名の場合はミラー戦(相手プールに自分しかいない等の
+理由で発生することがある)なので、実際の対戦相手との勝率を見る場合は除外すること。
+
 ---
 
 ## `main.py` の役割
