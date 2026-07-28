@@ -53,8 +53,10 @@ _FILES = [
     "sample_submission/tests/local_sim/parallel_eval.py",
     "sample_submission/tests/local_sim/opponent_decks.json",
 ]
+# archetype* に限定すると、交互作用版など別の出発点となる重みが漏れる。
+# 漏れても実行は成功してしまい、黙って旧モデルから学習が始まる(実際に踏んだ)。
 _GLOBS = [
-    "kaggle_replays/policy_prior/output/policy_weights_archetype*.json",
+    "kaggle_replays/policy_prior/output/policy_weights_*.json",
 ]
 _EXCLUDE_SUFFIX = {".pyc", ".pyo"}
 _EXCLUDE_DIRS = {"__pycache__", ".pytest_cache"}
