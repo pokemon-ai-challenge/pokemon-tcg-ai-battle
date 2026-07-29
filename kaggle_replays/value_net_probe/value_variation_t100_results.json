@@ -1,0 +1,173 @@
+{
+  "npz": "kaggle_replays/value_net_probe/selfplay_t100_matchup.npz",
+  "n_splits": 5,
+  "seed": 0,
+  "n_rows_total": 137565,
+  "n_rows_used": 133177,
+  "n_games": 2048,
+  "order_check": {
+    "n_bad_games": 0,
+    "bad_game_ids": []
+  },
+  "skip_consecutive": false,
+  "variance_decomposition": {
+    "gbm": {
+      "1-2": {
+        "n_rows": 14808,
+        "n_games_between": 2048,
+        "n_games_within": 1988,
+        "between": 0.012193315035397622,
+        "within": 0.0011835196295685983,
+        "total": 0.01337683466496622,
+        "icc": 0.9115246873262012
+      },
+      "3-5": {
+        "n_rows": 28115,
+        "n_games_between": 2016,
+        "n_games_within": 2003,
+        "between": 0.022615103193975906,
+        "within": 0.00476483408005039,
+        "total": 0.027379937274026295,
+        "icc": 0.8259735209630849
+      },
+      "6-10": {
+        "n_rows": 40426,
+        "n_games_between": 1885,
+        "n_games_within": 1880,
+        "between": 0.04028619290518653,
+        "within": 0.007944263560343029,
+        "total": 0.04823045646552956,
+        "icc": 0.8352853333241659
+      },
+      "11+": {
+        "n_rows": 49828,
+        "n_games_between": 1618,
+        "n_games_within": 1602,
+        "between": 0.07606417492776492,
+        "within": 0.014976521355788542,
+        "total": 0.09104069628355346,
+        "icc": 0.8354964102082109
+      }
+    },
+    "matchup_onehot": {
+      "1-2": {
+        "n_rows": 14808,
+        "n_games_between": 2048,
+        "n_games_within": 1988,
+        "between": 0.01343482834426221,
+        "within": 6.834726236243435e-34,
+        "total": 0.01343482834426221,
+        "icc": 1.0
+      },
+      "3-5": {
+        "n_rows": 28115,
+        "n_games_between": 2016,
+        "n_games_within": 2003,
+        "between": 0.013530725341988377,
+        "within": 1.3335358162110121e-33,
+        "total": 0.013530725341988377,
+        "icc": 1.0
+      },
+      "6-10": {
+        "n_rows": 40426,
+        "n_games_between": 1885,
+        "n_games_within": 1880,
+        "between": 0.013622153041260002,
+        "within": 1.9681364942323177e-33,
+        "total": 0.013622153041260002,
+        "icc": 1.0
+      },
+      "11+": {
+        "n_rows": 49828,
+        "n_games_between": 1618,
+        "n_games_within": 1602,
+        "between": 0.013480708853863103,
+        "within": 2.6155138495685834e-33,
+        "total": 0.013480708853863103,
+        "icc": 1.0
+      }
+    }
+  },
+  "consecutive_diff": {
+    "gbm": {
+      "1-2": {
+        "n_pairs": 14776,
+        "mean_abs_delta": 0.02381750420491171,
+        "sd_delta": 0.04827697822467069,
+        "median_abs_delta": 0.007952233269529096,
+        "p90_abs_delta": 0.07071030366457719,
+        "phi_sd_in_band": 0.11952339086046596,
+        "n_rows_in_band": 14808
+      },
+      "3-5": {
+        "n_pairs": 27984,
+        "mean_abs_delta": 0.029119901713664877,
+        "sd_delta": 0.05878304711527994,
+        "median_abs_delta": 0.010143357600794392,
+        "p90_abs_delta": 0.07977327070948577,
+        "phi_sd_in_band": 0.17576561675512514,
+        "n_rows_in_band": 28115
+      },
+      "6-10": {
+        "n_pairs": 40159,
+        "mean_abs_delta": 0.028841472127803754,
+        "sd_delta": 0.06291800191907432,
+        "median_abs_delta": 0.008394389594231,
+        "p90_abs_delta": 0.07877316821240826,
+        "phi_sd_in_band": 0.21769488191724934,
+        "n_rows_in_band": 40426
+      },
+      "11+": {
+        "n_pairs": 48210,
+        "mean_abs_delta": 0.02727079135071253,
+        "sd_delta": 0.06576967386479794,
+        "median_abs_delta": 0.005766853776499686,
+        "p90_abs_delta": 0.07408025276485515,
+        "phi_sd_in_band": 0.28945417092467834,
+        "n_rows_in_band": 49828
+      }
+    },
+    "matchup_onehot": {
+      "1-2": {
+        "n_pairs": 14776,
+        "mean_abs_delta": 0.0,
+        "sd_delta": 0.0,
+        "median_abs_delta": 0.0,
+        "p90_abs_delta": 0.0,
+        "phi_sd_in_band": 0.11030460425752221,
+        "n_rows_in_band": 14808
+      },
+      "3-5": {
+        "n_pairs": 27984,
+        "mean_abs_delta": 0.0,
+        "sd_delta": 0.0,
+        "median_abs_delta": 0.0,
+        "p90_abs_delta": 0.0,
+        "phi_sd_in_band": 0.12177355978978903,
+        "n_rows_in_band": 28115
+      },
+      "6-10": {
+        "n_pairs": 40159,
+        "mean_abs_delta": 0.0,
+        "sd_delta": 0.0,
+        "median_abs_delta": 0.0,
+        "p90_abs_delta": 0.0,
+        "phi_sd_in_band": 0.1253550204882505,
+        "n_rows_in_band": 40426
+      },
+      "11+": {
+        "n_pairs": 48210,
+        "mean_abs_delta": 0.0,
+        "sd_delta": 0.0,
+        "median_abs_delta": 0.0,
+        "p90_abs_delta": 0.0,
+        "phi_sd_in_band": 0.12277551177296679,
+        "n_rows_in_band": 49828
+      }
+    }
+  },
+  "sanity_check": {
+    "within_all_zero": true,
+    "mean_abs_delta_all_zero": true
+  }
+}
