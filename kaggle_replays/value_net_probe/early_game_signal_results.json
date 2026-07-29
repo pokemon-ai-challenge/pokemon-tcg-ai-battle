@@ -1,0 +1,328 @@
+{
+  "meta": {
+    "features_path": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\value_net\\features.npz",
+    "n_rows_total_turn_ge_1": 45949,
+    "n_episodes_total": 300,
+    "n_rows_turn0_dropped": 1333,
+    "n_splits": 5,
+    "n_boot": 1000,
+    "note": "weight列・split列は使用しない。GroupKFold(groups=episode_id)を使用。",
+    "permutation_importance_total_val_rows_used": 4939,
+    "permutation_importance_per_fold_n_val_turn1_2": [
+      1003,
+      976,
+      1014,
+      933,
+      1013
+    ]
+  },
+  "band_stats": {
+    "1-2": {
+      "n_rows": 4939,
+      "n_episodes": 300
+    },
+    "3-5": {
+      "n_rows": 12487,
+      "n_episodes": 300
+    },
+    "6-10": {
+      "n_rows": 19961,
+      "n_episodes": 294
+    },
+    "11+": {
+      "n_rows": 8562,
+      "n_episodes": 231
+    }
+  },
+  "single_feature": {
+    "bench_count_diff": {
+      "1-2": {
+        "auc": 0.5737407563698029,
+        "flipped": false,
+        "ci_lo": 0.5185419998495954,
+        "ci_hi": 0.6247264787328665,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.6426625862833752,
+        "flipped": false,
+        "ci_lo": 0.5927643817182913,
+        "ci_hi": 0.6944380326953061,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.7241318896800042,
+        "flipped": false,
+        "ci_lo": 0.6767638378044245,
+        "ci_hi": 0.7734725090817303,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.7824323098234176,
+        "flipped": false,
+        "ci_lo": 0.7287132458140243,
+        "ci_hi": 0.8395022549880335,
+        "n_boot_valid": 1000
+      }
+    },
+    "is_first_player": {
+      "1-2": {
+        "auc": 0.5559352834319495,
+        "flipped": false,
+        "ci_lo": 0.5017570441305699,
+        "ci_hi": 0.6157077588947861,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.5617531770180776,
+        "flipped": false,
+        "ci_lo": 0.507064955001746,
+        "ci_hi": 0.6161432433572553,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.5407544930540152,
+        "flipped": false,
+        "ci_lo": 0.4797156581997983,
+        "ci_hi": 0.5952156737852011,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.5219325056864533,
+        "flipped": true,
+        "ci_lo": 0.44072495886300667,
+        "ci_hi": 0.5976469740588097,
+        "n_boot_valid": 1000
+      }
+    },
+    "prize_diff": {
+      "1-2": {
+        "auc": 0.5005933544303798,
+        "flipped": false,
+        "ci_lo": 0.5,
+        "ci_hi": 0.5013834265710212,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.5760268661981878,
+        "flipped": true,
+        "ci_lo": 0.5302602138496786,
+        "ci_hi": 0.6182006255722429,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.7800368616388678,
+        "flipped": true,
+        "ci_lo": 0.7370678469710137,
+        "ci_hi": 0.823089752690954,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.8812674232799614,
+        "flipped": true,
+        "ci_lo": 0.8241085682676267,
+        "ci_hi": 0.9293350291571084,
+        "n_boot_valid": 1000
+      }
+    },
+    "self_energy_on_board": {
+      "1-2": {
+        "auc": 0.5104935875391796,
+        "flipped": true,
+        "ci_lo": 0.4831279364811821,
+        "ci_hi": 0.5390747151721884,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.5579474867899861,
+        "flipped": false,
+        "ci_lo": 0.5247130472339908,
+        "ci_hi": 0.5878701617173383,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.6313743545824255,
+        "flipped": false,
+        "ci_lo": 0.5893511791010851,
+        "ci_hi": 0.673258645218936,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.6598538161608275,
+        "flipped": false,
+        "ci_lo": 0.610870123475837,
+        "ci_hi": 0.7125085211381927,
+        "n_boot_valid": 1000
+      }
+    }
+  },
+  "models": {
+    "joint-LR": {
+      "1-2": {
+        "auc": 0.5314847823005318,
+        "ci_lo": 0.4808066471256881,
+        "ci_hi": 0.5881498927460422,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.6495129220784275,
+        "ci_lo": 0.6009447400858429,
+        "ci_hi": 0.7001551749499579,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.8096470182011758,
+        "ci_lo": 0.7636113088824581,
+        "ci_hi": 0.8503259821750992,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.8462778711549138,
+        "ci_lo": 0.7711281953048965,
+        "ci_hi": 0.9100438921156156,
+        "n_boot_valid": 1000
+      }
+    },
+    "joint-GBM": {
+      "1-2": {
+        "auc": 0.5281286751387365,
+        "ci_lo": 0.4742122079316634,
+        "ci_hi": 0.5820484475339698,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.6077268659387864,
+        "ci_lo": 0.5547706774061205,
+        "ci_hi": 0.6613520072118778,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.8083015577229233,
+        "ci_lo": 0.766639837801064,
+        "ci_hi": 0.8464833144991087,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.8723549627572198,
+        "ci_lo": 0.8150960707450928,
+        "ci_hi": 0.9201220314099612,
+        "n_boot_valid": 1000
+      }
+    },
+    "early-LR": {
+      "1-2": {
+        "auc": 0.5266398337787253,
+        "ci_lo": 0.4668749384827741,
+        "ci_hi": 0.5830988573481647,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.6299968871837573,
+        "ci_lo": 0.5806480469265797,
+        "ci_hi": 0.6789554886261294,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.6734224180742746,
+        "ci_lo": 0.6295182079084355,
+        "ci_hi": 0.7141600865601451,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.6367506743316174,
+        "ci_lo": 0.5719440013407185,
+        "ci_hi": 0.7000189997332498,
+        "n_boot_valid": 1000
+      }
+    },
+    "early-GBM": {
+      "1-2": {
+        "auc": 0.5327354779517928,
+        "ci_lo": 0.4776531056312115,
+        "ci_hi": 0.5869111884243968,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.5751398043594991,
+        "ci_lo": 0.5206090752838392,
+        "ci_hi": 0.6248884883036834,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.6960118923927673,
+        "ci_lo": 0.6502957133176561,
+        "ci_hi": 0.7380008617732758,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.7051201123420743,
+        "ci_lo": 0.6482744360899206,
+        "ci_hi": 0.7607940099218004,
+        "n_boot_valid": 1000
+      }
+    }
+  },
+  "permutation_importance_early_gbm_turn1_2": [
+    {
+      "feature": "opp_deck_count",
+      "importance_mean_auc_drop": 0.01683635416608007
+    },
+    {
+      "feature": "opp_active_best_attack_damage",
+      "importance_mean_auc_drop": 0.014700431147717224
+    },
+    {
+      "feature": "opp_bench0_best_attack_damage",
+      "importance_mean_auc_drop": 0.010157492235618605
+    },
+    {
+      "feature": "opp_bench2_remaining_hp",
+      "importance_mean_auc_drop": 0.0071003159885947775
+    },
+    {
+      "feature": "opp_bench3_best_attack_damage",
+      "importance_mean_auc_drop": 0.006423504278307054
+    },
+    {
+      "feature": "self_bench1_best_attack_damage",
+      "importance_mean_auc_drop": 0.005904807535054082
+    },
+    {
+      "feature": "opp_bench1_best_attack_damage",
+      "importance_mean_auc_drop": 0.005501147660649965
+    },
+    {
+      "feature": "bench_count_diff",
+      "importance_mean_auc_drop": 0.004947505042056934
+    },
+    {
+      "feature": "opp_bench2_attacker_score",
+      "importance_mean_auc_drop": 0.0036102921930886724
+    },
+    {
+      "feature": "self_bench1_energy_count",
+      "importance_mean_auc_drop": 0.003263127105775477
+    },
+    {
+      "feature": "opp_bench2_hp_ratio",
+      "importance_mean_auc_drop": 0.002720711072734791
+    },
+    {
+      "feature": "self_hand_energy",
+      "importance_mean_auc_drop": 0.0022952360827108655
+    },
+    {
+      "feature": "self_bench3_remaining_hp",
+      "importance_mean_auc_drop": 0.0020573598678059702
+    },
+    {
+      "feature": "self_bench0_min_energy_shortfall",
+      "importance_mean_auc_drop": 0.0020478537908713143
+    },
+    {
+      "feature": "energy_attached",
+      "importance_mean_auc_drop": 0.0020449049495113005
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,354 @@
+{
+  "meta": {
+    "features_path": "kaggle_replays\\value_net_probe\\selfplay_t005_matchup.npz",
+    "n_rows_total_turn_ge_1": 260386,
+    "n_episodes_total": 4000,
+    "n_rows_turn0_dropped": 8589,
+    "n_splits": 5,
+    "n_boot": 1000,
+    "note": "weight列・split列は使用しない。GroupKFold(groups=game_id)を使用。",
+    "permutation_importance_total_val_rows_used": 30179,
+    "permutation_importance_per_fold_n_val_turn1_2": [
+      5940,
+      6215,
+      5869,
+      5973,
+      6182
+    ]
+  },
+  "band_stats": {
+    "1-2": {
+      "n_rows": 30179,
+      "n_episodes": 4000
+    },
+    "3-5": {
+      "n_rows": 60830,
+      "n_episodes": 3933
+    },
+    "6-10": {
+      "n_rows": 83160,
+      "n_episodes": 3722
+    },
+    "11+": {
+      "n_rows": 86217,
+      "n_episodes": 3197
+    }
+  },
+  "single_feature": {
+    "bench_count_diff": {
+      "1-2": {
+        "auc": 0.5940229325268214,
+        "flipped": false,
+        "ci_lo": 0.5766467928293547,
+        "ci_hi": 0.6103543757322725,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.6054710235452284,
+        "flipped": false,
+        "ci_lo": 0.5866718384330871,
+        "ci_hi": 0.6235429225467779,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.6361572764885544,
+        "flipped": false,
+        "ci_lo": 0.618802649510777,
+        "ci_hi": 0.6554383494123328,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.6151322551935309,
+        "flipped": false,
+        "ci_lo": 0.5927019189487321,
+        "ci_hi": 0.6370118545093814,
+        "n_boot_valid": 1000
+      }
+    },
+    "is_first_player": {
+      "1-2": {
+        "auc": 0.5646717122389344,
+        "flipped": false,
+        "ci_lo": 0.5481250278940533,
+        "ci_hi": 0.5820783515529127,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.5640116714851697,
+        "flipped": false,
+        "ci_lo": 0.547944346612977,
+        "ci_hi": 0.579205458480456,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.5498636033710762,
+        "flipped": false,
+        "ci_lo": 0.5316965009270535,
+        "ci_hi": 0.5677066406888986,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.5335272051192862,
+        "flipped": false,
+        "ci_lo": 0.5126734704958639,
+        "ci_hi": 0.5552293441186019,
+        "n_boot_valid": 1000
+      }
+    },
+    "prize_diff": {
+      "1-2": {
+        "auc": 0.5003543815774378,
+        "flipped": false,
+        "ci_lo": 0.4999129983116081,
+        "ci_hi": 0.5008327264720648,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.5486153763786272,
+        "flipped": true,
+        "ci_lo": 0.5351732913448932,
+        "ci_hi": 0.5621876834599224,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.6959504689592526,
+        "flipped": true,
+        "ci_lo": 0.6801906901808713,
+        "ci_hi": 0.7137671095551618,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.7684407311947254,
+        "flipped": true,
+        "ci_lo": 0.7484790802476892,
+        "ci_hi": 0.7857964217345372,
+        "n_boot_valid": 1000
+      }
+    },
+    "self_energy_on_board": {
+      "1-2": {
+        "auc": 0.5074187807264543,
+        "flipped": true,
+        "ci_lo": 0.4966672454420049,
+        "ci_hi": 0.5184039577546776,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.5703356203646921,
+        "flipped": false,
+        "ci_lo": 0.5557347971381288,
+        "ci_hi": 0.5856112297099877,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.6802860679211684,
+        "flipped": false,
+        "ci_lo": 0.663493584586457,
+        "ci_hi": 0.6968178424481484,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.6905090823029031,
+        "flipped": false,
+        "ci_lo": 0.6699687373361117,
+        "ci_hi": 0.7117433461640218,
+        "n_boot_valid": 1000
+      }
+    }
+  },
+  "models": {
+    "joint-LR": {
+      "1-2": {
+        "auc": 0.6132286369336244,
+        "ci_lo": 0.5945968786580887,
+        "ci_hi": 0.629787195454438,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.6988439518863546,
+        "ci_lo": 0.6827102526388855,
+        "ci_hi": 0.714801355414812,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.7802289010174697,
+        "ci_lo": 0.7650005996675278,
+        "ci_hi": 0.7958664496515667,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.8227402968988288,
+        "ci_lo": 0.8030436246369201,
+        "ci_hi": 0.840401897033687,
+        "n_boot_valid": 1000
+      }
+    },
+    "joint-GBM": {
+      "1-2": {
+        "auc": 0.674711512949682,
+        "ci_lo": 0.6546107731407188,
+        "ci_hi": 0.693011363453796,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.7486810486274026,
+        "ci_lo": 0.7325936820543647,
+        "ci_hi": 0.7637946740128239,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.8187506391169701,
+        "ci_lo": 0.8058543708099856,
+        "ci_hi": 0.8314678465847511,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.8783018089494098,
+        "ci_lo": 0.8649865272552097,
+        "ci_hi": 0.8918488679270389,
+        "n_boot_valid": 1000
+      }
+    },
+    "early-LR": {
+      "1-2": {
+        "auc": 0.6213627098058444,
+        "ci_lo": 0.6036170061845141,
+        "ci_hi": 0.6391007845561772,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.7051449682606123,
+        "ci_lo": 0.6899656182858054,
+        "ci_hi": 0.7205794842734226,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.7386643491884632,
+        "ci_lo": 0.7246898927998832,
+        "ci_hi": 0.7544831995703006,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.722221514806498,
+        "ci_lo": 0.7023929017984124,
+        "ci_hi": 0.7414350327915129,
+        "n_boot_valid": 1000
+      }
+    },
+    "early-GBM": {
+      "1-2": {
+        "auc": 0.6847787695288363,
+        "ci_lo": 0.6673162061426481,
+        "ci_hi": 0.7018075967936099,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.7471680527298903,
+        "ci_lo": 0.7319633635035646,
+        "ci_hi": 0.7619120292757613,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.7620077049451933,
+        "ci_lo": 0.7476518218733489,
+        "ci_hi": 0.7766113194813276,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.7189211030714269,
+        "ci_lo": 0.6999881676001334,
+        "ci_hi": 0.7373659508698371,
+        "n_boot_valid": 1000
+      }
+    },
+    "onehot-matchup": {
+      "1-2": {
+        "auc": 0.6516895867910629,
+        "ci_lo": 0.632245478457938,
+        "ci_hi": 0.6697353812555059,
+        "n_boot_valid": 1000
+      },
+      "3-5": {
+        "auc": 0.6767264545011091,
+        "ci_lo": 0.6565426588214874,
+        "ci_hi": 0.6965365702964833,
+        "n_boot_valid": 1000
+      },
+      "6-10": {
+        "auc": 0.6789972538728927,
+        "ci_lo": 0.6581756141192688,
+        "ci_hi": 0.6979519513309416,
+        "n_boot_valid": 1000
+      },
+      "11+": {
+        "auc": 0.6547784760435305,
+        "ci_lo": 0.6304201222866976,
+        "ci_hi": 0.6766057296978626,
+        "n_boot_valid": 1000
+      }
+    }
+  },
+  "permutation_importance_early_gbm_turn1_2": [
+    {
+      "feature": "opp_active_best_attack_damage",
+      "importance_mean_auc_drop": 0.03778170715781181
+    },
+    {
+      "feature": "opp_bench0_remaining_hp",
+      "importance_mean_auc_drop": 0.015331756761234003
+    },
+    {
+      "feature": "bench_count_diff",
+      "importance_mean_auc_drop": 0.009672911285968113
+    },
+    {
+      "feature": "opp_bench0_best_attack_damage",
+      "importance_mean_auc_drop": 0.008229693557122128
+    },
+    {
+      "feature": "self_active_remaining_hp",
+      "importance_mean_auc_drop": 0.007785303017694212
+    },
+    {
+      "feature": "self_bench0_remaining_hp",
+      "importance_mean_auc_drop": 0.0075306782812050495
+    },
+    {
+      "feature": "self_active_best_attack_damage",
+      "importance_mean_auc_drop": 0.006878674726711459
+    },
+    {
+      "feature": "self_bench0_best_attack_damage",
+      "importance_mean_auc_drop": 0.006799971895727171
+    },
+    {
+      "feature": "opp_active_remaining_hp",
+      "importance_mean_auc_drop": 0.006364099449199355
+    },
+    {
+      "feature": "opp_bench1_remaining_hp",
+      "importance_mean_auc_drop": 0.005655843160994974
+    },
+    {
+      "feature": "opp_active_is_likely_ko_next_turn",
+      "importance_mean_auc_drop": 0.00527475728199341
+    },
+    {
+      "feature": "is_first_player",
+      "importance_mean_auc_drop": 0.00474243106066985
+    },
+    {
+      "feature": "opp_bench0_hp_ratio",
+      "importance_mean_auc_drop": 0.0038247975501299086
+    },
+    {
+      "feature": "opp_bench1_best_attack_damage",
+      "importance_mean_auc_drop": 0.003588351175549492
+    },
+    {
+      "feature": "self_bench1_remaining_hp",
+      "importance_mean_auc_drop": 0.0034026639257942553
+    }
+  ],
+  "warnings": []
+}

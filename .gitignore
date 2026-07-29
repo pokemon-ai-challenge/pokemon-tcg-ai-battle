@@ -91,3 +91,8 @@ rl_bundle.zip
 
 # 自分のリプレイ(再取得可能・1件あたり数MB)
 kaggle_replays/replays_mine/*.json
+
+# value_net_probe: 自己対戦で生成した局面データ(数十MB)。selfplay_positions.py で
+# 作り直せる。ただし cg の乱数は seed で制御できないため、再生成しても同一にはならない
+# (同一シード4回で勝率 3/6/14/7 of 48)。結果の json/md の方は追跡する。
+kaggle_replays/value_net_probe/*.npz
