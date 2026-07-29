@@ -13,5 +13,13 @@
     "max_nodes": 10000,
     "max_combinations_per_select": 128,
     "verify_shuffles": 1
+  },
+  "turn_search": {
+    "enabled": false,
+    "beam_width": 30,
+    "time_limit_ms": 3000,
+    "max_depth": 20,
+    "max_combinations_per_select": 64,
+    "hidden_state_samples": 1
   }
 }

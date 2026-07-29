@@ -1,5 +1,5 @@
-"""Action selection: try lethal search, then the learned policy prior, then the
-rule-based router.
+"""Action selection: try lethal search, then the turn-beam search, then the
+learned policy prior, then the rule-based router.
 
 ``select_action()`` is the normal-turn entry point called from
 ``ptcg_ai.rule_based.rule_based_agent``. Search modules never talk to
@@ -7,6 +7,18 @@ the agent entry points directly; this module wires the config, builds
 the hidden state for the search, validates whatever the search returns
 and falls back to the rule-based ``router.route()``, guaranteeing a
 legal action even when everything else fails.
+
+## Turn-beam search (opt-in, MAIN only)
+
+Between lethal search and the learned policy prior, ``SelectContext.MAIN``
+decisions can optionally be routed through ``ptcg_ai.search.turn_beam``: a
+beam search over the rest of the current own turn (see the module docstring
+and ``test_plan/ptcg_search_design.md`` for the design). Gated by
+``turn_search.enabled`` in the config (default ``False``), overridable by
+``PTCG_TURN_SEARCH=0``/``1`` -- same idiom as ``ml_policy``/``_use_ml_policy``
+below. Whatever it returns still goes through ``is_valid_action()``; any
+exception, a non-MAIN context, or an empty search all fall through
+untouched (to the ML policy, then the router).
 
 ## Learned policy prior (opt-in, MAIN only)
 
@@ -58,7 +70,7 @@ from ptcg_ai.learning import policy_model
 from ptcg_ai.learning.observable_state import observable_state
 from ptcg_ai.learning.semantic_action import resolve_option
 from ptcg_ai.opponent_modeling import tracker as opponent_tracker
-from ptcg_ai.search import lethal_simple
+from ptcg_ai.search import lethal_simple, turn_beam
 
 _SEARCH_MODULES = {
     "lethal_simple": lethal_simple,
@@ -124,6 +136,47 @@ def _ml_policy_action(obs: Observation, select: SelectData) -> list[int] | None:
     if choice is None:
         return None
     return [choice]
+
+
+def _use_turn_search(config: dict) -> bool:
+    """Whether to try the turn-beam search before the learned policy prior / router.
+
+    Same idiom as ``_use_ml_policy``: ``PTCG_TURN_SEARCH`` wins over the config when
+    set to ``0``/``1`` (anything else is ignored). Defaults to ``False`` (config's
+    ``turn_search.enabled``, itself defaulting to ``False``).
+    """
+    override = os.environ.get("PTCG_TURN_SEARCH")
+    if override in ("0", "1"):
+        return override == "1"
+    return bool(((config or {}).get("turn_search") or {}).get("enabled", False))
+
+
+def _turn_search_action(
+    obs: Observation, select: SelectData, config: dict, full_deck: list[int]
+) -> list[int] | None:
+    """Run the turn-beam search and return its first selection, or ``None``.
+
+    Restricted to ``SelectContext.MAIN`` (``turn_beam.search`` itself checks this
+    too; the check here is only to avoid building a hidden-state factory needlessly).
+    Returns ``None`` -- meaning "fall through to the ML policy / router" -- on any
+    non-MAIN context or exception; this function must never be allowed to stop the
+    turn. The caller still runs ``is_valid_action()`` on whatever this returns,
+    exactly like every other action source in this module.
+    """
+    if select.context != SelectContext.MAIN or obs.current is None:
+        return None
+    # This function only runs when _use_turn_search(config) already resolved to
+    # True (env var included); force "enabled" so turn_beam.search's own
+    # (redundant, defense-in-depth) enabled check doesn't fall back to the raw
+    # config file value and ignore the env override.
+    turn_search_config = {**((config or {}).get("turn_search") or {}), "enabled": True}
+    try:
+        hidden_state_factory = _hidden_state_factory(
+            obs, full_deck, _use_real_hidden_state(config)
+        )
+        return turn_beam.search(obs, turn_search_config, hidden_state_factory)
+    except Exception:  # noqa: BLE001 -- never let the search break the turn
+        return None
 
 
 def _use_real_hidden_state(config: dict) -> bool:
@@ -223,7 +276,13 @@ def select_action(obs: Observation, full_deck: list[int], config: dict | None = 
             if action is not None and is_valid_action(action, select):
                 return action
 
-    # No certain lethal: try the learned policy prior (MAIN only, opt-in via config/env).
+    # No certain lethal: try the turn-beam search (MAIN only, opt-in via config/env).
+    if _use_turn_search(config):
+        action = _turn_search_action(obs, select, config, full_deck)
+        if action is not None and is_valid_action(action, select):
+            return action
+
+    # No certain lethal / no turn search: try the learned policy prior (MAIN only, opt-in via config/env).
     if _use_ml_policy(config):
         action = _ml_policy_action(obs, select)
         if action is not None and is_valid_action(action, select):
