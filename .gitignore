@@ -69,6 +69,11 @@ kaggle_replays/rl/runs/
 kaggle_replays/rl/_tmp_policy_*.json
 kaggle_replays/rl/_train_*.log
 
+# kaggle_replays/value_net_probe: 自己対戦で生成した局面データ(数十MB)。
+# selfplay_positions.py で作り直せる。ただし cg の乱数は seed で制御できないため
+# 再生成しても同一にはならない(同一シード4回で勝率 3/6/14/7 of 48)。
+kaggle_replays/value_net_probe/*.npz
+
 # kaggle_replays/policy_net: same reasoning as value_net above. features.npz is re-derivable
 # from training_data/policy_positions.jsonl.gz via build_features.py. train_full.log /
 # build_features_full.log are raw run logs, not a documented artifact.
