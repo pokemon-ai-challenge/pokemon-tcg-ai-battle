@@ -85,3 +85,6 @@ desktop.ini
 # IDE
 .vscode/
 .idea/
+
+# リモート実行バンドルは package_for_remote.py で再生成できるビルド生成物
+rl_bundle.zip
