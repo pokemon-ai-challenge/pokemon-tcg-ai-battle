@@ -88,3 +88,6 @@ desktop.ini
 
 # リモート実行バンドルは package_for_remote.py で再生成できるビルド生成物
 rl_bundle.zip
+
+# 自分のリプレイ(再取得可能・1件あたり数MB)
+kaggle_replays/replays_mine/*.json
