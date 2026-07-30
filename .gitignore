@@ -69,6 +69,10 @@ kaggle_replays/rl/runs/
 kaggle_replays/rl/_tmp_policy_*.json
 kaggle_replays/rl/_train_*.log
 
+# push_train_pool.py の中間生成物(バンドル zip + metadata + notebook)。--dry-run でも作られる。
+# バンドルは作業ツリーから毎回作り直せるので追跡しない。
+kaggle_replays/rl/distributed/notebooks/.stage_train_pool/
+
 # kaggle_replays/value_net_probe: 自己対戦で生成した局面データ(数十MB)。
 # selfplay_positions.py で作り直せる。ただし cg の乱数は seed で制御できないため
 # 再生成しても同一にはならない(同一シード4回で勝率 3/6/14/7 of 48)。
