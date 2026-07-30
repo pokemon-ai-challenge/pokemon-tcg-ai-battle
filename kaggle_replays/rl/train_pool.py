@@ -49,6 +49,7 @@ from train_v3 import (  # noqa: E402
 from torch_policy import TorchOptionPolicy  # noqa: E402
 from collect_pool import parallel_collect_pool  # noqa: E402
 from run_league import read_deck_csv_file  # noqa: E402
+from ptcg_ai.learning import encoder  # noqa: E402
 import pools  # noqa: E402
 
 WDIR = _ROOT / "sample_submission" / "ptcg_ai" / "learning"
@@ -85,6 +86,30 @@ def _resolve_learner_weights_path(learner: str, override: str | None) -> Path:
     if weights_path is None:
         return WDIR / "policy_weights.json"
     return Path(weights_path)
+
+
+_SELF_DECK_COUNT_IDX = encoder.FEATURE_NAMES.index("self_deck_count")
+
+
+def looks_like_deckout(traj, threshold: int) -> bool:
+    """学習側が負け、かつ最後の判断時点の自分の山札が threshold 以下ならデッキ切れとみなす。
+
+    これは近似である。``collect_parallel._play_one`` が記録する ``traj["steps"]`` は学習側の
+    (maxCount==1 の)判断のみで、最後に記録された判断はその後の相手の手番やカード効果を経た
+    「最終盤面」そのものではない。そのため実際の最終 deckCount とはズレうる(近似の妥当性は
+    ``test_deckout_detect.py`` で ``blunder_metrics.py`` の厳密判定(最終盤面を直接参照)と
+    突き合わせて検証している)。
+
+    self_deck_count のインデックスは ``encoder.FEATURE_NAMES.index("self_deck_count")`` から
+    求めており、ハードコードしていない。
+    """
+    if traj["reward"] >= 1.0:
+        return False
+    steps = traj.get("steps")
+    if not steps:
+        return False
+    last_deck_count = steps[-1]["state_feat"][_SELF_DECK_COUNT_IDX]
+    return last_deck_count <= threshold
 
 
 def summarize_per_opponent(stats: dict) -> dict:
@@ -150,6 +175,23 @@ def main():
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--tag", default="pool")
     ap.add_argument("--force", action="store_true", help="出力重みファイルが既に存在しても上書きする。")
+    ap.add_argument("--deckout-threshold", type=int, default=0,
+                     help="looks_like_deckout の判定に使う自分の山札枚数の閾値(既定0)。"
+                          "デッキ切れ率のログ記録には常に使う。--deckout-penalty が非0のときは "
+                          "報酬シェーピングの判定にも使う。"
+                          "既定を0にしているのは、test_deckout_paired.py で同一試合内の対応ありで "
+                          "検証した結果、閾値0のとき厳密判定と完全一致したため(400試合・220敗中、"
+                          "真陽性60/偽陽性0/偽陰性0、適合率1.000・再現率1.000)。"
+                          "閾値を上げると偽陽性が入る(2で16件、適合率0.789)。"
+                          "デッキ切れ負けは『自分のターン開始時に引けない』ことなので、"
+                          "最後の判断時点で山札0なら必ずデッキ切れ、そうでなければ必ず違う。")
+    ap.add_argument("--deckout-penalty", type=float, default=0.0,
+                     help="デッキ切れ負けの軌跡に追加で引く罰則(既定0.0=無効、従来と完全に同じ挙動)。"
+                          "有効時は学習側が負け かつ looks_like_deckout が True の軌跡の reward を "
+                          "0.0 から 0.0 - deckout_penalty に書き換えてから build_padded に渡す。"
+                          "注意: これは potential-based shaping ではないため、最適方策を変えうる。"
+                          "「デッキ切れを避けるためなら勝率を多少犠牲にする」方策に寄る理論的リスクが"
+                          "あるため、有効にした場合は必ず eval_winrate で確認すること。")
     args = ap.parse_args()
 
     device = args.device
@@ -242,6 +284,20 @@ def main():
         if not trajs:
             print(f"[iter {it}] no trajs", flush=True)
             continue
+
+        # デッキ切れ率の診断ログは --deckout-penalty の有無にかかわらず常に計算・記録する
+        # (学習中に下がっているか観察するため)。既定挙動を変えるのは reward の書き換えのみで、
+        # それは --deckout-penalty が非0のときだけ行う。
+        deckout_flags = [looks_like_deckout(tr, args.deckout_threshold) for tr in trajs]
+        n_losses = sum(1 for tr in trajs if tr["reward"] < 1.0)
+        n_deckouts = sum(deckout_flags)
+        deckout_rate = (n_deckouts / n_losses) if n_losses else float("nan")
+
+        if args.deckout_penalty:
+            for tr, is_deckout in zip(trajs, deckout_flags):
+                if is_deckout:
+                    tr["reward"] = 0.0 - args.deckout_penalty
+
         batch = build_padded(trajs, device)
         with torch.no_grad():
             values = critic(batch["state_rows"])
@@ -267,6 +323,7 @@ def main():
         per_opp_train = summarize_per_opponent(stats)
         print(f"[iter {it}] train_wr {train_wr:.3f} ({total['wins']}/{total['valid']} "
               f"err{total['errors']}) steps {batch['n']} pol {pl:.4f} val {vl:.4f} ent {en:.3f} "
+              f"deckout {n_deckouts}/{n_losses}={deckout_rate:.3f} "
               f"{time.time() - t0:.0f}s", flush=True)
         for name, b in per_opp_train.items():
             print(f"    per_opponent[{name}] {b['wins']}/{b['valid']} = {b['winrate']:.3f} "
@@ -276,6 +333,8 @@ def main():
             "iter": it, "train_winrate": train_wr, "steps": batch["n"],
             "pol_loss": pl, "val_loss": vl, "entropy": en,
             "per_opponent_train": per_opp_train,
+            "deckout_losses": n_deckouts, "deckout_total_losses": n_losses,
+            "deckout_rate": deckout_rate, "deckout_threshold": args.deckout_threshold,
         }
         if it % args.eval_every == 0 or it == args.iters:
             erec = do_baseline_or_iter_eval()

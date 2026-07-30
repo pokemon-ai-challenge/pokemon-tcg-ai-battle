@@ -1,0 +1,1964 @@
+{
+  "args": {
+    "models": "BC=policy_weights.json,CONFIG_C=policy_weights_configC.json,SPEC_alakazam=policy_weights_alakazam_pool_armA_fixed.json,POOL=policy_weights_alakazam_pool_armB_pool.json,SPEC_marnie=policy_weights_alakazam_pool_spec_marnie.json",
+    "learner_deck": "alakazam",
+    "opponents": "alakazam,crustle,marnie_grimmsnarl_ex,archaludon_ex",
+    "games_per_cell": 100,
+    "workers": 8,
+    "seed0": 900000,
+    "out_prefix": "blunder_main"
+  },
+  "models": [
+    "BC",
+    "CONFIG_C",
+    "SPEC_alakazam",
+    "POOL",
+    "SPEC_marnie"
+  ],
+  "opponents": [
+    "alakazam",
+    "crustle",
+    "marnie_grimmsnarl_ex",
+    "archaludon_ex"
+  ],
+  "matrix": {
+    "BC": {
+      "alakazam": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 53,
+          "learner_losses": 47,
+          "draws": 0,
+          "turns_total": 756,
+          "turns_attacked": 472,
+          "turns_energy_attached": 476,
+          "lethal_offered_turns": 332,
+          "lethal_missed_turns": 15,
+          "energy_attach_total": 476,
+          "energy_attach_over": 1,
+          "learner_losses_deckout": 18,
+          "opp_losses_deckout": 24,
+          "game_length_sum": 1540
+        },
+        "metric_a_ko_missed": {
+          "num": 15,
+          "den": 332,
+          "rate": 0.045180722891566265,
+          "ci95": [
+            0.027568223503219535,
+            0.07319832834741481
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 1,
+          "den": 476,
+          "rate": 0.0021008403361344537,
+          "ci95": [
+            0.0003709366729318674,
+            0.01180308075281863
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 18,
+          "den": 47,
+          "rate": 0.3829787234042553,
+          "ci95": [
+            0.2579048266351308,
+            0.5257369155602367
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 24,
+          "den": 53,
+          "rate": 0.4528301886792453,
+          "ci95": [
+            0.32657368160147465,
+            0.585462573535608
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 472,
+          "den": 756,
+          "rate": 0.6243386243386243,
+          "ci95": [
+            0.5892690328590069,
+            0.658150955728088
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 476,
+          "den": 756,
+          "rate": 0.6296296296296297,
+          "ci95": [
+            0.5946315577634991,
+            0.6633169409762383
+          ]
+        },
+        "avg_game_length": 15.4
+      },
+      "crustle": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 23,
+          "learner_losses": 77,
+          "draws": 0,
+          "turns_total": 1157,
+          "turns_attacked": 729,
+          "turns_energy_attached": 480,
+          "lethal_offered_turns": 243,
+          "lethal_missed_turns": 11,
+          "energy_attach_total": 480,
+          "energy_attach_over": 1,
+          "learner_losses_deckout": 29,
+          "opp_losses_deckout": 11,
+          "game_length_sum": 2363
+        },
+        "metric_a_ko_missed": {
+          "num": 11,
+          "den": 243,
+          "rate": 0.04526748971193416,
+          "ci95": [
+            0.025461570166812907,
+            0.07922742877015719
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 1,
+          "den": 480,
+          "rate": 0.0020833333333333333,
+          "ci95": [
+            0.00036784473770553873,
+            0.011705528035532646
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 29,
+          "den": 77,
+          "rate": 0.37662337662337664,
+          "ci95": [
+            0.27669846411806526,
+            0.48827402529332703
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 11,
+          "den": 23,
+          "rate": 0.4782608695652174,
+          "ci95": [
+            0.29236869539945726,
+            0.6703757013578151
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 729,
+          "den": 1157,
+          "rate": 0.6300777873811582,
+          "ci95": [
+            0.6018710405857425,
+            0.6574235953060106
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 480,
+          "den": 1157,
+          "rate": 0.41486603284356094,
+          "ci95": [
+            0.38680301817612206,
+            0.44349251913060433
+          ]
+        },
+        "avg_game_length": 23.63
+      },
+      "marnie_grimmsnarl_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 23,
+          "learner_losses": 77,
+          "draws": 0,
+          "turns_total": 645,
+          "turns_attacked": 427,
+          "turns_energy_attached": 455,
+          "lethal_offered_turns": 246,
+          "lethal_missed_turns": 36,
+          "energy_attach_total": 455,
+          "energy_attach_over": 10,
+          "learner_losses_deckout": 9,
+          "opp_losses_deckout": 1,
+          "game_length_sum": 1319
+        },
+        "metric_a_ko_missed": {
+          "num": 36,
+          "den": 246,
+          "rate": 0.14634146341463414,
+          "ci95": [
+            0.10761552232235093,
+            0.1959432124920275
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 10,
+          "den": 455,
+          "rate": 0.02197802197802198,
+          "ci95": [
+            0.01198085478621682,
+            0.03997956031128088
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 9,
+          "den": 77,
+          "rate": 0.11688311688311688,
+          "ci95": [
+            0.06272491064586315,
+            0.20745281963161774
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 1,
+          "den": 23,
+          "rate": 0.043478260869565216,
+          "ci95": [
+            0.0077164669621267515,
+            0.2099158649405914
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 427,
+          "den": 645,
+          "rate": 0.662015503875969,
+          "ci95": [
+            0.624646317122994,
+            0.697466198474033
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 455,
+          "den": 645,
+          "rate": 0.7054263565891473,
+          "ci95": [
+            0.6691130510878814,
+            0.7393071241906458
+          ]
+        },
+        "avg_game_length": 13.19
+      },
+      "archaludon_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 61,
+          "learner_losses": 39,
+          "draws": 0,
+          "turns_total": 598,
+          "turns_attacked": 401,
+          "turns_energy_attached": 354,
+          "lethal_offered_turns": 265,
+          "lethal_missed_turns": 6,
+          "energy_attach_total": 354,
+          "energy_attach_over": 4,
+          "learner_losses_deckout": 1,
+          "opp_losses_deckout": 1,
+          "game_length_sum": 1134
+        },
+        "metric_a_ko_missed": {
+          "num": 6,
+          "den": 265,
+          "rate": 0.022641509433962263,
+          "ci95": [
+            0.010417015325813184,
+            0.04850838907588655
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 4,
+          "den": 354,
+          "rate": 0.011299435028248588,
+          "ci95": [
+            0.004402590238320181,
+            0.028689146440702043
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 1,
+          "den": 39,
+          "rate": 0.02564102564102564,
+          "ci95": [
+            0.00454058606523737,
+            0.13181286478627144
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 1,
+          "den": 61,
+          "rate": 0.01639344262295082,
+          "ci95": [
+            0.0028996561143639805,
+            0.08719065627768062
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 401,
+          "den": 598,
+          "rate": 0.6705685618729097,
+          "ci95": [
+            0.6319132389936054,
+            0.7070463809462592
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 354,
+          "den": 598,
+          "rate": 0.5919732441471572,
+          "ci95": [
+            0.5521163560487342,
+            0.6306559880364869
+          ]
+        },
+        "avg_game_length": 11.34
+      }
+    },
+    "CONFIG_C": {
+      "alakazam": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 45,
+          "learner_losses": 55,
+          "draws": 0,
+          "turns_total": 786,
+          "turns_attacked": 501,
+          "turns_energy_attached": 538,
+          "lethal_offered_turns": 331,
+          "lethal_missed_turns": 14,
+          "energy_attach_total": 538,
+          "energy_attach_over": 1,
+          "learner_losses_deckout": 23,
+          "opp_losses_deckout": 23,
+          "game_length_sum": 1619
+        },
+        "metric_a_ko_missed": {
+          "num": 14,
+          "den": 331,
+          "rate": 0.04229607250755287,
+          "ci95": [
+            0.02535923165353852,
+            0.0697352846789602
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 1,
+          "den": 538,
+          "rate": 0.0018587360594795538,
+          "ci95": [
+            0.00032817949988412433,
+            0.01045283103898923
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 23,
+          "den": 55,
+          "rate": 0.41818181818181815,
+          "ci95": [
+            0.29737567047718927,
+            0.5496713166883535
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 23,
+          "den": 45,
+          "rate": 0.5111111111111111,
+          "ci95": [
+            0.37004224326489743,
+            0.6504321064697549
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 501,
+          "den": 786,
+          "rate": 0.6374045801526718,
+          "ci95": [
+            0.6032018359230804,
+            0.6702707185739225
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 538,
+          "den": 786,
+          "rate": 0.6844783715012722,
+          "ci95": [
+            0.651158585512945,
+            0.7160036404321052
+          ]
+        },
+        "avg_game_length": 16.19
+      },
+      "crustle": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 30,
+          "learner_losses": 70,
+          "draws": 0,
+          "turns_total": 1085,
+          "turns_attacked": 695,
+          "turns_energy_attached": 458,
+          "lethal_offered_turns": 258,
+          "lethal_missed_turns": 19,
+          "energy_attach_total": 458,
+          "energy_attach_over": 6,
+          "learner_losses_deckout": 36,
+          "opp_losses_deckout": 13,
+          "game_length_sum": 2227
+        },
+        "metric_a_ko_missed": {
+          "num": 19,
+          "den": 258,
+          "rate": 0.07364341085271318,
+          "ci95": [
+            0.047649396647945395,
+            0.11214797703140887
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 6,
+          "den": 458,
+          "rate": 0.013100436681222707,
+          "ci95": [
+            0.006017423941513152,
+            0.028283513869199434
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 36,
+          "den": 70,
+          "rate": 0.5142857142857142,
+          "ci95": [
+            0.39954182740260175,
+            0.6275431761726186
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 13,
+          "den": 30,
+          "rate": 0.43333333333333335,
+          "ci95": [
+            0.27377237430615114,
+            0.6080299045459127
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 695,
+          "den": 1085,
+          "rate": 0.6405529953917051,
+          "ci95": [
+            0.6115512256298675,
+            0.6685629801462527
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 458,
+          "den": 1085,
+          "rate": 0.4221198156682028,
+          "ci95": [
+            0.3930566541192063,
+            0.4517325236638615
+          ]
+        },
+        "avg_game_length": 22.27
+      },
+      "marnie_grimmsnarl_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 20,
+          "learner_losses": 80,
+          "draws": 0,
+          "turns_total": 612,
+          "turns_attacked": 390,
+          "turns_energy_attached": 407,
+          "lethal_offered_turns": 219,
+          "lethal_missed_turns": 32,
+          "energy_attach_total": 407,
+          "energy_attach_over": 5,
+          "learner_losses_deckout": 6,
+          "opp_losses_deckout": 0,
+          "game_length_sum": 1243
+        },
+        "metric_a_ko_missed": {
+          "num": 32,
+          "den": 219,
+          "rate": 0.1461187214611872,
+          "ci95": [
+            0.10544206869273674,
+            0.1989965998503001
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 5,
+          "den": 407,
+          "rate": 0.012285012285012284,
+          "ci95": [
+            0.005258450290010611,
+            0.028432393090990722
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 6,
+          "den": 80,
+          "rate": 0.075,
+          "ci95": [
+            0.03482477485108787,
+            0.15412200097380097
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 0,
+          "den": 20,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.1611301254949332
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 390,
+          "den": 612,
+          "rate": 0.6372549019607843,
+          "ci95": [
+            0.5984157077323483,
+            0.6743817129030877
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 407,
+          "den": 612,
+          "rate": 0.6650326797385621,
+          "ci95": [
+            0.6267117138245576,
+            0.7012947086061452
+          ]
+        },
+        "avg_game_length": 12.43
+      },
+      "archaludon_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 60,
+          "learner_losses": 40,
+          "draws": 0,
+          "turns_total": 608,
+          "turns_attacked": 412,
+          "turns_energy_attached": 403,
+          "lethal_offered_turns": 266,
+          "lethal_missed_turns": 8,
+          "energy_attach_total": 403,
+          "energy_attach_over": 1,
+          "learner_losses_deckout": 5,
+          "opp_losses_deckout": 1,
+          "game_length_sum": 1154
+        },
+        "metric_a_ko_missed": {
+          "num": 8,
+          "den": 266,
+          "rate": 0.03007518796992481,
+          "ci95": [
+            0.01531660142024992,
+            0.058213943907082864
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 1,
+          "den": 403,
+          "rate": 0.0024813895781637717,
+          "ci95": [
+            0.00043814929376014016,
+            0.013920264398448326
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 5,
+          "den": 40,
+          "rate": 0.125,
+          "ci95": [
+            0.05459419773541283,
+            0.26112420670238146
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 1,
+          "den": 60,
+          "rate": 0.016666666666666666,
+          "ci95": [
+            0.002948083860873681,
+            0.08855338226779479
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 412,
+          "den": 608,
+          "rate": 0.6776315789473685,
+          "ci95": [
+            0.6394647163381056,
+            0.7135678332629678
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 403,
+          "den": 608,
+          "rate": 0.662828947368421,
+          "ci95": [
+            0.6243330960462412,
+            0.6992800744214093
+          ]
+        },
+        "avg_game_length": 11.54
+      }
+    },
+    "SPEC_alakazam": {
+      "alakazam": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 70,
+          "learner_losses": 30,
+          "draws": 0,
+          "turns_total": 769,
+          "turns_attacked": 566,
+          "turns_energy_attached": 497,
+          "lethal_offered_turns": 405,
+          "lethal_missed_turns": 0,
+          "energy_attach_total": 497,
+          "energy_attach_over": 13,
+          "learner_losses_deckout": 9,
+          "opp_losses_deckout": 29,
+          "game_length_sum": 1551
+        },
+        "metric_a_ko_missed": {
+          "num": 0,
+          "den": 405,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.009396304094299602
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 13,
+          "den": 497,
+          "rate": 0.026156941649899398,
+          "ci95": [
+            0.015348702604734385,
+            0.044234207441076506
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 9,
+          "den": 30,
+          "rate": 0.3,
+          "ci95": [
+            0.16664562643958936,
+            0.47876121011660183
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 29,
+          "den": 70,
+          "rate": 0.4142857142857143,
+          "ci95": [
+            0.30629997924814173,
+            0.5311899993005356
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 566,
+          "den": 769,
+          "rate": 0.7360208062418726,
+          "ci95": [
+            0.7037483527175833,
+            0.7659468603765359
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 497,
+          "den": 769,
+          "rate": 0.64629388816645,
+          "ci95": [
+            0.6118497574676792,
+            0.6792836390782625
+          ]
+        },
+        "avg_game_length": 15.51
+      },
+      "crustle": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 33,
+          "learner_losses": 67,
+          "draws": 0,
+          "turns_total": 1025,
+          "turns_attacked": 807,
+          "turns_energy_attached": 538,
+          "lethal_offered_turns": 317,
+          "lethal_missed_turns": 1,
+          "energy_attach_total": 538,
+          "energy_attach_over": 23,
+          "learner_losses_deckout": 41,
+          "opp_losses_deckout": 9,
+          "game_length_sum": 2105
+        },
+        "metric_a_ko_missed": {
+          "num": 1,
+          "den": 317,
+          "rate": 0.0031545741324921135,
+          "ci95": [
+            0.000557062674667276,
+            0.01765005261212845
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 23,
+          "den": 538,
+          "rate": 0.04275092936802974,
+          "ci95": [
+            0.028653475495390865,
+            0.0633320789544705
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 41,
+          "den": 67,
+          "rate": 0.6119402985074627,
+          "ci95": [
+            0.49222870514874945,
+            0.7195112894307066
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 9,
+          "den": 33,
+          "rate": 0.2727272727272727,
+          "ci95": [
+            0.15067272656322814,
+            0.44217883254386814
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 807,
+          "den": 1025,
+          "rate": 0.7873170731707317,
+          "ci95": [
+            0.7612164782956314,
+            0.8112720369432548
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 538,
+          "den": 1025,
+          "rate": 0.5248780487804878,
+          "ci95": [
+            0.49427000154913636,
+            0.5553003113153513
+          ]
+        },
+        "avg_game_length": 21.05
+      },
+      "marnie_grimmsnarl_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 33,
+          "learner_losses": 66,
+          "draws": 1,
+          "turns_total": 612,
+          "turns_attacked": 458,
+          "turns_energy_attached": 471,
+          "lethal_offered_turns": 250,
+          "lethal_missed_turns": 6,
+          "energy_attach_total": 471,
+          "energy_attach_over": 43,
+          "learner_losses_deckout": 0,
+          "opp_losses_deckout": 0,
+          "game_length_sum": 1238
+        },
+        "metric_a_ko_missed": {
+          "num": 6,
+          "den": 250,
+          "rate": 0.024,
+          "ci95": [
+            0.011044626630631512,
+            0.051362795951009954
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 43,
+          "den": 471,
+          "rate": 0.09129511677282377,
+          "ci95": [
+            0.0684845101429002,
+            0.12071879470654853
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 0,
+          "den": 66,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.05500446725160935
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 0,
+          "den": 33,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.10427343003561192
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 458,
+          "den": 612,
+          "rate": 0.7483660130718954,
+          "ci95": [
+            0.7125078376097206,
+            0.7811255902067827
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 471,
+          "den": 612,
+          "rate": 0.7696078431372549,
+          "ci95": [
+            0.7346259995771972,
+            0.8012260766709809
+          ]
+        },
+        "avg_game_length": 12.38
+      },
+      "archaludon_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 78,
+          "learner_losses": 22,
+          "draws": 0,
+          "turns_total": 589,
+          "turns_attacked": 423,
+          "turns_energy_attached": 374,
+          "lethal_offered_turns": 294,
+          "lethal_missed_turns": 0,
+          "energy_attach_total": 374,
+          "energy_attach_over": 5,
+          "learner_losses_deckout": 1,
+          "opp_losses_deckout": 0,
+          "game_length_sum": 1099
+        },
+        "metric_a_ko_missed": {
+          "num": 0,
+          "den": 294,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.012898131087128192
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 5,
+          "den": 374,
+          "rate": 0.013368983957219251,
+          "ci95": [
+            0.005723502963055703,
+            0.030909837569061457
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 1,
+          "den": 22,
+          "rate": 0.045454545454545456,
+          "ci95": [
+            0.008069219301147859,
+            0.21798489499518056
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 0,
+          "den": 78,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.04693945377411976
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 423,
+          "den": 589,
+          "rate": 0.7181663837011885,
+          "ci95": [
+            0.680509489476487,
+            0.7529958515792013
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 374,
+          "den": 589,
+          "rate": 0.634974533106961,
+          "ci95": [
+            0.5953351462376348,
+            0.6728646562053786
+          ]
+        },
+        "avg_game_length": 10.99
+      }
+    },
+    "POOL": {
+      "alakazam": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 57,
+          "learner_losses": 43,
+          "draws": 0,
+          "turns_total": 756,
+          "turns_attacked": 568,
+          "turns_energy_attached": 514,
+          "lethal_offered_turns": 390,
+          "lethal_missed_turns": 0,
+          "energy_attach_total": 514,
+          "energy_attach_over": 5,
+          "learner_losses_deckout": 12,
+          "opp_losses_deckout": 23,
+          "game_length_sum": 1527
+        },
+        "metric_a_ko_missed": {
+          "num": 0,
+          "den": 390,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.009754175282651703
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 5,
+          "den": 514,
+          "rate": 0.009727626459143969,
+          "ci95": [
+            0.004161955057098388,
+            0.022567454090409268
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 12,
+          "den": 43,
+          "rate": 0.27906976744186046,
+          "ci95": [
+            0.16746451821827155,
+            0.4269131290012939
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 23,
+          "den": 57,
+          "rate": 0.40350877192982454,
+          "ci95": [
+            0.2861732352653998,
+            0.5330294155524615
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 568,
+          "den": 756,
+          "rate": 0.7513227513227513,
+          "ci95": [
+            0.7192913842765548,
+            0.7808128479739563
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 514,
+          "den": 756,
+          "rate": 0.6798941798941799,
+          "ci95": [
+            0.6458009449917111,
+            0.7121684001981284
+          ]
+        },
+        "avg_game_length": 15.27
+      },
+      "crustle": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 30,
+          "learner_losses": 70,
+          "draws": 0,
+          "turns_total": 912,
+          "turns_attacked": 719,
+          "turns_energy_attached": 440,
+          "lethal_offered_turns": 302,
+          "lethal_missed_turns": 1,
+          "energy_attach_total": 440,
+          "energy_attach_over": 12,
+          "learner_losses_deckout": 31,
+          "opp_losses_deckout": 3,
+          "game_length_sum": 1865
+        },
+        "metric_a_ko_missed": {
+          "num": 1,
+          "den": 302,
+          "rate": 0.0033112582781456954,
+          "ci95": [
+            0.0005847426840939249,
+            0.018515340496219022
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 12,
+          "den": 440,
+          "rate": 0.02727272727272727,
+          "ci95": [
+            0.015668540934139618,
+            0.047060144254450174
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 31,
+          "den": 70,
+          "rate": 0.44285714285714284,
+          "ci95": [
+            0.33249341706100566,
+            0.5591665686381124
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 3,
+          "den": 30,
+          "rate": 0.1,
+          "ci95": [
+            0.03459925995971617,
+            0.2562144131526662
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 719,
+          "den": 912,
+          "rate": 0.7883771929824561,
+          "ci95": [
+            0.7606857509864108,
+            0.8136493742142789
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 440,
+          "den": 912,
+          "rate": 0.4824561403508772,
+          "ci95": [
+            0.4501666751198821,
+            0.5148927849439542
+          ]
+        },
+        "avg_game_length": 18.65
+      },
+      "marnie_grimmsnarl_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 44,
+          "learner_losses": 56,
+          "draws": 0,
+          "turns_total": 609,
+          "turns_attacked": 472,
+          "turns_energy_attached": 426,
+          "lethal_offered_turns": 273,
+          "lethal_missed_turns": 2,
+          "energy_attach_total": 426,
+          "energy_attach_over": 22,
+          "learner_losses_deckout": 1,
+          "opp_losses_deckout": 0,
+          "game_length_sum": 1222
+        },
+        "metric_a_ko_missed": {
+          "num": 2,
+          "den": 273,
+          "rate": 0.007326007326007326,
+          "ci95": [
+            0.0020113177709178186,
+            0.0263139050279679
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 22,
+          "den": 426,
+          "rate": 0.051643192488262914,
+          "ci95": [
+            0.034348419084387107,
+            0.07695211581032758
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 1,
+          "den": 56,
+          "rate": 0.017857142857142856,
+          "ci95": [
+            0.003159128964463983,
+            0.0944585817919329
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 0,
+          "den": 44,
+          "rate": 0.0,
+          "ci95": [
+            6.381712396155606e-18,
+            0.08029831778201396
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 472,
+          "den": 609,
+          "rate": 0.7750410509031199,
+          "ci95": [
+            0.7402125542962835,
+            0.8064213556732748
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 426,
+          "den": 609,
+          "rate": 0.6995073891625616,
+          "ci95": [
+            0.6619362102634724,
+            0.7345773423413117
+          ]
+        },
+        "avg_game_length": 12.22
+      },
+      "archaludon_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 77,
+          "learner_losses": 23,
+          "draws": 0,
+          "turns_total": 584,
+          "turns_attacked": 434,
+          "turns_energy_attached": 336,
+          "lethal_offered_turns": 297,
+          "lethal_missed_turns": 0,
+          "energy_attach_total": 336,
+          "energy_attach_over": 3,
+          "learner_losses_deckout": 1,
+          "opp_losses_deckout": 1,
+          "game_length_sum": 1088
+        },
+        "metric_a_ko_missed": {
+          "num": 0,
+          "den": 297,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.012769510599597926
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 3,
+          "den": 336,
+          "rate": 0.008928571428571428,
+          "ci95": [
+            0.0030410199870749546,
+            0.025918354027171676
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 1,
+          "den": 23,
+          "rate": 0.043478260869565216,
+          "ci95": [
+            0.0077164669621267515,
+            0.2099158649405914
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 1,
+          "den": 77,
+          "rate": 0.012987012987012988,
+          "ci95": [
+            0.002296158172154949,
+            0.06996366845176145
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 434,
+          "den": 584,
+          "rate": 0.7431506849315068,
+          "ci95": [
+            0.7062073384837653,
+            0.7769160063084372
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 336,
+          "den": 584,
+          "rate": 0.5753424657534246,
+          "ci95": [
+            0.5348886204215161,
+            0.6148115709225467
+          ]
+        },
+        "avg_game_length": 10.88
+      }
+    },
+    "SPEC_marnie": {
+      "alakazam": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 50,
+          "learner_losses": 50,
+          "draws": 0,
+          "turns_total": 723,
+          "turns_attacked": 538,
+          "turns_energy_attached": 521,
+          "lethal_offered_turns": 384,
+          "lethal_missed_turns": 0,
+          "energy_attach_total": 521,
+          "energy_attach_over": 14,
+          "learner_losses_deckout": 14,
+          "opp_losses_deckout": 10,
+          "game_length_sum": 1462
+        },
+        "metric_a_ko_missed": {
+          "num": 0,
+          "den": 384,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.009905074649031977
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 14,
+          "den": 521,
+          "rate": 0.026871401151631478,
+          "ci95": [
+            0.016072856766740137,
+            0.04459611459528604
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 14,
+          "den": 50,
+          "rate": 0.28,
+          "ci95": [
+            0.17474014357680362,
+            0.4166538714598967
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 10,
+          "den": 50,
+          "rate": 0.2,
+          "ci95": [
+            0.11243629945973886,
+            0.3303737210448524
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 538,
+          "den": 723,
+          "rate": 0.7441217150760719,
+          "ci95": [
+            0.7110821754695383,
+            0.7745807254981553
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 521,
+          "den": 723,
+          "rate": 0.7206085753803596,
+          "ci95": [
+            0.6868011170547632,
+            0.7520840540746823
+          ]
+        },
+        "avg_game_length": 14.62
+      },
+      "crustle": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 23,
+          "learner_losses": 77,
+          "draws": 0,
+          "turns_total": 997,
+          "turns_attacked": 779,
+          "turns_energy_attached": 514,
+          "lethal_offered_turns": 332,
+          "lethal_missed_turns": 0,
+          "energy_attach_total": 514,
+          "energy_attach_over": 32,
+          "learner_losses_deckout": 51,
+          "opp_losses_deckout": 4,
+          "game_length_sum": 2065
+        },
+        "metric_a_ko_missed": {
+          "num": 0,
+          "den": 332,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.011438725875531798
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 32,
+          "den": 514,
+          "rate": 0.0622568093385214,
+          "ci95": [
+            0.044441357466620174,
+            0.08656704355794025
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 51,
+          "den": 77,
+          "rate": 0.6623376623376623,
+          "ci95": [
+            0.5512443936389647,
+            0.7580023308197299
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 4,
+          "den": 23,
+          "rate": 0.17391304347826086,
+          "ci95": [
+            0.06978540350612772,
+            0.3713805478529566
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 779,
+          "den": 997,
+          "rate": 0.7813440320962889,
+          "ci95": [
+            0.7546333961229744,
+            0.8058948632939005
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 514,
+          "den": 997,
+          "rate": 0.5155466399197592,
+          "ci95": [
+            0.48452459801573344,
+            0.5464493343228103
+          ]
+        },
+        "avg_game_length": 20.65
+      },
+      "marnie_grimmsnarl_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 42,
+          "learner_losses": 58,
+          "draws": 0,
+          "turns_total": 579,
+          "turns_attacked": 438,
+          "turns_energy_attached": 423,
+          "lethal_offered_turns": 253,
+          "lethal_missed_turns": 1,
+          "energy_attach_total": 423,
+          "energy_attach_over": 45,
+          "learner_losses_deckout": 1,
+          "opp_losses_deckout": 2,
+          "game_length_sum": 1161
+        },
+        "metric_a_ko_missed": {
+          "num": 1,
+          "den": 253,
+          "rate": 0.003952569169960474,
+          "ci95": [
+            0.0006980486272232948,
+            0.022045930541260313
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 45,
+          "den": 423,
+          "rate": 0.10638297872340426,
+          "ci95": [
+            0.08046123273978494,
+            0.1393898783046868
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 1,
+          "den": 58,
+          "rate": 0.017241379310344827,
+          "ci95": [
+            0.003049959884541763,
+            0.09141072677298324
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 2,
+          "den": 42,
+          "rate": 0.047619047619047616,
+          "ci95": [
+            0.01315724863920636,
+            0.15790135315479734
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 438,
+          "den": 579,
+          "rate": 0.7564766839378239,
+          "ci95": [
+            0.7198995525258894,
+            0.7896728596011791
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 423,
+          "den": 579,
+          "rate": 0.7305699481865285,
+          "ci95": [
+            0.6929989254010333,
+            0.7651015259051193
+          ]
+        },
+        "avg_game_length": 11.61
+      },
+      "archaludon_ex": {
+        "raw": {
+          "games": 100,
+          "errors": 0,
+          "valid": 100,
+          "seat0": 50,
+          "seat1": 50,
+          "learner_wins": 83,
+          "learner_losses": 17,
+          "draws": 0,
+          "turns_total": 608,
+          "turns_attacked": 451,
+          "turns_energy_attached": 389,
+          "lethal_offered_turns": 333,
+          "lethal_missed_turns": 0,
+          "energy_attach_total": 389,
+          "energy_attach_over": 10,
+          "learner_losses_deckout": 0,
+          "opp_losses_deckout": 1,
+          "game_length_sum": 1128
+        },
+        "metric_a_ko_missed": {
+          "num": 0,
+          "den": 333,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.01140476710715066
+          ]
+        },
+        "metric_b_overattach": {
+          "num": 10,
+          "den": 389,
+          "rate": 0.02570694087403599,
+          "ci95": [
+            0.014022126919246057,
+            0.04666798329311434
+          ]
+        },
+        "metric_c_learner_deckout": {
+          "num": 0,
+          "den": 17,
+          "rate": 0.0,
+          "ci95": [
+            0.0,
+            0.18432366037156456
+          ]
+        },
+        "metric_c_opponent_deckout_ref": {
+          "num": 1,
+          "den": 83,
+          "rate": 0.012048192771084338,
+          "ci95": [
+            0.002129922587704828,
+            0.0651373778765888
+          ]
+        },
+        "attacked_turn_rate": {
+          "num": 451,
+          "den": 608,
+          "rate": 0.7417763157894737,
+          "ci95": [
+            0.7055456921015957,
+            0.7749708337443096
+          ]
+        },
+        "energy_attached_turn_rate": {
+          "num": 389,
+          "den": 608,
+          "rate": 0.6398026315789473,
+          "ci95": [
+            0.6008756530298832,
+            0.6769740387857762
+          ]
+        },
+        "avg_game_length": 11.28
+      }
+    }
+  },
+  "model_totals": {
+    "BC": {
+      "raw": {
+        "games": 400,
+        "errors": 0,
+        "valid": 400,
+        "seat0": 200,
+        "seat1": 200,
+        "learner_wins": 160,
+        "learner_losses": 240,
+        "draws": 0,
+        "turns_total": 3156,
+        "turns_attacked": 2029,
+        "turns_energy_attached": 1765,
+        "lethal_offered_turns": 1086,
+        "lethal_missed_turns": 68,
+        "energy_attach_total": 1765,
+        "energy_attach_over": 16,
+        "learner_losses_deckout": 57,
+        "opp_losses_deckout": 37,
+        "game_length_sum": 6356
+      },
+      "metric_a_ko_missed": {
+        "num": 68,
+        "den": 1086,
+        "rate": 0.06261510128913444,
+        "ci95": [
+          0.04969067954986278,
+          0.07862301300876226
+        ]
+      },
+      "metric_b_overattach": {
+        "num": 16,
+        "den": 1765,
+        "rate": 0.009065155807365438,
+        "ci95": [
+          0.00558756619425564,
+          0.01467518655873253
+        ]
+      },
+      "metric_c_learner_deckout": {
+        "num": 57,
+        "den": 240,
+        "rate": 0.2375,
+        "ci95": [
+          0.1880618432234884,
+          0.29520926392147784
+        ]
+      },
+      "metric_c_opponent_deckout_ref": {
+        "num": 37,
+        "den": 160,
+        "rate": 0.23125,
+        "ci95": [
+          0.17268254006735462,
+          0.30242024213203794
+        ]
+      },
+      "attacked_turn_rate": {
+        "num": 2029,
+        "den": 3156,
+        "rate": 0.6429024081115335,
+        "ci95": [
+          0.6260211190976122,
+          0.6594362278782615
+        ]
+      },
+      "energy_attached_turn_rate": {
+        "num": 1765,
+        "den": 3156,
+        "rate": 0.5592522179974652,
+        "ci95": [
+          0.5418690244695996,
+          0.5764913389106407
+        ]
+      },
+      "avg_game_length": 15.89
+    },
+    "CONFIG_C": {
+      "raw": {
+        "games": 400,
+        "errors": 0,
+        "valid": 400,
+        "seat0": 200,
+        "seat1": 200,
+        "learner_wins": 155,
+        "learner_losses": 245,
+        "draws": 0,
+        "turns_total": 3091,
+        "turns_attacked": 1998,
+        "turns_energy_attached": 1806,
+        "lethal_offered_turns": 1074,
+        "lethal_missed_turns": 73,
+        "energy_attach_total": 1806,
+        "energy_attach_over": 13,
+        "learner_losses_deckout": 70,
+        "opp_losses_deckout": 37,
+        "game_length_sum": 6243
+      },
+      "metric_a_ko_missed": {
+        "num": 73,
+        "den": 1074,
+        "rate": 0.06797020484171322,
+        "ci95": [
+          0.054405012149187686,
+          0.08461504423015413
+        ]
+      },
+      "metric_b_overattach": {
+        "num": 13,
+        "den": 1806,
+        "rate": 0.007198228128460687,
+        "ci95": [
+          0.0042114824039195505,
+          0.012277032392071436
+        ]
+      },
+      "metric_c_learner_deckout": {
+        "num": 70,
+        "den": 245,
+        "rate": 0.2857142857142857,
+        "ci95": [
+          0.23279482024826764,
+          0.34525000826915075
+        ]
+      },
+      "metric_c_opponent_deckout_ref": {
+        "num": 37,
+        "den": 155,
+        "rate": 0.23870967741935484,
+        "ci95": [
+          0.17843300010047397,
+          0.3116250199647985
+        ]
+      },
+      "attacked_turn_rate": {
+        "num": 1998,
+        "den": 3091,
+        "rate": 0.646392753154319,
+        "ci95": [
+          0.6293660397364675,
+          0.6630560344659729
+        ]
+      },
+      "energy_attached_turn_rate": {
+        "num": 1806,
+        "den": 3091,
+        "rate": 0.5842769330313814,
+        "ci95": [
+          0.5668080651346025,
+          0.6015365764780732
+        ]
+      },
+      "avg_game_length": 15.6075
+    },
+    "SPEC_alakazam": {
+      "raw": {
+        "games": 400,
+        "errors": 0,
+        "valid": 400,
+        "seat0": 200,
+        "seat1": 200,
+        "learner_wins": 214,
+        "learner_losses": 185,
+        "draws": 1,
+        "turns_total": 2995,
+        "turns_attacked": 2254,
+        "turns_energy_attached": 1880,
+        "lethal_offered_turns": 1266,
+        "lethal_missed_turns": 7,
+        "energy_attach_total": 1880,
+        "energy_attach_over": 84,
+        "learner_losses_deckout": 51,
+        "opp_losses_deckout": 38,
+        "game_length_sum": 5993
+      },
+      "metric_a_ko_missed": {
+        "num": 7,
+        "den": 1266,
+        "rate": 0.005529225908372828,
+        "ci95": [
+          0.0026808703590073426,
+          0.011369385987926006
+        ]
+      },
+      "metric_b_overattach": {
+        "num": 84,
+        "den": 1880,
+        "rate": 0.04468085106382979,
+        "ci95": [
+          0.03623354092332541,
+          0.05498516876012143
+        ]
+      },
+      "metric_c_learner_deckout": {
+        "num": 51,
+        "den": 185,
+        "rate": 0.2756756756756757,
+        "ci95": [
+          0.2163416694506898,
+          0.34413653026801627
+        ]
+      },
+      "metric_c_opponent_deckout_ref": {
+        "num": 38,
+        "den": 214,
+        "rate": 0.17757009345794392,
+        "ci95": [
+          0.13219041730993386,
+          0.23432176401815039
+        ]
+      },
+      "attacked_turn_rate": {
+        "num": 2254,
+        "den": 2995,
+        "rate": 0.7525876460767946,
+        "ci95": [
+          0.7368163739526946,
+          0.7677117745163674
+        ]
+      },
+      "energy_attached_turn_rate": {
+        "num": 1880,
+        "den": 2995,
+        "rate": 0.6277128547579299,
+        "ci95": [
+          0.6102463766702946,
+          0.6448521253646246
+        ]
+      },
+      "avg_game_length": 14.9825
+    },
+    "POOL": {
+      "raw": {
+        "games": 400,
+        "errors": 0,
+        "valid": 400,
+        "seat0": 200,
+        "seat1": 200,
+        "learner_wins": 208,
+        "learner_losses": 192,
+        "draws": 0,
+        "turns_total": 2861,
+        "turns_attacked": 2193,
+        "turns_energy_attached": 1716,
+        "lethal_offered_turns": 1262,
+        "lethal_missed_turns": 3,
+        "energy_attach_total": 1716,
+        "energy_attach_over": 42,
+        "learner_losses_deckout": 45,
+        "opp_losses_deckout": 27,
+        "game_length_sum": 5702
+      },
+      "metric_a_ko_missed": {
+        "num": 3,
+        "den": 1262,
+        "rate": 0.002377179080824089,
+        "ci95": [
+          0.0008087629027167811,
+          0.006965985533422463
+        ]
+      },
+      "metric_b_overattach": {
+        "num": 42,
+        "den": 1716,
+        "rate": 0.024475524475524476,
+        "ci95": [
+          0.01815793408111248,
+          0.032917467281431606
+        ]
+      },
+      "metric_c_learner_deckout": {
+        "num": 45,
+        "den": 192,
+        "rate": 0.234375,
+        "ci95": [
+          0.18002806481871048,
+          0.2991428569874839
+        ]
+      },
+      "metric_c_opponent_deckout_ref": {
+        "num": 27,
+        "den": 208,
+        "rate": 0.12980769230769232,
+        "ci95": [
+          0.0907663613962844,
+          0.1822753830014166
+        ]
+      },
+      "attacked_turn_rate": {
+        "num": 2193,
+        "den": 2861,
+        "rate": 0.7665152044739602,
+        "ci95": [
+          0.7506621293071578,
+          0.7816535142523325
+        ]
+      },
+      "energy_attached_turn_rate": {
+        "num": 1716,
+        "den": 2861,
+        "rate": 0.599790283117791,
+        "ci95": [
+          0.5817148613697668,
+          0.6175980779564425
+        ]
+      },
+      "avg_game_length": 14.255
+    },
+    "SPEC_marnie": {
+      "raw": {
+        "games": 400,
+        "errors": 0,
+        "valid": 400,
+        "seat0": 200,
+        "seat1": 200,
+        "learner_wins": 198,
+        "learner_losses": 202,
+        "draws": 0,
+        "turns_total": 2907,
+        "turns_attacked": 2206,
+        "turns_energy_attached": 1847,
+        "lethal_offered_turns": 1302,
+        "lethal_missed_turns": 1,
+        "energy_attach_total": 1847,
+        "energy_attach_over": 101,
+        "learner_losses_deckout": 66,
+        "opp_losses_deckout": 17,
+        "game_length_sum": 5816
+      },
+      "metric_a_ko_missed": {
+        "num": 1,
+        "den": 1302,
+        "rate": 0.0007680491551459293,
+        "ci95": [
+          0.00013558891561150845,
+          0.00433784798515808
+        ]
+      },
+      "metric_b_overattach": {
+        "num": 101,
+        "den": 1847,
+        "rate": 0.05468327016783974,
+        "ci95": [
+          0.04520813777438938,
+          0.06600699808596733
+        ]
+      },
+      "metric_c_learner_deckout": {
+        "num": 66,
+        "den": 202,
+        "rate": 0.32673267326732675,
+        "ci95": [
+          0.26581113400581363,
+          0.39412155209845307
+        ]
+      },
+      "metric_c_opponent_deckout_ref": {
+        "num": 17,
+        "den": 198,
+        "rate": 0.08585858585858586,
+        "ci95": [
+          0.05429529087946627,
+          0.1331863779142809
+        ]
+      },
+      "attacked_turn_rate": {
+        "num": 2206,
+        "den": 2907,
+        "rate": 0.7588579291365669,
+        "ci95": [
+          0.7429720979435384,
+          0.7740605018379132
+        ]
+      },
+      "energy_attached_turn_rate": {
+        "num": 1847,
+        "den": 2907,
+        "rate": 0.6353629170966633,
+        "ci95": [
+          0.6176974527940461,
+          0.6526710894172513
+        ]
+      },
+      "avg_game_length": 14.54
+    }
+  },
+  "elapsed_sec": 421.62405157089233
+}
