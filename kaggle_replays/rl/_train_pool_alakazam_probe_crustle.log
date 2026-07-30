@@ -1,0 +1,164 @@
+{
+  "args": {
+    "learner": "alakazam",
+    "learner_weights": null,
+    "train_opponents": "crustle",
+    "eval_opponents": "crustle",
+    "eval_fixed": null,
+    "iters": 5,
+    "games_per_iter": 512,
+    "eval_games": 200,
+    "eval_every": 5,
+    "final_eval_games": 400,
+    "workers": 8,
+    "epochs": 4,
+    "clip": 0.2,
+    "lr_policy": 0.0003,
+    "lr_value": 0.001,
+    "entropy": 0.005,
+    "gamma": 0.999,
+    "lam": 0.95,
+    "temperature": 1.0,
+    "device": "cpu",
+    "tag": "probe_crustle",
+    "force": false
+  },
+  "train_opponents": [
+    "crustle"
+  ],
+  "eval_opponents": [
+    "crustle"
+  ],
+  "eval_fixed": null,
+  "history": [
+    {
+      "eval_winrate": 0.295,
+      "eval_wins": 59,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "crustle": {
+          "games": 200,
+          "valid": 200,
+          "wins": 59,
+          "errors": 0,
+          "winrate": 0.295
+        }
+      },
+      "iter": 0
+    },
+    {
+      "iter": 1,
+      "train_winrate": 0.16796875,
+      "steps": 47113,
+      "pol_loss": -0.0075000496581196785,
+      "val_loss": 0.024412553757429123,
+      "entropy": 1.010101079940796,
+      "per_opponent_train": {
+        "crustle": {
+          "games": 512,
+          "valid": 512,
+          "wins": 86,
+          "errors": 0,
+          "winrate": 0.16796875
+        }
+      }
+    },
+    {
+      "iter": 2,
+      "train_winrate": 0.150390625,
+      "steps": 46531,
+      "pol_loss": -0.006167364306747913,
+      "val_loss": 0.016735507175326347,
+      "entropy": 0.9972966313362122,
+      "per_opponent_train": {
+        "crustle": {
+          "games": 512,
+          "valid": 512,
+          "wins": 77,
+          "errors": 0,
+          "winrate": 0.150390625
+        }
+      }
+    },
+    {
+      "iter": 3,
+      "train_winrate": 0.138671875,
+      "steps": 46856,
+      "pol_loss": -0.006194338668137789,
+      "val_loss": 0.015160142444074154,
+      "entropy": 1.0153770446777344,
+      "per_opponent_train": {
+        "crustle": {
+          "games": 512,
+          "valid": 512,
+          "wins": 71,
+          "errors": 0,
+          "winrate": 0.138671875
+        }
+      }
+    },
+    {
+      "iter": 4,
+      "train_winrate": 0.150390625,
+      "steps": 46813,
+      "pol_loss": -0.006062304601073265,
+      "val_loss": 0.014479771256446838,
+      "entropy": 1.0225354433059692,
+      "per_opponent_train": {
+        "crustle": {
+          "games": 512,
+          "valid": 512,
+          "wins": 77,
+          "errors": 0,
+          "winrate": 0.150390625
+        }
+      }
+    },
+    {
+      "iter": 5,
+      "train_winrate": 0.177734375,
+      "steps": 45679,
+      "pol_loss": -0.006155258975923061,
+      "val_loss": 0.016430150717496872,
+      "entropy": 1.015248417854309,
+      "per_opponent_train": {
+        "crustle": {
+          "games": 512,
+          "valid": 512,
+          "wins": 91,
+          "errors": 0,
+          "winrate": 0.177734375
+        }
+      },
+      "eval_winrate": 0.235,
+      "eval_wins": 47,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "crustle": {
+          "games": 200,
+          "valid": 200,
+          "wins": 47,
+          "errors": 0,
+          "winrate": 0.235
+        }
+      }
+    },
+    {
+      "iter": "final",
+      "final_eval": {
+        "eval_opponents_winrate": 0.255,
+        "eval_opponents_wins": 102,
+        "eval_opponents_valid": 400,
+        "eval_opponents_per_opponent": {
+          "crustle": {
+            "games": 400,
+            "valid": 400,
+            "wins": 102,
+            "errors": 0,
+            "winrate": 0.255
+          }
+        }
+      }
+    }
+  ]
+}
