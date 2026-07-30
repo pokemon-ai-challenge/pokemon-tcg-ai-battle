@@ -173,7 +173,7 @@ def build_notebook(dataset_slug: str, final_args: list[str]) -> dict:
     )
 
     cell_extract = _code_cell([
-        "import glob, os, sys, zipfile",
+        "import glob, os, shutil, sys, zipfile",
         "",
         "print('--- /kaggle/input ---')",
         "for p in sorted(glob.glob('/kaggle/input/**', recursive=True))[:60]:",
@@ -182,12 +182,23 @@ def build_notebook(dataset_slug: str, final_args: list[str]) -> dict:
         "REPO = '/kaggle/working/repo'",
         "os.makedirs(REPO, exist_ok=True)",
         "",
+        "# Kaggle は Dataset にアップロードした zip を**既定で展開する**ので、",
+        "# /kaggle/input には zip ではなくディレクトリ木が置かれることがある。",
+        "# どちらの形でも動くようにする(実際に zip 前提で書いて失敗した)。",
         "zips = glob.glob('/kaggle/input/**/ptcg_bundle.zip', recursive=True)",
-        "if not zips:",
-        "    raise SystemExit('ptcg_bundle.zip が /kaggle/input 以下に見つからない。'",
-        "                     'Dataset が Notebook に添付されているか確認する。')",
-        "print('zip から展開:', zips[0])",
-        "zipfile.ZipFile(zips[0]).extractall(REPO)",
+        "if zips:",
+        "    print('zip から展開:', zips[0])",
+        "    zipfile.ZipFile(zips[0]).extractall(REPO)",
+        "else:",
+        "    marks = glob.glob('/kaggle/input/**/sample_submission/cg/libcg.so', recursive=True)",
+        "    if not marks:",
+        "        raise SystemExit('ptcg_bundle.zip も展開済みツリーも /kaggle/input 以下に無い。'",
+        "                         'Dataset が Notebook に添付され、処理が完了しているか確認する。')",
+        "    src = os.path.dirname(os.path.dirname(os.path.dirname(marks[0])))",
+        "    print('展開済みツリーから複製:', src)",
+        "    # /kaggle/input は読み取り専用。train_pool.py は重みを書き出すので writable な場所に複製する。",
+        "    shutil.copytree(src, REPO, dirs_exist_ok=True)",
+        "    os.chmod(os.path.join(REPO, 'sample_submission', 'cg', 'libcg.so'), 0o755)",
         "",
         "for p in (REPO, os.path.join(REPO, 'sample_submission'), os.path.join(REPO, 'league'),",
         "          os.path.join(REPO, 'kaggle_replays', 'rl')):",
@@ -385,8 +396,27 @@ def main():
     else:
         print("  Dataset を新規作成(非公開)")
         kaggle("datasets", "create", "-p", str(data_dir))
-    print(f"  Dataset の反映を待つ({args.dataset_wait}s)", flush=True)
-    time.sleep(args.dataset_wait)
+    # 固定秒数の sleep で済ませてはいけない。Dataset の処理が終わる前に Notebook を push すると
+    # /kaggle/input が空のまま実行され、原因の分かりにくい失敗になる。実際に踏んだ:
+    # 90s 待って push したが /kaggle/input/ は空で、cell1 が「zip が見つからない」で落ちた。
+    # 処理完了を実際に確認してから進む。
+    print(f"  Dataset の処理完了を待つ(最大 {args.dataset_wait}s)", flush=True)
+    t_ds = time.time()
+    ready = False
+    while time.time() - t_ds < args.dataset_wait:
+        r = kaggle("datasets", "status", f"{user}/{args.dataset_slug}", check=False)
+        st = (r.stdout or "").strip().lower()
+        if "ready" in st:
+            ready = True
+            print(f"    ready ({time.time() - t_ds:.0f}s)")
+            break
+        if "error" in st:
+            raise SystemExit(f"Dataset の処理が失敗した: {r.stdout}")
+        time.sleep(10)
+    if not ready:
+        raise SystemExit(
+            f"Dataset が {args.dataset_wait}s 以内に ready にならなかった。"
+            f"--dataset-wait を伸ばすか、https://www.kaggle.com/datasets/{user}/{args.dataset_slug} を確認する。")
 
     print("  Notebook を push して実行開始")
     kaggle("kernels", "push", "-p", str(kernel_dir))
