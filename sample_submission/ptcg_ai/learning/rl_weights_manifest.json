@@ -1,0 +1,34 @@
+{
+ "policy_weights_fuudin_rl_best.json": {
+  "description": "fuudin_v1 v66。プール評価 0.748 で全世代の最高値。入力166次元・中間層32",
+  "state_feature_count": 166,
+  "hidden_size": 32,
+  "extended_features_profile": null,
+  "source_run": "fuudin_v1",
+  "source_model": "model_v66.json"
+ },
+ "policy_weights_fuudin_rl_v100.json": {
+  "description": "fuudin_v1 v100(拡張前)。100世代・48,000試合の到達点。提出ファイルはこれで作成。入力166次元・中間層32",
+  "state_feature_count": 166,
+  "hidden_size": 32,
+  "extended_features_profile": null,
+  "source_run": "fuudin_v1",
+  "source_model": "model_v100.json.pre_expand"
+ },
+ "policy_weights_fuudin_ext_v1.json": {
+  "description": "fuudin_v2 v1。v100 を追加特徴つきに拡張した直後(打ち方は v100 と同一)。入力344次元・中間層128",
+  "state_feature_count": 344,
+  "hidden_size": 128,
+  "extended_features_profile": "fuudin_v2",
+  "source_run": "fuudin_v2",
+  "source_model": "model_v1.json"
+ },
+ "policy_weights_fuudin_ext_v54.json": {
+  "description": "fuudin_v2 v54。追加特徴で53世代を追加学習。入力344次元。要 extended_profile_fuudin_v2.json",
+  "state_feature_count": 344,
+  "hidden_size": 128,
+  "extended_features_profile": "fuudin_v2",
+  "source_run": "fuudin_v2",
+  "source_model": "model_v54.json"
+ }
+}
