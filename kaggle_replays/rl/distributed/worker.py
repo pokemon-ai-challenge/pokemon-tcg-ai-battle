@@ -23,11 +23,35 @@ from collect_parallel import parallel_collect
 from run_league import read_deck_csv_file
 
 
+def verify_feature_dims(model_path: Path) -> int:
+    """モデルが期待する盤面特徴の数と、実際に作れる数が一致するか確かめる。
+
+    ここがずれても対戦は続いてしまい(内積が短い側で打ち切られる)、勝率だけが
+    静かに崩れる。原因は「古いコードが Kaggle に配られた」「追加特徴のファイルが
+    配布に入っていない」といった配布事故で、ログには何も出ない。実際に踏んだので、
+    収集の前に必ず突き合わせる。
+    """
+    from ptcg_ai.learning.policy_model import PolicyModel
+
+    pm = PolicyModel(str(model_path))
+    if not pm.is_ready:
+        raise SystemExit(f"モデルを読み込めない: {model_path}")
+    expected = len(pm._state_mean)
+    if not hasattr(pm, "encode_state_features"):
+        raise SystemExit(
+            "PolicyModel に encode_state_features が無い。古い版のコードが配られている。")
+    actual = len(pm.encode_state_features(None))
+    if actual != expected:
+        raise SystemExit(
+            f"盤面特徴の数が合わない: モデルの期待 {expected} / 実際に作れる数 {actual}。"
+            "追加特徴のプロファイルやコードが配布に入っているか確認する。")
+    return expected
+
+
 def collect_generation(run: dict, run_dir: Path, gen: int, worker_index: int,
                        workers: int, quiet: bool = False):
     """run.json の設定どおりに1世代ぶん収集して (trajs, 統計) を返す。"""
     deck_l = read_deck_csv_file(str(C.resolve_deck(run["learner_deck"])))
-    deck_o = read_deck_csv_file(str(C.resolve_deck(run["opponent_deck"])))
     model = C.model_path(run_dir, gen)
     if not model.exists():
         raise SystemExit(f"モデルが無い: {model}\n  学習PCから models/model_v{gen}.json を持ってくる。")
@@ -44,6 +68,10 @@ def collect_generation(run: dict, run_dir: Path, gen: int, worker_index: int,
         if n_games == 0:
             continue
         opp_w = C.resolve_opponent_weights(run_dir, opp.get("weights"))
+        # 相手はデッキも変えられる。方策の重みだけ差し替えて同じデッキを使わせると、
+        # そのアーキタイプ用に学習した重みが噛み合わない相手になってしまう。
+        deck_o = read_deck_csv_file(
+            str(C.resolve_deck(opp.get("deck") or run["opponent_deck"])))
         t0 = time.time()
         trajs, w, v, e = parallel_collect(
             str(model), opp_w, deck_l, deck_o,
@@ -98,7 +126,8 @@ def main():
 
     print(f"run={run['run_id']} 世代 v{gen} worker={args.worker_id}(#{worker_index}) "
           f"並列={n_proc}({start})", flush=True)
-    print(f"  model sha256={model_sha[:16]}...  "
+    n_state = verify_feature_dims(model)
+    print(f"  model sha256={model_sha[:16]}...  盤面特徴={n_state}  "
           f"{run['games_per_worker']}試合 温度={run['temperature']}", flush=True)
 
     t0 = time.time()

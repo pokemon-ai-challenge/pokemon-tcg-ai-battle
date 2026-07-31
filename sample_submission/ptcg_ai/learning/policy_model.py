@@ -98,6 +98,10 @@ class PolicyModel:
         # Tier3 Stage3c: この重みが学習時に使ったconsequence特徴名のリスト(空なら不使用、
         # 旧重み完全後方互換)。encoder.CONSEQUENCE_FEATURE_NAMES の部分集合・同じ順序。
         self._consequence_fields: list[str] = []
+        # `meta.extended_features_profile` があれば、盤面カードの種類・山札サイドの残り・
+        # 相手の型の予測などを盤面特徴の末尾に足す(`extended_features` 参照)。
+        # 重み側が要求したときだけ足すので、旧い重みとは取り違えようがない。
+        self._extended_profile = None
 
         self._load()
 
@@ -105,6 +109,19 @@ class PolicyModel:
     def is_ready(self) -> bool:
         """重みJSONの読み込みに成功していれば True。"""
         return self._layers is not None
+
+    def encode_state_features(self, state: State | None) -> list[float]:
+        """この重みが期待する形の盤面特徴を返す。
+
+        追加特徴を使うかどうかは重み側の宣言で決まるので、呼び出し側(worker の収集
+        ループなど)はこれを通せば形を間違えない。学習と推論で特徴が食い違うと、
+        エラーにならないまま静かに性能が落ちるため、入口を1つにしてある。
+        """
+        base = encoder.encode_state_from_state(state)
+        if self._extended_profile is None:
+            return base
+        from ptcg_ai.learning import extended_features
+        return base + extended_features.encode(state, self._extended_profile)
 
     def _load(self) -> None:
         if not self._weights_path.exists():
@@ -126,6 +143,17 @@ class PolicyModel:
         ]
 
         self._consequence_fields = list(payload.get("meta", {}).get("consequence_fields") or [])
+
+        prof_name = payload.get("meta", {}).get("extended_features_profile")
+        if prof_name:
+            from ptcg_ai.learning import extended_features
+            self._extended_profile = extended_features.load_profile(prof_name)
+            expected = encoder.BASE_FEATURE_COUNT + self._extended_profile.count
+            if len(self._state_mean) != expected:
+                raise ValueError(
+                    f"重みの盤面特徴数({len(self._state_mean)})とプロファイル "
+                    f"{prof_name}({encoder.BASE_FEATURE_COUNT}+"
+                    f"{self._extended_profile.count}={expected})が合わない")
 
         self._layers = [
             (
@@ -159,7 +187,7 @@ class PolicyModel:
         """
         if not self.is_ready or obs.current is None or obs.select is None or not obs.select.option:
             return []
-        state_features = encoder.encode_state_from_state(obs.current)
+        state_features = self.encode_state_features(obs.current)
         option_rows = encoder.encode_options_from_state(obs.current, obs.select)
         card_ids = encoder.encode_option_card_ids(obs.current, obs.select)
         if self._consequence_fields:
@@ -186,7 +214,7 @@ class PolicyModel:
             )
         if not self.is_ready or state is None or select is None or not select.option:
             return []
-        state_features = encoder.encode_state_from_state(state)
+        state_features = self.encode_state_features(state)
         option_rows = encoder.encode_options_from_state(state, select)
         card_ids = encoder.encode_option_card_ids(state, select)
         return [

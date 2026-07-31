@@ -91,7 +91,9 @@ def _play_one(task):
             select = obs.select
             if cur.yourIndex == learner_index:
                 if select is not None and select.option and select.maxCount == 1:
-                    sf = encoder.encode_state_from_state(cur)
+                    # 盤面特徴はモデル経由で作る。追加特徴を使うかは重み側の宣言で
+                    # 決まるので、ここで直接 encoder を呼ぶと学習と推論で形が食い違う。
+                    sf = pm.encode_state_features(cur)
                     of = encoder.encode_options_from_state(cur, select)
                     ci = encoder.encode_option_card_ids(cur, select)
                     if of:

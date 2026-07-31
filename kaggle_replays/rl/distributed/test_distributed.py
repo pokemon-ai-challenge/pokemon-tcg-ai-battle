@@ -156,7 +156,8 @@ def main():
             run(["worker.py", "--run-dir", str(run_dir), "--worker-id", wid,
                  "--workers", str(PROCS)])
         r = run(["learner.py", "--run-dir", str(run_dir)])
-        assert "学習状態を引き継ぎ" in r.stdout, r.stdout
+        assert "引き継ぎ critic" in r.stdout, r.stdout
+        assert "作り直し" not in r.stdout, "形が合っているのに作り直された"
         assert C.model_path(run_dir, 2).exists()
         assert C.load_run(run_dir)["generation"] == 2
         print("8. v1->v2 OK(critic / optimizer の引き継ぎを確認)")

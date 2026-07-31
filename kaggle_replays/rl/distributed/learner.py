@@ -85,6 +85,24 @@ def slice_batch(batch: dict, idx: torch.Tensor) -> dict:
     return sub
 
 
+def _check_optimizer_shapes(opt) -> None:
+    """Adam の moment がパラメータと同じ形か確かめる。
+
+    `load_state_dict` は形を検査しないので、合わないまま進むと最初の step で落ちる。
+    先に気づけるよう明示的に見る。
+    """
+    for group in opt.param_groups:
+        for p in group["params"]:
+            slot = opt.state.get(p)
+            if not slot:
+                continue
+            for key in ("exp_avg", "exp_avg_sq"):
+                t = slot.get(key)
+                if t is not None and tuple(t.shape) != tuple(p.shape):
+                    raise ValueError(
+                        f"{key} の形が合わない: {tuple(t.shape)} != {tuple(p.shape)}")
+
+
 def policy_logp_entropy(policy, batch, temperature: float):
     """選んだ行動の対数確率とエントロピー。収集時と同じ温度で softmax を取る。"""
     n, max_n = batch["n"], batch["max_n"]
@@ -178,12 +196,40 @@ def print_status(run_dir: Path, run: dict, gen: int, model_sha: str):
 
 # ------------------------------------------------------------------ 評価
 def evaluate(run: dict, run_dir: Path, weights: Path, games: int, workers: int):
+    """世代をまたいで比べたいので、評価相手は収集用プールとは切り離して固定する。"""
+    ev = run.get("eval_opponent") or run["opponents"][0]
     deck_l = read_deck_csv_file(str(C.resolve_deck(run["learner_deck"])))
-    deck_o = read_deck_csv_file(str(C.resolve_deck(run["opponent_deck"])))
-    opp = C.resolve_opponent_weights(run_dir, run["opponents"][0].get("weights"))
+    deck_o = read_deck_csv_file(str(C.resolve_deck(ev.get("deck") or run["opponent_deck"])))
+    opp = C.resolve_opponent_weights(run_dir, ev.get("weights"))
     _, w, v, _ = parallel_collect(str(weights), opp, deck_l, deck_o,
                                   games, C.EVAL_SEED_BASE, temperature=0.01, workers=workers)
     return (w / v if v else float("nan")), w, v
+
+
+def evaluate_pool(run: dict, run_dir: Path, weights: Path, games: int, workers: int):
+    """収集用プールの全相手に対して greedy で評価する。
+
+    学習はプール平均を上げにいくので、固定1相手の勝率だけ見ていると
+    「目的は達成しているのに指標は下がる」という読み違いが起きる。
+    """
+    deck_l = read_deck_csv_file(str(C.resolve_deck(run["learner_deck"])))
+    opponents = run["opponents"]
+    counts = C.split_games(games, opponents)
+    per, tot_w, tot_v, offset = [], 0, 0, 0
+    for opp, n in zip(opponents, counts):
+        if n == 0:
+            continue
+        deck_o = read_deck_csv_file(
+            str(C.resolve_deck(opp.get("deck") or run["opponent_deck"])))
+        opp_w = C.resolve_opponent_weights(run_dir, opp.get("weights"))
+        _, w, v, _ = parallel_collect(str(weights), opp_w, deck_l, deck_o, n,
+                                      C.EVAL_SEED_BASE + 500_000 + offset,
+                                      temperature=0.01, workers=workers)
+        offset += n
+        tot_w += w; tot_v += v
+        per.append({"id": opp["id"], "wins": w, "valid": v,
+                    "winrate": (w / v if v else float("nan"))})
+    return per, (tot_w / tot_v if tot_v else float("nan")), tot_w, tot_v
 
 
 # ------------------------------------------------------------------ 本体
@@ -195,6 +241,9 @@ def main():
                     help="未提出の worker があっても更新する(収集量が世代間で変わる点に注意)")
     ap.add_argument("--eval-games", type=int, default=0,
                     help="新モデルの評価試合数。0 なら評価しない")
+    ap.add_argument("--eval-pool-games", type=int, default=None,
+                    help="プール評価の試合数。既定は run.json の eval_pool_games。"
+                         "0 を渡すとその世代はプール評価を飛ばす")
     ap.add_argument("--eval-workers", type=int, default=None)
     ap.add_argument("--device", default="cpu",
                     help="モデルが小さいので cpu で十分(GPUにしても速くならない)")
@@ -226,9 +275,29 @@ def main():
 
     next_model = C.model_path(run_dir, gen + 1)
     if next_model.exists():
-        raise SystemExit(
-            f"v{gen+1} はすでに存在する: {next_model}\n"
-            "  この世代の更新は済んでいる。run.json の generation がずれていないか確認する。")
+        # 更新は「モデル保存 -> 評価 -> シャード退避 -> 世代を進める」の順。途中で落ちると
+        # 次世代のモデルだけが残り、run.json は前の世代のままになる。この状態は
+        #   ・次世代モデルがある
+        #   ・この世代のシャードがまだ consumed に移っていない
+        #   ・history にこの世代の記録が無い
+        # の3つが揃うことで一意に見分けられる。中断とみなしてやり直す。
+        done = set()
+        if C.history_path(run_dir).exists():
+            for line in C.history_path(run_dir).read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    done.add(json.loads(line)["generation"])
+        shards_left = list(C.shard_dir(run_dir, gen).glob("*.npz"))
+        if gen not in done and shards_left:
+            print(f"[復旧] v{gen+1} のモデルだけが残っている(更新が中断された)。"
+                  "作り直す。", flush=True)
+            next_model.unlink()
+            st_next = C.trainer_state_path(run_dir, gen + 1)
+            if st_next.exists():
+                st_next.unlink()
+        else:
+            raise SystemExit(
+                f"v{gen+1} はすでに存在する: {next_model}\n"
+                "  この世代の更新は済んでいる。run.json の generation がずれていないか確認する。")
 
     accepted, rejected, missing = gather_shards(run_dir, run, gen, model_sha)
     for p, why in rejected:
@@ -268,10 +337,33 @@ def main():
     state_path = C.trainer_state_path(run_dir, gen)
     if state_path.exists():
         st = torch.load(state_path, map_location=device, weights_only=True)
-        critic.load_state_dict(st["critic"])
-        opt_p.load_state_dict(st["opt_policy"])
-        opt_v.load_state_dict(st["opt_value"])
-        print(f"  学習状態を引き継ぎ: {state_path.name}", flush=True)
+        # 形が合わないものは引き継がずに作り直す。optimizer の load_state_dict は形を
+        # 検査しないので、そのまま進めると更新の途中で落ちる(特徴や中間層を増やした
+        # 直後がこれ)。ここで気づけるようにしておく。
+        loaded, reset = [], []
+        try:
+            critic.load_state_dict(st["critic"])
+            loaded.append("critic")
+        except Exception as exc:
+            reset.append(f"critic({exc.__class__.__name__})")
+        for name, opt, key in (("opt_policy", opt_p, "opt_policy"),
+                               ("opt_value", opt_v, "opt_value")):
+            try:
+                opt.load_state_dict(st[key])
+                _check_optimizer_shapes(opt)
+                loaded.append(name)
+            except Exception as exc:
+                # 作り直す(学習率などは run.json から復元されるので実害は小さい)
+                fresh = torch.optim.Adam(
+                    policy.parameters() if key == "opt_policy" else critic.parameters(),
+                    lr=ppo["lr_policy"] if key == "opt_policy" else ppo["lr_value"])
+                if key == "opt_policy":
+                    opt_p = fresh
+                else:
+                    opt_v = fresh
+                reset.append(f"{name}({exc.__class__.__name__})")
+        print(f"  学習状態: 引き継ぎ {', '.join(loaded) or 'なし'}"
+              + (f" / 作り直し {', '.join(reset)}" if reset else ""), flush=True)
     elif gen > 0:
         print(f"  警告: {state_path.name} が無い。critic を初期化して続行する"
               "(この世代の更新は品質が落ちる)。", flush=True)
@@ -283,11 +375,15 @@ def main():
     adv = (adv - adv.mean()) / (adv.std() + 1e-8)
 
     mb = int(ppo.get("minibatch_size", 16384))
+    target_kl = float(ppo.get("target_kl", 0.0))   # 0 なら無効
     n = batch["n"]
     order_gen = torch.Generator().manual_seed(gen)
     pl = vl = en = 0.0
+    kl = 0.0
+    steps = 0
+    stopped_at = None
     t0 = time.time()
-    for _ in range(ppo["epochs"]):
+    for epoch in range(ppo["epochs"]):
         perm = torch.randperm(n, generator=order_gen) if mb > 0 else torch.arange(n)
         chunks = ([perm[i:i + mb] for i in range(0, n, mb)] if mb > 0 else [perm])
         for idx in chunks:
@@ -306,7 +402,22 @@ def main():
             val_loss = ((v_pred - vtarget[idx]) ** 2).mean()
             opt_v.zero_grad(); val_loss.backward(); opt_v.step()
             pl, vl, en = pol_loss.item(), val_loss.item(), ent.mean().item()
-    print(f"  PPO更新 {time.time()-t0:.1f}s  pol {pl:.4f} val {vl:.4f} ent {en:.3f}", flush=True)
+            steps += 1
+
+        # エポックを増やすほど、収集時の方策から離れていく。離れすぎると PPO の前提
+        # (収集時と更新対象が近い)が崩れるので、KL で見て打ち切る。
+        if target_kl > 0:
+            with torch.no_grad():
+                lp, _ = policy_logp_entropy(policy, batch, temperature)
+                r = torch.exp(lp - batch["old_logp"])
+                kl = float(((r - 1) - (lp - batch["old_logp"])).mean())
+            if kl > target_kl:
+                stopped_at = epoch + 1
+                break
+
+    note = f" KL {kl:.4f}" + (f" (epoch {stopped_at} で打ち切り)" if stopped_at else "")
+    print(f"  PPO更新 {time.time()-t0:.1f}s  更新{steps}回  "
+          f"pol {pl:.4f} val {vl:.4f} ent {en:.3f}{note}", flush=True)
 
     # --- 保存 ---
     payload = policy.to_json_payload(base_payload)
@@ -318,12 +429,18 @@ def main():
         "games_used": total_games,
         "workers_used": sorted(m["worker_id"] for _, m in shards),
     })
-    next_model.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-    C.trainer_state_path(run_dir, gen + 1).parent.mkdir(parents=True, exist_ok=True)
+    # 電源断などで書きかけのまま残ると、次回それを正常なモデルとして読んでしまう。
+    # 一時ファイルに書いてから置き換える(置き換えは不可分な操作)。
+    tmp_model = next_model.with_suffix(".json.tmp")
+    tmp_model.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    st_path = C.trainer_state_path(run_dir, gen + 1)
+    st_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_state = st_path.with_suffix(".pt.tmp")
     torch.save({"critic": critic.state_dict(),
                 "opt_policy": opt_p.state_dict(),
-                "opt_value": opt_v.state_dict()},
-               C.trainer_state_path(run_dir, gen + 1))
+                "opt_value": opt_v.state_dict()}, tmp_state)
+    os.replace(tmp_state, st_path)
+    os.replace(tmp_model, next_model)
 
     record = {
         "generation": gen, "next_generation": gen + 1,
@@ -333,15 +450,31 @@ def main():
         "collect_winrate": total_wins / max(total_games, 1),
         "steps": batch["n"],
         "pol_loss": pl, "val_loss": vl, "entropy": en,
+        "grad_steps": steps, "approx_kl": kl, "kl_early_stop_epoch": stopped_at,
         "rejected": [f"{p.name}: {why}" for p, why in rejected],
         "partial": bool(missing),
     }
 
+    ew = args.eval_workers or (os.cpu_count() or 2)
     if args.eval_games > 0:
-        ew = args.eval_workers or (os.cpu_count() or 2)
         wr, w, v = evaluate(run, run_dir, next_model, args.eval_games, ew)
         record.update({"eval_winrate": wr, "eval_wins": w, "eval_valid": v})
-        print(f"  評価 v{gen+1}: {w}/{v} = {wr:.3f} (CI下限 {wilson_lo(w, v):.3f})", flush=True)
+        print(f"  評価 v{gen+1}(固定相手): {w}/{v} = {wr:.3f} "
+              f"(CI下限 {wilson_lo(w, v):.3f})", flush=True)
+
+    # プール全体に対する評価。学習が上げにいっているのはこちらなので、
+    # 世代をまたいで見るべき主指標はこの平均。
+    pool_games = (args.eval_pool_games if args.eval_pool_games is not None
+                  else int(run.get("eval_pool_games", 0)))
+    if pool_games > 0 and len(run["opponents"]) > 1:
+        per, avg, pw, pv = evaluate_pool(run, run_dir, next_model, pool_games, ew)
+        record.update({"eval_pool": per, "eval_pool_winrate": avg,
+                       "eval_pool_wins": pw, "eval_pool_valid": pv})
+        print(f"  評価 v{gen+1}(プール平均): {pw}/{pv} = {avg:.3f} "
+              f"(CI下限 {wilson_lo(pw, pv):.3f})", flush=True)
+        for e in sorted(per, key=lambda x: x["winrate"]):
+            print(f"      vs {e['id']:24s} {e['wins']:3d}/{e['valid']:3d} = {e['winrate']:.3f}",
+                  flush=True)
 
     # --- 使ったシャードを退避し、世代を進める ---
     C.move_consumed(run_dir, gen, used_paths)

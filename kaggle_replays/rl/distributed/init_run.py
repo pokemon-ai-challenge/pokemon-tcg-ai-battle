@@ -29,9 +29,13 @@ def main():
     ap.add_argument("--learner-weights", default=None,
                     help="初期重み。既定 policy_weights_<learner-arch>.json")
     ap.add_argument("--learner-deck", default=None, help="既定 <learner-arch>/01.csv")
-    ap.add_argument("--opponent-arch", default="alakazam", help="相手のデッキ")
+    ap.add_argument("--opponent-arch", default="alakazam", help="相手のデッキ(単一のとき)")
     ap.add_argument("--opponent-weights", default=None,
                     help="相手の重み。未指定なら production の既定 alakazam")
+    ap.add_argument("--opponents", nargs="+", default=None,
+                    help="対戦相手プール。アーキタイプ名を並べる(例: alakazam crustle "
+                         "archaludon_ex)。各相手は自分のデッキと policy_weights_<名前>.json を"
+                         "使う。指定すると --opponent-arch より優先。試合数は均等に配分")
     ap.add_argument("--workers", nargs="+", required=True,
                     help="worker の名前を並べる(例: colab kaggle)。順番がシード割り当てを決めるので、"
                          "あとから並べ替えないこと")
@@ -76,6 +80,25 @@ def main():
     C.resolve_deck(learner_deck)      # 存在確認(無ければここで落とす)
     C.resolve_deck(opponent_deck)
 
+    # --- 対戦相手プールの組み立て ---------------------------------------
+    if args.opponents:
+        opponents = []
+        for name in args.opponents:
+            C.resolve_deck(name)      # デッキが無ければここで落とす
+            # alakazam は production の既定重み(policy_weights.json)を使うので None。
+            w = None if name == "alakazam" else f"policy_weights_{name}.json"
+            if w is not None and not (C.LEARNING_DIR / w).is_file():
+                raise SystemExit(
+                    f"{name} の重みが無い: {w}\n"
+                    f"  デッキだけあって学習済み重みが無いアーキタイプは相手にできない。")
+            opponents.append({"id": name, "weights": w, "deck": name,
+                              "share": 1.0 / len(args.opponents)})
+    else:
+        opponents = [{"id": args.opponent_weights or "production_default",
+                      "weights": args.opponent_weights,
+                      "deck": opponent_deck,
+                      "share": 1.0}]
+
     (run_dir / "models").mkdir(parents=True, exist_ok=True)
     (run_dir / "state").mkdir(parents=True, exist_ok=True)
     (run_dir / "shards").mkdir(parents=True, exist_ok=True)
@@ -92,14 +115,12 @@ def main():
         "learner_arch": args.learner_arch,
         "learner_deck": learner_deck,
         "opponent_deck": opponent_deck,
-        # 対戦相手プール。いまは1件だが、過去世代を混ぜたくなったら
-        #   {"id": "v5", "weights": "models/model_v5.json", "share": 0.3}
+        # 対戦相手プール。過去世代を混ぜたくなったら
+        #   {"id": "v5", "weights": "models/model_v5.json", "deck": <学習側のデッキ>, "share": 0.3}
         # のように足すだけでよい(worker 側は share の比で試合数を分ける)。
-        "opponents": [
-            {"id": args.opponent_weights or "production_default",
-             "weights": args.opponent_weights,
-             "share": 1.0},
-        ],
+        "opponents": opponents,
+        # 評価は世代をまたいで比較したいので、プールとは別に1つ固定する。
+        "eval_opponent": {"id": "production_default", "weights": None, "deck": opponent_deck},
         "ppo": {
             "epochs": args.epochs, "clip": args.clip,
             "lr_policy": args.lr_policy, "lr_value": args.lr_value,
