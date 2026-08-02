@@ -42,7 +42,9 @@ for _p in (str(_HERE.parent), str(REPO_ROOT), str(REPO_ROOT / "sample_submission
         sys.path.insert(0, _p)
 
 # シャード形式のバージョン。中身の並びを変えたら上げる(古いシャードは弾かれる)。
-SHARD_FORMAT = "ptcg-rl-shard/1"
+# /2 で試合ごとの相手番号(opp)を追加した。形式を上げないと、相手番号の無い古いシャードが
+# 「全部同じ相手」として黙って混ざり、相手ごとの正規化が効かないまま学習が進んでしまう。
+SHARD_FORMAT = "ptcg-rl-shard/2"
 
 # 乱数シードの割り当て。世代 g・worker 番号 i の試合は
 #   [g*SEED_STRIDE_GEN + i*SEED_STRIDE_WORKER, ... + games) を使う。
@@ -184,6 +186,9 @@ def write_shard(path: Path, trajs: list[dict], meta: dict) -> Path:
         "logp": np.array([s["logprob"] for s in steps], dtype=np.float32),
         "lengths": np.array([len(tr["steps"]) for tr in trajs], dtype=np.int32),
         "rewards": np.array([tr["reward"] for tr in trajs], dtype=np.float32),
+        # 試合ごとの相手番号(run.json の opponents の並び順)。learner が advantage を
+        # 相手ごとに正規化するのに使う。収集側が付けていなければ全部 0 = 1グループ扱い。
+        "opp": np.array([int(tr.get("opp", 0)) for tr in trajs], dtype=np.int16),
     }
     meta = dict(meta)
     meta.update({

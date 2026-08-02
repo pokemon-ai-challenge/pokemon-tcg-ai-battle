@@ -64,7 +64,7 @@ def collect_generation(run: dict, run_dir: Path, gen: int, worker_index: int,
     all_trajs, wins, valid, errors = [], 0, 0, 0
     offset = 0
     per_opponent = []
-    for opp, n_games in zip(opponents, counts):
+    for opp_index, (opp, n_games) in enumerate(zip(opponents, counts)):
         if n_games == 0:
             continue
         opp_w = C.resolve_opponent_weights(run_dir, opp.get("weights"))
@@ -78,6 +78,12 @@ def collect_generation(run: dict, run_dir: Path, gen: int, worker_index: int,
             n_games=n_games, seed0=base + offset,
             temperature=run["temperature"], workers=workers)
         dt = time.time() - t0
+        # どの相手と戦った試合かを残す。learner が advantage を相手ごとに正規化するのに使う。
+        # これが無いと「得意な相手では何をしても褒められ、苦手な相手では何をしても叱られる」
+        # という、手の良し悪しと無関係な偏りがそのまま勾配に乗る(critic は相手をほとんど
+        # 価値に反映していないことを実測済み: 相手119次元を消しても v(s) は 0.14 しか動かない)。
+        for tr in trajs:
+            tr["opp"] = opp_index
         all_trajs.extend(trajs)
         wins += w; valid += v; errors += e
         offset += n_games          # 相手ごとにシード範囲をずらす(重複させない)

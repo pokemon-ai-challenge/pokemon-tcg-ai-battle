@@ -77,6 +77,11 @@ def build_batch(shards: list[tuple[dict, dict]], device) -> dict:
         "n": n,
         "lengths": [int(x) for x in lengths],
         "rewards": [float(x) for x in rewards],
+        # 決定点ごとの相手番号(試合単位の値を、その試合の決定点数だけ引き伸ばす)
+        "opp_step": t(np.repeat(
+            np.concatenate([a.get("opp", np.zeros(len(a["lengths"]), dtype=np.int16))
+                            for a, _ in shards]).astype(np.int64),
+            lengths.astype(np.int64))),
     }
 
 
@@ -102,6 +107,39 @@ def slice_batch(batch: dict, idx: torch.Tensor) -> dict:
         "old_logp": batch["old_logp"].index_select(0, idx),
         "n": m,
     }
+
+
+def normalize_advantage_per_opponent(adv: torch.Tensor, opp_step: torch.Tensor,
+                                     opponents: list[dict] | None = None) -> torch.Tensor:
+    """advantage を相手ごとに平均0・分散1へそろえる。
+
+    まとめて正規化すると、相手の強さの違いがそのまま advantage の下駄になる。critic は
+    盤面から価値を出すが、実測では相手をほとんど見ていない(相手を示す119次元を消しても
+    v(s) は 0.14 しか動かないのに対し、自分の山札の残りを消すと 0.63 動く)。その結果
+
+      得意な相手 … 実際の勝率が予測を上回るので、どの手も advantage がプラス
+      苦手な相手 … 逆に、どの手も マイナス
+
+    となり、**手の良し悪しではなく相手が誰かで褒め方が決まる**。相手ごとにそろえると
+    この下駄が消え、同じ相手の中での手の優劣だけが残る。
+
+    1件しかない相手は分散が定義できないので中央寄せだけにする(0 で割らない)。
+    """
+    out = adv.clone()
+    ids = torch.unique(opp_step)
+    for k in ids.tolist():
+        m = opp_step == k
+        g = out[m]
+        if g.numel() < 2:
+            out[m] = g - g.mean()
+            continue
+        out[m] = (g - g.mean()) / (g.std() + 1e-8)
+    if opponents is not None and len(ids) != len(opponents):
+        # 相手の数と合わない = 収集側が相手番号を付けていない古いシャードが混ざっている。
+        # 黙って進むと「全部同じ相手」として正規化され、狙った効果が出ないまま学習が進む。
+        print(f"  警告: 相手番号が {len(ids)} 種類しか無い(設定は {len(opponents)} 体)。"
+              "古い形式のシャードが混ざっていないか確認する。", flush=True)
+    return out
 
 
 def _check_optimizer_shapes(opt) -> None:
@@ -397,7 +435,7 @@ def main():
         values = critic(batch["state_rows"])
     adv, vtarget = compute_gae(batch["lengths"], batch["rewards"], values,
                                ppo["gamma"], ppo["lam"], device)
-    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+    adv = normalize_advantage_per_opponent(adv, batch["opp_step"], run["opponents"])
 
     mb = int(ppo.get("minibatch_size", 16384))
     target_kl = float(ppo.get("target_kl", 0.0))   # 0 なら無効
