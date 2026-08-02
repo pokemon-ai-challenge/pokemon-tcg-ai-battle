@@ -139,6 +139,37 @@ class TorchOptionPolicy(nn.Module):
             h = torch.relu(lin(h))
         return self._out(h).squeeze(-1)
 
+    def option_scores_segmented(
+        self,
+        state_rows: torch.Tensor,   # [n, state_dim]  決定点ごとに1行
+        option_rows: torch.Tensor,  # [T, option_dim] 全決定点の選択肢を縦に連結
+        card_ids: torch.Tensor,     # [T] (long)
+        seg: torch.Tensor,          # [T] (long) 各選択肢がどの決定点に属するか
+    ) -> torch.Tensor:              # [T]
+        """`option_scores_flat` と同じ値を返すが、無駄な計算をしない版。
+
+        第1層の入力は [盤面 | 選択肢 | カード埋め込み] を並べたもので、
+        ``W·[s|o|e] = W_s·s + W_o·o + W_e·e`` と分けられる。このうち ``W_s·s`` は
+        同じ決定点のどの選択肢でも同じ値なので、決定点ごとに1回だけ計算して足す。
+        盤面の次元が大きいほど差が出る(166次元では2割、344次元では5倍)。
+
+        呼び出し側がゼロ詰めをやめられるのも大きい。選択肢は平均7.5個に対し最大42個
+        あり、四角に詰めると計算の8割が「存在しない選択肢のゼロ」に費やされる。
+        """
+        s = self._standardize_state(state_rows)
+        o = self._standardize_option(option_rows)
+        e = self.card_embedding(self._clip_card_ids(card_ids.long()))
+        lin0 = self._linears[0]
+        sd = self.state_dim
+        # バイアスは選択肢側にだけ足す(両方に足すと二重になる)。
+        hs = torch.nn.functional.linear(s, lin0.weight[:, :sd])
+        ho = torch.nn.functional.linear(torch.cat([o, e], dim=-1),
+                                        lin0.weight[:, sd:], lin0.bias)
+        h = torch.relu(ho + hs.index_select(0, seg))
+        for lin in self._linears[1:]:
+            h = torch.relu(lin(h))
+        return self._out(h).squeeze(-1)
+
     def distribution(self, state_feat, option_feats, card_ids, temperature: float = 1.0):
         scores = self.option_scores(state_feat, option_feats, card_ids)
         return torch.distributions.Categorical(logits=scores / temperature)

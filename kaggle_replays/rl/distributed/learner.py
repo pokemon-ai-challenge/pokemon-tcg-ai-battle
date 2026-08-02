@@ -45,8 +45,13 @@ from train_v3 import Critic, compute_gae, wilson_lo
 def build_batch(shards: list[tuple[dict, dict]], device) -> dict:
     """シャード群を1つの学習バッチにまとめる。
 
-    選択肢は決定点ごとに数が違うので、シャードでは縦に連結した形(opts)+ 各決定点の
-    行数(counts)で持っている。ここで最大数までゼロ詰めして (n, max_n, dim) に直す。
+    選択肢は決定点ごとに数が違う。シャードは縦に連結した形(opts)+ 各決定点の
+    行数(counts)で持っており、**その形のまま扱う**。
+
+    以前は最大数までゼロ詰めして (n, max_n, dim) の四角に直していたが、選択肢は
+    平均7.5個に対し最大42個あるため、計算の8割が「存在しない選択肢のゼロ」に
+    費やされていた(結果は -inf で潰すので捨てるためだけの計算)。詰めるのをやめ、
+    どの選択肢がどの決定点のものかを `seg` で持つ。
     """
     cat = lambda key: np.concatenate([a[key] for a, _ in shards])  # noqa: E731
     state = cat("state"); opts = cat("opts"); cids = cat("cids"); counts = cat("counts")
@@ -54,35 +59,49 @@ def build_batch(shards: list[tuple[dict, dict]], device) -> dict:
     lengths = cat("lengths"); rewards = cat("rewards")
 
     n = len(counts)
-    max_n = int(counts.max())
-    od = opts.shape[1]
-    # sel[i, j] = (j < counts[i])。行優先で見ると opts の並びとちょうど一致するので、
-    # ループなしでゼロ詰め配列に流し込める。
-    sel = np.arange(max_n)[None, :] < counts[:, None]
-    option_pad = np.zeros((n, max_n, od), dtype=np.float32); option_pad[sel] = opts
-    card_pad = np.zeros((n, max_n), dtype=np.int64); card_pad[sel] = cids
-
     t = lambda x: torch.from_numpy(x).to(device)  # noqa: E731
+    counts_t = t(counts.astype(np.int64))
+    # offsets[i] = 決定点 i の選択肢が opts の何行目から始まるか
+    offsets = torch.cumsum(counts_t, 0) - counts_t
+    chosen_t = t(chosen.astype(np.int64))
     return {
         "state_rows": t(state.astype(np.float32)),
-        "option_pad": t(option_pad),
-        "card_pad": t(card_pad),
-        "mask": t(sel.astype(np.float32)),
-        "chosen": t(chosen.astype(np.int64)),
+        "opts": t(opts.astype(np.float32)),
+        "cids": t(cids.astype(np.int64)),
+        "counts": counts_t,
+        "offsets": offsets,
+        "seg": torch.repeat_interleave(torch.arange(n, device=device), counts_t),
+        "chosen": chosen_t,
+        "chosen_row": offsets + chosen_t,     # 選んだ手が opts の何行目か
         "old_logp": t(logp.astype(np.float32)),
-        "n": n, "max_n": max_n,
+        "n": n,
         "lengths": [int(x) for x in lengths],
         "rewards": [float(x) for x in rewards],
     }
 
 
 def slice_batch(batch: dict, idx: torch.Tensor) -> dict:
-    """ミニバッチを切り出す(決定点単位。GAE は事前に全体で計算済み)。"""
-    sub = {k: batch[k][idx] for k in
-           ("state_rows", "option_pad", "card_pad", "mask", "chosen", "old_logp")}
-    sub["n"] = int(idx.numel())
-    sub["max_n"] = batch["max_n"]
-    return sub
+    """ミニバッチを切り出す(決定点単位。GAE は事前に全体で計算済み)。
+
+    決定点を選ぶと、その決定点に属する選択肢の行もまとめて拾う必要がある。
+    `offsets` と `counts` から行番号を作って一度に取り出す。
+    """
+    counts = batch["counts"].index_select(0, idx)
+    off = batch["offsets"].index_select(0, idx)
+    m = int(idx.numel())
+    local_off = torch.cumsum(counts, 0) - counts        # 切り出した後の並びでの開始位置
+    seg = torch.repeat_interleave(torch.arange(m, device=idx.device), counts)
+    inner = torch.arange(int(counts.sum()), device=idx.device) - local_off.index_select(0, seg)
+    rows = off.index_select(0, seg) + inner
+    return {
+        "state_rows": batch["state_rows"].index_select(0, idx),
+        "opts": batch["opts"].index_select(0, rows),
+        "cids": batch["cids"].index_select(0, rows),
+        "seg": seg,
+        "chosen_row": local_off + batch["chosen"].index_select(0, idx),
+        "old_logp": batch["old_logp"].index_select(0, idx),
+        "n": m,
+    }
 
 
 def _check_optimizer_shapes(opt) -> None:
@@ -104,19 +123,24 @@ def _check_optimizer_shapes(opt) -> None:
 
 
 def policy_logp_entropy(policy, batch, temperature: float):
-    """選んだ行動の対数確率とエントロピー。収集時と同じ温度で softmax を取る。"""
-    n, max_n = batch["n"], batch["max_n"]
-    sd = batch["state_rows"].shape[1]
-    od = batch["option_pad"].shape[2]
-    sf = batch["state_rows"].unsqueeze(1).expand(n, max_n, sd).reshape(n * max_n, sd)
-    of = batch["option_pad"].reshape(n * max_n, od)
-    cf = batch["card_pad"].reshape(n * max_n)
-    scores = policy.option_scores_flat(sf, of, cf).reshape(n, max_n) / temperature
-    scores = torch.where(batch["mask"] > 0, scores,
-                         torch.full_like(scores, torch.finfo(scores.dtype).min))
-    logp = torch.log_softmax(scores, dim=1)
-    chosen_logp = logp.gather(1, batch["chosen"].unsqueeze(1)).squeeze(1)
-    ent = -(logp.exp() * logp.masked_fill(batch["mask"] == 0, 0.0)).sum(dim=1)
+    """選んだ行動の対数確率とエントロピー。収集時と同じ温度で softmax を取る。
+
+    選択肢はゼロ詰めせず縦に連結したままなので、softmax は `seg` で区切って取る
+    (決定点ごとの区間ごとに正規化する)。
+    """
+    seg, n = batch["seg"], batch["n"]
+    scores = policy.option_scores_segmented(
+        batch["state_rows"], batch["opts"], batch["cids"], seg) / temperature
+    # log-sum-exp を安定させるための最大値。理論上は分子と分母で打ち消し合うので
+    # 勾配は流さない(流しても打ち消えるが、無駄な計算と丸め誤差になる)。
+    neg = torch.full((n,), float("-inf"), dtype=scores.dtype, device=scores.device)
+    mx = neg.scatter_reduce(0, seg, scores, reduce="amax", include_self=False).detach()
+    z = scores - mx.index_select(0, seg)
+    den = torch.zeros(n, dtype=scores.dtype, device=scores.device).index_add(0, seg, torch.exp(z))
+    logp = z - torch.log(den).index_select(0, seg)
+    chosen_logp = logp.index_select(0, batch["chosen_row"])
+    ent = -torch.zeros(n, dtype=scores.dtype, device=scores.device).index_add(
+        0, seg, torch.exp(logp) * logp)
     return chosen_logp, ent
 
 
@@ -324,7 +348,8 @@ def main():
     ppo = run["ppo"]
     temperature = float(run["temperature"])
     batch = build_batch(shards, device)
-    print(f"  決定点 {batch['n']} 件(最大選択肢 {batch['max_n']})", flush=True)
+    print(f"  決定点 {batch['n']} 件(選択肢 {len(batch['opts'])} 行 / "
+          f"最大 {int(batch['counts'].max())} 個)", flush=True)
 
     base_payload = json.loads(model.read_text(encoding="utf-8"))
     policy = TorchOptionPolicy.from_json(model).float().to(device)
