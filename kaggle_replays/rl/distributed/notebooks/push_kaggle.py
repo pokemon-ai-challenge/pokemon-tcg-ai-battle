@@ -34,7 +34,16 @@ import common as C  # noqa: E402
 # = 「古い版が添付されたまま実行される」窓が小さくなる。
 REPO_DATASET_SLUG = "ptcg-repo"
 RUN_DATASET_SLUG = "ptcg-run"
-KERNEL_SLUG = "ptcg-worker-kaggle"
+
+
+def kernel_slug(worker_id: str) -> str:
+    """worker ごとに別の Notebook にする。同じ slug を使い回すと、2台目の push が
+    1台目を上書きして走っている実行を潰してしまう。
+
+    Kaggle の slug は英数字とハイフンのみ受け付けるので、それ以外は '-' に落とす。
+    """
+    safe = "".join(c if c.isalnum() else "-" for c in worker_id.lower()).strip("-")
+    return f"ptcg-worker-{safe or 'kaggle'}"
 
 
 def kaggle(*args, check=True, capture=True):
@@ -155,7 +164,7 @@ def build_run_zip(run_dir: Path, gen: int, stage: Path, full_cycle: bool = False
 
 
 def write_kernel_notebook(src: Path, dest: Path, workers: int, start_method: str,
-                          gen: int) -> None:
+                          gen: int, worker_id: str = "kaggle") -> None:
     """収集セルの --workers / --start-method と、期待する世代を埋めて書き出す。
 
     世代を埋めるのは、Dataset の古い版が添付されたまま走るのを Notebook 側で検出させるため。
@@ -180,11 +189,20 @@ def write_kernel_notebook(src: Path, dest: Path, workers: int, start_method: str
                 patched += 1
             # シェル行に直接書いてある形(kaggle_worker)
             elif "worker.py --run-dir" in line:
-                cell["source"][i] = line.replace("--workers 4", f"--workers {workers}")
+                # worker 名は run.json の workers に登録した名前と一致させる必要がある
+                # (learner がシャードの提出者を名前で照合するため)。出力ファイル名も
+                # それに合わせる。ここがずれると「未提出の worker がある」で止まる。
+                cell["source"][i] = (line.replace("--workers 4", f"--workers {workers}")
+                                         .replace("--worker-id kaggle",
+                                                  f"--worker-id {worker_id}")
+                                         .replace("kaggle.npz", f"{worker_id}.npz"))
                 patched += 1
             elif "--start-method spawn" in line and "worker.py" not in line:
-                cell["source"][i] = line.replace("--start-method spawn",
-                                                 f"--start-method {start_method}")
+                # kaggle_worker.ipynb ではシェル行が2行に折り返されており、出力先の
+                # ファイル名はこちら(継続行)に書かれている。
+                cell["source"][i] = (line.replace("--start-method spawn",
+                                                  f"--start-method {start_method}")
+                                         .replace("kaggle.npz", f"{worker_id}.npz"))
                 patched += 1
     if patched < 3:
         raise SystemExit(
@@ -209,21 +227,37 @@ def main():
     ap.add_argument("--full-cycle", action="store_true",
                     help="収集だけでなく PPO 更新と評価も Kaggle 側で行い、次世代モデルまで"
                          "作らせる。手元の PC は zip の受け渡しだけになる")
+    ap.add_argument("--worker-id", default="kaggle",
+                    help="run.json の workers に登録した名前。Notebook はこの名前ごとに"
+                         "別のものになるので、複数台を同時に走らせられる")
+    ap.add_argument("--skip-dataset", action="store_true",
+                    help="Dataset のアップロードを飛ばす。2台目以降で使う"
+                         "(1台目が上げた同じ世代の Dataset をそのまま使う)")
+    ap.add_argument("--fetch-only", action="store_true",
+                    help="push せず、その worker の実行完了を待って出力だけ回収する")
     args = ap.parse_args()
 
     run_dir = Path(args.run_dir).resolve()
     run = C.load_run(run_dir)
     gen = run["generation"]
-    if "kaggle" not in run["workers"]:
-        raise SystemExit(f"run.json の workers に 'kaggle' が無い: {run['workers']}")
+    wid = args.worker_id
+    if wid not in run["workers"]:
+        raise SystemExit(f"run.json の workers に '{wid}' が無い: {run['workers']}")
     user = detect_username(args.username)
+    kslug = kernel_slug(wid)
     stage = run_dir / ".kaggle_stage"
     # Dataset に上げるのはそれぞれのディレクトリの中身だけ。kernel/ や out/ を同じ階層に
     # 置くとそれらまで Dataset に含まれてしまうので、分けておく。
+    # Dataset は全 worker で共通(同じ世代の同じモデルを配る)なので1か所のまま。
+    # Notebook と回収先だけ worker ごとに分ける(同時に走らせても混ざらないように)。
     repo_dir = stage / "repo"
     rdir = stage / "rundata"
 
-    print(f"run={run['run_id']} v{gen} -> Kaggle({user})")
+    print(f"run={run['run_id']} v{gen} worker={wid} -> Kaggle({user})")
+
+    if args.fetch_only:
+        wait_and_fetch(user, kslug, wid, run_dir, run, gen, stage, args)
+        return
 
     # Kaggle 側は終わったのに反映だけ失敗した場合、もう一度計算させるのは無駄。
     # 手元に残っている結果が次の世代のものなら、それを適用して終わる。
@@ -241,39 +275,47 @@ def main():
                 print(f"  v{new_gen} を反映")
                 return
 
-    # --- コード側 Dataset(中身が変わったときだけ上げる) ---
-    sha = build_repo_zip(repo_dir)
-    sha_file = stage / "repo_sha.txt"
-    known = sha_file.read_text(encoding="utf-8").strip() if sha_file.exists() else ""
-    repo_exists = kaggle("datasets", "status",
-                         f"{user}/{REPO_DATASET_SLUG}", check=False).returncode == 0
-    if sha != known or not repo_exists:
-        print(f"  コード Dataset を更新({(repo_dir/'ptcg_repo.zip').stat().st_size/1e6:.1f} MB)")
-        upload_dataset(user, REPO_DATASET_SLUG, "ptcg repo", repo_dir, sha[:12])
-        sha_file.write_text(sha, encoding="utf-8")
-        repo_uploaded = True
+    if args.skip_dataset:
+        # 2台目以降。1台目が同じ世代の Dataset を上げ終えている前提で、そこは触らない。
+        # 同じ Dataset に複数のプロセスから同時に版を作ると、どの版が添付されるか
+        # 分からなくなる(doc の「古い設定のまま学習が進む」を自分で作ることになる)。
+        print("  Dataset は 1台目が上げたものを使う(アップロードを省略)")
     else:
-        print("  コード Dataset は変更なし(アップロードを省略)")
-        repo_uploaded = False
+        # --- コード側 Dataset(中身が変わったときだけ上げる) ---
+        sha = build_repo_zip(repo_dir)
+        sha_file = stage / "repo_sha.txt"
+        known = sha_file.read_text(encoding="utf-8").strip() if sha_file.exists() else ""
+        repo_exists = kaggle("datasets", "status",
+                             f"{user}/{REPO_DATASET_SLUG}", check=False).returncode == 0
+        if sha != known or not repo_exists:
+            print(f"  コード Dataset を更新("
+                  f"{(repo_dir/'ptcg_repo.zip').stat().st_size/1e6:.1f} MB)")
+            upload_dataset(user, REPO_DATASET_SLUG, "ptcg repo", repo_dir, sha[:12])
+            sha_file.write_text(sha, encoding="utf-8")
+            repo_uploaded = True
+        else:
+            print("  コード Dataset は変更なし(アップロードを省略)")
+            repo_uploaded = False
 
-    # --- run 側 Dataset(毎世代。小さいので反映が速い) ---
-    build_run_zip(run_dir, gen, rdir, full_cycle=args.full_cycle)
-    print(f"  run Dataset を更新(v{gen}, "
-          f"{sum(p.stat().st_size for p in rdir.glob('run_*.zip'))/1e6:.1f} MB)")
-    upload_dataset(user, RUN_DATASET_SLUG, "ptcg run", rdir, f"v{gen}")
+        # --- run 側 Dataset(毎世代。小さいので反映が速い) ---
+        build_run_zip(run_dir, gen, rdir, full_cycle=args.full_cycle)
+        print(f"  run Dataset を更新(v{gen}, "
+              f"{sum(p.stat().st_size for p in rdir.glob('run_*.zip'))/1e6:.1f} MB)")
+        upload_dataset(user, RUN_DATASET_SLUG, "ptcg run", rdir, f"v{gen}")
 
-    wait = args.dataset_wait * (2 if repo_uploaded else 1)
-    print(f"  Dataset の反映を待つ({wait}s)", flush=True)
-    time.sleep(wait)
+        wait = args.dataset_wait * (2 if repo_uploaded else 1)
+        print(f"  Dataset の反映を待つ({wait}s)", flush=True)
+        time.sleep(wait)
 
     # --- Notebook を push ---
-    kdir = stage / "kernel"
-    kdir.mkdir(exist_ok=True)
+    kdir = stage / f"kernel_{wid}"
+    kdir.mkdir(parents=True, exist_ok=True)
     nb_src = HERE / ("kaggle_cycle.ipynb" if args.full_cycle else "kaggle_worker.ipynb")
-    write_kernel_notebook(nb_src, kdir / nb_src.name, args.workers, args.start_method, gen)
+    write_kernel_notebook(nb_src, kdir / nb_src.name, args.workers, args.start_method,
+                          gen, worker_id=wid)
     kmeta = {
-        "id": f"{user}/{KERNEL_SLUG}",
-        "title": "ptcg worker kaggle",
+        "id": f"{user}/{kslug}",
+        "title": f"ptcg worker {wid}",
         "code_file": nb_src.name,
         "language": "python",
         "kernel_type": "notebook",
@@ -289,24 +331,31 @@ def main():
     kaggle("kernels", "push", "-p", str(kdir))
 
     if args.no_wait:
-        print(f"\nhttps://www.kaggle.com/code/{user}/{KERNEL_SLUG} で進行を確認できる。")
+        print(f"\nhttps://www.kaggle.com/code/{user}/{kslug} で進行を確認できる。")
+        print(f"  完了後に回収する: --worker-id {wid} --fetch-only")
         return
 
+    wait_and_fetch(user, kslug, wid, run_dir, run, gen, stage, args)
+
+
+def wait_and_fetch(user: str, kslug: str, wid: str, run_dir: Path, run: dict,
+                   gen: int, stage: Path, args) -> None:
+    """その worker の Notebook の完了を待ち、出力を回収する。"""
     # --- 完了待ち ---
     t0 = time.time()
     last = ""
     while time.time() - t0 < args.timeout:
-        r = kaggle("kernels", "status", f"{user}/{KERNEL_SLUG}", check=False)
+        r = kaggle("kernels", "status", f"{user}/{kslug}", check=False)
         out = (r.stdout or "").strip()
         if out != last:
-            print(f"  [{time.time()-t0:5.0f}s] {out}", flush=True)
+            print(f"  [{wid}] [{time.time()-t0:5.0f}s] {out}", flush=True)
             last = out
         low = out.lower()
         if "complete" in low:
             break
         if "error" in low or "cancel" in low:
-            raise SystemExit(f"Kaggle 側で失敗: {out}\n"
-                             f"  https://www.kaggle.com/code/{user}/{KERNEL_SLUG} でログを確認する。")
+            raise SystemExit(f"Kaggle 側で失敗({wid}): {out}\n"
+                             f"  https://www.kaggle.com/code/{user}/{kslug} でログを確認する。")
         time.sleep(20)
     else:
         raise SystemExit("待ち時間の上限に達した。--no-wait で投げっぱなしにして後で回収する。")
@@ -316,11 +365,12 @@ def main():
     dest.mkdir(parents=True, exist_ok=True)
     # `kaggle kernels output` は既に同名のファイルがあると取得を飛ばす。前の世代の出力が
     # 残っていると、それをそのまま回収してしまう(中身が1世代古いのに気づけない)ので、
-    # 毎回まっさらにしてから落とす。
-    outdir = stage / "out"
+    # 毎回まっさらにしてから落とす。worker ごとに分けるのは、同時に走らせたときに
+    # 互いの出力を消し合わないため。
+    outdir = stage / f"out_{wid}"
     shutil.rmtree(outdir, ignore_errors=True)
     outdir.mkdir(parents=True, exist_ok=True)
-    kaggle("kernels", "output", f"{user}/{KERNEL_SLUG}", "-p", str(outdir))
+    kaggle("kernels", "output", f"{user}/{kslug}", "-p", str(outdir))
 
     if args.full_cycle:
         res = outdir / "result.zip"
