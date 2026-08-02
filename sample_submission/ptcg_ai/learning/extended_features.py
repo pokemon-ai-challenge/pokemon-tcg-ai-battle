@@ -43,6 +43,14 @@ class Profile:
         self.own_poke_ids: list[int] = [int(x) for x in payload["own_poke_ids"]]
         self.opp_poke_vocab: list[int] = [int(x) for x in payload["opp_poke_vocab"]]
         self.archetypes: list[str] = list(payload["archetypes"])
+        # A ブロックの作り方。
+        #   "count"     … デッキリスト - 見えているゾーン。山札とサイドを区別しない(従来)
+        #   "marginals" … OwnHiddenState を使い、山札にある確率とサイドにある確率を分ける。
+        #                 山札サーチで中身を見た結果が確定情報として残るので、サイド落ちが
+        #                 方策に見えるようになる。使う側は decide ごとに `observe()` を呼ぶこと
+        self.own_zone: str = str(payload.get("own_zone", "count"))
+        if self.own_zone not in ("count", "marginals"):
+            raise ValueError(f"own_zone が不正: {self.own_zone}")
 
         self._deck_idx = {cid: i for i, cid in enumerate(self.own_deck_ids)}
         self._own_poke_idx = {cid: i for i, cid in enumerate(self.own_poke_ids)}
@@ -50,13 +58,20 @@ class Profile:
 
         d, p, o, a = (len(self.own_deck_ids), len(self.own_poke_ids),
                       len(self.opp_poke_vocab), len(self.archetypes))
-        # A + 所在不明の枚数 + B + E1(場+ベンチ) + E2(場+ベンチ、各+その他) + D
-        self.count = d + 1 + d + p + p + (o + 1) + (o + 1) + a
+        # A + (所在不明の枚数 [+ 推定が使えたか]) + B + E1(場+ベンチ) + E2(場+ベンチ、各+その他) + D
+        a_block = (3 * d + 2) if self.own_zone == "marginals" else (d + 1)
+        self.count = a_block + d + p + p + (o + 1) + (o + 1) + a
 
     @property
     def feature_names(self) -> list[str]:
-        n = [f"deck_prize_remain_{c}" for c in self.own_deck_ids]
-        n += ["own_unaccounted_count"]
+        if self.own_zone == "marginals":
+            n: list[str] = []
+            for c in self.own_deck_ids:
+                n += [f"remain_{c}", f"in_deck_p_{c}", f"in_prize_p_{c}"]
+            n += ["own_unaccounted_count", "own_zone_known"]
+        else:
+            n = [f"deck_prize_remain_{c}" for c in self.own_deck_ids]
+            n += ["own_unaccounted_count"]
         n += [f"self_discard_{c}" for c in self.own_deck_ids]
         n += [f"self_active_is_{c}" for c in self.own_poke_ids]
         n += [f"self_bench_has_{c}" for c in self.own_poke_ids]
@@ -71,6 +86,61 @@ def load_profile(name: str) -> Profile:
     if not path.is_file():
         raise FileNotFoundError(f"追加特徴のプロファイルが無い: {path}")
     return Profile(json.loads(path.read_text(encoding="utf-8")))
+
+
+# --------------------------------------------------------------- 自分の山札/サイドの追跡
+# `own_zone="marginals"` のプロファイルで使う。`OwnHiddenState` は自分の60枚から見えている
+# ゾーンを引いて「山札∪サイド」を出し、山札サーチが起きた瞬間に中身を確定情報として
+# 覚えておく。ここが「サイド落ち」を知る唯一の経路で、盤面のスナップショットだけからは
+# 決して作れない(サーチしたという過去の観測が要る)。
+#
+# 決定点ごとに `observe(obs)` を呼ぶ側の責任にしている。`encode()` は state しか
+# 受け取らず、サーチの検知には `obs.select` が要るため。
+_own_deck_ids: list[int] | None = None
+_own_states: dict = {}
+_observe_errors = 0
+
+
+def begin_match(deck_ids: list[int]) -> None:
+    """1試合の開始時に呼ぶ。前の試合の推定を捨てる。"""
+    global _own_deck_ids, _observe_errors
+    _own_deck_ids = [int(x) for x in deck_ids]
+    _own_states.clear()
+    _observe_errors = 0
+
+
+def observe(obs) -> None:
+    """決定点ごとに呼ぶ。自分の山札/サイドの推定を進める。
+
+    `OwnHiddenState.update()` はセットアップ中の一時的な不整合で assert に落ちることが
+    あり(伏せたバトル場が公開されるまでの1手など、本体側の docstring 参照)、次の手で
+    自己修復する。対戦を止める理由にはならないので握るが、握った回数は数えておく
+    (黙って壊れたまま学習が進むのを避けるため。`observe_errors()` で確認できる)。
+    """
+    global _observe_errors
+    if _own_deck_ids is None:
+        return
+    state = getattr(obs, "current", None)
+    if state is None:
+        return
+    from ptcg_ai.hidden_information.own_hidden_state import OwnHiddenState
+
+    me = state.yourIndex
+    st = _own_states.get(me)
+    if st is None:
+        st = OwnHiddenState(_own_deck_ids)
+        _own_states[me] = st
+    select = getattr(obs, "select", None)
+    try:
+        st.update(state, select)
+        if select is not None and getattr(select, "deck", None) is not None:
+            st.resolve_deck_search(select)
+    except Exception:  # noqa: BLE001 -- 一時的な不整合。次の手で作り直される
+        _observe_errors += 1
+
+
+def observe_errors() -> int:
+    return _observe_errors
 
 
 def _get_card_names() -> dict[int, str]:
@@ -147,12 +217,34 @@ def encode(state, profile: Profile) -> list[float]:
     seen: dict[int, int] = {}
     for cid in visible:
         seen[cid] = seen.get(cid, 0) + 1
-    feats += [float(max(0, profile.own_deck_counts.get(cid, 0) - seen.get(cid, 0)))
+    remain = [float(max(0, profile.own_deck_counts.get(cid, 0) - seen.get(cid, 0)))
               for cid in profile.own_deck_ids]
     hidden_prize = sum(1 for c in (me.prize or []) if c is None)
     unaccounted = (sum(profile.own_deck_counts.values()) - len(visible)
                    - me.deckCount - hidden_prize)
-    feats.append(float(max(0, unaccounted)))
+
+    if profile.own_zone == "marginals":
+        # 残り枚数に加えて、それが山札にあるのかサイドにあるのかを確率で渡す。
+        # 山札サーチで中身を見たあとは 1.0 / 0.0 に確定するので、そこが「サイド落ち」。
+        # 推定が使えなかった決定点では確率を 0 にして、使えたかどうかを別の1本で伝える
+        # (0 が「サイドに無い」なのか「分からない」なのかを取り違えないため)。
+        st = _own_states.get(state.yourIndex)
+        mg = None
+        if st is not None:
+            try:
+                mg = st.marginals()
+            except Exception:  # noqa: BLE001
+                mg = None
+        for i, cid in enumerate(profile.own_deck_ids):
+            m = (mg or {}).get(cid)
+            feats += [remain[i],
+                      float(m["deck"]) if m else 0.0,
+                      float(m["prize"]) if m else 0.0]
+        feats.append(float(max(0, unaccounted)))
+        feats.append(1.0 if mg else 0.0)
+    else:
+        feats += remain
+        feats.append(float(max(0, unaccounted)))
 
     # --- B 自分のトラッシュの構成 ---
     disc: dict[int, int] = {}

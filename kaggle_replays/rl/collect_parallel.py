@@ -72,6 +72,13 @@ def _play_one(task):
     winner = None
     error = None
 
+    # 自分の山札/サイドの推定を使う重みなら、試合ごとに作り直す(前の試合の情報を
+    # 引きずらせない)。使わない重みでは何も起きない。
+    track_own_zone = _W.get("track_own_zone", False)
+    if track_own_zone:
+        from ptcg_ai.learning import extended_features
+        extended_features.begin_match(_W["deck_l"])
+
     obs_dict, start_data = battle_start(deck0, deck1)
     if start_data.errorType != 0:
         return {"steps": [], "reward": 0.0, "winner": None, "error": f"start {start_data.errorType}"}
@@ -82,6 +89,10 @@ def _play_one(task):
             cur = obs.current
             if cur is None:
                 error = "current None"; break
+            # 特徴を作る前に観測を取り込む。山札サーチの公開内容はこの瞬間の
+            # obs.select にしか出ないので、ここを飛ばすとサイド落ちが永久に分からない。
+            if track_own_zone and cur.yourIndex == learner_index:
+                extended_features.observe(obs)
             if cur.result != -1:
                 winner = cur.result
                 reward = 1.0 if cur.result == learner_index else 0.0
@@ -150,6 +161,9 @@ def _init_worker2(weights_path, opp_weights, deck_l, deck_o, temperature):
     if not opp.is_ready:
         raise RuntimeError(f"opponent policy not ready (path?): {opp_weights}")
     _W["opp"] = opp
+    # 相手側は追跡しない。相手の山札の中身は本来知り得ないので、そこを覗くと
+    # 学習が成立しない(本番で使えない情報で強くなってしまう)。
+    _W["track_own_zone"] = bool(getattr(pm, "needs_own_zone_tracking", False))
     _W["deck_l"] = deck_l
     _W["deck_o"] = deck_o
     _W["temp"] = temperature

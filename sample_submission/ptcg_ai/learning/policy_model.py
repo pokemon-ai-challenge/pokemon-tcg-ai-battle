@@ -110,6 +110,17 @@ class PolicyModel:
         """重みJSONの読み込みに成功していれば True。"""
         return self._layers is not None
 
+    @property
+    def needs_own_zone_tracking(self) -> bool:
+        """True なら、呼び出し側は1試合ごとに `extended_features.begin_match()` を、
+        決定点ごとに `extended_features.observe(obs)` を呼ぶ必要がある。
+
+        自分の山札/サイドの推定は「山札サーチで中身を見た」という過去の観測に依存する。
+        `encode_state_features()` は盤面しか受け取らないので、そこでは作れない。
+        """
+        p = self._extended_profile
+        return p is not None and p.own_zone == "marginals"
+
     def encode_state_features(self, state: State | None) -> list[float]:
         """この重みが期待する形の盤面特徴を返す。
 
