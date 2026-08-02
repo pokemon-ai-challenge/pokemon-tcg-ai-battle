@@ -109,6 +109,66 @@ def slice_batch(batch: dict, idx: torch.Tensor) -> dict:
     }
 
 
+def prize_potential(state_rows: torch.Tensor, scale: float) -> torch.Tensor:
+    """サイドの取り合いを表すポテンシャル Φ(s)。
+
+    Φ(s) = scale × (相手の残りサイド − 自分の残りサイド) / 6
+
+    自分の残りサイドが 0 になれば勝ちなので、この差が大きいほど有利。値域は ±scale。
+    サイド枚数は既存の盤面特徴に入っている(`self_prize_remaining` / `opp_prize_remaining`)
+    ので、収集側は何も変えずに計算できる。
+    """
+    from ptcg_ai.learning import encoder
+    i_self = encoder.FEATURE_NAMES.index("self_prize_remaining")
+    i_opp = encoder.FEATURE_NAMES.index("opp_prize_remaining")
+    i_turn = encoder.FEATURE_NAMES.index("turn")
+    phi = scale * (state_rows[:, i_opp] - state_rows[:, i_self]) / 6.0
+    # 準備フェーズ(turn == 0)ではサイドがまだ配られておらず、片方だけ 6 枚に見える瞬間が
+    # ある(実測で13%の試合)。そのままだと「サイドを6枚リードしている」と誤読して
+    # 見かけ上の報酬が立つので、ここは 0 にする。
+    return torch.where(state_rows[:, i_turn] > 0, phi, torch.zeros_like(phi))
+
+
+def compute_gae_shaped(lengths, rewards, values, gamma, lam, device,
+                       phi: torch.Tensor | None = None):
+    """GAE。`phi` を渡すとポテンシャルによる報酬の密化(PBRS)を加える。
+
+    報酬が「最後に勝敗の1ビット」だけだと、序盤の手には手がかりが届かない。実測でも
+    critic は序盤の局面から勝敗をほとんど当てられていない(相関 0.31、終盤は 0.69)。
+    そこで各手に
+
+        F(s, s') = γ·Φ(s') − Φ(s)
+
+    を足す。この形にすると1試合ぶんの合計が −Φ(s_0) に畳まれる(定数)ため、**理論上は
+    最適な方策を変えずに**、信用の伝わり方だけを速くできる(Ng et al. 1999)。
+    終端では Φ = 0 とする(この約束を守らないと方策不変性が壊れる)。
+
+    `phi=None` なら従来どおり終端の勝敗だけを使う。
+    """
+    adv = torch.zeros(len(values))
+    vt = torch.zeros(len(values))
+    v = values.detach().cpu()
+    p = phi.detach().cpu() if phi is not None else None
+    off = 0
+    for L, R in zip(lengths, rewards):
+        last = 0.0
+        for t in reversed(range(L)):
+            idx = off + t
+            terminal = (t == L - 1)
+            r_t = R if terminal else 0.0
+            if p is not None:
+                # 終端の次の状態は無いので Φ(s') = 0
+                phi_next = 0.0 if terminal else float(p[idx + 1])
+                r_t = r_t + gamma * phi_next - float(p[idx])
+            v_next = 0.0 if terminal else float(v[idx + 1])
+            delta = r_t + gamma * v_next - float(v[idx])
+            last = delta + gamma * lam * last
+            adv[idx] = last
+            vt[idx] = last + float(v[idx])
+        off += L
+    return adv.to(device), vt.to(device)
+
+
 def normalize_advantage_per_opponent(adv: torch.Tensor, opp_step: torch.Tensor,
                                      opponents: list[dict] | None = None) -> torch.Tensor:
     """advantage を相手ごとに平均0・分散1へそろえる。
@@ -433,12 +493,15 @@ def main():
 
     with torch.no_grad():
         values = critic(batch["state_rows"])
-    adv, vtarget = compute_gae(batch["lengths"], batch["rewards"], values,
-                               ppo["gamma"], ppo["lam"], device)
+    shaping = float(ppo.get("prize_shaping", 0.0))   # 0 なら従来どおり勝敗のみ
+    phi = prize_potential(batch["state_rows"], shaping) if shaping > 0 else None
+    adv, vtarget = compute_gae_shaped(batch["lengths"], batch["rewards"], values,
+                                      ppo["gamma"], ppo["lam"], device, phi=phi)
     adv = normalize_advantage_per_opponent(adv, batch["opp_step"], run["opponents"])
 
     mb = int(ppo.get("minibatch_size", 16384))
     target_kl = float(ppo.get("target_kl", 0.0))   # 0 なら無効
+    v_clip = float(ppo.get("value_clip", 0.0))     # 0 なら無効(従来の挙動)
     n = batch["n"]
     order_gen = torch.Generator().manual_seed(gen)
     pl = vl = en = 0.0
@@ -462,7 +525,16 @@ def main():
             torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0); opt_p.step()
 
             v_pred = critic(sub["state_rows"])
-            val_loss = ((v_pred - vtarget[idx]) ** 2).mean()
+            if v_clip > 0:
+                # 価値のクリッピング(標準的な PPO にはあるが、この実装には無かった)。
+                # 収集時の予測から離れすぎた更新を抑える。1回の世代で critic が
+                # 大きく飛ぶと GAE の基準が変わり、次の世代の advantage が壊れる。
+                v_old = values[idx]
+                v_c = v_old + (v_pred - v_old).clamp(-v_clip, v_clip)
+                val_loss = torch.max((v_pred - vtarget[idx]) ** 2,
+                                     (v_c - vtarget[idx]) ** 2).mean()
+            else:
+                val_loss = ((v_pred - vtarget[idx]) ** 2).mean()
             opt_v.zero_grad(); val_loss.backward(); opt_v.step()
             pl, vl, en = pol_loss.item(), val_loss.item(), ent.mean().item()
             steps += 1
