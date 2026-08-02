@@ -167,6 +167,45 @@ python notebooks/push_kaggle.py --run-dir ../runs/<run_id>
 
 Colab には同等の API が無いので、そちらはノートブックを開いて手で回す。
 
+#### Kaggle を複数台使う
+
+`--worker-id` に `run.json` の `workers` へ登録した名前を渡すと、Notebook がその名前ごとに
+別のものになる。2台目以降は `--skip-dataset` を付けて、1台目が上げた同じ世代の Dataset を
+そのまま使う。同じ Dataset に複数のプロセスから同時に版を作ると、どの版が添付されるか
+分からなくなるため。
+
+```bash
+python notebooks/push_kaggle.py --run-dir ../runs/<run_id> --worker-id kaggle_a --no-wait
+python notebooks/push_kaggle.py --run-dir ../runs/<run_id> --worker-id kaggle_b --skip-dataset --no-wait
+python notebooks/push_kaggle.py --run-dir ../runs/<run_id> --worker-id kaggle_a --fetch-only
+python notebooks/push_kaggle.py --run-dir ../runs/<run_id> --worker-id kaggle_b --fetch-only
+```
+
+`--no-wait` は push だけして待たない。`--fetch-only` は push せずに完了待ちと回収だけを行う。
+
+#### 相手の違う run を並行で回す
+
+相手ごとに別の run を作れば、それぞれ別の Notebook で同時に学習できる。守るのは1点だけで、
+**worker の名前を run どうしで重複させないこと**(Notebook の名前が worker の名前から
+決まるため、重複すると片方の push がもう片方の実行を潰す)。
+
+```bash
+python init_run.py --run-id fuudin_v7_dra --learner-arch alakazam_morioka \
+    --opponent-arch dragapult_ex --workers kaggle_c kaggle_d --games-per-worker 250
+```
+
+配る Dataset は run ごとに `ptcg-run-<run_id>` へ分かれるので、互いの設定やモデルを
+上書きすることはない。コード側の Dataset(`ptcg-repo`)だけは全 run で共通で、中身が
+変わったときだけ上がる。その判定に使う記録は `runs/.kaggle_repo_sha.txt` に共通で置いて
+あるので、run を増やしても 10MB を上げ直す回数は増えない。
+
+Notebook 側では、添付された `run.json` の run 名と世代の両方を、push 時に埋め込んだ値と
+突き合わせる。取り違えた Dataset が来ていればそこで止まる。世代番号だけでは、同じ世代に
+いる別の run のものが来たときに見抜けない。
+
+なお Kaggle には同時に走らせられる Notebook の数に上限があるので、run を増やす前に
+枠が足りるかを確認する。上限に当たると push が待たされ、1世代の所要時間が伸びる。
+
 ### 置き場をどうするか
 
 両方から読み書きできる場所として **Kaggle の非公開 Dataset** が使える。Google ドライブは

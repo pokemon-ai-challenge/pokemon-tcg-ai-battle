@@ -33,17 +33,36 @@ import common as C  # noqa: E402
 # 上げる。毎世代上げるのは run 側(約1MB)だけになり、新バージョンの反映が速くなる
 # = 「古い版が添付されたまま実行される」窓が小さくなる。
 REPO_DATASET_SLUG = "ptcg-repo"
-RUN_DATASET_SLUG = "ptcg-run"
+
+# コード側の Dataset は run をまたいで共通なので、「前回上げた中身と同じか」の記録も
+# 共通の場所に置く。run ごとに持つと、run を2つ回したときに互いに「変わった」と
+# 誤判定して 10MB を毎回上げ直すことになり、そのぶん反映待ちも伸びる。
+# runs/ は .gitignore 済みで、build_repo_zip の上書き対象からも除外されている。
+REPO_SHA_MEMO = C.REPO_ROOT / "kaggle_replays" / "rl" / "runs" / ".kaggle_repo_sha.txt"
+
+
+def slugify(name: str) -> str:
+    """Kaggle の slug は英数字とハイフンのみ受け付けるので、それ以外は '-' に落とす。"""
+    return "".join(c if c.isalnum() else "-" for c in name.lower()).strip("-")
+
+
+def run_dataset_slug(run_id: str) -> str:
+    """run ごとに別の Dataset にする。
+
+    以前は "ptcg-run" 固定だった。相手の違う run を2つ並行で回すと、両方がその同じ
+    Dataset に版を作るので、後から push したほうの中身に置き換わる。走っている最中の
+    Notebook は開始時に Dataset を掴んでいるので無事だが、次に片方を push したときに
+    もう片方の run の設定とモデルが添付される。Notebook 側の検査は世代番号しか見て
+    いないため、たまたま両方が同じ世代だと素通りしてしまう。
+    """
+    return f"ptcg-run-{slugify(run_id) or 'default'}"[:50]
 
 
 def kernel_slug(worker_id: str) -> str:
     """worker ごとに別の Notebook にする。同じ slug を使い回すと、2台目の push が
     1台目を上書きして走っている実行を潰してしまう。
-
-    Kaggle の slug は英数字とハイフンのみ受け付けるので、それ以外は '-' に落とす。
     """
-    safe = "".join(c if c.isalnum() else "-" for c in worker_id.lower()).strip("-")
-    return f"ptcg-worker-{safe or 'kaggle'}"
+    return f"ptcg-worker-{slugify(worker_id) or 'kaggle'}"
 
 
 def kaggle(*args, check=True, capture=True):
@@ -72,14 +91,16 @@ def detect_username(explicit: str | None) -> str:
         "Kaggle のユーザー名が取れない。`kaggle auth login` を済ませるか --username で渡す。")
 
 
-def upload_dataset(user: str, slug: str, title: str, ddir: Path, msg: str) -> None:
+def upload_dataset(user: str, slug: str, title: str, ddir: Path, msg: str) -> bool:
+    """Dataset を上げる。新規に作った場合は True を返す(反映に時間がかかるため)。"""
     meta = {"title": title, "id": f"{user}/{slug}", "licenses": [{"name": "unknown"}]}
     (ddir / "dataset-metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     exists = kaggle("datasets", "status", f"{user}/{slug}", check=False).returncode == 0
     if exists:
         kaggle("datasets", "version", "-p", str(ddir), "-m", msg)
-    else:
-        kaggle("datasets", "create", "-p", str(ddir))
+        return False
+    kaggle("datasets", "create", "-p", str(ddir))
+    return True
 
 
 def build_repo_zip(stage: Path) -> str:
@@ -164,11 +185,13 @@ def build_run_zip(run_dir: Path, gen: int, stage: Path, full_cycle: bool = False
 
 
 def write_kernel_notebook(src: Path, dest: Path, workers: int, start_method: str,
-                          gen: int, worker_id: str = "kaggle") -> None:
-    """収集セルの --workers / --start-method と、期待する世代を埋めて書き出す。
+                          gen: int, worker_id: str = "kaggle",
+                          run_id: str = "") -> None:
+    """収集セルの --workers / --start-method と、期待する run 名・世代を埋めて書き出す。
 
-    世代を埋めるのは、Dataset の古い版が添付されたまま走るのを Notebook 側で検出させるため。
-    ファイルの有無だけでは「中身が1世代古い」ことに気づけない。
+    run 名と世代を埋めるのは、意図しない Dataset が添付されたまま走るのを Notebook 側で
+    検出させるため。ファイルの有無だけでは「中身が1世代古い」「別の run のものが来て
+    いる」ことに気づけない。
     """
     doc = json.loads(src.read_text(encoding="utf-8"))
     patched = 0
@@ -179,6 +202,10 @@ def write_kernel_notebook(src: Path, dest: Path, workers: int, start_method: str
             # 変数で受ける形(kaggle_cycle)
             if line.startswith("EXPECTED_GEN = "):
                 cell["source"][i] = f"EXPECTED_GEN = {gen}\n"
+                patched += 1
+            elif line.startswith("EXPECTED_RUN_ID = "):
+                cell["source"][i] = (f"EXPECTED_RUN_ID = {json.dumps(run_id)}"
+                                     "   # push_kaggle.py が書き換える\n")
                 patched += 1
             elif line.startswith("WORKERS = "):
                 cell["source"][i] = f"WORKERS = {workers}            # push_kaggle.py が書き換える\n"
@@ -204,9 +231,9 @@ def write_kernel_notebook(src: Path, dest: Path, workers: int, start_method: str
                                                   f"--start-method {start_method}")
                                          .replace("kaggle.npz", f"{worker_id}.npz"))
                 patched += 1
-    if patched < 3:
+    if patched < 4:
         raise SystemExit(
-            f"kaggle_worker.ipynb の収集セルを書き換えられなかった(patched={patched})。"
+            f"{src.name} の収集セルを書き換えられなかった(patched={patched})。"
             "ノートブックを編集したなら push_kaggle.py 側も合わせる。")
     # ensure_ascii=True で書く。Kaggle CLI は push するファイルをシステム既定の文字コード
     # (Windows では cp932)で読むため、日本語がそのまま入っていると復号に失敗する。
@@ -245,15 +272,17 @@ def main():
         raise SystemExit(f"run.json の workers に '{wid}' が無い: {run['workers']}")
     user = detect_username(args.username)
     kslug = kernel_slug(wid)
+    rslug = run_dataset_slug(run["run_id"])
     stage = run_dir / ".kaggle_stage"
     # Dataset に上げるのはそれぞれのディレクトリの中身だけ。kernel/ や out/ を同じ階層に
     # 置くとそれらまで Dataset に含まれてしまうので、分けておく。
-    # Dataset は全 worker で共通(同じ世代の同じモデルを配る)なので1か所のまま。
+    # run の Dataset は同じ run の全 worker で共通(同じ世代の同じモデルを配る)。
     # Notebook と回収先だけ worker ごとに分ける(同時に走らせても混ざらないように)。
     repo_dir = stage / "repo"
     rdir = stage / "rundata"
 
     print(f"run={run['run_id']} v{gen} worker={wid} -> Kaggle({user})")
+    print(f"  Dataset={rslug} / Notebook={kslug}")
 
     if args.fetch_only:
         wait_and_fetch(user, kslug, wid, run_dir, run, gen, stage, args)
@@ -283,7 +312,8 @@ def main():
     else:
         # --- コード側 Dataset(中身が変わったときだけ上げる) ---
         sha = build_repo_zip(repo_dir)
-        sha_file = stage / "repo_sha.txt"
+        sha_file = REPO_SHA_MEMO
+        sha_file.parent.mkdir(parents=True, exist_ok=True)
         known = sha_file.read_text(encoding="utf-8").strip() if sha_file.exists() else ""
         repo_exists = kaggle("datasets", "status",
                              f"{user}/{REPO_DATASET_SLUG}", check=False).returncode == 0
@@ -301,9 +331,13 @@ def main():
         build_run_zip(run_dir, gen, rdir, full_cycle=args.full_cycle)
         print(f"  run Dataset を更新(v{gen}, "
               f"{sum(p.stat().st_size for p in rdir.glob('run_*.zip'))/1e6:.1f} MB)")
-        upload_dataset(user, RUN_DATASET_SLUG, "ptcg run", rdir, f"v{gen}")
+        run_created = upload_dataset(user, rslug, f"ptcg run {run['run_id']}",
+                                     rdir, f"v{gen}")
+        if run_created:
+            print(f"  {rslug} を新規に作成した(この run の初回)")
 
-        wait = args.dataset_wait * (2 if repo_uploaded else 1)
+        # 新規に作った Dataset は使えるようになるまで特に時間がかかる。
+        wait = args.dataset_wait * (2 if repo_uploaded or run_created else 1)
         print(f"  Dataset の反映を待つ({wait}s)", flush=True)
         time.sleep(wait)
 
@@ -312,7 +346,7 @@ def main():
     kdir.mkdir(parents=True, exist_ok=True)
     nb_src = HERE / ("kaggle_cycle.ipynb" if args.full_cycle else "kaggle_worker.ipynb")
     write_kernel_notebook(nb_src, kdir / nb_src.name, args.workers, args.start_method,
-                          gen, worker_id=wid)
+                          gen, worker_id=wid, run_id=run["run_id"])
     kmeta = {
         "id": f"{user}/{kslug}",
         "title": f"ptcg worker {wid}",
@@ -322,7 +356,7 @@ def main():
         "is_private": True,
         "enable_gpu": False,
         "enable_internet": False,
-        "dataset_sources": [f"{user}/{REPO_DATASET_SLUG}", f"{user}/{RUN_DATASET_SLUG}"],
+        "dataset_sources": [f"{user}/{REPO_DATASET_SLUG}", f"{user}/{rslug}"],
         "competition_sources": [],
         "kernel_sources": [],
     }
