@@ -173,6 +173,12 @@ def main():
     ap.add_argument("--lam", type=float, default=0.95)
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--extra-registry", default=None,
+                     help="pools.LEARNER_REGISTRY に追加登録する JSON ファイル"
+                          "({name: [weights_file, archetype], ...})へのパス(省略可)。"
+                          "省略時は今までと完全に同じ挙動。train_league.py が世代ごとに動的な"
+                          "名前(過去チェックポイント等)を --train-opponents / --learner に"
+                          "渡すために使う(pools.load_extra_registry 参照)。")
     ap.add_argument("--tag", default="pool")
     ap.add_argument("--force", action="store_true", help="出力重みファイルが既に存在しても上書きする。")
     ap.add_argument("--deckout-threshold", type=int, default=0,
@@ -193,6 +199,9 @@ def main():
                           "「デッキ切れを避けるためなら勝率を多少犠牲にする」方策に寄る理論的リスクが"
                           "あるため、有効にした場合は必ず eval_winrate で確認すること。")
     args = ap.parse_args()
+
+    if args.extra_registry:
+        pools.load_extra_registry(args.extra_registry)
 
     device = args.device
     train_names = _parse_names(args.train_opponents)

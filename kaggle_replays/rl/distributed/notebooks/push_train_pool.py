@@ -90,6 +90,22 @@ def resolve_weights_filter(spec: str | None) -> set[str]:
     return requested
 
 
+def _current_dataset_version(ref: str):
+    """Dataset の現行バージョン番号。取得できなければ None(その場合は版チェックを諦める)。"""
+    try:
+        from kaggle.api.kaggle_api_extended import KaggleApi
+        api = KaggleApi()
+        api.authenticate()
+        owner = ref.split("/")[0]
+        for d in api.dataset_list(mine=True, search=ref.split("/")[1]):
+            if getattr(d, "ref", None) == ref:
+                return getattr(d, "current_version_number", None)
+        del owner
+    except Exception as e:  # 認証形式の違いなどで落ちても push 自体は続けたい
+        print(f"    (バージョン取得に失敗、版チェックは省略: {e})")
+    return None
+
+
 def _excluded(rel_parts: tuple[str, ...], name: str) -> bool:
     if "__pycache__" in rel_parts or ".pytest_cache" in rel_parts or ".git" in rel_parts:
         return True
@@ -160,8 +176,9 @@ def _md_cell(text: str) -> dict:
     return {"cell_type": "markdown", "metadata": {}, "source": src}
 
 
-def build_notebook(dataset_slug: str, final_args: list[str]) -> dict:
+def build_notebook(dataset_slug: str, final_args: list[str], script: str = "train_pool.py") -> dict:
     train_args_repr = json.dumps(final_args)  # Python リテラルとしてそのままセルに埋め込む
+    script_repr = json.dumps(script)
 
     cell_intro = _md_cell(
         "# train_pool.py — Kaggle 実行\n\n"
@@ -205,10 +222,11 @@ def build_notebook(dataset_slug: str, final_args: list[str]) -> dict:
         "    if p not in sys.path:",
         "        sys.path.insert(0, p)",
         "",
+        f"SCRIPT = {script_repr}",
         "need = ['sample_submission/cg/libcg.so',",
         "        'sample_submission/ptcg_ai/learning/policy_model.py',",
         "        'league/run_league.py',",
-        "        'kaggle_replays/rl/train_pool.py',",
+        "        'kaggle_replays/rl/' + SCRIPT,",
         "        'kaggle_replays/meta_analysis/archetype_decks/alakazam/01.csv']",
         "missing = [n for n in need if not os.path.exists(os.path.join(REPO, n))]",
         "print('\\n--- 必要ファイルの確認 ---')",
@@ -239,10 +257,11 @@ def build_notebook(dataset_slug: str, final_args: list[str]) -> dict:
     cell_run = _code_cell([
         "import os, subprocess, sys, time",
         "",
+        f"SCRIPT = {script_repr}",
         f"TRAIN_ARGS = {train_args_repr}",
         "",
         "cwd = os.path.join(REPO, 'kaggle_replays', 'rl')",
-        "cmd = [sys.executable, '-u', 'train_pool.py'] + TRAIN_ARGS",
+        "cmd = [sys.executable, '-u', SCRIPT] + TRAIN_ARGS",
         "print('$', ' '.join(cmd), flush=True)",
         "",
         "env = dict(os.environ)",
@@ -255,7 +274,7 @@ def build_notebook(dataset_slug: str, final_args: list[str]) -> dict:
         "ret = proc.wait()",
         "print(f'\\n[train_pool.py exit={ret}] {time.time()-t0:.0f}s elapsed', flush=True)",
         "if ret != 0:",
-        "    raise SystemExit(f'train_pool.py が失敗(exit {ret})')",
+        "    raise SystemExit(f'{SCRIPT} が失敗(exit {ret})')",
     ])
 
     cell_collect = _code_cell([
@@ -265,13 +284,22 @@ def build_notebook(dataset_slug: str, final_args: list[str]) -> dict:
         "rl_dir = os.path.join(REPO, 'kaggle_replays', 'rl')",
         "",
         "out_files = (glob.glob(os.path.join(learning_dir, 'policy_weights_*_pool_*.json')) +",
-        "             glob.glob(os.path.join(rl_dir, '_train_pool_*.log')))",
+        "             glob.glob(os.path.join(rl_dir, '_train_pool_*.log')) +",
+        "             # train_league.py(相互鍛錬ループ)は league_runs/<tag>/ 以下に世代ごとの",
+        "             # 重み・state.json・history.json を書く。ここを拾わないと結果が回収できない。",
+        "             glob.glob(os.path.join(rl_dir, 'league_runs', '**', '*.json'), recursive=True))",
         "if not out_files:",
         "    print('回収対象なし(出力ファイルが見つからない)')",
         "for p in out_files:",
         "    if os.path.getmtime(p) < t0:",
         "        continue  # 今回の実行で作られたものだけ回収する",
-        "    dest = os.path.join('/kaggle/working', os.path.basename(p))",
+        "    # league_runs/ 以下は gen0/ gen1/ ... に同名ファイル(policy_weights_<arch>.json)が",
+        "    # 並ぶので、basename だけにすると世代同士が衝突して上書きされる。相対パスを平坦化して保つ。",
+        "    if 'league_runs' in p.replace(os.sep, '/').split('/'):",
+        "        dest = os.path.join('/kaggle/working',",
+        "                            os.path.relpath(p, rl_dir).replace(os.sep, '_').replace('/', '_'))",
+        "    else:",
+        "        dest = os.path.join('/kaggle/working', os.path.basename(p))",
         "    shutil.copyfile(p, dest)",
         "    print('回収:', dest, f'({os.path.getsize(dest)/1e6:.2f} MB)')",
         "",
@@ -317,6 +345,9 @@ def main():
     ap.add_argument("--dataset-slug", default=DEFAULT_DATASET_SLUG)
     ap.add_argument("--kernel-slug", default=DEFAULT_KERNEL_SLUG)
     ap.add_argument("--username", default=None)
+    ap.add_argument("--script", default="train_pool.py",
+                     help="kaggle_replays/rl/ 配下の実行スクリプト名。既定 train_pool.py。"
+                          "相互鍛錬ループを回すなら train_league.py を指定する。")
     ap.add_argument("--weights", default=None,
                     help="カンマ区切りの重みファイル basename。省略時は "
                          "sample_submission/ptcg_ai/learning/policy_weights*.json 全部。")
@@ -355,7 +386,7 @@ def main():
 
     kernel_dir.mkdir(parents=True, exist_ok=True)
     notebook_name = f"{args.kernel_slug}.ipynb"
-    notebook_doc = build_notebook(args.dataset_slug, final_args)
+    notebook_doc = build_notebook(args.dataset_slug, final_args, args.script)
     write_notebook_json(notebook_doc, kernel_dir / notebook_name)
 
     kernel_meta = {
@@ -389,6 +420,13 @@ def main():
     # ------------------------------------------------------------ ここから先は実送信
     print(f"\nrun={user}/{args.kernel_slug} へ送信")
 
+    # アップロード前のバージョン番号を控える。status の "ready" は「何らかの版が
+    # 使える」を意味するだけで、今上げた版が反映されたことは保証しない。実際に踏んだ:
+    # ready を見て push したが Notebook には旧版が添付され、新規追加した
+    # train_league.py が無くてガードに弾かれた。番号が上がったことで確認する。
+    prev_version = _current_dataset_version(f"{user}/{args.dataset_slug}")
+    print(f"  更新前の Dataset バージョン: {prev_version}")
+
     exists = kaggle("datasets", "status", f"{user}/{args.dataset_slug}", check=False).returncode == 0
     if exists:
         print("  Dataset を更新(新バージョン)")
@@ -407,8 +445,15 @@ def main():
         r = kaggle("datasets", "status", f"{user}/{args.dataset_slug}", check=False)
         st = (r.stdout or "").strip().lower()
         if "ready" in st:
+            cur = _current_dataset_version(f"{user}/{args.dataset_slug}")
+            if prev_version is not None and cur is not None and cur <= prev_version:
+                # ready だが版が上がっていない = まだ旧版。ここで push すると旧版を掴む。
+                print(f"    ready だが版は {cur} のまま({prev_version} から未更新)。待機継続",
+                      flush=True)
+                time.sleep(10)
+                continue
             ready = True
-            print(f"    ready ({time.time() - t_ds:.0f}s)")
+            print(f"    ready / バージョン {prev_version} -> {cur} ({time.time() - t_ds:.0f}s)")
             break
         if "error" in st:
             raise SystemExit(f"Dataset の処理が失敗した: {r.stdout}")
