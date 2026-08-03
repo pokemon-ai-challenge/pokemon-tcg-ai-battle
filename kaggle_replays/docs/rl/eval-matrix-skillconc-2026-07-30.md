@@ -1,5 +1,8 @@
 # eval_matrix 測定結果
 
+> **状態: 過去の測定値** — 2026-07-30 時点の skill-concentration 各構成の実測。
+> 構成C の採用はこの測定で決着済み（現行の BC も構成C を使用）。
+
 モデル x 相手の勝率行列。**すべて等重み平均**(相手4種を単純平均)であり、実際のメタ分布(alakazam 30%, mega_lucario_ex 13%, archaludon_ex 11%, crustle 8%, marnie_grimmsnarl_ex 6%)とは異なる点に注意。
 
 - 学習側デッキ: `alakazam`(全モデル共通)
