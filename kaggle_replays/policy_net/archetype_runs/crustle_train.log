@@ -1,0 +1,59 @@
+features.npz を読み込み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_crustle.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=55730 val=7199 test=6853 (全69782件)
+option特徴の標準化元行列 shape=(360915, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.4678  val_nll=1.4404 (best=1.4404, no_improve=0)  val_top1=0.4645
+    [baseline] epoch   5  train_loss=1.4241  val_nll=1.4239 (best=1.4239, no_improve=0)  val_top1=0.4716
+    [baseline] epoch  10  train_loss=1.4199  val_nll=1.4169 (best=1.4169, no_improve=0)  val_top1=0.4745
+    [baseline] epoch  15  train_loss=1.4190  val_nll=1.4146 (best=1.4146, no_improve=0)  val_top1=0.4763
+    [baseline] epoch  20  train_loss=1.4182  val_nll=1.4142 (best=1.4142, no_improve=1)  val_top1=0.4753
+    [baseline] epoch  25  train_loss=1.4177  val_nll=1.4141 (best=1.4141, no_improve=0)  val_top1=0.4760
+    [baseline] epoch  30  train_loss=1.4180  val_nll=1.4130 (best=1.4130, no_improve=0)  val_top1=0.4776
+    [baseline] epoch  35  train_loss=1.4180  val_nll=1.4128 (best=1.4128, no_improve=0)  val_top1=0.4744
+    [baseline] epoch  40  train_loss=1.4179  val_nll=1.4143 (best=1.4128, no_improve=5)  val_top1=0.4720
+    [baseline] epoch  45  train_loss=1.4188  val_nll=1.4136 (best=1.4128, no_improve=10)  val_top1=0.4778
+    [baseline] 早期終了: epoch 45(val_nll が 10 epoch 改善せず)
+  学習完了 (246.8s)
+  val : top1=0.4744  nll=1.4128
+  test: top1=0.4560  nll=1.4439
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.2522  val_nll=1.1711 (best=1.1711, no_improve=0)  val_top1=0.5663
+    [main] epoch   5  train_loss=1.0344  val_nll=1.0996 (best=1.0996, no_improve=0)  val_top1=0.5742
+    [main] epoch  10  train_loss=0.9840  val_nll=1.0899 (best=1.0899, no_improve=0)  val_top1=0.5824
+    [main] epoch  15  train_loss=0.9561  val_nll=1.1078 (best=1.0899, no_improve=5)  val_top1=0.5826
+    [main] epoch  20  train_loss=0.9384  val_nll=1.1059 (best=1.0899, no_improve=10)  val_top1=0.5859
+    [main] 早期終了: epoch 20(val_nll が 10 epoch 改善せず)
+  学習完了 (138.7s, 20 epochs)
+  train: top1=0.6228  nll=0.9590
+  val  : top1=0.5824  nll=1.0899
+  test : top1=0.5830  nll=1.1028
+  train-val gap: top1=+0.0404  nll=+0.1309(overfitting指標)
+  param_counts: {'fc1': 7680, 'fc2': 33, 'embedding': 10144, 'mlp': 7713, 'total': 17857}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.4744  nll=1.4128
+  本命(state ++ option ++ embed): top1=0.5824  nll=1.0899
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  5037  top1=0.5382  nll=1.1808
+  select_type= 1  n=  1645  top1=0.6869  nll=0.9520
+  select_type= 4  n=    66  top1=0.7424  nll=0.6051
+  select_type= 8  n=    35  top1=1.0000  nll=0.1870
+  select_type= 9  n=    70  top1=1.0000  nll=0.0000
+
+重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_crustle.json (388.8 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=4.44089210e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.4560 nll=1.4439
+  本命(state ++ option ++ embed) test: top1=0.5830 nll=1.1028
+  自己検証: 最大誤差=4.44089210e-15 -> PASS
+  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_crustle.json

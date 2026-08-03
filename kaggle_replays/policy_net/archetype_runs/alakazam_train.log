@@ -1,0 +1,56 @@
+features.npz を読み込み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_alakazam.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=89722 val=9537 test=11500 (全110759件)
+option特徴の標準化元行列 shape=(762128, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.4398  val_nll=1.3968 (best=1.3968, no_improve=0)  val_top1=0.5199
+    [baseline] epoch   5  train_loss=1.3857  val_nll=1.3780 (best=1.3780, no_improve=0)  val_top1=0.5316
+    [baseline] epoch  10  train_loss=1.3804  val_nll=1.3722 (best=1.3722, no_improve=0)  val_top1=0.5326
+    [baseline] epoch  15  train_loss=1.3797  val_nll=1.3748 (best=1.3722, no_improve=5)  val_top1=0.5316
+    [baseline] epoch  20  train_loss=1.3785  val_nll=1.3743 (best=1.3722, no_improve=10)  val_top1=0.5323
+    [baseline] 早期終了: epoch 20(val_nll が 10 epoch 改善せず)
+  学習完了 (174.7s)
+  val : top1=0.5326  nll=1.3722
+  test: top1=0.5464  nll=1.3466
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.1663  val_nll=1.0819 (best=1.0819, no_improve=0)  val_top1=0.6121
+    [main] epoch   5  train_loss=0.9355  val_nll=1.0025 (best=1.0025, no_improve=0)  val_top1=0.6423
+    [main] epoch  10  train_loss=0.8890  val_nll=1.0019 (best=0.9932, no_improve=2)  val_top1=0.6452
+    [main] epoch  15  train_loss=0.8686  val_nll=0.9924 (best=0.9924, no_improve=0)  val_top1=0.6494
+    [main] epoch  20  train_loss=0.8548  val_nll=1.0037 (best=0.9854, no_improve=3)  val_top1=0.6566
+    [main] epoch  25  train_loss=0.8438  val_nll=1.0064 (best=0.9854, no_improve=8)  val_top1=0.6515
+    [main] 早期終了: epoch 27(val_nll が 10 epoch 改善せず)
+  学習完了 (301.5s, 27 epochs)
+  train: top1=0.6957  nll=0.8396
+  val  : top1=0.6532  nll=0.9854
+  test : top1=0.6643  nll=0.9838
+  train-val gap: top1=+0.0424  nll=+0.1458(overfitting指標)
+  param_counts: {'fc1': 7680, 'fc2': 33, 'embedding': 10144, 'mlp': 7713, 'total': 17857}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5326  nll=1.3722
+  本命(state ++ option ++ embed): top1=0.6532  nll=0.9854
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  7035  top1=0.5844  nll=1.2425
+  select_type= 1  n=  2987  top1=0.7077  nll=0.8013
+  select_type= 4  n=   186  top1=0.9462  nll=0.1062
+  select_type= 7  n=   173  top1=0.9017  nll=0.3232
+  select_type= 8  n=    33  top1=0.9394  nll=0.1623
+  select_type= 9  n=  1086  top1=0.9687  nll=0.0995
+
+重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_alakazam.json (387.9 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=3.55271368e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.5464 nll=1.3466
+  本命(state ++ option ++ embed) test: top1=0.6643 nll=0.9838
+  自己検証: 最大誤差=3.55271368e-15 -> PASS
+  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_alakazam.json
