@@ -49,6 +49,14 @@
 
 ---
 
+## 1.7 実験を始める前に読むもの
+
+- [measurement-plan-2026-08-04.md](measurement-plan-2026-08-04.md) — **特徴量実験の測定計画**。
+  対照群の作り方・必要シード数・必要試合数と、踏んだ罠のチェックリスト。
+  試合レベルの統計（SPRT・δ_min）は `sample_submission/docs/plans/measurement-protocol/design.md` が権威。
+
+---
+
 ## 2. 読む順番
 
 初めて読むなら上から。
