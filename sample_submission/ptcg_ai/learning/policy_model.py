@@ -68,6 +68,7 @@ index 0(「識別なし」用の予約枠)にフォールバックする。
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from cg.api import Observation, State
@@ -126,6 +127,25 @@ class PolicyModel:
         ]
 
         self._consequence_fields = list(payload.get("meta", {}).get("consequence_fields") or [])
+
+        # 特徴量の次元がエンコーダと食い違う重みは読まない（未ロード状態のまま返す）。
+        # _forward は range(len(state_features)) で回して state_mean[i] を引くため、
+        # エンコーダ側の次元が増えた古い重みを読むと試合中に IndexError で落ちる。
+        # 「重みが無ければ未ロード扱いでフォールバック」という本モジュールの方針に合わせ、
+        # 次元不一致も同じく安全側（ルールベースへ縮退）に倒す。
+        expected_option = encoder.OPTION_FEATURE_COUNT + len(self._consequence_fields)
+        if len(self._state_mean) != encoder.BASE_FEATURE_COUNT or len(self._option_mean) != expected_option:
+            print(
+                f"[PolicyModel] 次元不一致のため重みを読み込みません: {self._weights_path.name} "
+                f"(重み state={len(self._state_mean)} option={len(self._option_mean)} / "
+                f"エンコーダ state={encoder.BASE_FEATURE_COUNT} option={expected_option})。"
+                "エンコーダの特徴量を変更したなら BC を学習し直すこと。",
+                file=sys.stderr,
+            )
+            self._state_mean = self._state_std = None
+            self._option_mean = self._option_std = None
+            self._card_embedding_table = None
+            return
 
         self._layers = [
             (

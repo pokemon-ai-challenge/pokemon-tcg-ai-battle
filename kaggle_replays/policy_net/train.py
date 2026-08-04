@@ -68,7 +68,9 @@ sys.path.insert(0, str(_SAMPLE_SUBMISSION_DIR))
 from ptcg_ai.learning.encoder import (  # noqa: E402
     BASE_FEATURE_COUNT,
     CONSEQUENCE_FEATURE_NAMES,
+    FEATURE_NAMES,
     OPTION_FEATURE_COUNT,
+    OPTION_FEATURE_NAMES,
 )
 
 _DEFAULT_FEATURES = _HERE / "features.npz"
@@ -471,6 +473,7 @@ def compute_outcome_factor(args, won: np.ndarray, state_raw: np.ndarray, turn: n
 
 
 def main() -> None:
+    global _SEED
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--features", default=str(_DEFAULT_FEATURES))
     parser.add_argument("--max-epochs", type=int, default=_MAX_EPOCHS)
@@ -480,6 +483,14 @@ def main() -> None:
     parser.add_argument(
         "--out-weights", default=str(_WEIGHTS_OUT_PATH),
         help="重みJSON書き出し先(既定: 本番パス。実験時は別パスを明示指定すること)",
+    )
+    parser.add_argument(
+        "--ablate-features", default=None,
+        help="カンマ区切りの特徴名を学習前に 0 で潰す(次元は変えない)。エンコーダを変更せずに『その特徴が無い版』の対照群を作るために使う。状態側は FEATURE_NAMES の完全一致、選択肢側は OPTION_FEATURE_NAMES の完全一致で探す。接尾辞指定(例 retreat_cost)なら、状態側の全スロット(self_active_retreat_cost 等)と選択肢側(target_pokemon_retreat_cost)をまとめて潰す。",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=_SEED,
+        help="学習の乱数シード(既定 42)。同一設定で複数回まわして run 間分散を測るために使う。行動種別ごとの Top-1 は run 間で ±5pt 程度振れるため、種別単位の比較を主張するなら反復が要る。",
     )
     parser.add_argument(
         "--hidden-size", type=int, default=_HIDDEN_SIZE,
@@ -517,6 +528,9 @@ def main() -> None:
         "ptcg_ai.learning.encoder.CONSEQUENCE_FEATURE_NAMES 参照。",
     )
     args = parser.parse_args()
+    # train_model / 自己検証サンプル抽出は呼び出し時に _SEED を読むので、
+    # ここで書き換えれば全体のシードが揃う(既定値のままなら従来と完全に同一)。
+    _SEED = int(args.seed)
     weights_out_path = Path(args.out_weights)
     consequence_fields: list[str] = (
         [s.strip() for s in args.consequence_fields.split(",") if s.strip()]
@@ -539,6 +553,24 @@ def main() -> None:
     split = data["split"].astype(np.int64)
     weight = data["weight"].astype(np.float64)
     select_type = data["select_type"].astype(np.int64)
+
+    if args.ablate_features:
+        names = [t.strip() for t in args.ablate_features.split(",") if t.strip()]
+        st_idx, op_idx = [], []
+        for nm in names:
+            hit_s = [i for i, f in enumerate(FEATURE_NAMES) if f == nm or f.endswith("_" + nm)]
+            hit_o = [i for i, f in enumerate(OPTION_FEATURE_NAMES) if f == nm or f.endswith("_" + nm)]
+            if not hit_s and not hit_o:
+                raise ValueError(f"--ablate-features: 一致する特徴名がありません: {nm}")
+            st_idx += hit_s
+            op_idx += hit_o
+        if st_idx:
+            state_features[:, st_idx] = 0.0
+        if op_idx:
+            # option_features は決定点ごとに行数が違う object 配列なので個別に潰す。
+            for i in range(len(option_features)):
+                option_features[i][:, op_idx] = 0.0
+        print(f"  ablate: 状態側 {len(st_idx)} 次元 / 選択肢側 {len(op_idx)} 次元を 0 で潰した {names}")
 
     won = None
     turn = None
