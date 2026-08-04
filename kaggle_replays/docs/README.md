@@ -25,6 +25,7 @@
 - **BC 再学習は有効。** 3アーキタイプすべてで有意差（→ [imitation/bc-retrain-2026-08-03.md](imitation/bc-retrain-2026-08-03.md)）
 - **モデル容量の拡大は無効。** hidden 32 / 64 / 128 で差なし。32 を維持（→ 同上 §5.5）
 - **相互鍛錬ループ（世代を回す）は効果が出なかった。** 6世代8時間で +1.7pt、p=0.355
+- **特徴量の小追加（にげるコスト・サイド価値）は効果が出なかった。** 勝率 +0.9pt、p=0.50。実装は revert 済み（→ [imitation/feature-retreat-prize-2026-08-04.md](imitation/feature-retreat-prize-2026-08-04.md)）
 - **skill concentration は構成C を採用済み**（→ [rl/eval-matrix-skillconc-2026-07-30.md](rl/eval-matrix-skillconc-2026-07-30.md)）
 
 未決着で、実装だけ済んでいる論点:
@@ -69,6 +70,7 @@
 | [improvement-survey-2026-07-30.md](imitation/improvement-survey-2026-07-30.md) | 一部更新済み | 改善余地の調査。容量案は否定、BC再学習は有効と判明 |
 | [hidden-zone-features-design-2026-07-30.md](imitation/hidden-zone-features-design-2026-07-30.md) | 設計のみ | 山札・サイド・トラッシュを方策の入力に入れる案 |
 | [prize-lock-2026-08-03.md](imitation/prize-lock-2026-08-03.md) | 有効 | サイド落ち頻度の実測。非公開ゾーン案の前哨戦 |
+| [feature-retreat-prize-2026-08-04.md](imitation/feature-retreat-prize-2026-08-04.md) | 有効 | にげるコスト・サイド価値の追加＝効果なし。不採用の記録 |
 
 ### rl/ — 強化学習と評価
 
