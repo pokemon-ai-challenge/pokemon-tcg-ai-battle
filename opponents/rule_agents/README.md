@@ -14,6 +14,24 @@ rule_agents/
 └── decks/*.csv      各デッキ60枚
 ```
 
+## Kaggle に出せる形にする
+
+`sample_submission/` の本提出物(ML方策)とは別に、「この手書きルールベース単体で
+提出したらどうなるか」を試したいときは `build_submission.py` で小さな tar.gz を作れる。
+
+```bash
+cd opponents/rule_agents
+python3 build_submission.py grimmsnarl --out submissions/grimmsnarl_rule_submission.tar.gz
+python3 verify_submission.py submissions/grimmsnarl_rule_submission.tar.gz --opponent dragapult_rule --games 100
+```
+
+**`verify_submission.py` を必ず通してから提出すること。** Kaggle は main.py を
+`__file__` の無い状態・cwd=展開先で `exec()` する。ここを端折ってテストすると、
+`import` が静かに失敗しても例外が出ないまま「保険用のダミー行動」を返し続け、
+対局はエラー無く完走するのに実質何もしていない、という事故になる(実際に一度
+これで踏んだ。詳細は `verify_submission.py` の docstring)。`fallback_calls` が
+0 であることが、判断ロジックが実際に動いている証拠。
+
 ## デッキの出どころ
 
 | デッキ | 出典 | パイロット |

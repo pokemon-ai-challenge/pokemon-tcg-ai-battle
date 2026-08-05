@@ -37,6 +37,9 @@ sample_submission/local_decks/*
 !sample_submission/local_decks/.gitkeep
 tmp_submit_check/
 .tmp_readme_push/
+
+# opponents/rule_agents/build_submission.py の生成物(いつでも再生成できる)
+opponents/rule_agents/submissions/
 battle_review_viewer/replays/*.json
 !battle_review_viewer/replays/.gitkeep
 
