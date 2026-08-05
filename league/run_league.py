@@ -54,11 +54,19 @@ AGENT_REGISTRY: dict[str, str] = {
     # 外部ベースライン(対戦相手)。ドラパルトex ルールベース(opponents/ 配下)。
     # config も重みも取らない素の agent(obs) なので PLAIN_AGENTS 側で扱う。
     "dragapult_rule": "opponents.dragapult_rule_agent",
+    # 手書きルールベース3種(opponents/rule_agents/)。各モジュールが自分のデッキCSVを
+    # 内蔵しているので、--deck-a/--deck-b にも同じCSVを渡すこと。
+    "grimmsnarl_rule": "opponents.rule_agents.grimmsnarl",
+    "lucario_rule": "opponents.rule_agents.lucario",
+    "archaludon_rule": "opponents.rule_agents.archaludon",
 }
 
 # config/重みを注入しない「素の agent(obs)」を提供するエージェント名。ml_policy 以外は
 # build_agent で config を渡さずそのまま module.agent を使う(rule_based と同じ扱い)。
-PLAIN_AGENTS: frozenset[str] = frozenset({"rule_based", "dragapult_rule"})
+PLAIN_AGENTS: frozenset[str] = frozenset({
+    "rule_based", "dragapult_rule",
+    "grimmsnarl_rule", "lucario_rule", "archaludon_rule",
+})
 
 
 def load_agent(name: str) -> AgentFn:

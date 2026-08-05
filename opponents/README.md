@@ -8,6 +8,13 @@
 | 名前(registry) | ファイル | デッキ | 出典 |
 |---|---|---|---|
 | `dragapult_rule` | `dragapult_rule_agent.py` | `dragapult_ex_deck.csv` | Kaggle "A Sample Rule-Based Agent Dragapult ex Deck"(著者: kiyotah) |
+| `grimmsnarl_rule` | `rule_agents/grimmsnarl.py` | `rule_agents/decks/marnie_grimmsnarl_ex.csv` | 自作(手書き) |
+| `lucario_rule` | `rule_agents/lucario.py` | `rule_agents/decks/mega_lucario_ex.csv` | 自作(手書き) |
+| `archaludon_rule` | `rule_agents/archaludon.py` | `rule_agents/decks/archaludon_ex.csv` | 自作(手書き) |
+
+`rule_agents/` の3種は環境上位デッキを自前で書き起こしたもの。共通土台(`framework.py`)と
+デッキごとの判断を分けてあり、`rule_agents/diagnose.py` で「なぜ負けたか」を測りながら
+改良できる。詳細は [`rule_agents/README.md`](rule_agents/README.md)。
 
 `dragapult_rule` は原典のロジックを改変せず取り込んだもの。対戦基盤に載せるための差分は
 `dragapult_rule_agent.py` 冒頭 docstring の2点のみ(デッキ読み込み元と入力の dict/Observation 両対応)。
