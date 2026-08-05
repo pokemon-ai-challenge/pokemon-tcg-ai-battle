@@ -409,6 +409,25 @@ def can_attack_now(ctx: Ctx, pokemon: Pokemon) -> bool:
     )
 
 
+def active_is_stalled(ctx: Ctx) -> bool:
+    """バトル場のポケモンが、このターン何もできない状態か。
+
+    ワザも撃てず、控えと交代することもできない（にげるエネルギーが足りない、
+    または控えがいない）。この状態のターンは丸ごと無駄になる。
+    """
+    active = ctx.my_active
+    if active is None:
+        return False
+    if can_attack_now(ctx, active):
+        return False
+    return retreat_blocked(ctx) or not ctx.my_bench
+
+
+def bench_can_attack(ctx: Ctx) -> bool:
+    """控えに「今すぐワザを撃てる」ポケモンがいるか。"""
+    return any(can_attack_now(ctx, p) for p in ctx.my_bench)
+
+
 def incoming_damage(ctx: Ctx) -> int:
     """相手のバトルポケモンが次のターンに自分のバトルポケモンへ出せる最大ダメージの見積り。
 

@@ -206,7 +206,18 @@ class LucarioStrategy(Strategy):
             return SKIP
         if card_id == SWITCH:
             # 前が詰まっている（殴れない子が前）ときの脱出用。
-            return S_RETREAT + 3000 if self._stuck_active(ctx) else SKIP
+            if self._stuck_active(ctx):
+                return S_RETREAT + 3000
+            # サイド3枚を渡さないための「身代わり」。
+            #
+            # メガルカリオexは倒されるとサイドを3枚渡す。相手のブリジュラスexを
+            # 倒しても取れるのは2枚なので、殴り合って相打ちになると
+            # サイドレースで負ける。倒しきれない番にメガルカリオを下げて、
+            # サイド1枚のリオル等を身代わりに差し出せば、渡すサイドが 3→1 になる。
+            # ただし「この番に倒しきれる」なら殴った方が良いので、そのときは使わない。
+            if self._should_hide_lucario(ctx):
+                return S_ATTACK + 3000
+            return SKIP
         if card_id == HEROS_CAPE:
             return SKIP  # 道具は ATTACH 側で扱う
 
@@ -236,7 +247,11 @@ class LucarioStrategy(Strategy):
         if card_id == LUCARIO:
             if ctx.memo.get("lucario_in_play", 0) >= 2:
                 return SKIP
-            return S_KEY + 10000 + (3000 if is_active else 0)
+            # どのリオルを進化させるかは「エネルギーが乗っている方」で決める。
+            # エネルギー0のリオルを進化させると、オーラジャブ（闘1）すら撃てない
+            # メガルカリオが前に立つ。実測でこの形が150試合中59回あった。
+            # 前後で同数なら前を選ぶ（進化した瞬間から殴れる）。
+            return S_KEY + 10000 + len(target.energies) * 2000 + (1500 if is_active else 0)
         if card_id == HARIYAMA:
             # 進化時の特性で相手ベンチを引きずり出せる。倒せる的が奥にいるときに使う。
             if ctx.memo.get("gust_score", 0) >= 1000:
@@ -283,10 +298,16 @@ class LucarioStrategy(Strategy):
     def ability_score(self, ctx: Ctx, card_id: int, o: Option) -> float:
         if card_id == LUNATONE:
             # 手札の基本闘エネを1枚捨てて3枚引く。捨てた分はオーラジャブで回収できる。
-            if ctx.hand_counts.get(FIGHT_ENERGY, 0) == 0 or ctx.my.deckCount <= 6:
+            if ctx.my.deckCount <= 6:
                 return SKIP
-            # 今このエネルギーを場に貼りたいなら、捨てずに貼る方を優先する。
-            if ctx.hand_counts.get(FIGHT_ENERGY, 0) == 1 and self._needs_energy_now(ctx):
+            # 場にまだエネルギーを必要としている子がいるなら、手札の最後の1枚は捨てない。
+            #
+            # 当初は「このターン貼る先が無ければ捨ててよい」としていたが、それだと
+            # 次の番に貼るエネルギーが手札から消えて、エネルギー0のリオル／
+            # メガルカリオが前で止まる。逆に「常に1枚残す」まで締めると、引く枚数が
+            # 減ってメガルカリオex を引き当てられない試合が 16→26/150 に増えた。
+            # 場が仕上がっているときだけ最後の1枚も回す、という中間を採る。
+            if ctx.hand_counts.get(FIGHT_ENERGY, 0) <= 1 and self._needs_energy_now(ctx):
                 return SKIP
             return S_SEARCH + 2000
         return S_SEARCH
@@ -330,11 +351,21 @@ class LucarioStrategy(Strategy):
         active = ctx.my_active
         if active is None:
             return SKIP
-        if active.id in (LUNATONE, SOLROCK, MAKUHITA):
-            if any(p.id == LUCARIO and len(p.energies) >= 1 for p in ctx.my_bench):
-                return S_RETREAT + 5000
-            if any(p.id == RIOLU for p in ctx.my_bench):
-                return S_RETREAT
+        # 前がこのターン殴れないなら、殴れる控えと替える。種類ではなく
+        # 「今殴れるか」で判断する（エネルギー0のリオルやソルロックが前に残ったまま
+        # ターンを終える形が実測で多かった）。
+        #
+        # 「殴れるか」はエンジンがワザの選択肢を出しているかで見る。枚数だけで数えると、
+        # コズミックビームの発動条件（ベンチにルナトーンが必要）や、かそくづき／
+        # メガブレイブの「次の番は使えない」制限を見落とす。
+        if ctx.attack_options:
+            return SKIP
+        if any(p.id == LUCARIO and len(p.energies) >= 1 for p in ctx.my_bench):
+            return S_RETREAT + 5000
+        if fw.bench_can_attack(ctx):
+            return S_RETREAT + 2000
+        if active.id in (LUNATONE, SOLROCK, MAKUHITA) and any(p.id == RIOLU for p in ctx.my_bench):
+            return S_RETREAT
         return SKIP
 
     # ---- 攻撃 --------------------------------------------------------------
@@ -374,6 +405,10 @@ class LucarioStrategy(Strategy):
                 return 80.0
             return 880.0 if field.get(RIOLU, 0) >= 1 else 500.0
         if card_id == FIGHT_ENERGY:
+            # 前が止まっていて手札にエネルギーが無いなら、他のどのカードより優先する
+            # （必要なのは1枚だけなのに、それが無くて何ターンも動けない形が多かった）。
+            if fw.active_is_stalled(ctx) and hand.get(FIGHT_ENERGY, 0) == 0:
+                return 950.0
             attached = sum(len(p.energies) for p in ctx.my_field)
             if attached < 2:
                 return 700.0
@@ -389,6 +424,13 @@ class LucarioStrategy(Strategy):
         if card_id == ULTRA_BALL:
             return 450.0
         if card_id == POWER_PRO:
+            # 「あと60以内で一撃圏内」なら、2枚そろえる価値が跳ね上がる。
+            # ブリジュラスex(300) はフルメタルラボ込みでメガブレイブ240だが、
+            # プレミアムパワープロ2枚で 270+60-30 = 300 とちょうど一撃で落ちる。
+            # 相打ちを避けてサイド2枚だけ取れるので、この一致は大きい。
+            short = ctx.memo.get("shortfall", 0)
+            if 0 < short <= 60:
+                return 800.0
             return 420.0
         if card_id == GONG:
             return 400.0
@@ -413,9 +455,25 @@ class LucarioStrategy(Strategy):
 
     @staticmethod
     def _needs_energy_now(ctx: Ctx) -> bool:
-        if ctx.state.energyAttached:
-            return False
+        """場に「まだエネルギーが足りない」リオル／メガルカリオがいるか。
+
+        このターン既に貼ったかどうかは見ない。貼り終えた後でも、次の番に貼る1枚を
+        手札に残しておく必要があるため。
+        """
         return any(p.id in (RIOLU, LUCARIO) and len(p.energies) < 2 for p in ctx.my_field)
+
+    @staticmethod
+    def _should_hide_lucario(ctx: Ctx) -> bool:
+        """傷んだメガルカリオを下げて、サイド1枚の身代わりを差し出す場面か。"""
+        active = ctx.my_active
+        if active is None or active.id != LUCARIO:
+            return False
+        if ctx.memo.get("incoming", 0) < active.hp:
+            return False  # まだ落とされない
+        if any(ev.ko for ev in ctx.memo.get("attack_evals", [])):
+            return False  # 倒しきれるなら殴る方が良い
+        # 身代わりになれる、サイド1枚のポケモンが控えにいるか
+        return any(fw.ko_prize(p) == 1 for p in ctx.my_bench)
 
     @staticmethod
     def _stuck_active(ctx: Ctx) -> bool:

@@ -332,15 +332,28 @@ class GrimmsnarlStrategy(Strategy):
         active = ctx.my_active
         if active is None:
             return SKIP
-        # 前がオーロンゲなら動かない（にげるエネルギー2は重い）。
+        # 前がオーロンゲなら動かない（にげるエネルギー2は重く、320の器を下げる意味も無い）。
         if active.id == GRIMMSNARL:
             return SKIP
-        # 前が置物（マンキー／ユキメノコ／ユキワラシ）なら、殴れる子と替える。
-        # 置物は特性のためにベンチにいるべきで、前に居座らせるとその間ずっと
-        # ワザを撃てない。
+
+        # 前がこのターン殴れないなら、殴れる控えと替える。
+        #
+        # 当初は「前が置物（マンキー等）のとき」だけ交代していたが、実測すると
+        # 「エネルギー1のギモー（コークスクリューパンチは悪2で足りない）」や
+        # 「エネルギー1のマンキー」が前に残ったままターンを終える形が150試合で
+        # 30回以上あった。判断の軸を種類ではなく「今殴れるかどうか」に変える。
+        #
+        # 「殴れるか」はエンジンがワザの選択肢を出しているかで見る。枚数だけで
+        # 数えると、種類の合わないエネルギー（ユキワラシに悪エネルギー）や
+        # 「次の番は使えない」制限を見落とす。
+        if ctx.attack_options:
+            return SKIP
+        if any(p.id == GRIMMSNARL and len(p.energies) >= 2 for p in ctx.my_bench):
+            return S_RETREAT + 5000
+        if fw.bench_can_attack(ctx):
+            return S_RETREAT + 2000
+        # 今すぐ殴れる控えがいなくても、置物を前に置き続ける理由は無い。
         if active.id in (MUNKIDORI, FROSLASS, SNORUNT):
-            if any(p.id == GRIMMSNARL and len(p.energies) >= 2 for p in ctx.my_bench):
-                return S_RETREAT + 5000
             if any(p.id in (GRIMMSNARL, MORGREM, IMPIDIMP) for p in ctx.my_bench):
                 return S_RETREAT
         return SKIP
@@ -422,7 +435,13 @@ class GrimmsnarlStrategy(Strategy):
         if card_id == NIGHT_STRETCHER:
             return 250.0
         if card_id == DARK_ENERGY:
-            # パンクアップで一気に付くので、手札のエネルギーはさほど要らない。
+            # 原則としてパンクアップで一気に付くので、手札のエネルギーはさほど要らない。
+            #
+            # ただし「前がエネルギー0で、ワザも撃てず逃げることもできない」局面だけは別。
+            # このとき必要なのは悪エネルギー1枚だけで、それが手札に無いために
+            # 何ターンも止まる形が実測で最も多かった（150試合でベロバー83回、マンキー43回）。
+            if fw.active_is_stalled(ctx) and hand.get(DARK_ENERGY, 0) == 0:
+                return 950.0
             attached = sum(len(p.energies) for p in ctx.my_field)
             return 300.0 if attached < 2 else 90.0
         if card_id == UNFAIR_STAMP:
