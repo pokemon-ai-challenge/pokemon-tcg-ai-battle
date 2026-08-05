@@ -370,12 +370,36 @@ def damage_reduction(ctx: Ctx, defender: Pokemon) -> int:
     return reduction
 
 
+def is_pokemon_ex(pokemon: Pokemon | None) -> bool:
+    """カードの `ex` フラグと `megaEx` フラグは排他だが、ルール文の"Pokémon ex"は
+    両方を指す（メガ進化ポケモンexも Pokémon ex の一種）。判定はここに集約する。
+    """
+    if pokemon is None:
+        return False
+    data = CARDS.get(pokemon.id)
+    return data is not None and (data.ex or data.megaEx)
+
+
+# 「相手が Pokémon ex ならワザのダメージを完全に防ぐ」特性・効果を持つカード。
+# クラスタゲが実測でこの壁を持ち、こちらのオーロンゲex/ブリジュラスex/メガルカリオex
+# （全員 Pokémon ex）のワザを毎回0ダメージにしていた（実戦で見つけた）。
+# キーが対象を限定しない（誰の攻撃も防ぐ）、値が True なら「たねポケモンの攻撃だけ」に限る
+# （カビゴンフラダリ／ジラーチexの「よろいのおびれ」は "Basic Pokémon ex" 限定）。
+_EX_WALL: dict[int, bool] = {
+    345: False,  # Crustle「ふしぎな岩宿」
+    330: False,  # Sylveon「まもるバリア」
+    83: True,    # Farigiraf ex「アーマーテイル」(たね Pokémon ex 限定)
+}
+
+
 def is_damage_immune(attacker: Pokemon | None, defender: Pokemon, on_bench: bool) -> bool:
     """ワザのダメージが丸ごと通らない相手かどうか。
 
-    このメタで実際に効いてくるのは「イワオオギ（テラス）」だけなので、そこだけ見る。
     - テラスポケモンはベンチにいる間ワザのダメージを受けない。
     - イワオオギは「特性を持つポケモンからのワザのダメージ」を全て防ぐ。
+    - クラスタゲ／ニンフィア／キリンリキexは「Pokémon ex からのワザのダメージ」を
+      全て防ぐ。こちらの主軸(オーロンゲex/ブリジュラスex/メガルカリオex)は全員
+      Pokémon ex なので、これらが相手の場にいる間は攻撃しても何も減らせない。
     """
     data = CARDS.get(defender.id)
     if data is None:
@@ -384,6 +408,11 @@ def is_damage_immune(attacker: Pokemon | None, defender: Pokemon, on_bench: bool
         return True
     if defender.id == 117 and attacker is not None and has_ability(attacker):
         return True
+    basic_only = _EX_WALL.get(defender.id)
+    if basic_only is not None and is_pokemon_ex(attacker):
+        attacker_data = CARDS.get(attacker.id) if attacker is not None else None
+        if not basic_only or (attacker_data is not None and attacker_data.basic):
+            return True
     return False
 
 

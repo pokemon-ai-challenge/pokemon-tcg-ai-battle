@@ -99,12 +99,15 @@ class ArchaludonStrategy(Strategy):
         ctx.memo["incoming"] = fw.incoming_damage(ctx)
         idx, gust = fw.best_gust_target(ctx)
         ctx.memo["gust_index"], ctx.memo["gust_score"] = idx, gust
-        # 相手のバトルポケモンに、特性持ちのこちらのワザが通らないか
-        # （イワオオギex の「いしずえのかまえ」）。
+        # 相手のバトルポケモンに、こちらのワザが通らないか。
+        # イワオオギex の「いしずえのかまえ」（特性持ちからの攻撃を防ぐ）と、
+        # クラスタゲ／ニンフィアの壁（Pokémon ex からの攻撃を防ぐ。ブリジュラスex は
+        # 該当するがジュラルドン本体は該当しない）の両方を is_damage_immune が判定する。
+        # どちらの壁も「特性を持たないジュラルドン本体に交代する」で抜けられるので、
+        # 壁の種類を区別せず同じ walled フラグで扱ってよい。
         ctx.memo["walled"] = (
             ctx.op_active is not None
             and ctx.my_active is not None
-            and fw.has_ability(ctx.my_active)
             and fw.is_damage_immune(ctx.my_active, ctx.op_active, False)
         )
 

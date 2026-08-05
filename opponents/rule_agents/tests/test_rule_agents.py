@@ -28,6 +28,8 @@ for _p in (str(_ROOT), str(_ROOT / "sample_submission")):
 from cg.api import to_observation_class  # noqa: E402
 from cg.game import battle_finish, battle_select, battle_start  # noqa: E402
 
+from opponents.rule_agents import framework as fw  # noqa: E402
+
 AGENTS = {
     "grimmsnarl": ("opponents.rule_agents.grimmsnarl", "marnie_grimmsnarl_ex.csv"),
     "lucario": ("opponents.rule_agents.lucario", "mega_lucario_ex.csv"),
@@ -88,3 +90,42 @@ def test_match_finishes_without_illegal_selection(a: str, b: str) -> None:
             steps += 1
     finally:
         battle_finish()
+
+
+def _pokemon(card_id: int) -> "Pokemon":
+    from cg.api import Pokemon
+
+    return Pokemon(
+        id=card_id, serial=1, hp=100, maxHp=100, appearThisTurn=False,
+        energies=[], energyCards=[], tools=[], preEvolution=[],
+    )
+
+
+# 実戦の敗北(2026-08-05 ep90196278, vs クラスタゲ)で見つかった不具合の回帰テスト。
+# クラスタゲ／ニンフィアの特性は「Pokémon ex からのワザのダメージ」を防ぐ。
+# こちらの主軸(オーロンゲex/ブリジュラスex/メガルカリオex)は全員 Pokémon ex なので、
+# これらが相手の場にいる間はワザで一切ダメージを与えられない。
+CRUSTLE = 345
+SYLVEON = 330
+DUSKULL = 355  # ダミー: 壁を持たない、ただの相手ポケモン
+
+
+@pytest.mark.parametrize("wall_id", [CRUSTLE, SYLVEON])
+@pytest.mark.parametrize("attacker_id", [648, 190, 678])  # オーロンゲex/ブリジュラスex/メガルカリオex
+def test_ex_pokemon_wall_blocks_our_main_attackers(wall_id: int, attacker_id: int) -> None:
+    attacker = _pokemon(attacker_id)
+    wall = _pokemon(wall_id)
+    assert fw.is_damage_immune(attacker, wall, False) is True
+
+
+def test_ex_pokemon_wall_does_not_block_non_ex_attacker() -> None:
+    # オーロンゲデッキのマンキーは ex ではない。壁は ex 相手だけを防ぐ。
+    attacker = _pokemon(112)  # Munkidori
+    wall = _pokemon(CRUSTLE)
+    assert fw.is_damage_immune(attacker, wall, False) is False
+
+
+def test_non_wall_pokemon_never_blocks() -> None:
+    attacker = _pokemon(648)
+    non_wall = _pokemon(DUSKULL)
+    assert fw.is_damage_immune(attacker, non_wall, False) is False

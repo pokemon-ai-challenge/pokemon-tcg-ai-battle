@@ -120,6 +120,15 @@ class LucarioStrategy(Strategy):
 
         ctx.memo["lucario_in_play"] = ctx.field_counts.get(LUCARIO, 0)
         ctx.memo["incoming"] = fw.incoming_damage(ctx)
+        # 相手の場に「Pokémon ex からの攻撃を防ぐ」壁(クラスタゲ／ニンフィア等)が
+        # いて、こちらの攻撃が(メガルカリオexは ex なので)通らないか。
+        # ハリテヤマ／ソルロック／マクノシタは ex ではないので、壁が出たらそちらに
+        # 交代する方が良い(このデッキで唯一の抜け道)。
+        ctx.memo["walled"] = (
+            ctx.op_active is not None
+            and ctx.my_active is not None
+            and fw.is_damage_immune(ctx.my_active, ctx.op_active, False)
+        )
         idx, gust = fw.best_gust_target(ctx, bonus=30 * played)
         ctx.memo["gust_index"], ctx.memo["gust_score"] = idx, gust
 
@@ -314,6 +323,10 @@ class LucarioStrategy(Strategy):
 
     # ---- 前に出す・ベンチに出す --------------------------------------------
     def active_pref(self, ctx: Ctx, card_id: int) -> float:
+        # 壁(クラスタゲ等)が出ていて、かつ攻撃できる非exの控えがいるなら、
+        # 何もできないルカリオより先にそちらを出す。
+        if ctx.memo.get("walled") and card_id == HARIYAMA and fw.bench_can_attack(ctx):
+            return 65000.0
         return {
             LUCARIO: 60000.0,
             RIOLU: 20000.0,
@@ -331,6 +344,10 @@ class LucarioStrategy(Strategy):
             # 傷んだルカリオを差し出してサイド3枚を渡すのは避ける。
             if ctx.memo.get("incoming", 0) >= pokemon.hp:
                 base -= 45000
+            # 壁の相手には、乗っているエネルギーの量に関わらず攻撃が0ダメージなので
+            # 積極的に選ぶ理由が無い(それでも他に選択肢が無ければ選ばれる)。
+            if ctx.memo.get("walled"):
+                base -= 40000
         return base + len(pokemon.energies) * 200 + pokemon.hp
 
     def bench_score(self, ctx: Ctx, card_id: int, o: Option) -> float:
@@ -358,8 +375,16 @@ class LucarioStrategy(Strategy):
         # 「殴れるか」はエンジンがワザの選択肢を出しているかで見る。枚数だけで数えると、
         # コズミックビームの発動条件（ベンチにルナトーンが必要）や、かそくづき／
         # メガブレイブの「次の番は使えない」制限を見落とす。
-        if ctx.attack_options:
+        #
+        # ただし壁(クラスタゲ等)の相手には、ワザの選択肢自体はエンジンが出しても
+        # ダメージが0になる。攻撃できることと攻撃が意味を持つことは別なので、
+        # 壁のときだけは ctx.attack_options だけで判断せず、非exの控えに交代する。
+        if ctx.attack_options and not ctx.memo.get("walled"):
             return SKIP
+        if ctx.memo.get("walled") and active.id == LUCARIO and fw.bench_can_attack(ctx):
+            for p in ctx.my_bench:
+                if p.id in (HARIYAMA, SOLROCK, MAKUHITA) and fw.can_attack_now(ctx, p):
+                    return S_RETREAT + 6000
         if any(p.id == LUCARIO and len(p.energies) >= 1 for p in ctx.my_bench):
             return S_RETREAT + 5000
         if fw.bench_can_attack(ctx):
