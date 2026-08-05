@@ -7,11 +7,18 @@ sample_submission/ の本提出物(ML方策)とは別に、「このデッキの
 ## バンドルの中身
 
 ```
-main.py            Kaggle エントリポイント(__file__ 非依存、失敗時は合法手にフォールバック)
+main.py            Kaggle エントリポイント(__file__ 非依存。判断ロジックが読めない/
+                    不正な手を返したときは、誤魔化さず例外を送出して負ける)
 deck.csv           選んだデッキの60枚(main.py の read_deck_csv 用)
 cg/                sample_submission/cg のコピー(変更しない)
 rule_agents/        framework.py + 選んだデッキの1ファイル + そのデッキCSV
 ```
+
+**方針: 提出枠を「動いているふり」で埋めない。** 判断ロジックが読み込めない場合、
+以前は「合法だが何も考えていない手」を返し続ける保険を持たせていたが、これだと
+対局はエラー無く完走するのに実質何もしていない、という外から気づけない状態になる
+(実際にこれで118手すべてが保険の行動という試合を2つ提出していた)。今は読み込みに
+失敗するか、判断ロジックが不正な手を返したら、その場で例外を送出する。
 
 デッキ間の依存が無いことは各 `<deck>.py` の import を見れば分かる(`from . import framework`
 だけで、他の `grimmsnarl.py`/`lucario.py`/`archaludon.py` 同士は互いに依存しない)ため、
@@ -58,8 +65,15 @@ _MAIN_PY = '''"""Kaggle submission entry point -- hand-written rule-based agent 
 
 Pure Python, no torch/numpy dependency. Decision logic lives in rule_agents/{module},
 scored against every legal option each call (see that module's docstring for the
-deck's game plan). This file only handles Kaggle's runtime quirks and provides a
-fallback so the agent never crashes out of a match.
+deck's game plan).
+
+**This submission has no silent fallback.** If the decision logic can't be loaded,
+or it ever returns something the engine won't accept, this raises instead of
+quietly playing dummy moves. A submission slot that plays nothing is worse than
+a submission slot that visibly errors out -- an error is noticed and fixed; a
+match that completes while doing nothing looks fine and isn't (this happened for
+real: 118/118 decisions in two ranked matches were the old silent fallback,
+and it was only caught by reading the replay JSON by hand).
 """
 
 import os
@@ -77,7 +91,7 @@ for _path in list(_CANDIDATE_DIRS):
     if os.path.isdir(_path) and _path not in sys.path:
         sys.path.insert(0, _path)
 
-from cg.api import Observation, OptionType, SelectContext, to_observation_class  # noqa: E402
+from cg.api import Observation, to_observation_class  # noqa: E402
 
 # `cg` が import できた時点で、そのファイルの場所からバンドルの位置が確定する。
 # cwd も __file__ も当てにならない環境で、これが一番確実な手がかりになる。
@@ -93,7 +107,7 @@ except Exception:
 
 _AGENT = None
 _AGENT_LOAD_TRIED = False
-_LOAD_ERROR_REPORTED = False
+_LOAD_ERROR = None
 
 
 def _candidate_paths(filename: str):
@@ -111,13 +125,13 @@ def read_deck_csv() -> list[int]:
 
 
 def _get_agent():
-    """Lazily import the rule-based agent; return None if unavailable (triggers fallback).
+    """Lazily import the rule-based agent.
 
-    読み込みに失敗したら **必ず stderr に理由を出す**。ここを黙って握りつぶすと、
-    「エラーは一切出ないのに、判断が丸ごと効いていない」状態で試合が進んでしまう
-    (実際に Kaggle 上で 118 手すべてが保険の行動になり、1度も攻撃しないまま負けた)。
+    2通り試す(通常の import と、ファイル位置を直接指定した読み込み)。どちらも
+    失敗したら None を返す。呼び出し側(agent())がそれを見て例外を送出する
+    ("読めなかったら保険で誤魔化す"のではなく、はっきり負けにする方針)。
     """
-    global _AGENT, _AGENT_LOAD_TRIED, _LOAD_ERROR_REPORTED
+    global _AGENT, _AGENT_LOAD_TRIED, _LOAD_ERROR
     if _AGENT_LOAD_TRIED:
         return _AGENT
     _AGENT_LOAD_TRIED = True
@@ -157,88 +171,44 @@ def _get_agent():
         first_error += "\\n--- ファイル指定での読み込みも失敗 ---\\n" + traceback.format_exc()
 
     _AGENT = None
-    if not _LOAD_ERROR_REPORTED:
-        _LOAD_ERROR_REPORTED = True
-        print("[rule_agent] 判断ロジックの読み込みに失敗しました。保険の行動で進行します。",
-              file=sys.stderr)
-        print(f"[rule_agent] cwd={{os.getcwd()!r}} candidates={{_CANDIDATE_DIRS!r}}", file=sys.stderr)
-        print(first_error, file=sys.stderr)
+    _LOAD_ERROR = (
+        f"cwd={{os.getcwd()!r}} candidates={{_CANDIDATE_DIRS!r}}\\n{{first_error}}"
+    )
     return _AGENT
 
 
-# 保険の行動でも、最低限「殴れるときは殴る」程度のことはする。
-# 単純に先頭の選択肢を選び続けると、にげるを連打したり、ボスの指令を無駄打ちしたり、
-# パンクアップで0枚しか付けなかったりと、目に見えて悪い試合になる。
-_MAIN_PRIORITY = {{
-    OptionType.EVOLVE: 6,
-    OptionType.ATTACH: 5,
-    OptionType.PLAY: 4,
-    OptionType.ABILITY: 3,
-    OptionType.ATTACK: 2,
-    OptionType.RETREAT: 1,
-    OptionType.END: 0,
-}}
-
-# 「選べるだけ選んだ方が得」な文脈(サーチ・付け先・ベンチ展開など)。
-_TAKE_MAX_CONTEXTS = {{
-    SelectContext.TO_HAND,
-    SelectContext.ATTACH_TO,
-    SelectContext.TO_BENCH,
-    SelectContext.TO_FIELD,
-    SelectContext.SETUP_BENCH_POKEMON,
-}}
-
-
-def _fallback_action(obs: Observation) -> list[int]:
-    """判断ロジックが使えないときの保険。必ず合法な手を返す。"""
-    sel = obs.select
-    if sel is None:
-        return read_deck_csv()
-    n = len(sel.option)
-    if n == 0:
-        return []
-
-    if sel.context == SelectContext.MAIN:
-        # 手数が伸びすぎたら打ち切る(未知の効果でループしないための保険)。
-        actions_taken = getattr(obs.current, "turnActionCount", 0) or 0
-        best = 0
-        best_score = -1
-        for i, o in enumerate(sel.option):
-            score = -1 if actions_taken > 40 and o.type != OptionType.END else \\
-                _MAIN_PRIORITY.get(o.type, 0)
-            if score > best_score:
-                best, best_score = i, score
-        return [best]
-
-    take = sel.minCount
-    if sel.context in _TAKE_MAX_CONTEXTS:
-        take = max(sel.minCount, min(sel.maxCount, n))
-    take = max(0, min(take, n))
-    return list(range(take))
-
-
 def agent(obs_dict: dict) -> list[int]:
-    """Competition entry point. Returns option indices (or the deck on turn 0)."""
+    """Competition entry point. Returns option indices (or the deck on turn 0).
+
+    判断ロジックが読み込めない、または不正な手を返した場合は例外を送出する。
+    握りつぶして適当な手を返すと、対局はエラー無く終わるのに実質何もしていない
+    という、外からは気づけない負け方をする(この提出物で一度実際に起きた)。
+    それよりは、提出枠がはっきりエラーになる方が良い。
+    """
     obs: Observation = to_observation_class(obs_dict)
 
     if obs.select is None:
         return read_deck_csv()
 
-    try:
-        rule_agent = _get_agent()
-        if rule_agent is None:
-            return _fallback_action(obs)
-        action = rule_agent(obs)
-        # final legality guard
-        n = len(obs.select.option)
-        action = [i for i in action if 0 <= i < n]
-        if len(set(action)) != len(action):
-            return _fallback_action(obs)
-        if not (obs.select.minCount <= len(action) <= obs.select.maxCount):
-            return _fallback_action(obs)
-        return action
-    except Exception:
-        return _fallback_action(obs)
+    rule_agent = _get_agent()
+    if rule_agent is None:
+        raise RuntimeError(
+            "rule_agents の読み込みに失敗しました(判断ロジックが一切動いていません)。"
+            "誤魔化さずここで止めます。詳細:\\n" + (_LOAD_ERROR or "(不明)")
+        )
+
+    action = rule_agent(obs)
+    n = len(obs.select.option)
+    sel = obs.select
+    if not all(0 <= i < n for i in action):
+        raise RuntimeError(f"範囲外の選択: {{action}} (option数={{n}})")
+    if len(set(action)) != len(action):
+        raise RuntimeError(f"選択肢が重複している: {{action}}")
+    if not (sel.minCount <= len(action) <= sel.maxCount):
+        raise RuntimeError(
+            f"選択個数が範囲外: {{len(action)}} not in [{{sel.minCount}}, {{sel.maxCount}}]"
+        )
+    return action
 '''
 
 

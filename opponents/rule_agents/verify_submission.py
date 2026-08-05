@@ -2,9 +2,11 @@
 
 **cwd をバンドル展開先にし、`__file__` の無い状態で main.py を exec() するのが必須。**
 これを端折ると、テストスクリプト側で先に `cg` を import してしまい `sys.modules["cg"]`
-が汚れたまま main.py の import が(気づかれずに)失敗し、対局中ずっと保険用の
-ダミー行動を返し続ける、という事故になる(勝率が不自然に0%近くまで落ちるのに
-例外は一切出ないので、フォールバック回数を数えるまで気づけなかった)。
+が汚れたまま main.py の import が(気づかれずに)失敗する、という事故になる。
+
+現行の main.py は「読み込みに失敗したら保険で誤魔化す」のではなく例外を送出する
+方針なので、ここでの検証の主眼は「例外を送出せずに正常対局できること」の確認になる
+(以前は逆に、保険が静かに動いて対局がエラー無く完走してしまうこと自体が問題だった)。
 
 使い方:
 ```bash
@@ -56,7 +58,7 @@ _IMPORT_PROBE = textwrap.dedent(
         traceback.print_exc()
         raise SystemExit(2)
     agent = ns["_get_agent"]()
-    print("LOADED" if agent is not None else "FALLBACK_ONLY")
+    print("LOADED" if agent is not None else "LOAD_FAILED")
     raise SystemExit(0 if agent is not None else 3)
     """
 )
@@ -108,11 +110,11 @@ def main() -> None:
     # --- 1. 実行環境を変えて「判断ロジックが読み込めるか」を先に確かめる -------------
     print("[1] 読み込み確認(別プロセス・環境を変えて)")
     if not check_load_environments(workdir):
-        print("FAIL: 判断ロジックを読み込めない環境がある。このまま提出すると"
-              "「エラーは出ないのに一度も判断が効かない」試合になる。")
+        print("FAIL: 判断ロジックを読み込めない環境がある。この提出物は agent() が"
+              "例外を送出する設計なので、このまま提出すると対局がエラーになる。")
         sys.exit(1)
 
-    print("[2] 実対戦(合法性・フォールバック発生の確認)")
+    print("[2] 実対戦(合法性の確認・例外が出ないことの確認)")
 
     # --- Kaggle 相当の条件を作る -------------------------------------------------
     os.chdir(workdir)  # main.py の os.getcwd() 候補と一致させる
@@ -125,17 +127,9 @@ def main() -> None:
 
     rule_agent = main_ns["_get_agent"]()
     if rule_agent is None:
-        print("FAIL: rule_agents の import に失敗しています(フォールバックのみで動く状態)")
+        print("FAIL: rule_agents の import に失敗しています")
         sys.exit(1)
 
-    fallback_calls = [0]
-    orig_fallback = main_ns["_fallback_action"]
-
-    def counting_fallback(obs):
-        fallback_calls[0] += 1
-        return orig_fallback(obs)
-
-    main_ns["_fallback_action"] = counting_fallback
     submission_agent = main_ns["agent"]
 
     import cg.game as cg_game  # noqa: E402  (main.py が import 済みの cg を再利用)
@@ -195,14 +189,9 @@ def main() -> None:
 
     n_ok = args.games - errors
     print(f"games={args.games} errors={errors} win_rate={wins/n_ok if n_ok else float('nan'):.3f} "
-          f"max_agent_call_ms={max_ms:.1f} fallback_calls={fallback_calls[0]}")
-    if fallback_calls[0] > 0:
-        print("WARNING: フォールバックが呼ばれている(rule_agents の import か判断ロジックで"
-              "例外が起きている可能性)。原因を特定してから提出すること。")
+          f"max_agent_call_ms={max_ms:.1f}")
     if errors > 0:
-        print("FAIL: エラーが発生した対局がある")
-        sys.exit(1)
-    if fallback_calls[0] > 0:
+        print("FAIL: エラーが発生した対局がある(agent() が例外を送出した可能性)")
         sys.exit(1)
     print("OK")
 
