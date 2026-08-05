@@ -64,26 +64,36 @@ fallback so the agent never crashes out of a match.
 
 import os
 import sys
+import traceback
 
 # Make the submission folder importable regardless of the working directory.
 # Kaggle runs main.py via exec() (no __file__), so __file__ can't be relied on.
-# Register every plausible candidate directory instead of a single hardcoded one:
-# the known Kaggle agent path, the current working directory (this is how
-# sample_submission/main.py itself does it), and __file__'s directory when it
-# happens to be available (e.g. when testing this file outside of exec()).
 _CANDIDATE_DIRS = ["/kaggle_simulations/agent", os.getcwd()]
 try:
     _CANDIDATE_DIRS.append(os.path.dirname(os.path.abspath(__file__)))
 except NameError:
     pass
-for _path in _CANDIDATE_DIRS:
+for _path in list(_CANDIDATE_DIRS):
     if os.path.isdir(_path) and _path not in sys.path:
         sys.path.insert(0, _path)
 
-from cg.api import Observation, to_observation_class  # noqa: E402
+from cg.api import Observation, OptionType, SelectContext, to_observation_class  # noqa: E402
+
+# `cg` が import できた時点で、そのファイルの場所からバンドルの位置が確定する。
+# cwd も __file__ も当てにならない環境で、これが一番確実な手がかりになる。
+try:
+    import cg as _cg_pkg
+    _bundle_dir = os.path.dirname(os.path.dirname(os.path.abspath(_cg_pkg.__file__)))
+    if _bundle_dir not in _CANDIDATE_DIRS:
+        _CANDIDATE_DIRS.append(_bundle_dir)
+    if os.path.isdir(_bundle_dir) and _bundle_dir not in sys.path:
+        sys.path.insert(0, _bundle_dir)
+except Exception:
+    pass
 
 _AGENT = None
 _AGENT_LOAD_TRIED = False
+_LOAD_ERROR_REPORTED = False
 
 
 def _candidate_paths(filename: str):
@@ -101,28 +111,110 @@ def read_deck_csv() -> list[int]:
 
 
 def _get_agent():
-    """Lazily import the rule-based agent; return None if unavailable (triggers fallback)."""
-    global _AGENT, _AGENT_LOAD_TRIED
+    """Lazily import the rule-based agent; return None if unavailable (triggers fallback).
+
+    読み込みに失敗したら **必ず stderr に理由を出す**。ここを黙って握りつぶすと、
+    「エラーは一切出ないのに、判断が丸ごと効いていない」状態で試合が進んでしまう
+    (実際に Kaggle 上で 118 手すべてが保険の行動になり、1度も攻撃しないまま負けた)。
+    """
+    global _AGENT, _AGENT_LOAD_TRIED, _LOAD_ERROR_REPORTED
     if _AGENT_LOAD_TRIED:
         return _AGENT
     _AGENT_LOAD_TRIED = True
+
+    # 1回目: 普通の import（sys.path が正しく通っていればこれで済む）。
     try:
         from rule_agents.{package} import agent as _rule_agent
         _AGENT = _rule_agent
+        return _AGENT
     except Exception:
-        _AGENT = None
+        first_error = traceback.format_exc()
+
+    # 2回目: ファイルの場所から直接読み込む。sys.path の状態に一切依存しないので、
+    # 実行環境がどこを cwd にしていても、バンドルさえ見つかれば必ず読み込める。
+    try:
+        import importlib.util
+        for _dir in _CANDIDATE_DIRS:
+            pkg_dir = os.path.join(_dir, "rule_agents")
+            mod_path = os.path.join(pkg_dir, "{module}")
+            if not os.path.exists(mod_path):
+                continue
+            if "rule_agents" not in sys.modules:
+                pkg_spec = importlib.util.spec_from_file_location(
+                    "rule_agents", os.path.join(pkg_dir, "__init__.py"),
+                    submodule_search_locations=[pkg_dir],
+                )
+                pkg = importlib.util.module_from_spec(pkg_spec)
+                sys.modules["rule_agents"] = pkg
+                pkg_spec.loader.exec_module(pkg)
+            spec = importlib.util.spec_from_file_location("rule_agents.{package}", mod_path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules["rule_agents.{package}"] = mod
+            spec.loader.exec_module(mod)
+            _AGENT = mod.agent
+            return _AGENT
+    except Exception:
+        first_error += "\\n--- ファイル指定での読み込みも失敗 ---\\n" + traceback.format_exc()
+
+    _AGENT = None
+    if not _LOAD_ERROR_REPORTED:
+        _LOAD_ERROR_REPORTED = True
+        print("[rule_agent] 判断ロジックの読み込みに失敗しました。保険の行動で進行します。",
+              file=sys.stderr)
+        print(f"[rule_agent] cwd={{os.getcwd()!r}} candidates={{_CANDIDATE_DIRS!r}}", file=sys.stderr)
+        print(first_error, file=sys.stderr)
     return _AGENT
 
 
+# 保険の行動でも、最低限「殴れるときは殴る」程度のことはする。
+# 単純に先頭の選択肢を選び続けると、にげるを連打したり、ボスの指令を無駄打ちしたり、
+# パンクアップで0枚しか付けなかったりと、目に見えて悪い試合になる。
+_MAIN_PRIORITY = {{
+    OptionType.EVOLVE: 6,
+    OptionType.ATTACH: 5,
+    OptionType.PLAY: 4,
+    OptionType.ABILITY: 3,
+    OptionType.ATTACK: 2,
+    OptionType.RETREAT: 1,
+    OptionType.END: 0,
+}}
+
+# 「選べるだけ選んだ方が得」な文脈(サーチ・付け先・ベンチ展開など)。
+_TAKE_MAX_CONTEXTS = {{
+    SelectContext.TO_HAND,
+    SelectContext.ATTACH_TO,
+    SelectContext.TO_BENCH,
+    SelectContext.TO_FIELD,
+    SelectContext.SETUP_BENCH_POKEMON,
+}}
+
+
 def _fallback_action(obs: Observation) -> list[int]:
-    """A guaranteed-legal action used when the rule agent is unavailable or errors."""
+    """判断ロジックが使えないときの保険。必ず合法な手を返す。"""
     sel = obs.select
     if sel is None:
         return read_deck_csv()
     n = len(sel.option)
-    if sel.minCount <= 0:
+    if n == 0:
         return []
-    return list(range(min(sel.minCount, n)))
+
+    if sel.context == SelectContext.MAIN:
+        # 手数が伸びすぎたら打ち切る(未知の効果でループしないための保険)。
+        actions_taken = getattr(obs.current, "turnActionCount", 0) or 0
+        best = 0
+        best_score = -1
+        for i, o in enumerate(sel.option):
+            score = -1 if actions_taken > 40 and o.type != OptionType.END else \\
+                _MAIN_PRIORITY.get(o.type, 0)
+            if score > best_score:
+                best, best_score = i, score
+        return [best]
+
+    take = sel.minCount
+    if sel.context in _TAKE_MAX_CONTEXTS:
+        take = max(sel.minCount, min(sel.maxCount, n))
+    take = max(0, min(take, n))
+    return list(range(take))
 
 
 def agent(obs_dict: dict) -> list[int]:

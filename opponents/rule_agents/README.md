@@ -25,12 +25,42 @@ python3 build_submission.py grimmsnarl --out submissions/grimmsnarl_rule_submiss
 python3 verify_submission.py submissions/grimmsnarl_rule_submission.tar.gz --opponent dragapult_rule --games 100
 ```
 
-**`verify_submission.py` を必ず通してから提出すること。** Kaggle は main.py を
-`__file__` の無い状態・cwd=展開先で `exec()` する。ここを端折ってテストすると、
-`import` が静かに失敗しても例外が出ないまま「保険用のダミー行動」を返し続け、
-対局はエラー無く完走するのに実質何もしていない、という事故になる(実際に一度
-これで踏んだ。詳細は `verify_submission.py` の docstring)。`fallback_calls` が
-0 であることが、判断ロジックが実際に動いている証拠。
+**`verify_submission.py` を必ず通してから提出すること。** `fallback_calls` が 0 で
+あることが、判断ロジックが実際に動いている証拠になる。
+
+### 実際に起きた事故: 提出物が一度も判断せずに負け続けた
+
+Kaggle の実戦リプレイ2試合(ep90110524 / ep90111221)を `replay_review.py` で読み下したところ、
+**118手すべてが保険用のダミー行動だった**ことが分かった。内訳は
+
+- `minCount >= 1` の選択 99回 → すべて `[0]`(先頭の選択肢)
+- `minCount == 0` の選択 19回 → すべて `[]`(何も選ばない)
+
+で、これは当時の `_fallback_action` の出力と完全に一致する。つまり main.py 内で
+`rule_agents` の読み込みに失敗し、**判断ロジックが一度も動かないまま**試合が進んでいた。
+結果として、
+
+- パンクアップ(デッキから悪エネルギー最大5枚)で **0枚**しか付けず、オーロンゲexは
+  最後までエネルギー0のまま**一度も攻撃できなかった**
+- ボスの指令を、攻撃できない場面で無駄打ちした
+- 1ターン目にベロバーを下げてマンキーを前に出し、盤面を止めた
+
+**厄介なのは、対局がエラー無く完走してしまうこと。** 例外も違法手も出ないので、
+勝率が落ちる以外に異常が見えない。この事故を二度と起こさないために入れた対策:
+
+1. **読み込み失敗を必ず stderr に出す**(理由・cwd・候補ディレクトリ・traceback)。
+   次にもし起きても、Kaggle のログを見れば原因が分かる。
+2. **読み込み経路を二重化**。通常の import が失敗したら、`cg` の在り処から逆算した
+   バンドル位置を使って、ファイル指定で直接読み込む(`sys.path` の状態に依存しない)。
+3. **import 時にネイティブ呼び出しをしない**。`all_card_data()` / `all_attack()` は
+   遅延化した(`framework._LazyTable`)。import 時に呼ぶと、失敗した環境で
+   モジュールごと落ちて上記の状態になる。`cg.api` から取り込む名前も実際に使う分だけに絞った。
+4. **保険の行動自体をまともにする**。先頭固定をやめ、殴れるときは殴り、サーチでは
+   取れるだけ取るようにした。ドラパルト相手60試合で、取れるサイドが 0.22 → 1.92 枚に改善
+   (それでも弱い。あくまで保険で、本来は 1〜3 で発生させないことが重要)。
+5. **検証を別プロセス・複数環境で行う**(`verify_submission.py` の手順1)。
+   同一プロセスで検証すると、検証側が先に import した `cg` などが `sys.modules` に残り、
+   本番では失敗する読み込みが通ってしまう。
 
 ## デッキの出どころ
 
@@ -39,6 +69,21 @@ python3 verify_submission.py submissions/grimmsnarl_rule_submission.tar.gz --opp
 | `marnie_grimmsnarl_ex.csv` | Kaggle エピソード 89945613 の player1 | Raihan Ramadistra |
 | `mega_lucario_ex.csv` | Kaggle エピソード 89945575 の player1 | Majkel1337（rank 2 / score 1194.3） |
 | `archaludon_ex.csv` | Kaggle エピソード 85341459 の player1 | Nobu Kimura（score 943.2） |
+
+以下は**実戦で当たった相手のデッキ**。まだ専用のエージェントは書いていないが、
+今後の改良で「実際の環境に対して強いか」を測るための的として置いてある。
+
+| デッキ | 出典 | 備考 |
+|---|---|---|
+| `dragapult_ex_kkafel.csv` | ep90110524 の player1 (Karolina Kafel) | クラッシュハンマー4枚でエネルギーを剥がしてくる型 |
+| `mega_abomasnow_ex.csv` | ep90111221 の player0 (Vladimir Mojica) | 基本水エネルギー35枚。下記参照 |
+
+**メガユキノオーex は打点の読み方に注意がいる相手。** ワザ「ハンマーランチ」は
+表記ダメージが 0 で、「山札の上6枚を落とし、その中の基本水エネルギー1枚につき100」という
+効果でダメージが決まる。デッキの約6割が水エネルギーなので、実質は毎回350前後になり、
+HP320 のオーロンゲexが一撃で落ちる。`framework.incoming_damage` はこれを 0 と読んで
+「無害な相手」と判断していたため、表記0のワザは必要エネルギー1個あたり90として
+見積もるように直した。
 
 ジュラルドンは、手元の `kaggle_replays/index/episodes_master.jsonl` にある全チームを
 スコア順に走査して、ブリジュラスexを使っている**いちばんスコアの高いチーム**を探した結果。

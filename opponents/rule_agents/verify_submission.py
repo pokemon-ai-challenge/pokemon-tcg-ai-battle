@@ -18,9 +18,11 @@ from __future__ import annotations
 import argparse
 import os
 import random
+import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 import time
 from pathlib import Path
 
@@ -39,6 +41,58 @@ def read_deck(path: Path) -> list[int]:
     return [int(v) for v in path.read_text().split() if v.strip()]
 
 
+# 「main.py を exec() して、判断ロジックが本当に読み込めるか」だけを確かめる小さな台本。
+# 別プロセスで走らせるのが要点。同じプロセスで検証すると、検証スクリプト側が先に
+# import した cg などが sys.modules に残り、本番では失敗する読み込みが通ってしまう。
+_IMPORT_PROBE = textwrap.dedent(
+    """
+    import os, sys, traceback
+    ns = {}
+    code = open(os.path.join(sys.argv[1], "main.py"), encoding="utf-8").read()
+    try:
+        exec(compile(code, "main.py", "exec"), ns)   # __file__ 無し = Kaggle 相当
+    except Exception:
+        print("EXEC_FAILED")
+        traceback.print_exc()
+        raise SystemExit(2)
+    agent = ns["_get_agent"]()
+    print("LOADED" if agent is not None else "FALLBACK_ONLY")
+    raise SystemExit(0 if agent is not None else 3)
+    """
+)
+
+
+def check_load_environments(bundle: Path) -> bool:
+    """実行環境を変えて「判断ロジックが読み込めるか」を確かめる。
+
+    Kaggle 上で実際に踏んだ事故は、対局自体はエラー無く完走するのに判断ロジックが
+    一度も動かない、というものだった。勝敗や例外だけを見ていても気づけないので、
+    読み込みの成否そのものを、環境を変えて明示的に確認する。
+    """
+    neutral = Path(tempfile.mkdtemp(prefix="verify_cwd_"))
+    cases = [
+        ("cwd=バンドル直下", bundle, None),
+        ("cwd=無関係な場所 + PYTHONPATH でバンドルを指定", neutral, str(bundle)),
+    ]
+    all_ok = True
+    for label, cwd, pythonpath in cases:
+        env = dict(os.environ)
+        env.pop("PYTHONPATH", None)
+        if pythonpath:
+            env["PYTHONPATH"] = pythonpath
+        proc = subprocess.run(
+            [sys.executable, "-c", _IMPORT_PROBE, str(bundle)],
+            cwd=str(cwd), env=env, capture_output=True, encoding="utf-8", errors="replace",
+        )
+        ok = proc.returncode == 0
+        all_ok = all_ok and ok
+        print(f"  [{'OK ' if ok else 'NG '}] {label}: {(proc.stdout or '').strip().splitlines()[-1:] or ['(出力なし)']}")
+        if not ok and proc.stderr:
+            for line in proc.stderr.strip().splitlines()[-12:]:
+                print(f"        {line}")
+    return all_ok
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("tarball", type=Path)
@@ -50,6 +104,15 @@ def main() -> None:
     workdir = Path(tempfile.mkdtemp(prefix="verify_submission_"))
     with tarfile.open(args.tarball) as tar:
         tar.extractall(workdir)
+
+    # --- 1. 実行環境を変えて「判断ロジックが読み込めるか」を先に確かめる -------------
+    print("[1] 読み込み確認(別プロセス・環境を変えて)")
+    if not check_load_environments(workdir):
+        print("FAIL: 判断ロジックを読み込めない環境がある。このまま提出すると"
+              "「エラーは出ないのに一度も判断が効かない」試合になる。")
+        sys.exit(1)
+
+    print("[2] 実対戦(合法性・フォールバック発生の確認)")
 
     # --- Kaggle 相当の条件を作る -------------------------------------------------
     os.chdir(workdir)  # main.py の os.getcwd() 候補と一致させる

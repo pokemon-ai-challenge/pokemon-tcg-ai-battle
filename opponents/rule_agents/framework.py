@@ -35,12 +35,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# cg.api から取り込む名前は、実際に使うものだけに絞る。ここに書いた名前が
+# 実行環境の cg.api に1つでも欠けていると、このモジュール全体の import が失敗し、
+# 提出物は保険の行動しか返せなくなる（= 判断が丸ごと無効になる）。
 from cg.api import (
     AreaType,
-    Attack,
     Card,
-    CardData,
-    CardType,
     EnergyType,
     Observation,
     Option,
@@ -49,7 +49,6 @@ from cg.api import (
     Pokemon,
     SelectContext,
     SelectData,
-    SelectType,
     State,
     all_attack,
     all_card_data,
@@ -81,9 +80,53 @@ _STADIUM_FULL_METAL_LAB = 1244
 _STADIUM_GRAVITY_MOUNTAIN = 1252
 _STADIUM_WATCHTOWER = 1256
 
-_CARD_LIST = all_card_data()
-CARDS: dict[int, CardData] = {c.cardId: c for c in _CARD_LIST}
-ATTACKS: dict[int, Attack] = {a.attackId: a for a in all_attack()}
+class _LazyTable:
+    """カード表・ワザ表を「最初に引かれたとき」に作る入れ物。
+
+    中身は `all_card_data()` / `all_attack()` というネイティブライブラリ呼び出しで、
+    これを import 時に実行すると、呼び出しが失敗した環境では
+    **モジュールの import ごと落ちる**。提出物側は import に失敗しても例外を
+    握りつぶして保険の行動に切り替える作りなので、そうなると「エラーは出ないのに
+    判断が一切効いていない」状態のまま試合が進んでしまう(実際に Kaggle 上で
+    これを踏み、118手すべてが保険の行動になっていた)。
+
+    遅延化しておけば、少なくとも import は必ず通る。
+    """
+
+    def __init__(self, loader, key):
+        self._loader = loader
+        self._key = key
+        self._data: dict | None = None
+
+    def _ensure(self) -> dict:
+        if self._data is None:
+            self._data = {self._key(v): v for v in self._loader()}
+        return self._data
+
+    def get(self, k, default=None):
+        return self._ensure().get(k, default)
+
+    def __getitem__(self, k):
+        return self._ensure()[k]
+
+    def __contains__(self, k) -> bool:
+        return k in self._ensure()
+
+    def __len__(self) -> int:
+        return len(self._ensure())
+
+    def __iter__(self):
+        return iter(self._ensure())
+
+    def values(self):
+        return self._ensure().values()
+
+    def items(self):
+        return self._ensure().items()
+
+
+CARDS: _LazyTable = _LazyTable(all_card_data, lambda c: c.cardId)
+ATTACKS: _LazyTable = _LazyTable(all_attack, lambda a: a.attackId)
 
 _DEBUG = bool(os.environ.get("RULE_AGENT_DEBUG"))
 
@@ -433,6 +476,16 @@ def incoming_damage(ctx: Ctx) -> int:
 
     相手の手札は見えないので「今ついているエネルギーで撃てるワザ」だけを見る。
     自分のポケモンを逃がすか・回復するかの判断に使う。
+
+    **表記ダメージが0のワザに注意。** 「〜1枚につき100ダメージ」のように、
+    ダメージが状況で決まるワザは `Attack.damage` が 0 になっている。額面どおり
+    0 と見なすと、こちらは「この相手は無害だ」と判断してしまう。実戦でメガユキノオーex
+    の「ハンマーランチ」(山札の上6枚を落とし、その中の基本水エネルギー1枚につき100)
+    がこれに当たり、水エネルギーを35枚積んだ相手の実質350ダメージを 0 と読んでいた。
+
+    そこで、表記0でも効果文に「damage」を含むワザは、**必要エネルギー1個あたり90**
+    という控えめな見積りに置き換える(ワザの打点はおおむねコストに比例するため)。
+    守りの判断にしか使わない値なので、多めに見積もる側に倒しておく方が安全。
     """
     if ctx.op_active is None or ctx.my_active is None:
         return 0
@@ -445,7 +498,10 @@ def incoming_damage(ctx: Ctx) -> int:
         atk = ATTACKS.get(aid)
         if atk is None or len(atk.energies) > energy:
             continue
-        best = max(best, estimate_damage(ctx, ctx.op_active, aid, ctx.my_active))
+        dmg = estimate_damage(ctx, ctx.op_active, aid, ctx.my_active)
+        if dmg == 0 and atk.damage == 0 and "damage" in (atk.text or "").lower():
+            dmg = 90 * max(1, len(atk.energies))
+        best = max(best, dmg)
     return best
 
 
