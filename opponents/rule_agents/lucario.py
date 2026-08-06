@@ -120,14 +120,15 @@ class LucarioStrategy(Strategy):
 
         ctx.memo["lucario_in_play"] = ctx.field_counts.get(LUCARIO, 0)
         ctx.memo["incoming"] = fw.incoming_damage(ctx)
-        # 相手の場に「Pokémon ex からの攻撃を防ぐ」壁(クラスタゲ／ニンフィア等)が
-        # いて、こちらの攻撃が(メガルカリオexは ex なので)通らないか。
-        # ハリテヤマ／ソルロック／マクノシタは ex ではないので、壁が出たらそちらに
-        # 交代する方が良い(このデッキで唯一の抜け道)。
+        # 相手の場に「Pokémon ex からの攻撃を防ぐ」壁(クラスタゲ／ニンフィア／
+        # ニュートラルゾーンのスタジアム等)があって、こちらの攻撃が
+        # (メガルカリオexは ex なので)通らないか。ハリテヤマ／ソルロック／
+        # マクノシタは ex ではないので、壁が出たらそちらに交代する方が良い
+        # (このデッキで唯一の抜け道)。
         ctx.memo["walled"] = (
             ctx.op_active is not None
             and ctx.my_active is not None
-            and fw.is_damage_immune(ctx.my_active, ctx.op_active, False)
+            and fw.is_damage_immune(ctx.my_active, ctx.op_active, False, ctx.stadium_id)
         )
         idx, gust = fw.best_gust_target(ctx, bonus=30 * played)
         ctx.memo["gust_index"], ctx.memo["gust_score"] = idx, gust

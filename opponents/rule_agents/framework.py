@@ -391,8 +391,16 @@ _EX_WALL: dict[int, bool] = {
     83: True,    # Farigiraf ex「アーマーテイル」(たね Pokémon ex 限定)
 }
 
+# スタジアム版の壁。ニュートラルゾーンは「ルールを持たないポケモンは、相手の
+# Pokémon ex/V からのワザのダメージを受けない」を場に出ている間ずっと適用する
+# （出した側だけでなく双方に効く。実戦(ep90534503)でこれを見落とし、9回連続で
+# シャドーバレットを撃ってダメージ0が続いたまま倒された）。
+_STADIUM_EX_WALL = 1247  # Neutralization Zone
 
-def is_damage_immune(attacker: Pokemon | None, defender: Pokemon, on_bench: bool) -> bool:
+
+def is_damage_immune(
+    attacker: Pokemon | None, defender: Pokemon, on_bench: bool, stadium_id: int = 0,
+) -> bool:
     """ワザのダメージが丸ごと通らない相手かどうか。
 
     - テラスポケモンはベンチにいる間ワザのダメージを受けない。
@@ -400,6 +408,8 @@ def is_damage_immune(attacker: Pokemon | None, defender: Pokemon, on_bench: bool
     - クラスタゲ／ニンフィア／キリンリキexは「Pokémon ex からのワザのダメージ」を
       全て防ぐ。こちらの主軸(オーロンゲex/ブリジュラスex/メガルカリオex)は全員
       Pokémon ex なので、これらが相手の場にいる間は攻撃しても何も減らせない。
+    - ニュートラルゾーンが場にあると、ルールを持たない(exでもmegaExでもない)
+      ポケモンは、こちらの Pokémon ex からのワザを一切受けない。
     """
     data = CARDS.get(defender.id)
     if data is None:
@@ -413,6 +423,8 @@ def is_damage_immune(attacker: Pokemon | None, defender: Pokemon, on_bench: bool
         attacker_data = CARDS.get(attacker.id) if attacker is not None else None
         if not basic_only or (attacker_data is not None and attacker_data.basic):
             return True
+    if stadium_id == _STADIUM_EX_WALL and is_pokemon_ex(attacker) and not (data.ex or data.megaEx):
+        return True
     return False
 
 
@@ -436,7 +448,7 @@ def estimate_damage(
     base = atk.damage
     if base <= 0 and bonus <= 0:
         return 0
-    if is_damage_immune(attacker, defender, on_bench):
+    if is_damage_immune(attacker, defender, on_bench, ctx.stadium_id):
         return 0
 
     dmg = base + bonus

@@ -114,6 +114,17 @@ class GrimmsnarlStrategy(Strategy):
         )
         idx, gust = fw.best_gust_target(ctx)
         ctx.memo["gust_index"], ctx.memo["gust_score"] = idx, gust
+        # 相手の場に「Pokémon ex からの攻撃を防ぐ」壁(クラスタゲ／ニンフィア／
+        # ニュートラルゾーンのスタジアム等)があって、オーロンゲexが(ex なので)
+        # 攻撃してもダメージ0にならないか。ベロバー／ギモーは ex ではなく、かつ
+        # このデッキの基本エネルギー(悪のみ)でそのままワザが撃てるので、壁の相手
+        # には主役を下げてそちらで殴る方が良い(ユキメノコ/マンキー/ユキワラシは
+        # 水・超エネルギーが要るのでデッキに1枚も無く、迂回路にならない)。
+        ctx.memo["walled"] = (
+            ctx.op_active is not None
+            and ctx.my_active is not None
+            and fw.is_damage_immune(ctx.my_active, ctx.op_active, False, ctx.stadium_id)
+        )
 
     # ---- 先攻／後攻 --------------------------------------------------------
     def yes_no_score(self, ctx: Ctx, is_yes: bool) -> float | None:
@@ -333,7 +344,15 @@ class GrimmsnarlStrategy(Strategy):
         if active is None:
             return SKIP
         # 前がオーロンゲなら動かない（にげるエネルギー2は重く、320の器を下げる意味も無い）。
+        # ただし壁(クラスタゲ等)の相手には例外。攻撃は0ダメージのままな上、
+        # HP320 の耐久も大技(実測で1発320)の前では意味を持たないことがある。
+        # ベロバー／ギモーが今すぐ攻撃できるなら、そちらに任せた方が実質的な
+        # 前進(相手ベンチのHP0にはできる／サイド1枚で済む交換)になる。
         if active.id == GRIMMSNARL:
+            if ctx.memo.get("walled"):
+                for p in ctx.my_bench:
+                    if p.id in (MORGREM, IMPIDIMP) and fw.can_attack_now(ctx, p):
+                        return S_RETREAT + 4000
             return SKIP
 
         # 前がこのターン殴れないなら、殴れる控えと替える。

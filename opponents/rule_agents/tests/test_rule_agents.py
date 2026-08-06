@@ -129,3 +129,29 @@ def test_non_wall_pokemon_never_blocks() -> None:
     attacker = _pokemon(648)
     non_wall = _pokemon(DUSKULL)
     assert fw.is_damage_immune(attacker, non_wall, False) is False
+
+
+# 実戦の敗北(2026-08-06 ep90534503, vs Alakazam)で見つかった不具合の回帰テスト。
+# ニュートラルゾーン(スタジアム)は「ルールを持たないポケモンは、相手の Pokémon ex
+# からのワザのダメージを受けない」を場に出ている間ずっと適用する。攻撃した側だけでなく
+# 双方に効く。これを見落とし、シャドーバレットを9回連続でダメージ0のまま撃ち続けていた。
+NEUTRALIZATION_ZONE = 1247
+
+
+@pytest.mark.parametrize("attacker_id", [648, 190, 678])  # オーロンゲex/ブリジュラスex/メガルカリオex
+def test_neutralization_zone_blocks_our_main_attackers_vs_rule_box_free_defender(
+    attacker_id: int,
+) -> None:
+    attacker = _pokemon(attacker_id)
+    # ルールを持たない(ex でも megaEx でもない)ただのポケモン。
+    defender = _pokemon(DUSKULL)
+    assert fw.is_damage_immune(attacker, defender, False, NEUTRALIZATION_ZONE) is True
+    # スタジアムが無ければ通る。
+    assert fw.is_damage_immune(attacker, defender, False, 0) is False
+
+
+def test_neutralization_zone_does_not_block_when_defender_has_rule_box() -> None:
+    # 相手も ex なら「ルールを持たない」の対象外で、壁は効かない。
+    attacker = _pokemon(648)
+    defender = _pokemon(190)  # Archaludon ex
+    assert fw.is_damage_immune(attacker, defender, False, NEUTRALIZATION_ZONE) is False
