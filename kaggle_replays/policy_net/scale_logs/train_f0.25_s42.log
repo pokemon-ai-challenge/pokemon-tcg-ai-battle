@@ -1,0 +1,58 @@
+features.npz を読み込み: scale_features\features_scale_f0.25_s42.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=164611 val=21531 test=85218 (全271360件)
+option特徴の標準化元行列 shape=(888141, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.1207  val_nll=1.0798 (best=1.0798, no_improve=0)  val_top1=0.5920
+    [baseline] epoch   5  train_loss=1.0683  val_nll=1.0600 (best=1.0600, no_improve=0)  val_top1=0.6082
+    [baseline] epoch  10  train_loss=1.0676  val_nll=1.0608 (best=1.0582, no_improve=1)  val_top1=0.6029
+    [baseline] epoch  15  train_loss=1.0666  val_nll=1.0588 (best=1.0579, no_improve=2)  val_top1=0.6054
+    [baseline] epoch  20  train_loss=1.0668  val_nll=1.0583 (best=1.0579, no_improve=7)  val_top1=0.6020
+    [baseline] 早期終了: epoch 23(val_nll が 10 epoch 改善せず)
+  学習完了 (329.8s)
+  val : top1=0.6048  nll=1.0579
+  test: top1=0.6061  nll=1.0557
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=0.8834  val_nll=0.8103 (best=0.8103, no_improve=0)  val_top1=0.7040
+    [main] epoch   5  train_loss=0.7575  val_nll=0.7679 (best=0.7644, no_improve=1)  val_top1=0.7193
+    [main] epoch  10  train_loss=0.7344  val_nll=0.7644 (best=0.7590, no_improve=2)  val_top1=0.7218
+    [main] epoch  15  train_loss=0.7221  val_nll=0.7595 (best=0.7561, no_improve=4)  val_top1=0.7216
+    [main] epoch  20  train_loss=0.7141  val_nll=0.7570 (best=0.7545, no_improve=3)  val_top1=0.7219
+    [main] epoch  25  train_loss=0.7094  val_nll=0.7553 (best=0.7545, no_improve=8)  val_top1=0.7229
+    [main] 早期終了: epoch 27(val_nll が 10 epoch 改善せず)
+  学習完了 (460.2s, 27 epochs)
+  train: top1=0.7367  nll=0.7076
+  val  : top1=0.7243  nll=0.7545
+  test : top1=0.7211  nll=0.7787
+  train-val gap: top1=+0.0124  nll=+0.0470(overfitting指標)
+  param_counts: {'fc1': 7680, 'fc2': 33, 'embedding': 10144, 'mlp': 7713, 'total': 17857}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.6048  nll=1.0579
+  本命(state ++ option ++ embed): top1=0.7243  nll=0.7545
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n= 38915  top1=0.6530  nll=0.9635
+  select_type= 1  n= 36309  top1=0.7246  nll=0.7646
+  select_type= 2  n=    64  top1=1.0000  nll=0.0000
+  select_type= 4  n=  1318  top1=0.8892  nll=0.4239
+  select_type= 7  n=   818  top1=0.9670  nll=0.1352
+  select_type= 8  n=  5278  top1=0.9898  nll=0.0720
+  select_type= 9  n=  2516  top1=0.9825  nll=0.0738
+
+重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_scale_f0.25_s42.json (387.3 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=3.55271368e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.6061 nll=1.0557
+  本命(state ++ option ++ embed) test: top1=0.7211 nll=0.7787
+  自己検証: 最大誤差=3.55271368e-15 -> PASS
+  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_scale_f0.25_s42.json
+  offline指標を書き出しました: scale_metrics\metrics_f0.25_s42.json

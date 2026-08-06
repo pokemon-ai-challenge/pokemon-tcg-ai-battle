@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\policy_net\\features_marnie_grimmsnarl_ex.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 7680,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 7713,
+    "total": 17857
+  },
+  "n_train": 649343,
+  "n_val": 83789,
+  "n_test": 85218,
+  "epochs_trained": 83,
+  "train": {
+    "top1_accuracy": 0.7459786276282334,
+    "mean_weighted_nll": 0.692649682788707
+  },
+  "val": {
+    "top1_accuracy": 0.7351800355655277,
+    "mean_weighted_nll": 0.7252408655440622
+  },
+  "test": {
+    "top1_accuracy": 0.7387641108685958,
+    "mean_weighted_nll": 0.7255358334502439
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.010798592062705725,
+    "mean_weighted_nll": 0.03259118275535522
+  },
+  "self_check_max_abs_err": 1.4210854715202004e-14,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_scale_f1.0_s42.json"
+}

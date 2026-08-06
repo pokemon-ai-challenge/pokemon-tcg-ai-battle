@@ -56,7 +56,7 @@ def _softmax_sample(scores, temperature, rng):
 
 def _play_one(task):
     """1試合を pure-Python 方策(sampling)で。learner の単一選択を記録して dict で返す。"""
-    from cg.api import to_observation_class
+    from cg.api import LogType, to_observation_class
     from cg.game import battle_finish, battle_select, battle_start
     from ptcg_ai.learning import encoder
 
@@ -71,6 +71,11 @@ def _play_one(task):
     reward = 0.0
     winner = None
     error = None
+    final_prize_self = None
+    final_prize_opp = None
+    went_first = None
+    final_turn = None
+    end_reason = None
 
     obs_dict, start_data = battle_start(deck0, deck1)
     if start_data.errorType != 0:
@@ -85,6 +90,27 @@ def _play_one(task):
             if cur.result != -1:
                 winner = cur.result
                 reward = 1.0 if cur.result == learner_index else 0.0
+                # 終局時の診断: 残りサイドと先攻/後攻。勝敗(1bit)より情報量が多く、
+                # 先攻後攻はポケカでは実質2つの別ゲーム(先攻は1ターン目に攻撃できない)。
+                # 追加コストはゼロ(この時点の cur から読むだけ)。
+                try:
+                    prize_self = len(cur.players[learner_index].prize or [])
+                    prize_opp = len(cur.players[1 - learner_index].prize or [])
+                    final_prize_self = prize_self
+                    final_prize_opp = prize_opp
+                    went_first = (cur.firstPlayer == learner_index) if cur.firstPlayer is not None else None
+                    final_turn = cur.turn
+                except Exception:  # noqa: BLE001 - 診断が本流を壊さないこと
+                    pass
+                # 終局理由(LogType.RESULT の reason: 1=サイド0 2=山札切れ 3=バトル場不在 4=カード効果)。
+                # obs.logs は「前回選択以降のイベント」なので、終局直前の this obs に含まれるはず。
+                # スモークテストで実地確認済み(reason フィールド名は api.py コメント通り)。
+                try:
+                    result_logs = [lg for lg in obs.logs if lg.type == LogType.RESULT]
+                    if result_logs:
+                        end_reason = result_logs[-1].reason
+                except Exception:  # noqa: BLE001 - 診断が本流を壊さないこと
+                    pass
                 break
             if n >= MAX_STEPS:
                 error = "max_steps"; break
@@ -133,7 +159,9 @@ def _play_one(task):
         error = repr(exc)
     finally:
         battle_finish()
-    return {"steps": steps, "reward": reward, "winner": winner, "error": error}
+    return {"steps": steps, "reward": reward, "winner": winner, "error": error,
+            "prize_self": final_prize_self, "prize_opp": final_prize_opp,
+            "went_first": went_first, "final_turn": final_turn, "end_reason": end_reason}
 
 
 def _init_worker2(weights_path, opp_weights, deck_l, deck_o, temperature):

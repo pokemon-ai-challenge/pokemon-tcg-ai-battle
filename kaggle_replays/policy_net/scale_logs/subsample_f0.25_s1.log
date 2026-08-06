@@ -1,0 +1,24 @@
+pass1: episode_id を収集中: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions_marnie_grimmsnarl_ex.jsonl.gz
+  pass1: 100000 行 (経過 5.7s)
+  pass1: 200000 行 (経過 11.3s)
+  pass1: 300000 行 (経過 16.9s)
+  pass1: 400000 行 (経過 22.4s)
+  pass1: 500000 行 (経過 27.9s)
+  pass1: 600000 行 (経過 33.5s)
+  pass1: 700000 行 (経過 39.0s)
+  pass1: 800000 行 (経過 44.5s)
+pass1完了: 818350 行 / 6228 エピソード (経過 45.5s)
+train/valエピソード間引き: 5565 -> 1391 (fraction=0.25, seed=1) / testエピソード 663 は全件保持
+pass2: 出力中: scale_data\policy_positions_scale_f0.25_s1.jsonl.gz
+  pass2: 100000 行走査済み (経過 8.3s)
+  pass2: 200000 行走査済み (経過 17.0s)
+  pass2: 300000 行走査済み (経過 25.2s)
+  pass2: 400000 行走査済み (経過 33.7s)
+  pass2: 500000 行走査済み (経過 42.1s)
+  pass2: 600000 行走査済み (経過 50.4s)
+  pass2: 700000 行走査済み (経過 59.1s)
+  pass2: 800000 行走査済み (経過 67.6s)
+pass2完了: 決定点数 818350 -> 268177 (経過 69.1s)
+書き出し完了: scale_data\policy_positions_scale_f0.25_s1.jsonl.gz (59.9 MB)
+元のエピソード数 6228 -> 残したエピソード数 2054
+決定点数: 818350 -> 268177

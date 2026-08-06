@@ -52,12 +52,32 @@ LEARNER_REGISTRY = {
                                  "marnie_grimmsnarl_ex"),
     "archaludon_ex_k60": ("policy_weights_archaludon_ex_pool_k60.json", "archaludon_ex"),
     "mega_lucario_ex_k60": ("policy_weights_mega_lucario_ex_pool_k60.json", "mega_lucario_ex"),
+    # deck_health_check.py によるデッキ健全性チェックで健全と判定された5アーキタイプ
+    # (マリガン率35%未満・デッキ枚数60枚)。run_archetype_pipeline.py の標準3ステップ
+    # (extract_policy_dataset.py -> build_features.py --weight-scheme concentrated -> train.py)
+    # でそのまま模倣学習した BC ポリシー。POOL8 の構成要素。
+    "rocket_mewtwo_ex": ("policy_weights_rocket_mewtwo_ex.json", "rocket_mewtwo_ex"),
+    "omatsuri_ondo": ("policy_weights_omatsuri_ondo.json", "omatsuri_ondo"),
+    "shirona_garchomp_ex": ("policy_weights_shirona_garchomp_ex.json", "shirona_garchomp_ex"),
+    "ogerpon_teal_ex": ("policy_weights_ogerpon_teal_ex.json", "ogerpon_teal_ex"),
+    "dragapult_ex": ("policy_weights_dragapult_ex.json", "dragapult_ex"),
 }
 
 #: 段階I で鍛え上がった相手プール(段階II の学習用)。
 STRONG_POOL = "alakazam_k60,crustle_k60,marnie_grimmsnarl_ex_k60,archaludon_ex_k60"
 
 DEFAULT_LEARNERS = "alakazam,marnie_grimmsnarl_ex,archaludon_ex,mega_lucario_ex"
+
+#: 評価・学習用の8アーキタイプ拡張プール。deck_health_check.py で
+#: 「デッキ不良」(マリガン率35%以上)と判定された archaludon_ex を除外している。
+#: archaludon_ex はたねポケモンが5枚しか無く初手マリガン率52.5%、実測でも終局理由の大半が
+#: ベンチ切れという壊れたデッキで、これを評価プールに混ぜると相手にほぼ無料の勝ちを
+#: 供給してしまい勝率という指標そのものを歪める(詳細は deck_health_check.py の docstring
+#: および kaggle_replays/rl/train_pool.py の DEFAULT_POOL コメント参照)。
+#: DEFAULT_POOL(train_pool.py)は過去の測定値との比較のため4体のまま変更しない。新規の
+#: 評価・学習はこちらの POOL8 を使う。
+POOL8 = ("alakazam,crustle,marnie_grimmsnarl_ex,rocket_mewtwo_ex,omatsuri_ondo,"
+         "shirona_garchomp_ex,ogerpon_teal_ex,dragapult_ex")
 
 # 固定の相手プール4種(kaggle_replays/rl/test_collect_pool.py と同一構成)。
 # (name, weights_path_or_None, deck_csv_path) のリスト。デッキはまだ読み込んでいない
