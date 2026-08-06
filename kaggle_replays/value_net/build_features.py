@@ -18,10 +18,12 @@ train.py が sample_predictions.json を作る際に元の value_positions.jsonl
 使い方:
   python build_features.py
   PYTHONIOENCODING=utf-8 python build_features.py
+  python build_features.py --in <value_positions.jsonl.gz> --out <features.npz>
 """
 
 from __future__ import annotations
 
+import argparse
 import gzip
 import hashlib
 import json
@@ -76,8 +78,13 @@ def weight_for_rank(rank_at_fetch: int | None) -> float:
 
 
 def main() -> None:
-    in_path = _DEFAULT_IN
-    out_path = _DEFAULT_OUT
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--in", dest="in_path", default=str(_DEFAULT_IN), help="入力 value_positions.jsonl.gz")
+    parser.add_argument("--out", dest="out_path", default=str(_DEFAULT_OUT), help="出力 features.npz")
+    args = parser.parse_args()
+
+    in_path = Path(args.in_path)
+    out_path = Path(args.out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     X_rows: list[list[float]] = []

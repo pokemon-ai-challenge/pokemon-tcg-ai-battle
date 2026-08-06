@@ -15,10 +15,13 @@
 
 使い方:
   PYTHONIOENCODING=utf-8 python train.py
+  python train.py --features <features.npz> --out-weights <path> --metrics-out <path> \
+      --sample-predictions-out <path>
 """
 
 from __future__ import annotations
 
+import argparse
 import gzip
 import json
 import math
@@ -45,10 +48,10 @@ sys.path.insert(0, str(_SAMPLE_SUBMISSION_DIR))
 
 from ptcg_ai.learning.encoder import FEATURE_NAMES  # noqa: E402
 
-_FEATURES_PATH = _HERE / "features.npz"
+_DEFAULT_FEATURES_PATH = _HERE / "features.npz"
 _VALUE_POSITIONS_PATH = _HERE.parent / "training_data" / "value_positions.jsonl.gz"
-_WEIGHTS_OUT_PATH = _SAMPLE_SUBMISSION_DIR / "ptcg_ai" / "learning" / "value_weights.json"
-_SAMPLE_PREDICTIONS_OUT_PATH = _HERE / "sample_predictions.json"
+_DEFAULT_WEIGHTS_OUT_PATH = _SAMPLE_SUBMISSION_DIR / "ptcg_ai" / "learning" / "value_weights.json"
+_DEFAULT_SAMPLE_PREDICTIONS_OUT_PATH = _HERE / "sample_predictions.json"
 
 _SEED = 42
 _HIDDEN_SIZES = [64, 16]
@@ -293,8 +296,30 @@ def fit_temperature(logits: np.ndarray, y: np.ndarray) -> tuple[float, float, fl
 # main
 # ---------------------------------------------------------------------------
 def main() -> None:
-    print(f"features.npz を読み込み: {_FEATURES_PATH}")
-    data = np.load(_FEATURES_PATH, allow_pickle=False)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--features", default=str(_DEFAULT_FEATURES_PATH), help="入力 features.npz")
+    parser.add_argument(
+        "--out-weights", default=str(_DEFAULT_WEIGHTS_OUT_PATH),
+        help="重みJSON書き出し先(既定: 本番パス。実験時は別パスを明示指定すること)",
+    )
+    parser.add_argument(
+        "--metrics-out", default=None,
+        help="学習指標(LR/MLP の val・test AUC・logloss、較正温度など)のJSON書き出し先"
+        "(既定: 書き出さない)。",
+    )
+    parser.add_argument(
+        "--sample-predictions-out", default=str(_DEFAULT_SAMPLE_PREDICTIONS_OUT_PATH),
+        help="sample_predictions.json の書き出し先(既定: value_net/sample_predictions.json)",
+    )
+    args = parser.parse_args()
+
+    features_path = Path(args.features)
+    weights_out_path = Path(args.out_weights)
+    sample_predictions_out_path = Path(args.sample_predictions_out)
+    metrics_out_path = Path(args.metrics_out) if args.metrics_out else None
+
+    print(f"features.npz を読み込み: {features_path}")
+    data = np.load(features_path, allow_pickle=False)
     X = data["X"].astype(np.float64)
     y = data["y"].astype(np.int64)
     turn = data["turn"].astype(np.int64)
@@ -409,13 +434,13 @@ def main() -> None:
         },
     }
 
-    _WEIGHTS_OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _WEIGHTS_OUT_PATH.write_text(json.dumps(weights_json, ensure_ascii=False), encoding="utf-8")
-    print(f"\n重みを書き出しました: {_WEIGHTS_OUT_PATH}")
+    weights_out_path.parent.mkdir(parents=True, exist_ok=True)
+    weights_out_path.write_text(json.dumps(weights_json, ensure_ascii=False), encoding="utf-8")
+    print(f"\n重みを書き出しました: {weights_out_path}")
 
     # --- 自己検証 ---
     print("\n=== 自己検証: 純Pythonフォワードパス vs PyTorch出力(val split から50件) ===")
-    reloaded = json.loads(_WEIGHTS_OUT_PATH.read_text(encoding="utf-8"))
+    reloaded = json.loads(weights_out_path.read_text(encoding="utf-8"))
 
     val_indices = np.where(val_mask)[0]
     rng = random.Random(_SEED)
@@ -516,10 +541,10 @@ def main() -> None:
             }
         )
 
-    _SAMPLE_PREDICTIONS_OUT_PATH.write_text(
+    sample_predictions_out_path.write_text(
         json.dumps(sample_predictions, ensure_ascii=False), encoding="utf-8"
     )
-    print(f"  書き出し完了: {_SAMPLE_PREDICTIONS_OUT_PATH} ({len(sample_predictions)}件)")
+    print(f"  書き出し完了: {sample_predictions_out_path} ({len(sample_predictions)}件)")
 
     # --- 最終サマリ ---
     print("\n" + "=" * 60)
@@ -532,11 +557,30 @@ def main() -> None:
     for b in calibration_buckets:
         print(f"    {b['band']:8s} T={b['temperature']:.3f}")
     print(f"  自己検証: 最大誤差={max_abs_err:.8f} -> {'PASS' if self_check_pass else 'FAIL'}")
-    print(f"  出力: {_WEIGHTS_OUT_PATH} ({_WEIGHTS_OUT_PATH.stat().st_size / 1e3:.1f} KB)")
+    print(f"  出力: {weights_out_path} ({weights_out_path.stat().st_size / 1e3:.1f} KB)")
     print(
-        f"  出力: {_SAMPLE_PREDICTIONS_OUT_PATH} "
-        f"({_SAMPLE_PREDICTIONS_OUT_PATH.stat().st_size / 1e3:.1f} KB)"
+        f"  出力: {sample_predictions_out_path} "
+        f"({sample_predictions_out_path.stat().st_size / 1e3:.1f} KB)"
     )
+
+    # --- --metrics-out(指定時のみ) ---
+    if metrics_out_path is not None:
+        metrics_json = {
+            "features_path": str(features_path),
+            "out_weights_path": str(weights_out_path),
+            "n_train": int(train_mask.sum()),
+            "n_val": int(val_mask.sum()),
+            "n_test": int(test_mask.sum()),
+            "logreg_val_metrics": {"auc": float(lr_val_auc), "logloss": float(lr_val_logloss)},
+            "mlp_val_metrics": {"auc": float(mlp_val_auc), "logloss": float(mlp_val_logloss)},
+            "mlp_test_metrics": {"auc": float(mlp_test_auc), "logloss": float(mlp_test_logloss)},
+            "calibration_buckets": calibration_buckets,
+            "self_check_max_abs_err": max_abs_err,
+            "self_check_pass": self_check_pass,
+        }
+        metrics_out_path.parent.mkdir(parents=True, exist_ok=True)
+        metrics_out_path.write_text(json.dumps(metrics_json, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"  出力: {metrics_out_path}")
 
 
 if __name__ == "__main__":
