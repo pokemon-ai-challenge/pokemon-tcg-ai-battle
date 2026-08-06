@@ -15,17 +15,43 @@
 
 | 種別 | ファイル | 素性 |
 |---|---|---|
-| BC（模倣） | `policy_weights_{marnie_grimmsnarl_ex,alakazam,crustle}_bc2.json` ほか | 2026-08-03 再学習。旧BC比 +8〜11pt |
+| **提出中** | **`policy_weights.json`** | **2026-07-21 の `policy_weights_configC.json` と md5 一致。全デッキ共通の1本、n_train 147,705、test top-1 0.5806。以降**一度も更新されていない** |
+| BC（模倣） | `policy_weights_{marnie_grimmsnarl_ex,alakazam,crustle}_bc2.json` ほか | 2026-08-03 再学習。旧BC比 +8〜11pt。**提出には入っていない** |
 | BC（旧） | `bc_backup_2026-08-02/` | 比較用に退避 |
 | 凍結プール | `policy_weights_{marnie_grimmsnarl_ex,crustle}.json` ほか | **旧BC のまま**。過去の全数値と比較可能にするため意図的に固定 |
 | RL | `policy_weights_*_pool_k60.json`、`league_runs/league1/` | **旧BC を起点に育てたもの**。新BC はまだ反映されていない |
 
+**提出エージェントの経路**（2026-08-06 に確認）:
+
+```
+main.py → core/agent.py (AGENT_TYPE = "ml_policy") → ml_policy_agent
+  config = abl_5_full（PTCG_AI_ML_CONFIG 未設定時の既定）
+  重み    = policy_weights.json（abl_5_full に policy_weights_path が無いので PolicyModel の既定）
+
+  リーサル探索(lethal_simple) ← 確定詰めがあれば BC を無視して上書き
+    ↓ 無ければ
+  BC でスコアリング → top1 が 0.9 以上なら即決
+    ↓ そうでなければ
+  top_k=4 に絞る → 8世界で決定化 → ロールアウト → 末端評価は "handcrafted"
+```
+
+**BC の役割は「候補を4つに絞る」ところまで**で、その中の選択は手書き評価関数が決めている。
+BC を差し替えたときに勝率がどう動くかは、この構造を踏まえて解釈すること。
+なお `*_bc2.json` は configC と同じアーキテクチャ・同じ `--weight-scheme concentrated` で、
+アーキタイプ別に分けてデータ量を増やしたもの。**系譜としては configC の発展形**（別物ではない）。
+
 決着済みの論点:
 
 - **BC 再学習は有効。** 3アーキタイプすべてで有意差（→ [imitation/bc-retrain-2026-08-03.md](imitation/bc-retrain-2026-08-03.md)）
+- **ただしデータ増はもう伸びない。** 倍加あたりの利得が +24.3 → +14.4 → +8.4 Elo と半減し続け、
+  **無限に集めても上限 +12 Elo**。過去の +127.7 Elo は曲線の急な部分にいたためで再現しない
+  （→ [imitation/data-scaling-2026-08-06.md](imitation/data-scaling-2026-08-06.md)）
 - **モデル容量の拡大は無効。** hidden 32 / 64 / 128 で差なし。32 を維持（→ 同上 §5.5）
 - **相互鍛錬ループ（世代を回す）は効果が出なかった。** 6世代8時間で +1.7pt、p=0.355
 - **特徴量の小追加（にげるコスト・サイド価値）は効果が出なかった。** 勝率 +0.9pt、p=0.50。実装は revert 済み（→ [imitation/feature-retreat-prize-2026-08-04.md](imitation/feature-retreat-prize-2026-08-04.md)）
+- **切り順（sequencing）特徴は Top-1 を +0.84pt 改善したが、勝率は動かなかった**（p=0.80）。
+  → **Top-1 一致率を採否の指標に使わない。** 判断は勝率のみ。Top-1 は診断用
+  （→ [imitation/sequencing-features-2026-08-05.md](imitation/sequencing-features-2026-08-05.md)）
 - **skill concentration は構成C を採用済み**（→ [rl/eval-matrix-skillconc-2026-07-30.md](rl/eval-matrix-skillconc-2026-07-30.md)）
 
 未決着で、実装だけ済んでいる論点:
@@ -79,6 +105,8 @@
 | [hidden-zone-features-design-2026-07-30.md](imitation/hidden-zone-features-design-2026-07-30.md) | 設計のみ | 山札・サイド・トラッシュを方策の入力に入れる案 |
 | [prize-lock-2026-08-03.md](imitation/prize-lock-2026-08-03.md) | 有効 | サイド落ち頻度の実測。非公開ゾーン案の前哨戦 |
 | [feature-retreat-prize-2026-08-04.md](imitation/feature-retreat-prize-2026-08-04.md) | 有効 | にげるコスト・サイド価値の追加＝効果なし。不採用の記録 |
+| [sequencing-features-2026-08-05.md](imitation/sequencing-features-2026-08-05.md) | 有効 | 切り順特徴＝Top-1 +0.84pt だが勝率は動かず。**Top-1 を採否に使わない**根拠 |
+| [data-scaling-2026-08-06.md](imitation/data-scaling-2026-08-06.md) | 有効 | データ量スケーリング曲線（12本×1,600試合）。**リプレイ収集は尽きた**（上限 +12 Elo） |
 
 ### rl/ — 強化学習と評価
 
@@ -87,6 +115,7 @@
 | [eval-matrix-2026-07-30.md](rl/eval-matrix-2026-07-30.md) | 過去の測定値 | モデル×相手の勝率行列（400試合/セル） |
 | [eval-matrix-skillconc-2026-07-30.md](rl/eval-matrix-skillconc-2026-07-30.md) | 過去の測定値 | skill-concentration 各構成の対戦比較 |
 | [blunder-metrics-2026-07-30.md](rl/blunder-metrics-2026-07-30.md) | 過去の測定値 | 勝敗を使わない密な診断指標（KO逸失・過剰エネ・デッキ切れ） |
+| [crustle-matchup-2026-08-06.md](rl/crustle-matchup-2026-08-06.md) | 有効 | 最悪マッチアップの構造分析。山札切れ負け17.6%の原因特定 |
 
 ### archive/ — 役目を終えたもの
 
