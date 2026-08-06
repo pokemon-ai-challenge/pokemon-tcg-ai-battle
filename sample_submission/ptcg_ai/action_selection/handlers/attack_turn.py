@@ -44,7 +44,11 @@ def _choose_best_attack(obs: Observation) -> list[int]:
             continue
         attack = card_cache.get_attack(option.attackId)
         score = float(attack.damage)
-        if attack_features.can_ko(attack, attacker, defender, defender_card.weakness, defender_card.resistance):
+        if attack_features.can_ko(
+            attack, attacker, defender, defender_card.weakness, defender_card.resistance,
+            defender_is_benched=False,
+            damage_is_effect=attack_features.damage_is_effect_based(attack),
+        ):
             score += _KO_BONUS
         if score > best_score:
             best_score = score

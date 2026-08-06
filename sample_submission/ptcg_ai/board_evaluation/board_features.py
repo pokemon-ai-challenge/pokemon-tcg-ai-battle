@@ -45,13 +45,27 @@ def is_likely_ko_next_turn(pokemon: Pokemon, state: State, your_index: int) -> b
     # （handCount）だけは見えるため、それを使う。次ターンのドロー分までは考慮しない簡易版。
     attacker_hand_size = opponent.handCount
 
+    # pokemon は自分側(your_index)の active/bench どちらも渡され得る唯一の呼び出し口なので、
+    # ベンチ庇い型防壁（74 Rabsca / 343 Shaymin）を判定するための defender_side_pokemon /
+    # defender_is_benched をここで計算する。同一性判定は Pokemon.serial（試合中に一意な値）で
+    # 行う。id（cardId）は同名カードで重複するため使えない。
+    your_side = state.players[your_index]
+    defender_side_pokemon: list[Pokemon | None] = list(your_side.active) + list(your_side.bench)
+    defender_is_benched = any(
+        bench_pokemon is not None and bench_pokemon.serial == pokemon.serial
+        for bench_pokemon in your_side.bench
+    )
+
     for attack_id in attacker_card.attacks:
         attack = card_cache.get_attack(attack_id)
         shortfall = energy_requirements.energy_shortfall(attack, attacker.energies)
         if sum(shortfall.values()) > _NEXT_TURN_ENERGY_ALLOWANCE:
             continue
+        damage_is_effect = attack_features.damage_is_effect_based(attack)
         damage = attack_features.resolve_damage(
-            attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size
+            attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size,
+            defender=pokemon, defender_side_pokemon=defender_side_pokemon,
+            defender_is_benched=defender_is_benched, damage_is_effect=damage_is_effect,
         )
         if damage >= pokemon.hp:
             return True

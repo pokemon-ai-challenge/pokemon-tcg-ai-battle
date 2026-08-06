@@ -58,7 +58,9 @@ def propose(obs: Observation) -> ActionProposal | None:
         if not energy_requirements.is_energy_sufficient(attack, attacker.energies):
             continue
         damage = attack_features.resolve_damage(
-            attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size
+            attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size,
+            defender=defender, defender_is_benched=False,
+            damage_is_effect=attack_features.damage_is_effect_based(attack),
         )
         value = float(damage) + _effect_bonus(option.attackId) + _matchup_bonus(option.attackId, matchup_plan)
         usable.append((i, value))

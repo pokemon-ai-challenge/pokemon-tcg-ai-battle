@@ -192,12 +192,15 @@ def _pokemon_features(
             min_shortfall = min(min_shortfall, shortfall_sum)
             if not shortfall:
                 has_ready = 1.0
+            damage_is_effect = attack_features.damage_is_effect_based(attack)
             damage = attack_features.resolve_damage(
-                attack, pokemon, defender_weakness, defender_resistance, attacker_hand_size
+                attack, pokemon, defender_weakness, defender_resistance, attacker_hand_size,
+                defender=defender, defender_is_benched=False, damage_is_effect=damage_is_effect,
             )
             best_damage = max(best_damage, float(damage))
             if defender is not None and attack_features.can_ko(
-                attack, pokemon, defender, defender_weakness, defender_resistance, attacker_hand_size
+                attack, pokemon, defender, defender_weakness, defender_resistance, attacker_hand_size,
+                defender_is_benched=False, damage_is_effect=damage_is_effect,
             ):
                 can_ko = 1.0
 
@@ -676,12 +679,15 @@ def _option_features(
         shortfall = energy_requirements.energy_shortfall(attack, me_active.energies or [])
         shortfall_sum = min(float(sum(shortfall.values())), _MAX_SHORTFALL)
         has_ready = 1.0 if not shortfall else 0.0
+        damage_is_effect = attack_features.damage_is_effect_based(attack)
         damage = attack_features.resolve_damage(
-            attack, me_active, defender_weakness, defender_resistance, hand_size
+            attack, me_active, defender_weakness, defender_resistance, hand_size,
+            defender=opp_active, defender_is_benched=False, damage_is_effect=damage_is_effect,
         )
         can_ko = 0.0
         if opp_active is not None and attack_features.can_ko(
-            attack, me_active, opp_active, defender_weakness, defender_resistance, hand_size
+            attack, me_active, opp_active, defender_weakness, defender_resistance, hand_size,
+            defender_is_benched=False, damage_is_effect=damage_is_effect,
         ):
             can_ko = 1.0
         feats += [1.0, float(damage) / 200.0, can_ko, shortfall_sum, has_ready]

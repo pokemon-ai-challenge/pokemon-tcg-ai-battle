@@ -79,7 +79,14 @@ def test_matchup_plan_boost_breaks_a_damage_tie_between_attacks(monkeypatch):
     monkeypatch.setattr(
         attack_priority.attack_features,
         "resolve_damage",
-        lambda attack, attacker, weakness, resistance, hand_size: 50,
+        lambda attack, attacker, weakness, resistance, hand_size, **kwargs: 50,
+    )
+    # get_attack のスタブは attackId(int) をそのまま返すので、実物の
+    # damage_is_effect_based（Attack.damage/.text を読む）に渡すと落ちる。
+    # このテストの関心は「同点のダメージを matchup_plan の加点が破るか」だけなので、
+    # 効果ダメージ判定は常に False に固定してよい。
+    monkeypatch.setattr(
+        attack_priority.attack_features, "damage_is_effect_based", lambda attack: False
     )
     monkeypatch.setattr(attack_priority.profile_registry, "get_attack_profile", lambda attack_id: None)
     monkeypatch.setattr(
@@ -114,7 +121,14 @@ def test_matchup_plan_none_falls_back_to_damage_only_scoring(monkeypatch):
     monkeypatch.setattr(
         attack_priority.attack_features,
         "resolve_damage",
-        lambda attack, attacker, weakness, resistance, hand_size: 50,
+        lambda attack, attacker, weakness, resistance, hand_size, **kwargs: 50,
+    )
+    # get_attack のスタブは attackId(int) をそのまま返すので、実物の
+    # damage_is_effect_based（Attack.damage/.text を読む）に渡すと落ちる。
+    # このテストの関心は「同点のダメージを matchup_plan の加点が破るか」だけなので、
+    # 効果ダメージ判定は常に False に固定してよい。
+    monkeypatch.setattr(
+        attack_priority.attack_features, "damage_is_effect_based", lambda attack: False
     )
     monkeypatch.setattr(attack_priority.profile_registry, "get_attack_profile", lambda attack_id: None)
     monkeypatch.setattr(attack_priority.opponent_tracker, "current_matchup_plan", lambda: None)
