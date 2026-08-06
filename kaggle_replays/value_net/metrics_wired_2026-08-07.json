@@ -1,0 +1,53 @@
+{
+  "features_path": "features_wired.npz",
+  "out_weights_path": "value_weights_wired_2026-08-07.json",
+  "n_train": 1012321,
+  "n_val": 129235,
+  "n_test": 131860,
+  "logreg_val_metrics": {
+    "auc": 0.7453963959960497,
+    "logloss": 0.5877449139386133
+  },
+  "mlp_val_metrics": {
+    "auc": 0.7838662817420926,
+    "logloss": 0.5507954242856844
+  },
+  "mlp_test_metrics": {
+    "auc": 0.8008759638191125,
+    "logloss": 0.5304987477831905
+  },
+  "calibration_buckets": [
+    {
+      "band": "1-2",
+      "min_turn": 1,
+      "max_turn": 2,
+      "temperature": 3.6885353516369626
+    },
+    {
+      "band": "3-5",
+      "min_turn": 3,
+      "max_turn": 5,
+      "temperature": 1.4772225635910703
+    },
+    {
+      "band": "6-10",
+      "min_turn": 6,
+      "max_turn": 10,
+      "temperature": 1.1826239931510203
+    },
+    {
+      "band": "11+",
+      "min_turn": 11,
+      "max_turn": null,
+      "temperature": 1.1332683339685896
+    },
+    {
+      "band": "unknown",
+      "min_turn": null,
+      "max_turn": null,
+      "temperature": 1.0
+    }
+  ],
+  "self_check_max_abs_err": 2.8064103818614683e-07,
+  "self_check_pass": true
+}
