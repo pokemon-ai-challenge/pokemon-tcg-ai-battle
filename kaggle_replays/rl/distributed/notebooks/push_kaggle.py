@@ -374,37 +374,97 @@ def main():
 
 def wait_and_fetch(user: str, kslug: str, wid: str, run_dir: Path, run: dict,
                    gen: int, stage: Path, args) -> None:
-    """その worker の Notebook の完了を待ち、出力を回収する。"""
-    # --- 完了待ち ---
+    """その worker の Notebook の完了を待ち、出力を回収する。
+
+    厄介なのは、`kernels status` が「今回の実行」ではなく Notebook の最新状態を返すこと。
+    push した直後はまだ新しいセッションが始まっておらず、**前回の実行の COMPLETE** が
+    返る。それを信じて回収すると1世代前の出力を掴む(実際に踏んだ)。
+    出力の世代を検査して、古ければ「まだ終わっていない」とみなして待ち直す。
+    """
     t0 = time.time()
     last = ""
+    missing = 0
+    stale = 0
+    netfail = 0
     while time.time() - t0 < args.timeout:
+        # --- 完了待ち ---
+        #
+        # 「push は成功したのに Notebook が起動していない」ことがある。同時実行の上限を
+        # 超えて投げると、CLI は 0 を返すのにセッションが作られず、status が 404 になる。
+        # この場合いくら待っても状態は変わらないので、少し様子を見てから諦める
+        # (実際に2時間待ち続けて1世代を失った)。
         r = kaggle("kernels", "status", f"{user}/{kslug}", check=False)
         out = (r.stdout or "").strip()
+        err = (r.stderr or "").strip()
         if out != last:
-            print(f"  [{wid}] [{time.time()-t0:5.0f}s] {out}", flush=True)
+            print(f"  [{wid}] [{time.time()-t0:5.0f}s] {out or err}", flush=True)
             last = out
-        low = out.lower()
-        if "complete" in low:
-            break
+        low = (out + " " + err).lower()
+        if "404" in low or "not found" in low:
+            missing += 1
+            if missing >= 6:            # 約2分。起動待ちの一時的な404と区別する
+                raise SystemExit(
+                    f"Notebook が存在しない({wid} / {kslug})。push は成功を返したが\n"
+                    "  セッションが作られていない。Kaggle の同時実行の上限を超えている\n"
+                    "  可能性が高い。worker の台数を減らす。")
+        else:
+            missing = 0
+        # 通信の一時的な失敗(DNS が引けない、接続できない等)は Kaggle 側の失敗ではない。
+        # NameResolutionError のように "error" を含むので、先に振り分ける。ここで中断すると
+        # 収集からやり直しになり、数分の通信断で1世代を捨てることになる。
+        if any(k in low for k in ("resolve", "connection", "timed out", "timeout",
+                                  "max retries exceeded", "temporarily unavailable",
+                                  "502", "503", "504")):
+            netfail += 1
+            if netfail >= 30:           # 約10分。ここまで続くなら通信側の問題として上へ返す
+                raise SystemExit(f"Kaggle API に届かない({wid}): {out or err}")
+            print(f"  [{wid}] 通信できない({netfail}/30)。待って再確認する", flush=True)
+            time.sleep(20)
+            continue
+        netfail = 0
         if "error" in low or "cancel" in low:
-            raise SystemExit(f"Kaggle 側で失敗({wid}): {out}\n"
+            raise SystemExit(f"Kaggle 側で失敗({wid}): {out or err}\n"
                              f"  https://www.kaggle.com/code/{user}/{kslug} でログを確認する。")
-        time.sleep(20)
+        if "complete" not in low:
+            time.sleep(20)
+            continue
+
+        # --- 出力を回収 ---
+        # `kaggle kernels output` は既に同名のファイルがあると取得を飛ばす。前の世代の
+        # 出力が残っていると、それをそのまま回収してしまう(中身が1世代古いのに気づけ
+        # ない)ので、毎回まっさらにしてから落とす。worker ごとに分けるのは、同時に
+        # 走らせたときに互いの出力を消し合わないため。
+        outdir = stage / f"out_{wid}"
+        shutil.rmtree(outdir, ignore_errors=True)
+        outdir.mkdir(parents=True, exist_ok=True)
+        kaggle("kernels", "output", f"{user}/{kslug}", "-p", str(outdir))
+
+        if args.full_cycle:
+            break
+        got = list(outdir.glob("*.npz"))
+        if got:
+            try:
+                _, meta = C.read_shard(got[0])
+            except Exception:
+                meta = {}
+            if meta.get("generation") == gen:
+                break                    # 今回の実行の出力。回収へ進む
+            stale += 1
+            if stale >= 20:     # 約10分。ここまで来たらセッションは始まっていない
+                raise SystemExit(
+                    f"新しいセッションが始まらない({wid} / {kslug})。出力は v"
+                    f"{meta.get('generation')} のままで、v{gen} の実行が動いていない。\n"
+                    "  push は成功を返しても、同時実行の上限を超えていると実行されない。\n"
+                    "  worker の台数を減らすか、他の run を止める。")
+            print(f"  [{wid}] 前回の実行の出力(v{meta.get('generation')} != v{gen})。"
+                  f"新しいセッションの開始を待つ({stale}/20)", flush=True)
+        time.sleep(30)
     else:
         raise SystemExit("待ち時間の上限に達した。--no-wait で投げっぱなしにして後で回収する。")
 
-    # --- 出力を回収 ---
     dest = C.shard_dir(run_dir, gen)
     dest.mkdir(parents=True, exist_ok=True)
-    # `kaggle kernels output` は既に同名のファイルがあると取得を飛ばす。前の世代の出力が
-    # 残っていると、それをそのまま回収してしまう(中身が1世代古いのに気づけない)ので、
-    # 毎回まっさらにしてから落とす。worker ごとに分けるのは、同時に走らせたときに
-    # 互いの出力を消し合わないため。
     outdir = stage / f"out_{wid}"
-    shutil.rmtree(outdir, ignore_errors=True)
-    outdir.mkdir(parents=True, exist_ok=True)
-    kaggle("kernels", "output", f"{user}/{kslug}", "-p", str(outdir))
 
     if args.full_cycle:
         res = outdir / "result.zip"
