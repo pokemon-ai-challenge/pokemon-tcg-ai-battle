@@ -41,6 +41,26 @@ _ZONE_BY_AREA = {
 
 _ENERGY_CARD_TYPES = (CardType.BASIC_ENERGY, CardType.SPECIAL_ENERGY)
 
+# cardId -> 名前/種別の逆引き表。all_card_data() は ctypes 経由でネイティブ実装を呼ぶため
+# 呼び出しごとに数ms〜十数msかかる(実測、ptcg_ai/shared/card_cache.py の get_card と同様の
+# 事情)。カードデータは対戦中に変わらないので、OpponentKnowledge のインスタンスをまたいで
+# プロセス内で使い回す(roadmap-2026-08-05.md C3-b: rough_predictor.predict() を毎局面呼ぶ
+# encoder.py 経由の呼び出しで、キャッシュ無しだと all_card_data() だけで所要時間の9割近くを
+# 占めることが判明した)。読み取り専用(.get() のみ)で使われるため、複数インスタンスで安全に
+# 共有できる。
+_id_to_name_cache: dict[int, str] | None = None
+_id_to_type_cache: dict[int, CardType] | None = None
+
+
+def _card_lookup_tables() -> tuple[dict[int, str], dict[int, CardType]]:
+    """cardId -> 名前/種別の逆引き表を返す(プロセス内で一度だけ all_card_data() を引く)。"""
+    global _id_to_name_cache, _id_to_type_cache
+    if _id_to_name_cache is None or _id_to_type_cache is None:
+        card_data = all_card_data()
+        _id_to_name_cache = {c.cardId: c.name for c in card_data}
+        _id_to_type_cache = {c.cardId: c.cardType for c in card_data}
+    return _id_to_name_cache, _id_to_type_cache
+
 
 @dataclass
 class ObservedCard:
@@ -76,10 +96,9 @@ class OpponentKnowledge:
         self._no_serial: dict[tuple[int, str], ObservedCard] = {}
 
         # cardId ↔ 名前・種別の対応表。盤面上のカードは cardId しか持たないため、
-        # 起動時に1回だけ all_card_data() を引いて逆引き辞書を作っておく。
-        card_data = all_card_data()
-        self._id_to_name: dict[int, str] = {c.cardId: c.name for c in card_data}
-        self._id_to_type: dict[int, CardType] = {c.cardId: c.cardType for c in card_data}
+        # 起動時に1回だけ all_card_data() を引いて逆引き辞書を作っておく(プロセス内で
+        # インスタンスをまたいで共有。_card_lookup_tables() のコメント参照)。
+        self._id_to_name, self._id_to_type = _card_lookup_tables()
 
         # Pokemon.energies（付属エネルギーの色）から集めた色ヒント。カード実体とは別に、
         # デッキのエネルギー色を推測する補助情報として保持する。

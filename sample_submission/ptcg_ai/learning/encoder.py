@@ -37,7 +37,8 @@ from cg.api import (
 )
 
 from ptcg_ai.board_evaluation import attack_features, board_features, energy_requirements
-from ptcg_ai.shared import card_cache
+from ptcg_ai.opponent_modeling import rough_predictor
+from ptcg_ai.shared import card_cache, card_roles
 
 # ベンチ上限。cg/api.py の PlayerState.benchMax は実データで 5。固定スロット数として扱い、
 # 実際の benchMax がこれと異なっても先頭 BENCH_SLOTS 枠までを見る(超過分は無視)。
@@ -47,6 +48,42 @@ POKEMON_SLOTS = 1 + BENCH_SLOTS
 
 # エネルギー不足数のクリップ上限(技が撃てない/攻撃を持たない場合の既定値)。
 _MAX_SHORTFALL = 10.0
+
+# C8(roadmap-2026-08-05.md): 山札消費速度から逆算した残りターン数のクリップ上限。
+# 消費速度がまだ観測できない(序盤で consumed<=0)場合の既定値も兼ねる。_MAX_SHORTFALL と
+# 同じ思想(推定不能/未観測を「大きいが有限な既定値」に倒し、学習側の外れ値を抑える)。
+_MAX_DECK_TURNS_REMAINING = 40.0
+
+# C3-b(roadmap-2026-08-05.md): 相手アーキタイプの事後分布に使う POOL8(評価・学習用の
+# 8アーキタイプ拡張プール、kaggle_replays/rl/pools.py の POOL8 定義)。
+# ptcg_ai/opponent_modeling/rough_predictor.json の archetypes キーと文字列が一致することを
+# 実際に確認済み(rough_predictor._score_archetype は config の archetypes.keys() をそのまま
+# candidates[].deck_type として返すため、config 側のキー名がそのまま POOL8 名と一致していれば
+# 変換テーブルは不要)。
+_POOL8_ARCHETYPES: list[str] = [
+    "alakazam",
+    "crustle",
+    "marnie_grimmsnarl_ex",
+    "rocket_mewtwo_ex",
+    "omatsuri_ondo",
+    "shirona_garchomp_ex",
+    "ogerpon_teal_ex",
+    "dragapult_ex",
+]
+
+# predict() の status がこれらの場合は「判断できない」として9次元すべて0(安全側)。
+_ARCHETYPE_ZERO_STATUS: frozenset = frozenset({"no_candidate", "insufficient_evidence"})
+
+# C3-a(roadmap-2026-08-05.md): 相手トラッシュのロール要約に使う card_roles.CardRole の
+# フィールド名(この順序で次元に並べる)。
+_DISCARD_ROLE_FIELDS: list[str] = [
+    "is_draw",
+    "is_search",
+    "is_deck_look",
+    "is_hand_disrupt",
+    "is_energy_accel",
+    "is_recovery",
+]
 
 # 自分の手札の card_id ごとの枚数(C2 第一段階、roadmap-2026-08-05.md)。デッキごとに
 # card_id の語彙が異なる(marnie と crustle は別物)ため、次元は固定長にする(デッキ違いで
@@ -172,6 +209,19 @@ def _build_feature_names() -> list[str]:
         "self_energy_on_board",
         "opp_energy_on_board",
     ]
+
+    # C3-a(roadmap-2026-08-05.md): 相手トラッシュのロール要約(公開情報、6次元)。
+    names += [f"opp_discard_role_{field[3:]}" for field in _DISCARD_ROLE_FIELDS]
+
+    # C3-b(roadmap-2026-08-05.md): 相手アーキタイプの事後分布(POOL8 + other、9次元)。
+    names += [f"opp_arch_{name}" for name in _POOL8_ARCHETYPES]
+    names.append("opp_arch_other")
+
+    # C6(roadmap-2026-08-05.md): クロック特徴(3次元)。
+    names += ["clock_self_needed_kos", "clock_opp_needed_kos", "clock_advantage"]
+
+    # C8(roadmap-2026-08-05.md): 山札の消費速度(2次元)。
+    names += ["self_deck_turns_remaining", "opp_deck_turns_remaining"]
 
     return names
 
@@ -367,6 +417,110 @@ def _energy_on_board(player) -> float:
     return float(total)
 
 
+def _discard_role_counts(discard) -> list[float]:
+    """C3-a(roadmap-2026-08-05.md): トラッシュ(list[Card]、公開情報)を card_roles.role_of()
+    の6ロールごとの枚数へ数える(``_DISCARD_ROLE_FIELDS`` と同じ順序)。
+
+    1枚が複数ロールに該当してもよい(サーチしつつドローする等、card_roles.py の docstring
+    参照)。未知IDやテキスト無しのカードは全ロール0(``role_of`` が安全側に倒す)。
+    """
+    counts = [0.0] * len(_DISCARD_ROLE_FIELDS)
+    for card in discard or []:
+        role = card_roles.role_of(card.id)
+        for i, field in enumerate(_DISCARD_ROLE_FIELDS):
+            if getattr(role, field):
+                counts[i] += 1.0
+    return counts
+
+
+def _opponent_archetype_distribution(state: State) -> list[float]:
+    """C3-b(roadmap-2026-08-05.md): 相手アーキタイプの事後分布(POOL8 + other、9次元)。
+
+    ``rough_predictor.predict()`` を単一スナップショットのみ(``opponent_knowledge=None``、
+    ログ履歴なし)で呼ぶ。学習データ(policy_positions_*.jsonl.gz)は1行1局面のスナップショット
+    で、試合を通じた opponent_knowledge の蓄積を学習時に再現できないため、推論時もここで
+    state のみに揃える(学習/推論の情報源を一致させる。ログ履歴を供給する経路を将来作れば
+    この関数を差し替えて精度を上げられる)。
+
+    ``predict()`` の ``candidates``(上位3件)を POOL8 の8アーキタイプ + "other" へ写す。
+    POOL8 に無いアーキタイプ(21アーキタイプ中 POOL8 外の13種)が上位に来た場合はその
+    normalized_score を "other" へ加算する。``status`` が no_candidate/insufficient_evidence
+    (根拠不足で判断できない)の場合は9次元すべて0(安全側)。
+    """
+    zero = [0.0] * (len(_POOL8_ARCHETYPES) + 1)
+    try:
+        result = rough_predictor.predict(state, opponent_knowledge=None)
+    except Exception:  # noqa: BLE001 - 予測できなくても壊れない(安全側にゼロへ倒す)
+        return zero
+    if result.get("status") in _ARCHETYPE_ZERO_STATUS:
+        return zero
+
+    dist = {name: 0.0 for name in _POOL8_ARCHETYPES}
+    other = 0.0
+    for candidate in result.get("candidates") or []:
+        deck_type = candidate.get("deck_type")
+        score = float(candidate.get("normalized_score") or 0.0)
+        if deck_type in dist:
+            dist[deck_type] = score
+        else:
+            other += score
+    return [dist[name] for name in _POOL8_ARCHETYPES] + [other]
+
+
+def _prize_value_of(pokemon: Pokemon | None) -> float:
+    """C6(roadmap-2026-08-05.md): 1体を倒したときに相手が取れるサイド枚数。
+
+    megaEx は3枚取り、ex(通常/テラスタル)は2枚取り、それ以外は1枚取り。
+    ``attack_features._is_ex_for_card_id`` 等は ex/megaEx を区別せずまとめて「ルールボックス
+    持ちか」の bool しか返さないため(2枚取りと3枚取りを見分ける必要があるここでは使えない)、
+    ``CardData.ex`` / ``CardData.megaEx`` を card_cache 経由で直接見る。
+    """
+    if pokemon is None:
+        return 1.0
+    card = _card_or_none(pokemon.id)
+    if card is None:
+        return 1.0
+    if getattr(card, "megaEx", False):
+        return 3.0
+    if getattr(card, "ex", False):
+        return 2.0
+    return 1.0
+
+
+def _avg_prize_value(player) -> float:
+    """C6: active + ベンチの実在するポケモンについて ``_prize_value_of`` の平均。
+
+    ポケモンが1体もいない(伏せのみ・ベンチ0体)場合は 1.0 を返す(安全なデフォルト。
+    ゼロ除算を避けつつ「通常サイズ」を仮定する)。
+    """
+    values: list[float] = []
+    active = _active_pokemon(player)
+    if active is not None:
+        values.append(_prize_value_of(active))
+    for pkmn in player.bench or []:
+        if pkmn is not None:
+            values.append(_prize_value_of(pkmn))
+    if not values:
+        return 1.0
+    return sum(values) / len(values)
+
+
+def _deck_turns_remaining(player, turn_index_for_this_player: float) -> float:
+    """C8(roadmap-2026-08-05.md): 山札があと何ターンで尽きるかの近似値。
+
+    厳密な初期デッキ枚数は状態から直接分からない(マリガンで変動しうる)ため、
+    「デッキ+手札から出ていった枚数」を経過ターンで割った速度で近似する。
+    消費速度がまだ観測できない(序盤で consumed<=0)場合は ``_MAX_DECK_TURNS_REMAINING``
+    (上限値。まだ尽きる気配が無い、の意)を返す。
+    """
+    consumed = 60 - 6 - player.deckCount - player.handCount
+    rate = consumed / max(1.0, turn_index_for_this_player)
+    if rate <= 0:
+        return _MAX_DECK_TURNS_REMAINING
+    remaining = player.deckCount / rate
+    return min(remaining, _MAX_DECK_TURNS_REMAINING)
+
+
 def encode_state_from_state(
     state: State | None,
     extra_features: list[float] | None = None,
@@ -497,6 +651,35 @@ def encode_state_from_state(
         float(len(me.bench or []) - len(opp.bench or [])),
         _energy_on_board(me),
         _energy_on_board(opp),
+    ]
+
+    # --- C3-a: 相手トラッシュのロール要約(公開情報、6次元) ---
+    # C2 の hand_card_vocab のような「デッキ依存の語彙」が要らない(role_of は
+    # デッキに依らず discard の中身だけから計算できる)ため、常に計算する。
+    feats += _discard_role_counts(opp.discard)
+
+    # --- C3-b: 相手アーキタイプの事後分布(POOL8 + other、9次元) ---
+    feats += _opponent_archetype_distribution(state)
+
+    # --- C6: クロック特徴(3次元) ---
+    self_prize_remaining = float(len(me.prize or []))
+    opp_prize_remaining = float(len(opp.prize or []))
+    clock_self_needed = self_prize_remaining / _avg_prize_value(opp)
+    clock_opp_needed = opp_prize_remaining / _avg_prize_value(me)
+    clock_advantage = clock_opp_needed - clock_self_needed
+    feats += [clock_self_needed, clock_opp_needed, clock_advantage]
+
+    # --- C8: 山札の消費速度(2次元) ---
+    # 相手の手番インデックスは C7 の my_turn_index の先攻/後攻を入れ替えたもの
+    # (自分が先攻なら相手は後攻の式、逆も同様)。C7 の my_turn_index 自体のコードは
+    # 変更せず、ここでは新しい変数として計算するだけ。
+    if is_first == 1.0:
+        opp_turn_index = float(state.turn // 2)
+    else:
+        opp_turn_index = float(math.ceil(state.turn / 2))
+    feats += [
+        _deck_turns_remaining(me, my_turn_index),
+        _deck_turns_remaining(opp, opp_turn_index),
     ]
 
     if extra_features:
