@@ -1,0 +1,60 @@
+features.npz を読み込み: features_marnie_grimmsnarl_ex.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=649343 val=83789 test=85218 (全818350件)
+option特徴の標準化元行列 shape=(3507301, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.0843  val_nll=1.0646 (best=1.0646, no_improve=0)  val_top1=0.6015
+    [baseline] epoch   5  train_loss=1.0645  val_nll=1.0620 (best=1.0620, no_improve=0)  val_top1=0.6004
+    [baseline] epoch  10  train_loss=1.0646  val_nll=1.0620 (best=1.0616, no_improve=1)  val_top1=0.6008
+    [baseline] epoch  15  train_loss=1.0645  val_nll=1.0620 (best=1.0616, no_improve=6)  val_top1=0.5988
+    [baseline] 早期終了: epoch 19(val_nll が 10 epoch 改善せず)
+  学習完了 (1445.0s)
+  val : top1=0.6013  nll=1.0616
+  test: top1=0.6057  nll=1.0562
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=0.8146  val_nll=0.7805 (best=0.7805, no_improve=0)  val_top1=0.7208
+    [main] epoch   5  train_loss=0.7423  val_nll=0.7509 (best=0.7509, no_improve=0)  val_top1=0.7285
+    [main] epoch  10  train_loss=0.7266  val_nll=0.7436 (best=0.7436, no_improve=0)  val_top1=0.7297
+    [main] epoch  15  train_loss=0.7188  val_nll=0.7398 (best=0.7398, no_improve=0)  val_top1=0.7332
+    [main] epoch  20  train_loss=0.7143  val_nll=0.7390 (best=0.7364, no_improve=1)  val_top1=0.7323
+    [main] epoch  25  train_loss=0.7115  val_nll=0.7358 (best=0.7358, no_improve=0)  val_top1=0.7309
+    [main] epoch  30  train_loss=0.7087  val_nll=0.7333 (best=0.7333, no_improve=0)  val_top1=0.7342
+    [main] epoch  35  train_loss=0.7067  val_nll=0.7343 (best=0.7307, no_improve=2)  val_top1=0.7330
+    [main] epoch  40  train_loss=0.7052  val_nll=0.7346 (best=0.7307, no_improve=7)  val_top1=0.7326
+    [main] 早期終了: epoch 43(val_nll が 10 epoch 改善せず)
+  学習完了 (4445.1s, 43 epochs)
+  train: top1=0.7421  nll=0.7006
+  val  : top1=0.7321  nll=0.7307
+  test : top1=0.7351  nll=0.7290
+  train-val gap: top1=+0.0101  nll=+0.0300(overfitting指標)
+  param_counts: {'fc1': 7680, 'fc2': 33, 'embedding': 10144, 'mlp': 7713, 'total': 17857}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.6013  nll=1.0616
+  本命(state ++ option ++ embed): top1=0.7321  nll=0.7307
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n= 38915  top1=0.6741  nll=0.8882
+  select_type= 1  n= 36309  top1=0.7350  nll=0.7313
+  select_type= 2  n=    64  top1=1.0000  nll=0.0000
+  select_type= 4  n=  1318  top1=0.8869  nll=0.3513
+  select_type= 7  n=   818  top1=0.9731  nll=0.1389
+  select_type= 8  n=  5278  top1=0.9898  nll=0.0709
+  select_type= 9  n=  2516  top1=0.9821  nll=0.0754
+
+重みを書き出しました: policy_weights_wired_s3.json (385.0 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=3.55271368e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.6057 nll=1.0562
+  本命(state ++ option ++ embed) test: top1=0.7351 nll=0.7290
+  自己検証: 最大誤差=3.55271368e-15 -> PASS
+  出力: policy_weights_wired_s3.json
+  offline指標を書き出しました: metrics_wired_s3.json

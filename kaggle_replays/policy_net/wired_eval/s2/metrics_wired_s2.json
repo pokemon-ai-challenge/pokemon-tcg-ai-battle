@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_marnie_grimmsnarl_ex_wired.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 2,
+  "param_counts": {
+    "fc1": 7680,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 7713,
+    "total": 17857
+  },
+  "n_train": 649343,
+  "n_val": 83789,
+  "n_test": 85218,
+  "epochs_trained": 38,
+  "train": {
+    "top1_accuracy": 0.7421871029640729,
+    "mean_weighted_nll": 0.7004496648253931
+  },
+  "val": {
+    "top1_accuracy": 0.735215839788039,
+    "mean_weighted_nll": 0.727307355250726
+  },
+  "test": {
+    "top1_accuracy": 0.7361707620455772,
+    "mean_weighted_nll": 0.7295852430463946
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.006971263176033915,
+    "mean_weighted_nll": 0.026857690425332925
+  },
+  "self_check_max_abs_err": 5.773159728050814e-15,
+  "out_weights": "policy_weights_wired_s2.json"
+}

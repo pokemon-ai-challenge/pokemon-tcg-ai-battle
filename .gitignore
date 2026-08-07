@@ -138,3 +138,7 @@ kaggle_replays/value_net/*.log
 
 # BC 重みのバックアップ（凍結プールを壊した事故のあと退避したもの）。
 sample_submission/ptcg_ai/learning/bc_backup_*/
+
+# Kaggle Notebook の回収物に含まれる作業ツリーの複製（1本あたり95MB）。
+# ログ・重み・指標だけ追跡し、repo/ の丸ごとの複製は追跡しない。
+kaggle_replays/policy_net/*_eval/*/repo/

@@ -1,0 +1,68 @@
+features.npz を読み込み: features_marnie_grimmsnarl_ex.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=649343 val=83789 test=85218 (全818350件)
+option特徴の標準化元行列 shape=(3507301, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.0855  val_nll=1.0648 (best=1.0648, no_improve=0)  val_top1=0.6007
+    [baseline] epoch   5  train_loss=1.0646  val_nll=1.0624 (best=1.0623, no_improve=1)  val_top1=0.6016
+    [baseline] epoch  10  train_loss=1.0646  val_nll=1.0622 (best=1.0622, no_improve=0)  val_top1=0.6005
+    [baseline] epoch  15  train_loss=1.0646  val_nll=1.0622 (best=1.0615, no_improve=2)  val_top1=0.6007
+    [baseline] epoch  20  train_loss=1.0647  val_nll=1.0618 (best=1.0615, no_improve=7)  val_top1=0.6011
+    [baseline] 早期終了: epoch 23(val_nll が 10 epoch 改善せず)
+  学習完了 (944.1s)
+  val : top1=0.6000  nll=1.0615
+  test: top1=0.6041  nll=1.0563
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=0.8145  val_nll=0.7821 (best=0.7821, no_improve=0)  val_top1=0.7188
+    [main] epoch   5  train_loss=0.7390  val_nll=0.7503 (best=0.7503, no_improve=0)  val_top1=0.7276
+    [main] epoch  10  train_loss=0.7242  val_nll=0.7390 (best=0.7390, no_improve=0)  val_top1=0.7290
+    [main] epoch  15  train_loss=0.7161  val_nll=0.7368 (best=0.7348, no_improve=2)  val_top1=0.7298
+    [main] epoch  20  train_loss=0.7113  val_nll=0.7330 (best=0.7330, no_improve=0)  val_top1=0.7326
+    [main] epoch  25  train_loss=0.7081  val_nll=0.7337 (best=0.7303, no_improve=4)  val_top1=0.7309
+    [main] epoch  30  train_loss=0.7062  val_nll=0.7312 (best=0.7288, no_improve=1)  val_top1=0.7316
+    [main] epoch  35  train_loss=0.7041  val_nll=0.7307 (best=0.7279, no_improve=3)  val_top1=0.7333
+    [main] epoch  40  train_loss=0.7028  val_nll=0.7278 (best=0.7276, no_improve=2)  val_top1=0.7315
+    [main] epoch  45  train_loss=0.7016  val_nll=0.7277 (best=0.7255, no_improve=3)  val_top1=0.7334
+    [main] epoch  50  train_loss=0.7004  val_nll=0.7255 (best=0.7255, no_improve=0)  val_top1=0.7341
+    [main] epoch  55  train_loss=0.6995  val_nll=0.7290 (best=0.7255, no_improve=5)  val_top1=0.7323
+    [main] epoch  60  train_loss=0.6986  val_nll=0.7285 (best=0.7252, no_improve=2)  val_top1=0.7343
+    [main] epoch  65  train_loss=0.6981  val_nll=0.7274 (best=0.7252, no_improve=7)  val_top1=0.7330
+    [main] epoch  70  train_loss=0.6974  val_nll=0.7250 (best=0.7226, no_improve=2)  val_top1=0.7335
+    [main] epoch  75  train_loss=0.6968  val_nll=0.7265 (best=0.7226, no_improve=7)  val_top1=0.7357
+    [main] 早期終了: epoch 78(val_nll が 10 epoch 改善せず)
+  学習完了 (4511.3s, 78 epochs)
+  train: top1=0.7451  nll=0.6909
+  val  : top1=0.7342  nll=0.7226
+  test : top1=0.7361  nll=0.7235
+  train-val gap: top1=+0.0110  nll=+0.0317(overfitting指標)
+  param_counts: {'fc1': 7680, 'fc2': 33, 'embedding': 10144, 'mlp': 7713, 'total': 17857}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.6000  nll=1.0615
+  本命(state ++ option ++ embed): top1=0.7342  nll=0.7226
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n= 38915  top1=0.6721  nll=0.8840
+  select_type= 1  n= 36309  top1=0.7395  nll=0.7242
+  select_type= 2  n=    64  top1=1.0000  nll=0.0000
+  select_type= 4  n=  1318  top1=0.8900  nll=0.3578
+  select_type= 7  n=   818  top1=0.9719  nll=0.1350
+  select_type= 8  n=  5278  top1=0.9894  nll=0.0625
+  select_type= 9  n=  2516  top1=0.9809  nll=0.0707
+
+重みを書き出しました: policy_weights_wired_s2.json (384.1 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=1.24344979e-14  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.6041 nll=1.0563
+  本命(state ++ option ++ embed) test: top1=0.7361 nll=0.7235
+  自己検証: 最大誤差=1.24344979e-14 -> PASS
+  出力: policy_weights_wired_s2.json
+  offline指標を書き出しました: metrics_wired_s2.json
