@@ -34,13 +34,19 @@ DECKDIR = _ROOT / "kaggle_replays" / "meta_analysis" / "archetype_decks"
 #   crustle                   0.604     0.667
 #   dragapult_ex              0.167     0.062   (デッキ相性に極端に汚染されるため既定の
 #                                                 --learners には含めない。指定は可能)
+#: 2026-08-08: 状態特徴を 166 -> 251次元に拡張(C2/C7/C3/C6/C8)したため、
+#: 旧次元の重みは PolicyModel の次元ガードで is_ready=False になり、
+#: collect_pool 経由の対戦では「常にインデックス0を選ぶ」に縮退する(ルールベースにも
+#: 落ちない、完全に無意味な行動)。POOL8 の8アーキタイプは *_v251.json へ更新済み。
+#: archaludon_ex(デッキ不良で POOL8 除外) と mega_lucario_ex(今回の再学習対象外)は
+#: 旧次元のまま残っている。使う場合は is_ready を必ず確認すること。
 LEARNER_REGISTRY = {
-    "alakazam": (None, "alakazam"),
-    "marnie_grimmsnarl_ex": ("policy_weights_marnie_grimmsnarl_ex.json", "marnie_grimmsnarl_ex"),
+    "alakazam": ("policy_weights_alakazam_v251.json", "alakazam"),
+    "marnie_grimmsnarl_ex": ("policy_weights_marnie_grimmsnarl_ex_v251.json", "marnie_grimmsnarl_ex"),
     "archaludon_ex": ("policy_weights_archaludon_ex.json", "archaludon_ex"),
     "mega_lucario_ex": ("policy_weights_mega_lucario_ex.json", "mega_lucario_ex"),
-    "crustle": ("policy_weights_crustle.json", "crustle"),
-    "dragapult_ex": ("policy_weights_dragapult_ex.json", "dragapult_ex"),
+    "crustle": ("policy_weights_crustle_v251.json", "crustle"),
+    "dragapult_ex": ("policy_weights_dragapult_ex_v251.json", "dragapult_ex"),
     # 段階I(各アーキタイプを自分のミラーで60イテレーション鍛えたもの)の成果。
     # 全5体が BC 版の自分に勝ち越している(ミラー最終 0.599〜0.790、各1,200試合)。
     # 段階II「プール学習 vs 固定相手学習」を、相手が強い状態で測り直すために使う。
@@ -56,11 +62,11 @@ LEARNER_REGISTRY = {
     # (マリガン率35%未満・デッキ枚数60枚)。run_archetype_pipeline.py の標準3ステップ
     # (extract_policy_dataset.py -> build_features.py --weight-scheme concentrated -> train.py)
     # でそのまま模倣学習した BC ポリシー。POOL8 の構成要素。
-    "rocket_mewtwo_ex": ("policy_weights_rocket_mewtwo_ex.json", "rocket_mewtwo_ex"),
-    "omatsuri_ondo": ("policy_weights_omatsuri_ondo.json", "omatsuri_ondo"),
-    "shirona_garchomp_ex": ("policy_weights_shirona_garchomp_ex.json", "shirona_garchomp_ex"),
-    "ogerpon_teal_ex": ("policy_weights_ogerpon_teal_ex.json", "ogerpon_teal_ex"),
-    "dragapult_ex": ("policy_weights_dragapult_ex.json", "dragapult_ex"),
+    "rocket_mewtwo_ex": ("policy_weights_rocket_mewtwo_ex_v251.json", "rocket_mewtwo_ex"),
+    "omatsuri_ondo": ("policy_weights_omatsuri_ondo_v251.json", "omatsuri_ondo"),
+    "shirona_garchomp_ex": ("policy_weights_shirona_garchomp_ex_v251.json", "shirona_garchomp_ex"),
+    "ogerpon_teal_ex": ("policy_weights_ogerpon_teal_ex_v251.json", "ogerpon_teal_ex"),
+    # dragapult_ex は上で定義済み(v251)。ここでの重複定義は削除。
 }
 
 #: 段階I で鍛え上がった相手プール(段階II の学習用)。
