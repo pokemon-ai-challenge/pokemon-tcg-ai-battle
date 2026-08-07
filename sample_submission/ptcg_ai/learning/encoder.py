@@ -20,6 +20,9 @@ Observation(現在盤面)を固定長・決定的な特徴ベクトルへ変換�
 
 from __future__ import annotations
 
+import math
+import sys
+
 from cg.api import (
     AreaType,
     CardType,
@@ -45,6 +48,24 @@ POKEMON_SLOTS = 1 + BENCH_SLOTS
 # エネルギー不足数のクリップ上限(技が撃てない/攻撃を持たない場合の既定値)。
 _MAX_SHORTFALL = 10.0
 
+# 自分の手札の card_id ごとの枚数(C2 第一段階、roadmap-2026-08-05.md)。デッキごとに
+# card_id の語彙が異なる(marnie と crustle は別物)ため、次元は固定長にする(デッキ違いで
+# BASE_FEATURE_COUNT が揺れると、どの重みがどの次元数か分からなくなるため)。
+#
+# 実測(kaggle_replays/meta_analysis/archetype_decks/、2026-08-07時点、全21アーキタイプ):
+# 単一CSV(例: 01.csv)1枚だけで数えると最大28種だが、同一アーキタイプでも player ごとに
+# デッキ variant(テックカード違い)があり、学習データ(policy_positions_*.jsonl.gz)には
+# 複数 variant のリプレイが混ざる(marnie は5 variant)。そのため語彙は単一CSVではなく
+# アーキタイプ内の全 variant の**和集合**から作るべきで(build_features.py --deck-csv が
+# ディレクトリを受け付けるのはこのため)、その和集合で数えると最大49種、24では
+# 21アーキタイプ中15で溢れることが分かった(初版の 24 は marnie の単一CSVだけで見積もった
+# 見積もりミス)。49 + 余裕として 56 に固定する。
+_HAND_CARD_SLOTS = 56
+
+#: ``_HAND_CARD_SLOTS`` の公開エイリアス。学習側(kaggle_replays/policy_net/
+#: build_features.py)が語彙をこの長さに切り詰めるために参照する。
+HAND_CARD_SLOTS: int = _HAND_CARD_SLOTS
+
 # ポケモン1体あたりの特徴名(present は存在フラグ)。
 _POKEMON_FEATURE_NAMES = [
     "present",
@@ -63,6 +84,30 @@ _POKEMON_FEATURE_NAMES = [
 # ゼロ埋め用(存在しないスロット)。
 _ZERO_POKEMON = [0.0] * len(_POKEMON_FEATURE_NAMES)
 
+# C7(roadmap-2026-08-05.md): 先攻/後攻の条件付け強化用のターン帯。
+#
+# 境界は ``ptcg_ai.learning.value_model._turn_band_of()`` と必ず同一にすること
+# (turn<=2: "1-2", turn<=5: "3-5", turn<=10: "6-10", それ以外: "11+")。
+# value_model.py はこの encoder.py を import するため、ここで value_model を
+# import すると循環importになる。そのため境界値をここに複製している。
+# 境界を変更する場合は両ファイルを同時に変更すること。
+_TURN_BAND_NAMES = ["1_2", "3_5", "6_10", "11plus"]
+
+
+def _turn_band_index(turn: int) -> int:
+    """turn(int) → 帯インデックス(0:1-2, 1:3-5, 2:6-10, 3:11+)。
+
+    ``value_model._turn_band_of()`` と同じ境界(上限しきい値)。turn<=0 でも
+    先頭の "1-2" 帯(index 0)に入る(value_model 側の意味論に合わせる)。
+    """
+    if turn <= 2:
+        return 0
+    if turn <= 5:
+        return 1
+    if turn <= 10:
+        return 2
+    return 3
+
 
 def _build_feature_names() -> list[str]:
     names: list[str] = []
@@ -79,6 +124,10 @@ def _build_feature_names() -> list[str]:
         "self_hand_pokemon",
         "self_hand_trainer",
         "self_hand_energy",
+    ]
+    # --- 自分の手札: card_id ごとの枚数(固定長、語彙は呼び出し側が渡す) ---
+    names += [f"self_hand_card_slot_{i}" for i in range(_HAND_CARD_SLOTS)]
+    names += [
         "self_deck_count",
         "self_prize_remaining",
         "self_discard_count",
@@ -102,6 +151,13 @@ def _build_feature_names() -> list[str]:
     names += [
         "turn",
         "is_first_player",
+    ]
+    # C7(roadmap-2026-08-05.md): 先攻/後攻 x ターン帯の条件付け(9次元)。
+    # ① ターン帯 one-hot(4) ② 先攻 x ターン帯の交互作用(4) ③ 自分が何回目のターンか(1)。
+    names += [f"turn_band_{band}" for band in _TURN_BAND_NAMES]
+    names += [f"first_x_band_{band}" for band in _TURN_BAND_NAMES]
+    names += ["my_turn_index"]
+    names += [
         "supporter_played",
         "stadium_played",
         "energy_attached",
@@ -267,6 +323,40 @@ def _hand_breakdown(hand) -> tuple[float, float, float]:
     return float(pokemon), float(trainer), float(energy)
 
 
+def _hand_card_counts(hand, vocab: list[int] | None) -> list[float]:
+    """自分の手札(list[Card])を ``vocab`` の card_id ごとの枚数へ数える(固定長)。
+
+    C2 第一段階(roadmap-2026-08-05.md): 既存の3値の内訳(_hand_breakdown)では
+    「手札に何のカードがあるか」を区別できないため、card_id ごとの枚数を追加する。
+
+    ``vocab`` はデッキに紐づく語彙(学習時に重みJSONの ``meta.hand_card_vocab`` へ
+    保存されたもの、または None)。呼び出し元(PolicyModel._load 等)が語彙を持たない
+    場合は None を渡し、その場合は全 0 を返す(次元は必ず ``_HAND_CARD_SLOTS`` 出す。
+    長さを一定に保つため)。
+
+    ``vocab`` が ``_HAND_CARD_SLOTS`` を超える場合は警告した上で先頭 ``_HAND_CARD_SLOTS``
+    種のみを使う(語彙は呼び出し側が昇順に並べている前提)。手札に vocab 外の card_id が
+    あっても無視する(埋め込みではなくカウントなので、未知カードは単に数えられないだけで
+    壊れない)。
+    """
+    counts = [0.0] * _HAND_CARD_SLOTS
+    if not vocab:
+        return counts
+    if len(vocab) > _HAND_CARD_SLOTS:
+        print(
+            f"[encoder] hand_card_vocab が _HAND_CARD_SLOTS({_HAND_CARD_SLOTS})を超えています "
+            f"({len(vocab)} 種)。先頭 {_HAND_CARD_SLOTS} 種のみ使用します。",
+            file=sys.stderr,
+        )
+        vocab = vocab[:_HAND_CARD_SLOTS]
+    index_by_card_id = {card_id: i for i, card_id in enumerate(vocab)}
+    for card in hand or []:
+        idx = index_by_card_id.get(card.id)
+        if idx is not None:
+            counts[idx] += 1.0
+    return counts
+
+
 def _energy_on_board(player) -> float:
     total = 0
     active = _active_pokemon(player)
@@ -277,7 +367,11 @@ def _energy_on_board(player) -> float:
     return float(total)
 
 
-def encode_state_from_state(state: State | None, extra_features: list[float] | None = None) -> list[float]:
+def encode_state_from_state(
+    state: State | None,
+    extra_features: list[float] | None = None,
+    hand_card_vocab: list[int] | None = None,
+) -> list[float]:
     """``encode_state()`` の本体。State を直接受け取る版(Observation を作れない呼び出し元向け)。
 
     ``state`` が None の場合(初回デッキ選択など)はゼロベクトルを返す(壊れない)。
@@ -286,6 +380,9 @@ def encode_state_from_state(state: State | None, extra_features: list[float] | N
         state: エージェント/リプレイ由来の State(``obs.current`` 相当)。
         extra_features: 将来の hidden_information 由来特徴などの差し込み口。渡された場合は
             基本特徴ベクトルの末尾へそのまま連結する(FEATURE_NAMES には含まれない)。
+        hand_card_vocab: 自分の手札の card_id カウント特徴(C2 第一段階)に使う語彙
+            (昇順の card_id リスト、デッキに紐づく)。None なら追加24次元は全て0
+            (次元は必ず出す)。詳細は :func:`_hand_card_counts`。
 
     Returns:
         list[float]: 長さ ``BASE_FEATURE_COUNT`` (+ len(extra_features)) の決定的ベクトル。
@@ -318,6 +415,9 @@ def encode_state_from_state(state: State | None, extra_features: list[float] | N
         hand_pkmn,
         hand_trainer,
         hand_energy,
+    ]
+    feats += _hand_card_counts(me.hand, hand_card_vocab)
+    feats += [
         float(me.deckCount),
         float(len(me.prize or [])),
         float(len(me.discard or [])),
@@ -353,6 +453,37 @@ def encode_state_from_state(state: State | None, extra_features: list[float] | N
     feats += [
         float(state.turn),
         is_first,
+    ]
+
+    # C7: ターン帯 one-hot(4) + 先攻 x ターン帯の交互作用(4) + 自分の手番インデックス(1)。
+    # State.turn は 1=先攻T1, 2=後攻T1, 3=先攻T2, ...(両者合わせた通し手番数。
+    # cg/api.py の State.turn docstring 参照)であり、「自分が何回目のターンか」ではない。
+    band_index = _turn_band_index(int(state.turn))
+    turn_band_onehot = [0.0] * len(_TURN_BAND_NAMES)
+    turn_band_onehot[band_index] = 1.0
+    feats += turn_band_onehot
+
+    first_x_band = [0.0] * len(_TURN_BAND_NAMES)
+    if is_first == 1.0:
+        first_x_band[band_index] = 1.0
+    feats += first_x_band
+
+    # my_turn_index: 自分が何回目の手番か(1-indexed)。
+    # State.turn は両者合わせた通し手番数であって「自分の手番数」ではないため、先攻/後攻で
+    # 式が異なる(先攻=奇数ターンで自分の番、後攻=偶数ターンで自分の番):
+    #   先攻(is_first): turn=1,2 → 1; turn=3,4 → 2; turn=5,6 → 3; ... = ceil(turn / 2)
+    #   後攻(not is_first): turn=1 → 0(まだ手番なし); turn=2,3 → 1; turn=4,5 → 2; ... = turn // 2
+    # (先攻は自分のターンで turn が奇数から偶数へ進み、後攻はその1つ後ろにずれるため、
+    # 同じ turn でも先攻と後攻で「自分が何回動いたか」は最大1違う。ceil(turn/2) は先攻にしか
+    # 当てはまらない。turn=0(試合開始前)は is_first の値によらず ceil(0/2)=0//2=0 で一致)。
+    # 既存の "turn" 特徴と同様、正規化(スケーリング)はせず生値を使う。
+    if is_first == 1.0:
+        my_turn_index = float(math.ceil(state.turn / 2))
+    else:
+        my_turn_index = float(state.turn // 2)
+    feats += [my_turn_index]
+
+    feats += [
         1.0 if state.supporterPlayed else 0.0,
         1.0 if state.stadiumPlayed else 0.0,
         1.0 if state.energyAttached else 0.0,
@@ -374,7 +505,11 @@ def encode_state_from_state(state: State | None, extra_features: list[float] | N
     return feats
 
 
-def encode_state(obs: Observation, extra_features: list[float] | None = None) -> list[float]:
+def encode_state(
+    obs: Observation,
+    extra_features: list[float] | None = None,
+    hand_card_vocab: list[int] | None = None,
+) -> list[float]:
     """Observation(現在盤面)を固定長の特徴ベクトルへ変換する。
 
     ``obs.logs`` / ``obs.select`` は参照しない(current 盤面のみ)。``obs.current`` が None の
@@ -385,14 +520,20 @@ def encode_state(obs: Observation, extra_features: list[float] | None = None) ->
         obs: エージェント/リプレイ由来の Observation。
         extra_features: 将来の hidden_information 由来特徴などの差し込み口。渡された場合は
             基本特徴ベクトルの末尾へそのまま連結する(FEATURE_NAMES には含まれない)。
+        hand_card_vocab: :func:`encode_state_from_state` と同じ(C2 第一段階の手札 card_id
+            語彙)。
 
     Returns:
         list[float]: 長さ ``BASE_FEATURE_COUNT`` (+ len(extra_features)) の決定的ベクトル。
     """
-    return encode_state_from_state(obs.current, extra_features=extra_features)
+    return encode_state_from_state(obs.current, extra_features=extra_features, hand_card_vocab=hand_card_vocab)
 
 
-def encode_obs_dict(obs_dict: dict, extra_features: list[float] | None = None) -> list[float]:
+def encode_obs_dict(
+    obs_dict: dict,
+    extra_features: list[float] | None = None,
+    hand_card_vocab: list[int] | None = None,
+) -> list[float]:
     """学習側ヘルパー: リプレイ/ランタイムの obs_dict を Observation にしてエンコードする。
 
     dict → Observation の変換は ``cg.api.to_observation_class`` (agent() が使うのと同一経路)を
@@ -401,13 +542,17 @@ def encode_obs_dict(obs_dict: dict, extra_features: list[float] | None = None) -
     学習データでは ``logs``(と ``select``)が削除されている想定。``to_observation_class`` が
     使う ``to_dataclass`` は必須フィールドの欠損でエラーになるため、欠損キーをここで既定値
     (logs=[]、select=None、current=None)に補ってから変換する。元の dict は変更しない。
+
+    Args:
+        hand_card_vocab: :func:`encode_state_from_state` と同じ(C2 第一段階の手札 card_id
+            語彙)。
     """
     d = dict(obs_dict)
     d.setdefault("logs", [])
     d.setdefault("select", None)
     d.setdefault("current", None)
     obs = to_observation_class(d)
-    return encode_state(obs, extra_features=extra_features)
+    return encode_state(obs, extra_features=extra_features, hand_card_vocab=hand_card_vocab)
 
 
 #

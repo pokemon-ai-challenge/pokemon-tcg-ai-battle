@@ -553,6 +553,15 @@ def main() -> None:
     split = data["split"].astype(np.int64)
     weight = data["weight"].astype(np.float64)
     select_type = data["select_type"].astype(np.int64)
+    # C2 第一段階(roadmap-2026-08-05.md): build_features.py --deck-csv で作った語彙。
+    # 無ければ空配列(古い features.npz にも "hand_card_vocab" キー自体が無い場合がある)。
+    hand_card_vocab: list[int] = (
+        [int(v) for v in data["hand_card_vocab"].tolist()] if "hand_card_vocab" in data else []
+    )
+    if hand_card_vocab:
+        print(f"hand_card_vocab: {len(hand_card_vocab)}種 {hand_card_vocab}")
+    else:
+        print("hand_card_vocab: なし(build_features.py --deck-csv 未指定。手札card_idカウント特徴は全0)")
 
     if args.ablate_features:
         names = [t.strip() for t in args.ablate_features.split(",") if t.strip()]
@@ -798,6 +807,7 @@ def main() -> None:
             "state_feature_count": int(BASE_FEATURE_COUNT),
             "option_feature_count": int(effective_option_feature_count),
             "consequence_fields": consequence_fields,
+            "hand_card_vocab": hand_card_vocab,
             "hidden_size": int(hidden_size),
             "param_counts": param_counts,
             "outcome_weighting": outcome_meta,

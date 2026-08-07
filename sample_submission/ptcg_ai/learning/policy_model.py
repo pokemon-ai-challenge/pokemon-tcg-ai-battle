@@ -16,8 +16,12 @@ numpy/torch 非依存)のフォワードパスだけで各選択肢のスコア�
 ```
 {
   "meta": {
-    "state_feature_count": 166, "option_feature_count": 65,
-    "test_metrics": {...}, ...
+    "state_feature_count": 190, "option_feature_count": 65,
+    "test_metrics": {...},
+    "hand_card_vocab": [104, 112, ...],  # 任意。C2 第一段階(roadmap-2026-08-05.md)。
+        # 自分の手札 card_id カウント特徴(encoder._HAND_CARD_SLOTS=24次元)の語彙
+        # (昇順 card_id、学習時のデッキに紐づく)。無ければ当該次元は全0で推論する。
+    ...
   },
   "standardization": {
     "state_mean": [166], "state_std": [166],
@@ -99,6 +103,10 @@ class PolicyModel:
         # Tier3 Stage3c: この重みが学習時に使ったconsequence特徴名のリスト(空なら不使用、
         # 旧重み完全後方互換)。encoder.CONSEQUENCE_FEATURE_NAMES の部分集合・同じ順序。
         self._consequence_fields: list[str] = []
+        # C2 第一段階(roadmap-2026-08-05.md): 自分の手札 card_id カウント特徴の語彙
+        # (学習時のデッキに紐づく、昇順 card_id リスト)。meta に無い/旧重みなら None
+        # (encoder 側は None を渡すと該当次元を全0にするので後方互換)。
+        self._hand_card_vocab: list[int] | None = None
 
         self._load()
 
@@ -127,6 +135,8 @@ class PolicyModel:
         ]
 
         self._consequence_fields = list(payload.get("meta", {}).get("consequence_fields") or [])
+        hand_card_vocab = payload.get("meta", {}).get("hand_card_vocab")
+        self._hand_card_vocab = [int(v) for v in hand_card_vocab] if hand_card_vocab else None
 
         # 特徴量の次元がエンコーダと食い違う重みは読まない（未ロード状態のまま返す）。
         # _forward は range(len(state_features)) で回して state_mean[i] を引くため、
@@ -179,7 +189,7 @@ class PolicyModel:
         """
         if not self.is_ready or obs.current is None or obs.select is None or not obs.select.option:
             return []
-        state_features = encoder.encode_state_from_state(obs.current)
+        state_features = encoder.encode_state_from_state(obs.current, hand_card_vocab=self._hand_card_vocab)
         option_rows = encoder.encode_options_from_state(obs.current, obs.select)
         card_ids = encoder.encode_option_card_ids(obs.current, obs.select)
         if self._consequence_fields:
@@ -206,7 +216,7 @@ class PolicyModel:
             )
         if not self.is_ready or state is None or select is None or not select.option:
             return []
-        state_features = encoder.encode_state_from_state(state)
+        state_features = encoder.encode_state_from_state(state, hand_card_vocab=self._hand_card_vocab)
         option_rows = encoder.encode_options_from_state(state, select)
         card_ids = encoder.encode_option_card_ids(state, select)
         return [

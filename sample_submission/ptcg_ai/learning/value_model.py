@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from pathlib import Path
 
 from cg.api import Observation
@@ -92,6 +93,23 @@ class ValueModel:
         std = payload["standardization"]
         self._mean = [float(v) for v in std["mean"]]
         self._std = [float(v) for v in std["std"]]
+
+        # 特徴量の次元がエンコーダと食い違う重みは読まない(未ロード状態のまま返す)。
+        # _forward は range(len(features)) で回して mean[i]/std[i] を引くため、エンコーダ側の
+        # 次元が増えた古い重みを読むと試合中に IndexError で落ちる。「重みが無ければ未ロード
+        # 扱いでフォールバック」という本モジュールの方針に合わせ、次元不一致も同じく安全側
+        # (0.5 の既定確率へ縮退)に倒す(policy_model.py の PolicyModel._load と同じ方針)。
+        if len(self._mean) != encoder.BASE_FEATURE_COUNT:
+            print(
+                f"[ValueModel] 次元不一致のため重みを読み込みません: {self._weights_path.name} "
+                f"(重み state={len(self._mean)} / エンコーダ state={encoder.BASE_FEATURE_COUNT})。"
+                "エンコーダの特徴量を変更したなら value_net を学習し直すこと。",
+                file=sys.stderr,
+            )
+            self._feature_names = None
+            self._mean = self._std = None
+            return
+
         self._layers = [
             ([[float(w) for w in row] for row in layer["W"]],
              [float(v) for v in layer["b"]],

@@ -75,6 +75,7 @@ from cg.api import all_card_data, to_observation_class  # noqa: E402
 from ptcg_ai.learning.encoder import (  # noqa: E402
     BASE_FEATURE_COUNT,
     CONSEQUENCE_FEATURE_COUNT,
+    HAND_CARD_SLOTS,
     OPTION_FEATURE_COUNT,
     encode_option_card_ids,
     encode_option_consequence_features,
@@ -116,6 +117,37 @@ def split_for_episode(episode_id: str) -> int:
     if h < 90:
         return 1
     return 2
+
+
+def _read_deck_csv_ids(path: Path) -> list[int]:
+    """1つのデッキCSV(改行区切り、read_deck_csv() と同じ形式)から card_id のリストを読む。"""
+    with path.open(encoding="utf-8") as fh:
+        return [int(v) for v in fh.read().split("\n") if v.strip()]
+
+
+def build_hand_card_vocab(deck_csv_arg: str) -> list[int]:
+    """``--deck-csv`` の値(ファイル or ディレクトリ)から手札 card_id 語彙(昇順)を作る。
+
+    ファイルならそのファイルの card_id、ディレクトリなら配下の全 ``*.csv`` の card_id の
+    和集合を使う(アーキタイプ内の deck variant 違いのテックカードを漏らさないため。
+    build_features.py の --deck-csv ヘルプ参照)。
+    """
+    path = Path(deck_csv_arg)
+    if path.is_dir():
+        csv_paths = sorted(path.glob("*.csv"))
+        if not csv_paths:
+            raise ValueError(f"--deck-csv にディレクトリを指定しましたが *.csv がありません: {path}")
+        ids: set[int] = set()
+        for csv_path in csv_paths:
+            ids.update(_read_deck_csv_ids(csv_path))
+        print(
+            f"hand_card_vocab: ディレクトリ {path} 配下の {len(csv_paths)} 個のCSVの和集合から作成 "
+            f"({[p.name for p in csv_paths]})",
+            file=sys.stderr,
+        )
+    else:
+        ids = set(_read_deck_csv_ids(path))
+    return sorted(ids)
 
 
 def weight_for_rank(rank_at_fetch: int | None) -> float:
@@ -208,6 +240,26 @@ def main() -> None:
         "除くと row_index の元ファイル対応は崩れる(このnpzはoutcome学習専用で evaluate.py の"
         "行突き合わせには使わないため許容)。",
     )
+    parser.add_argument(
+        "--deck-csv", default=None,
+        help="C2 第一段階(roadmap-2026-08-05.md): 自分の手札 card_id カウント特徴"
+        "(encoder.encode_state の hand_card_vocab)の語彙をここから作る(既定: 指定なし = "
+        "語彙なし、追加 HAND_CARD_SLOTS 次元は全て0で従来の出力と完全に同一)。"
+        "ファイルまたはディレクトリを受け付ける: "
+        "  - ファイル(改行区切り60行、read_deck_csv() と同じ形式。例: "
+        "archetype_decks/<arch>/01.csv)を渡すと、そのファイルの card_id だけを使う。"
+        "  - ディレクトリ(例: archetype_decks/<arch>/)を渡すと、配下の全 *.csv の card_id "
+        "の**和集合**を使う。同一アーキタイプでも player ごとにテックカード違いの variant が"
+        "あり、学習データ(policy_positions_*.jsonl.gz)には複数 variant のリプレイが"
+        "混ざっているため、**アーキタイプ単位で学習するならディレクトリを渡すことを推奨する**"
+        "(単一CSVだと他 variant だけが使うテックカードが語彙から漏れ、そのカードが手札に"
+        "あるときだけカウントが handCount と食い違う)。"
+        "学習データに出現した card_id からではなくデッキリストから語彙を作るのは、"
+        "たまたま学習データに出現しなかったカードが欠けて推論時とズレるのを避けるため。"
+        "異なる card_id を昇順に並べ、"
+        f"{HAND_CARD_SLOTS}種を超える場合は警告して先頭{HAND_CARD_SLOTS}種のみ使う"
+        "(encoder.HAND_CARD_SLOTS の固定長スロットに合わせる)。",
+    )
     args = parser.parse_args()
     weight_fn = weight_for_rank_concentrated if args.weight_scheme == "concentrated" else weight_for_rank
 
@@ -217,6 +269,24 @@ def main() -> None:
 
     card_id_max = max(c.cardId for c in all_card_data())
     print(f"card_id_max = {card_id_max}(all_card_data() から動的に計算)", file=sys.stderr)
+
+    # C2 第一段階: 手札 card_id カウント特徴の語彙(--deck-csv 指定時のみ)。
+    hand_card_vocab: list[int] | None = None
+    if args.deck_csv:
+        hand_card_vocab = build_hand_card_vocab(args.deck_csv)
+        if len(hand_card_vocab) > HAND_CARD_SLOTS:
+            print(
+                f"警告: --deck-csv の異なる card_id 数({len(hand_card_vocab)})が "
+                f"HAND_CARD_SLOTS({HAND_CARD_SLOTS})を超えています。先頭 {HAND_CARD_SLOTS} 種"
+                "のみを語彙として使用します(encoder.HAND_CARD_SLOTS 参照)。",
+                file=sys.stderr,
+            )
+            hand_card_vocab = hand_card_vocab[:HAND_CARD_SLOTS]
+        print(
+            f"hand_card_vocab = {hand_card_vocab}(--deck-csv {args.deck_csv} から、"
+            f"{len(hand_card_vocab)}種)",
+            file=sys.stderr,
+        )
 
     outcome_map: dict[tuple[str, int], int] | None = None
     if args.with_outcome:
@@ -300,7 +370,7 @@ def main() -> None:
             try:
                 obs_dict = {**row["observation"], "logs": []}
                 obs = to_observation_class(obs_dict)
-                state_feats = encode_state(obs)
+                state_feats = encode_state(obs, hand_card_vocab=hand_card_vocab)
                 option_feats = encode_options(obs)
                 option_card_ids = encode_option_card_ids(obs.current, obs.select)
             except Exception as exc:  # noqa: BLE001 - fail-fast(row_index 対応関係を壊さない)
@@ -446,6 +516,10 @@ def main() -> None:
             f"consequence特徴: {n_total}行中 {n_consequence_errors}行で計算失敗(0埋め)",
             file=sys.stderr,
         )
+
+    # hand_card_vocab は train.py が重みJSONの meta.hand_card_vocab へそのまま書き出す
+    # (C2 第一段階)。--deck-csv 未指定時は空配列(train.py 側は「語彙なし」として扱う)。
+    extra_arrays["hand_card_vocab"] = np.asarray(hand_card_vocab or [], dtype=np.int32)
 
     np.savez_compressed(
         out_path,
