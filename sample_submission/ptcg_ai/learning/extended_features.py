@@ -143,6 +143,31 @@ def observe_errors() -> int:
     return _observe_errors
 
 
+def _resolve_own_state(player_index: int):
+    """この決定点で使う `OwnHiddenState` を返す。無ければ None。
+
+    経路が2つある。
+      学習(collect_parallel): この模块の `begin_match()` / `observe()` が持つ
+      本番(ml_policy_agent):  `hidden_information.match_context` が持つ
+                              (`agent()` の冒頭で毎回 `update()` している)
+
+    本番側は既に同じ推定を回しているので、二重に計算せずそちらを借りる。ここを繋がないと
+    提出物では確率が全部 0 になり、学習したサイド落ちの判断がまるごと死ぬ。
+    """
+    st = _own_states.get(player_index)
+    if st is not None:
+        return st
+    try:
+        from ptcg_ai.hidden_information import match_context
+        st = match_context.get_own_state(player_index)
+    except Exception:  # noqa: BLE001
+        return None
+    # 一度も update() されていないと山札もサイドも 0 枚扱いで、確率が意味を持たない。
+    if getattr(st, "_deck_count", 0) + getattr(st, "_prize_count", 0) <= 0:
+        return None
+    return st
+
+
 def _get_card_names() -> dict[int, str]:
     """カードID -> 英語名。相手アーキタイプ予測の語彙が英語名で作られているため。
     エンジンから取れるので data/ の CSV には依存しない。"""
@@ -228,7 +253,7 @@ def encode(state, profile: Profile) -> list[float]:
         # 山札サーチで中身を見たあとは 1.0 / 0.0 に確定するので、そこが「サイド落ち」。
         # 推定が使えなかった決定点では確率を 0 にして、使えたかどうかを別の1本で伝える
         # (0 が「サイドに無い」なのか「分からない」なのかを取り違えないため)。
-        st = _own_states.get(state.yourIndex)
+        st = _resolve_own_state(state.yourIndex)
         mg = None
         if st is not None:
             try:
