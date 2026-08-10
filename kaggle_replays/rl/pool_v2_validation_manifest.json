@@ -1,0 +1,16 @@
+{
+ "created_at": "2026-08-09T05:20:00+09:00",
+ "purpose": "T1 PPO milestone_2000/2500/3000 の validation評価用。蒸留データ生成・D1教師選定・PPO rollout・checkpoint選定・従来の固定8相手評価のいずれにも一度も使っていない相手・デッキの組み合わせ。",
+ "note": "全てのdeckがrun.json・収集/評価スクリプト(collect_tokens.py, run_ppo_pilot.py, run_ppo_continue.py, run_fixed_pool_eval.py 等)に一度も出現しないことをgrepで確認済み。相手側の方策は全てproduction既定のpolicy_weights.json(166次元profile、デッキ非依存のスコアリング)を使う(この既定モデル自体はpool_v1の'alakazam'相手として使われたことはあるが、これらのデッキとの組み合わせは初めて)。'探索あり/なし'・'ランダム性を持つvariant'は今回のスコープでは用意していない(時間制約、正直に報告する)。",
+ "games_per_opponent": 50,
+ "eval_seed0": 9800000,
+ "opponents": [
+  {"id": "gekkouga_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/gekkouga_ex/01.csv", "weights": null},
+  {"id": "kamitsuorochi_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/kamitsuorochi_ex/01.csv", "weights": null},
+  {"id": "mega_abomasnow_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/mega_abomasnow_ex/01.csv", "weights": null},
+  {"id": "n_zoroark_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/n_zoroark_ex/01.csv", "weights": null},
+  {"id": "ogerpon_teal_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/ogerpon_teal_ex/01.csv", "weights": null},
+  {"id": "takeruraiko_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/takeruraiko_ex/01.csv", "weights": null}
+ ],
+ "seat_balancing": "opponent毎にgame_index % 2でT1の座席(先攻/後攻)を均等化する(既存run_fixed_pool_eval.py/t1_eval.run_head_to headと同じ方式)。全checkpoint(milestone_2000/2500/3000)で同じeval_seed0・同じ相手順・同じ座席スケジュールを使う。"
+}

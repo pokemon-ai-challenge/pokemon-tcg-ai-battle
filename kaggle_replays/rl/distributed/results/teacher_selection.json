@@ -1,0 +1,284 @@
+{
+  "candidates": [
+    "v24",
+    "v32",
+    "v40",
+    "v47"
+  ],
+  "selected": "v40",
+  "selection_rule": "overall_ci95_lo最大(Wilson区間下限)",
+  "results": {
+    "v24": {
+      "generation": 24,
+      "games_requested": 1000,
+      "seconds": 254.0,
+      "overall_wins": 737,
+      "overall_valid": 1000,
+      "overall_winrate": 0.737,
+      "overall_ci95_lo": 0.7088424436928642,
+      "per_opponent": [
+        {
+          "id": "alakazam",
+          "wins": 87,
+          "valid": 125,
+          "winrate": 0.696,
+          "ci95_lo": 0.6105140393503488
+        },
+        {
+          "id": "archaludon_ex",
+          "wins": 105,
+          "valid": 125,
+          "winrate": 0.84,
+          "ci95_lo": 0.7657523225480249
+        },
+        {
+          "id": "crustle",
+          "wins": 81,
+          "valid": 125,
+          "winrate": 0.648,
+          "ci95_lo": 0.5610009206996933
+        },
+        {
+          "id": "marnie_grimmsnarl_ex",
+          "wins": 66,
+          "valid": 125,
+          "winrate": 0.528,
+          "ci95_lo": 0.44095936742177405
+        },
+        {
+          "id": "mega_lucario_ex",
+          "wins": 93,
+          "valid": 125,
+          "winrate": 0.744,
+          "ci95_lo": 0.6610155355210199
+        },
+        {
+          "id": "rocket_mewtwo_ex",
+          "wins": 88,
+          "valid": 125,
+          "winrate": 0.704,
+          "ci95_lo": 0.6188587934763039
+        },
+        {
+          "id": "shirona_garchomp_ex",
+          "wins": 106,
+          "valid": 125,
+          "winrate": 0.848,
+          "ci95_lo": 0.7747677991353887
+        },
+        {
+          "id": "dragapult_ex",
+          "wins": 111,
+          "valid": 125,
+          "winrate": 0.888,
+          "ci95_lo": 0.8207601960995368
+        }
+      ],
+      "model_sha256": "b126fe5d79cbe6132252d81079b5f66297897bcf5a4220db545454f0e7a45506"
+    },
+    "v32": {
+      "generation": 32,
+      "games_requested": 1000,
+      "seconds": 252.8,
+      "overall_wins": 743,
+      "overall_valid": 1000,
+      "overall_winrate": 0.743,
+      "overall_ci95_lo": 0.7150216830339959,
+      "per_opponent": [
+        {
+          "id": "alakazam",
+          "wins": 97,
+          "valid": 125,
+          "winrate": 0.776,
+          "ci95_lo": 0.6953100627209138
+        },
+        {
+          "id": "archaludon_ex",
+          "wins": 99,
+          "valid": 125,
+          "winrate": 0.792,
+          "ci95_lo": 0.7126703312982824
+        },
+        {
+          "id": "crustle",
+          "wins": 79,
+          "valid": 125,
+          "winrate": 0.632,
+          "ci95_lo": 0.5446970725427289
+        },
+        {
+          "id": "marnie_grimmsnarl_ex",
+          "wins": 69,
+          "valid": 125,
+          "winrate": 0.552,
+          "ci95_lo": 0.4645665167440154
+        },
+        {
+          "id": "mega_lucario_ex",
+          "wins": 92,
+          "valid": 125,
+          "winrate": 0.736,
+          "ci95_lo": 0.6525239824707842
+        },
+        {
+          "id": "rocket_mewtwo_ex",
+          "wins": 90,
+          "valid": 125,
+          "winrate": 0.72,
+          "ci95_lo": 0.6356327557701333
+        },
+        {
+          "id": "shirona_garchomp_ex",
+          "wins": 109,
+          "valid": 125,
+          "winrate": 0.872,
+          "ci95_lo": 0.8021628958094078
+        },
+        {
+          "id": "dragapult_ex",
+          "wins": 108,
+          "valid": 125,
+          "winrate": 0.864,
+          "ci95_lo": 0.7929692002807947
+        }
+      ],
+      "model_sha256": "474aeeb0e8aec15987565b54f5833f6b6598cc7cf35fbc037020279a928c9edd"
+    },
+    "v40": {
+      "generation": 40,
+      "games_requested": 1000,
+      "seconds": 248.5,
+      "overall_wins": 791,
+      "overall_valid": 1000,
+      "overall_winrate": 0.791,
+      "overall_ci95_lo": 0.7647090173367805,
+      "per_opponent": [
+        {
+          "id": "alakazam",
+          "wins": 99,
+          "valid": 125,
+          "winrate": 0.792,
+          "ci95_lo": 0.7126703312982824
+        },
+        {
+          "id": "archaludon_ex",
+          "wins": 106,
+          "valid": 125,
+          "winrate": 0.848,
+          "ci95_lo": 0.7747677991353887
+        },
+        {
+          "id": "crustle",
+          "wins": 88,
+          "valid": 125,
+          "winrate": 0.704,
+          "ci95_lo": 0.6188587934763039
+        },
+        {
+          "id": "marnie_grimmsnarl_ex",
+          "wins": 71,
+          "valid": 125,
+          "winrate": 0.568,
+          "ci95_lo": 0.4804134151618401
+        },
+        {
+          "id": "mega_lucario_ex",
+          "wins": 96,
+          "valid": 125,
+          "winrate": 0.768,
+          "ci95_lo": 0.6866850458237092
+        },
+        {
+          "id": "rocket_mewtwo_ex",
+          "wins": 103,
+          "valid": 125,
+          "winrate": 0.824,
+          "ci95_lo": 0.7478757357145996
+        },
+        {
+          "id": "shirona_garchomp_ex",
+          "wins": 113,
+          "valid": 125,
+          "winrate": 0.904,
+          "ci95_lo": 0.8396789770994196
+        },
+        {
+          "id": "dragapult_ex",
+          "wins": 115,
+          "valid": 125,
+          "winrate": 0.92,
+          "ci95_lo": 0.8589867330060555
+        }
+      ],
+      "model_sha256": "9063cd175fe02564ebbb843b8f1c6e5159cdb214e1e90f79cf08e5a1d0ffdd13"
+    },
+    "v47": {
+      "generation": 47,
+      "games_requested": 1000,
+      "seconds": 250.3,
+      "overall_wins": 742,
+      "overall_valid": 1000,
+      "overall_winrate": 0.742,
+      "overall_ci95_lo": 0.713991353059201,
+      "per_opponent": [
+        {
+          "id": "alakazam",
+          "wins": 89,
+          "valid": 125,
+          "winrate": 0.712,
+          "ci95_lo": 0.6272314795312537
+        },
+        {
+          "id": "archaludon_ex",
+          "wins": 100,
+          "valid": 125,
+          "winrate": 0.8,
+          "ci95_lo": 0.7214084909988655
+        },
+        {
+          "id": "crustle",
+          "wins": 85,
+          "valid": 125,
+          "winrate": 0.68,
+          "ci95_lo": 0.593905934010664
+        },
+        {
+          "id": "marnie_grimmsnarl_ex",
+          "wins": 63,
+          "valid": 125,
+          "winrate": 0.504,
+          "ci95_lo": 0.41754620249417757
+        },
+        {
+          "id": "mega_lucario_ex",
+          "wins": 91,
+          "valid": 125,
+          "winrate": 0.728,
+          "ci95_lo": 0.6440633335940313
+        },
+        {
+          "id": "rocket_mewtwo_ex",
+          "wins": 94,
+          "valid": 125,
+          "winrate": 0.752,
+          "ci95_lo": 0.6695388958797917
+        },
+        {
+          "id": "shirona_garchomp_ex",
+          "wins": 102,
+          "valid": 125,
+          "winrate": 0.816,
+          "ci95_lo": 0.739009248148241
+        },
+        {
+          "id": "dragapult_ex",
+          "wins": 118,
+          "valid": 125,
+          "winrate": 0.944,
+          "ci95_lo": 0.8889108631410103
+        }
+      ],
+      "model_sha256": "a66acbd0c1867d938260932bada1a0cdf1d1770a74d6c1268a72cac40aaaba3f"
+    }
+  }
+}

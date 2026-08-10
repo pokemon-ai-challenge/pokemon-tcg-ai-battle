@@ -72,6 +72,10 @@ kaggle_replays/rl/runs/
 kaggle_replays/rl/_tmp_policy_*.json
 kaggle_replays/rl/_train_*.log
 
+# kaggle_replays/rl/submission_builds: build_t1_submission.py output (full bundle incl. cg/
+# binaries + tar.gz per checkpoint, ~100MB). Fully regenerable from a checkpoint path; not source.
+kaggle_replays/rl/submission_builds/
+
 # kaggle_replays/policy_net: same reasoning as value_net above. features.npz is re-derivable
 # from training_data/policy_positions.jsonl.gz via build_features.py. train_full.log /
 # build_features_full.log are raw run logs, not a documented artifact.

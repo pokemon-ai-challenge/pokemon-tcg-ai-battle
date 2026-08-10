@@ -1,0 +1,18 @@
+{
+ "created_at": "2026-08-09T11:30:00+09:00",
+ "purpose": "次期challenger(lr pilotやそれ以降の候補)の最終比較用holdout。pool_v2_validationを含め、これまでの一切の学習・評価に使っていない相手・デッキ。次のchallengerが完成するまで結果を見ない。",
+ "status": "FIXED_UNOPENED",
+ "note": "pool_v2_validationの6相手(gekkouga_ex, kamitsuorochi_ex, mega_abomasnow_ex, n_zoroark_ex, ogerpon_teal_ex, takeruraiko_ex)とも重複しない7相手。全てproduction既定policy_weights.json(166次元)を使う。",
+ "games_per_opponent": 50,
+ "eval_seed0": 9900000,
+ "opponents": [
+  {"id": "mega_froslass_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/mega_froslass_ex/01.csv", "weights": null},
+  {"id": "mega_starmie_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/mega_starmie_ex/01.csv", "weights": null},
+  {"id": "oliva_ex", "deck": "kaggle_replays/meta_analysis/archetype_decks/oliva_ex/01.csv", "weights": null},
+  {"id": "omatsuri_ondo", "deck": "kaggle_replays/meta_analysis/archetype_decks/omatsuri_ondo/01.csv", "weights": null},
+  {"id": "rocket_honchkrow", "deck": "kaggle_replays/meta_analysis/archetype_decks/rocket_honchkrow/01.csv", "weights": null},
+  {"id": "toxtricity", "deck": "kaggle_replays/meta_analysis/archetype_decks/toxtricity/01.csv", "weights": null},
+  {"id": "yadoking", "deck": "kaggle_replays/meta_analysis/archetype_decks/yadoking/01.csv", "weights": null}
+ ],
+ "seat_balancing": "pool_v2_validationと同じ方式(game_index % 2で座席均等化)。次のchallengerが確定するまでこのmanifestに基づく評価は実行しない。"
+}
