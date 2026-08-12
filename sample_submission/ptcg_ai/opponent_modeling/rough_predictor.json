@@ -419,7 +419,7 @@
           "card_id": [
             96
           ],
-          "role": "shared_anchor",
+          "role": "core",
           "reason": "オーガポンバレット/カミツオロチ/オリーヴァ系に絞れる強い共有主軸候補"
         }
       ],
@@ -539,7 +539,7 @@
           "card_id": [
             96
           ],
-          "role": "shared_anchor",
+          "role": "core",
           "reason": "オーガポンバレット/カミツオロチ/オリーヴァ系に絞れる強い共有主軸候補"
         }
       ],
@@ -786,7 +786,7 @@
           "card_id": [
             96
           ],
-          "role": "shared_anchor",
+          "role": "anchor",
           "reason": "主軸カードだが、カミツオロチ/オリーヴァ/タケルライコ系にも入るため単体確定にはしない"
         }
       ],
@@ -797,6 +797,18 @@
             "card_id": [
               1205
             ]
+          },
+          {
+            "name": "テラスタルオーブ",
+            "role": "core"
+          },
+          {
+            "name": "エネルギー回収",
+            "role": "core"
+          },
+          {
+            "name": "ブライア",
+            "role": "core"
           }
         ],
         "flex": [
@@ -856,12 +868,6 @@
             ]
           },
           {
-            "name": "ナゲツケサル",
-            "card_id": [
-              978
-            ]
-          },
-          {
             "name": "マシマシラ",
             "card_id": [
               112
@@ -910,12 +916,6 @@
             ]
           },
           {
-            "name": "タケルライコex",
-            "card_id": [
-              63
-            ]
-          },
-          {
             "name": "イベルタル",
             "card_id": [
               689
@@ -928,6 +928,10 @@
             "card_id": [
               19
             ]
+          },
+          {
+            "name": "グロウ【草】エネルギー",
+            "role": "energy"
           }
         ]
       },
@@ -989,7 +993,7 @@
       ],
       "variants": {},
       "min_score": 6,
-      "confident_score": 14
+      "confident_score": 10
     },
     "n_zoroark_ex": {
       "display_name": "Nのゾロアークex",

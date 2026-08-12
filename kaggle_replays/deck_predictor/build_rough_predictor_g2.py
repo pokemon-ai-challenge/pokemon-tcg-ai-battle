@@ -77,6 +77,20 @@ def patch(config: dict) -> tuple[dict, list[str]]:
     changes: list[str] = []
     ogerpon = config["archetypes"]["ogerpon_teal_ex"]
 
+    # 本番側の修正で オーガポン みどりのめんex は anchor(10) に昇格したが、
+    # **フルデッキ判定ではそれだと強すぎる**。実行時は confident_score による正規化で
+    # 相対順位を見るのに対し、label_decks.py は固定しきい値10 + ゲート判定で、
+    # anchor だと単独で確定してしまい「イワパレス4枚 + オーガポンをエネ加速に採用」
+    # のようなデッキを奪う(実測1件)。フルデッキ側では shared_anchor(7)に戻し、
+    # 現行型の専用札との合計でしきい値を超えさせる。
+    for entry in ogerpon.get("cards", []):
+        if entry.get("name") == "オーガポン みどりのめんex" and entry.get("role") == "anchor":
+            entry["role"] = "shared_anchor"
+            changes.append(
+                "ogerpon_teal_ex: オーガポン みどりのめんex を anchor -> shared_anchor"
+                "(フルデッキ判定はゲート+固定しきい値のため実行時より弱い役割にする)"
+            )
+
     # kamitsuorochi_ex が オーガポン単体でゲートを通ってしまう問題を塞ぐ
     kamitsu = config["archetypes"]["kamitsuorochi_ex"]
     for entry in kamitsu.get("cards", []):
