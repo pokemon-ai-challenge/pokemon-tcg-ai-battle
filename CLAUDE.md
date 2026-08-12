@@ -13,9 +13,26 @@ pokemon-tcg-ai-battle/
 ├── sample_submission/         # 提出コードのベース
 │   ├── main.py                # ← エージェント実装（ここを編集）
 │   ├── deck.csv               # ← 使用デッキ（ここを編集）
+│   ├── models/climb_lb823/    # ← LB 823.5 を出したモデルの凍結一式（下記）
 │   └── cg/                    # ← ゲームエンジン（変更禁止）
 └── cardlist_referenced/       # カードリスト参照ツール（提出と無関係）
 ```
+
+---
+
+## 最高スコアモデル = **climb**（Kaggle publicScore **823.5** / 提出 55186283）
+
+現時点の自己ベスト構成。**「一番良かったモデル」を探しているならこれ。**
+
+| 何を | どこに |
+|---|---|
+| 同定情報・構成・使用デッキ・実行方法 | [sample_submission/models/climb_lb823/README.md](sample_submission/models/climb_lb823/README.md) |
+| 機械可読メタ（sha256・ハイパラ・提出時コードの全ハッシュ） | [sample_submission/models/climb_lb823/MANIFEST.json](sample_submission/models/climb_lb823/MANIFEST.json) |
+| 方策の重み本体 | `sample_submission/ptcg_ai/learning/policy_weights_alakazam_rl_climb.json`（sha256 `395b0248…`） |
+| アルゴリズム詳細 | [sample_submission/docs/models/climb-823-model.md](sample_submission/docs/models/climb-823-model.md) |
+
+- 構成: **Plan A アラカザム(フーディン)デッキ × `abl_5_full`（確定リーサル探索 → PIMC 前読み → Policy fallback）× climb 方策（BC 模倣 → field self-play PPO）**。
+- **注意**: 既定の `ptcg_ai/learning/policy_weights.json` は **BC 模倣重みであって climb ではない**（sha256 `735dd38a…`）。ローカル評価で climb を測るときは重みパスを明示すること。
 
 ---
 
