@@ -112,3 +112,6 @@ desktop.ini
 # IDE
 .vscode/
 .idea/
+
+# RL チェックポイント(.pt): 再開用の中間状態。重みJSONから再現できるので追跡しない
+kaggle_replays/rl/*.pt

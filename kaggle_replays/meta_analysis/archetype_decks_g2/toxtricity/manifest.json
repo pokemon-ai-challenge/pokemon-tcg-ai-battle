@@ -1,0 +1,13 @@
+{
+  "archetype": "toxtricity",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Banjo",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "92132722",
+      "player_index": 1
+    }
+  ]
+}

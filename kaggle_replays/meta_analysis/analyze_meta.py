@@ -63,16 +63,18 @@ def load_card_names() -> dict[int, str]:
     return names
 
 
-def load_labels() -> dict[tuple[str, int], str]:
+def load_labels(path: Path | str | None = None) -> dict[tuple[str, int], str]:
+    """既定は7月プールの deck_labels.jsonl。path でデータ世代を切り替えられる。"""
     out: dict[tuple[str, int], str] = {}
-    for d in _iter_jsonl(_DP_OUT / "deck_labels.jsonl"):
+    for d in _iter_jsonl(Path(path) if path else _DP_OUT / "deck_labels.jsonl"):
         out[(str(d["episode_id"]), int(d["player_index"]))] = d.get("archetype", "other")
     return out
 
 
-def load_episode_scores() -> dict[tuple[str, int], dict]:
+def load_episode_scores(path: Path | str | None = None) -> dict[tuple[str, int], dict]:
+    """既定は7月プールの index/episodes_master.jsonl。path で世代を切り替えられる。"""
     out: dict[tuple[str, int], dict] = {}
-    for ep in _iter_jsonl(_EPISODES):
+    for ep in _iter_jsonl(Path(path) if path else _EPISODES):
         eid = str(ep.get("episode_id"))
         for p in ep.get("players", []):
             pi = p.get("player_index")
@@ -86,10 +88,10 @@ def load_episode_scores() -> dict[tuple[str, int], dict]:
     return out
 
 
-def build_instances(labels, scores):
-    """各デッキ出現を1レコードに束ねる。"""
+def build_instances(labels, scores, deck_db_path: Path | str | None = None):
+    """各デッキ出現を1レコードに束ねる。deck_db_path でデータ世代を切り替えられる。"""
     instances = []
-    for d in _iter_jsonl(_DP_OUT / "deck_db.jsonl"):
+    for d in _iter_jsonl(Path(deck_db_path) if deck_db_path else _DP_OUT / "deck_db.jsonl"):
         eid = str(d["episode_id"])
         pi = int(d["player_index"])
         key = (eid, pi)

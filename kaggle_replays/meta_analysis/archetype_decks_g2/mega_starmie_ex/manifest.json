@@ -1,0 +1,45 @@
+{
+  "archetype": "mega_starmie_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "motono0223",
+      "rank_at_fetch": 65,
+      "leaderboard_score": 1024.1,
+      "episode_id": "91922555",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "S4nkurero",
+      "rank_at_fetch": 206,
+      "leaderboard_score": 947.2,
+      "episode_id": "91966597",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "🫣🤧",
+      "rank_at_fetch": 393,
+      "leaderboard_score": 890.0,
+      "episode_id": "91949597",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "🫣🤧",
+      "rank_at_fetch": 393,
+      "leaderboard_score": 890.0,
+      "episode_id": "91971976",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "keteru",
+      "rank_at_fetch": 405,
+      "leaderboard_score": 886.8,
+      "episode_id": "91927253",
+      "player_index": 1
+    }
+  ]
+}

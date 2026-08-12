@@ -45,11 +45,20 @@ def main():
     ap.add_argument("--top-decks", type=int, default=5)
     ap.add_argument("--min-quality-decks", type=int, default=1,
                     help="rank/score が全く付かないアーキタイプでも最低これだけは保存")
+    # データ世代の切り替え口。既定(None)は7月プール = 従来と完全に同じ挙動。
+    ap.add_argument("--deck-db", default=None)
+    ap.add_argument("--deck-labels", default=None)
+    ap.add_argument("--episodes", default=None, help="episodes_master.jsonl(rank/scoreの取得元)")
+    ap.add_argument("--out", default=None, help="出力先ディレクトリ(既定 archetype_decks)")
     args = ap.parse_args()
 
-    labels = load_labels()
-    scores = load_episode_scores()
-    instances = build_instances(labels, scores)
+    global _OUT
+    if args.out:
+        _OUT = Path(args.out)
+
+    labels = load_labels(args.deck_labels)
+    scores = load_episode_scores(args.episodes)
+    instances = build_instances(labels, scores, args.deck_db)
 
     by_arch = {}
     for inst in instances:

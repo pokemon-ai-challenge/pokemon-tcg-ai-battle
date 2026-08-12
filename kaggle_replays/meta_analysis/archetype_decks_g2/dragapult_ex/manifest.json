@@ -1,0 +1,45 @@
+{
+  "archetype": "dragapult_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "やる気元気ミワハルキ",
+      "rank_at_fetch": 2,
+      "leaderboard_score": 1206.9,
+      "episode_id": "91902889",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "Dipam Chakraborty",
+      "rank_at_fetch": 8,
+      "leaderboard_score": 1150.9,
+      "episode_id": "91950529",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "Sixth Sense",
+      "rank_at_fetch": 11,
+      "leaderboard_score": 1138.6,
+      "episode_id": "91902980",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "Sixth Sense",
+      "rank_at_fetch": 11,
+      "leaderboard_score": 1138.6,
+      "episode_id": "91907568",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "goonew",
+      "rank_at_fetch": 26,
+      "leaderboard_score": 1077.8,
+      "episode_id": "91961076",
+      "player_index": 0
+    }
+  ]
+}

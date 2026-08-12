@@ -1,0 +1,200 @@
+{
+  "id": "gen2_candidates",
+  "what": "2026-08取得のgen2模倣学習(BC)とアーキタイプ別上位デッキを使ってchampion climbの改善を試みた候補一式。**どれも2026-08-13時点でLB未収束**。champion(climb, LB823.5)は据え置き。",
+  "champion_at_freeze": {
+    "id": "climb_lb823",
+    "public_score": 823.5,
+    "note": "models/climb_lb823/ 参照。未収束扱いで831.5の記録もあり"
+  },
+  "algorithm": {
+    "script": "kaggle_replays/rl/train_league.py",
+    "recipe": "champion-league RL (固定フィールド + 自己スナップショット)",
+    "field_frac": 0.45,
+    "iters": 80,
+    "games_per_iter": 512,
+    "eval_games": 400,
+    "field_preset": "mix = アーキごとにgen2/7月の強い方を実測で選んだ混成11アーキ",
+    "how_mix_was_decided": "kaggle_replays/rl/compare_opponents.py で世代間直接対決。gen2採用=alakazam67.3%/rocket68.3%/crustle65.8%/marnie61.7%/dragapult60.0%、7月採用=mega_lucario33.0%(gen2が有意に弱い)、差なし(archaludon/shirona)はgen2側"
+  },
+  "evaluation": {
+    "script": "kaggle_replays/rl/eval_field.py",
+    "games_per_matchup": 150,
+    "baseline": "climb + PlanAデッキ (mix 56.09% / july7 62.88%)",
+    "note": "july7は学習に使っていないフィールド=過学習チェック用"
+  },
+  "key_finding": "3候補すべてで『デッキ変更は有意に効き、リーグRLの上乗せは判定不能』。mixogerponは学習前のBC+デッキだけでchampionに+12.45pt(有意)、RL寄与は+2.47pt(判定不能)。",
+  "candidates": [
+    {
+      "id": "mixogerpon",
+      "learner_archetype": "ogerpon_teal_ex",
+      "kaggle": {
+        "submission_ref": "55464390",
+        "public_score_history": [
+          693.2,
+          721.8,
+          837.0,
+          874.1
+        ],
+        "public_score_latest": 874.1,
+        "converged": false
+      },
+      "policy_weights": {
+        "path": "sample_submission/ptcg_ai/learning/policy_weights_ogerpon_teal_ex_rl_mixogerpon.json",
+        "packaged_as_in_submission": "ptcg_ai/learning/policy_weights.json",
+        "sha256": "e9e348d80c8ec35cc56831028419ba908a9ea85b5b04af63c26c175cdca37437",
+        "init_from": "policy_weights_ogerpon_teal_ex_g2.json (gen2 BC)",
+        "rl_best_iter": 36,
+        "rl_best_eval_winrate": 0.7325,
+        "rl_baseline": 0.6625,
+        "rl_champions_final": 1
+      },
+      "deck": {
+        "path": "kaggle_replays/meta_analysis/archetype_decks_g2/ogerpon_teal_ex/01.csv",
+        "frozen_copy": "deck_ogerpon_teal_ex_01.csv",
+        "sha256": "8f0cdd322f833325d5b0d97425dd50ffe2f4d5edeebf3c9abab6dc75488a28cb",
+        "packaged_as_in_submission": "deck.csv"
+      },
+      "config": {
+        "name": "abl_5_full",
+        "path": "sample_submission/configs/abl_5_full.json",
+        "sha256": "ca6c37af4b1a4149dcae9a3a7746d2566c2b672a8a2c7516c82668b059a480da"
+      },
+      "local_eval": {
+        "mix_vs_climb": "+14.92pt CI[+11.29,+18.55] 有意",
+        "july7_vs_climb": "+6.08pt CI[+1.94,+10.22] 有意",
+        "mix_winrate": 0.7101,
+        "july7_winrate": 0.6896,
+        "rl_contrib_mix": "+2.47pt 判定不能",
+        "rl_contrib_july7": "-0.99pt 判定不能"
+      }
+    },
+    {
+      "id": "mixhammer",
+      "learner_archetype": "alakazam",
+      "kaggle": {
+        "submission_ref": "55462165",
+        "public_score_history": [
+          821.4,
+          839.0,
+          810.2,
+          799.8,
+          768.8,
+          777.0,
+          766.1,
+          757.7
+        ],
+        "public_score_latest": 757.7,
+        "converged": false
+      },
+      "policy_weights": {
+        "path": "sample_submission/ptcg_ai/learning/policy_weights_alakazam_rl_mixhammer.json",
+        "packaged_as_in_submission": "ptcg_ai/learning/policy_weights.json",
+        "sha256": "236e16afae0cf27e7101dc6f6c8cb6d0ed0ec8d637eb4fd30626d9b2957ebcbb",
+        "init_from": "policy_weights_alakazam_rl_climb.json (champion)",
+        "rl_best_iter": 39,
+        "rl_best_eval_winrate": 0.6575,
+        "rl_baseline": 0.55,
+        "rl_champions_final": 2
+      },
+      "deck": {
+        "path": "experimental_decks/foodin_hammer4_v1/deck.csv",
+        "frozen_copy": "deck_foodin_hammer4.csv",
+        "sha256": "90b5ed2d1572bd9cc51f1f1d7625740a353c1bbb8921fa7644b7e4cbc360ec45",
+        "packaged_as_in_submission": "deck.csv"
+      },
+      "config": {
+        "name": "abl_5_full",
+        "path": "sample_submission/configs/abl_5_full.json",
+        "sha256": "ca6c37af4b1a4149dcae9a3a7746d2566c2b672a8a2c7516c82668b059a480da"
+      },
+      "local_eval": {
+        "mix_vs_climb": "+5.96pt CI[+1.91,+10.02] 有意",
+        "july7_vs_climb": "+5.50pt CI[+1.29,+9.72] 有意",
+        "mix_winrate": 0.6205,
+        "july7_winrate": 0.6838,
+        "rl_contrib_mix": "+2.52pt 判定不能",
+        "rl_contrib_july7": "-0.19pt 判定不能"
+      }
+    },
+    {
+      "id": "mixclimb",
+      "learner_archetype": "alakazam",
+      "kaggle": {
+        "submission_ref": "55459931",
+        "public_score_history": [
+          680.5,
+          670.8,
+          678.5
+        ],
+        "public_score_latest": 678.5,
+        "converged": false
+      },
+      "policy_weights": {
+        "path": "sample_submission/ptcg_ai/learning/policy_weights_alakazam_rl_mixclimb.json",
+        "packaged_as_in_submission": "ptcg_ai/learning/policy_weights.json",
+        "sha256": "9d7ef6e9a016d3b5d7fb3f505a9b1c811edce5ab15fb5b4a8c94813f501ee2eb",
+        "init_from": "policy_weights_alakazam_rl_climb.json (champion)",
+        "rl_best_iter": 63,
+        "rl_best_eval_winrate": 0.605,
+        "rl_baseline": 0.5425,
+        "rl_champions_final": 1
+      },
+      "deck": {
+        "path": "sample_submission/deck.csv",
+        "frozen_copy": null,
+        "sha256": "8ae7a618b2655669e45eeb296df2d9271a38cf4977fd4d7dbf75bfaf386a84c2",
+        "packaged_as_in_submission": "deck.csv"
+      },
+      "config": {
+        "name": "abl_5_full",
+        "path": "sample_submission/configs/abl_5_full.json",
+        "sha256": "ca6c37af4b1a4149dcae9a3a7746d2566c2b672a8a2c7516c82668b059a480da"
+      },
+      "local_eval": {
+        "mix_vs_climb": "+2.90pt CI[-1.17,+6.97] 判定不能",
+        "july7_vs_climb": "+1.28pt CI[-2.98,+5.53] 判定不能",
+        "mix_winrate": 0.5899,
+        "july7_winrate": 0.6415
+      }
+    },
+    {
+      "id": "g2climb",
+      "learner_archetype": "alakazam",
+      "kaggle": {
+        "submission_ref": "55455639",
+        "public_score_history": [
+          601.6
+        ],
+        "public_score_latest": 601.6,
+        "converged": false
+      },
+      "policy_weights": {
+        "path": "sample_submission/ptcg_ai/learning/policy_weights_alakazam_rl_g2climb.json",
+        "packaged_as_in_submission": "ptcg_ai/learning/policy_weights.json",
+        "sha256": "1b64a28eb695ad6cf9a1869036e4afd3c658ad4c3be048dc20103ccbd2c6e6cf",
+        "init_from": "policy_weights_alakazam_g2.json (gen2 BC)",
+        "rl_best_iter": 27,
+        "rl_best_eval_winrate": 0.59,
+        "rl_baseline": 0.4875,
+        "rl_champions_final": 2
+      },
+      "deck": {
+        "path": "sample_submission/deck.csv",
+        "frozen_copy": null,
+        "sha256": "8ae7a618b2655669e45eeb296df2d9271a38cf4977fd4d7dbf75bfaf386a84c2",
+        "packaged_as_in_submission": "deck.csv"
+      },
+      "config": {
+        "name": "abl_5_full",
+        "path": "sample_submission/configs/abl_5_full.json",
+        "sha256": "ca6c37af4b1a4149dcae9a3a7746d2566c2b672a8a2c7516c82668b059a480da"
+      },
+      "local_eval": {
+        "mix_vs_climb": "n/a(g2フィールドで測定 +2.07pt 判定不能)",
+        "july7_vs_climb": "-0.53pt 判定不能",
+        "g2_winrate": 0.5961,
+        "july7_winrate": 0.6925
+      }
+    }
+  ]
+}

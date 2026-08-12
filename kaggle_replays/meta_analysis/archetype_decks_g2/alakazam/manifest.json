@@ -1,0 +1,45 @@
+{
+  "archetype": "alakazam",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "AlphaStarmie",
+      "rank_at_fetch": 7,
+      "leaderboard_score": 1159.6,
+      "episode_id": "91957221",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "Jonathan Coletti",
+      "rank_at_fetch": 14,
+      "leaderboard_score": 1128.9,
+      "episode_id": "91902926",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "Bart, Edwyn",
+      "rank_at_fetch": 17,
+      "leaderboard_score": 1108.3,
+      "episode_id": "91931845",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "Redi_",
+      "rank_at_fetch": 26,
+      "leaderboard_score": 1077.6,
+      "episode_id": "91902926",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "Evgeniy Zdoronok",
+      "rank_at_fetch": 54,
+      "leaderboard_score": 1040.7,
+      "episode_id": "91903094",
+      "player_index": 1
+    }
+  ]
+}

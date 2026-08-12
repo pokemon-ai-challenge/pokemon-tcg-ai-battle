@@ -1,0 +1,45 @@
+{
+  "archetype": "omatsuri_ondo",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Dominic Peel & Rory Neville",
+      "rank_at_fetch": 20,
+      "leaderboard_score": 1088.9,
+      "episode_id": "91925154",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "Dominic Peel & Rory Neville",
+      "rank_at_fetch": 20,
+      "leaderboard_score": 1088.9,
+      "episode_id": "91968226",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "PP kawada",
+      "rank_at_fetch": 23,
+      "leaderboard_score": 1087.9,
+      "episode_id": "91906591",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "pokemon master",
+      "rank_at_fetch": 55,
+      "leaderboard_score": 1040.7,
+      "episode_id": "91913247",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "パチリス",
+      "rank_at_fetch": 90,
+      "leaderboard_score": 1000.1,
+      "episode_id": "91940066",
+      "player_index": 0
+    }
+  ]
+}

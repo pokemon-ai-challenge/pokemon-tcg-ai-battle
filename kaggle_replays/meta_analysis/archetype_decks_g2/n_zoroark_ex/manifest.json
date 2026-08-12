@@ -1,0 +1,29 @@
+{
+  "archetype": "n_zoroark_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "shg195",
+      "rank_at_fetch": 168,
+      "leaderboard_score": 963.3,
+      "episode_id": "91921847",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "Petit Canard",
+      "rank_at_fetch": 187,
+      "leaderboard_score": 954.4,
+      "episode_id": "91966649",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "Kev' Vervier",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "91964665",
+      "player_index": 0
+    }
+  ]
+}

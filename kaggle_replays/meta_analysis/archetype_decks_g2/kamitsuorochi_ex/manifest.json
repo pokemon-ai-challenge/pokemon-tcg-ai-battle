@@ -1,0 +1,45 @@
+{
+  "archetype": "kamitsuorochi_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Oshbocker",
+      "rank_at_fetch": 5,
+      "leaderboard_score": 1196.1,
+      "episode_id": "91926436",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "Dipam Chakraborty",
+      "rank_at_fetch": 8,
+      "leaderboard_score": 1150.9,
+      "episode_id": "91924546",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "loIzpo + emonga",
+      "rank_at_fetch": 37,
+      "leaderboard_score": 1058.2,
+      "episode_id": "91957811",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "Boss's Orders Are All You Need",
+      "rank_at_fetch": 195,
+      "leaderboard_score": 950.6,
+      "episode_id": "91982105",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "tw_shin",
+      "rank_at_fetch": 205,
+      "leaderboard_score": 947.5,
+      "episode_id": "91965612",
+      "player_index": 1
+    }
+  ]
+}
