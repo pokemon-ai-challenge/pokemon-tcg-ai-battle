@@ -1,0 +1,1408 @@
+{
+  "competition": "pokemon-tcg-ai-battle",
+  "run_id": "20260811T145618Z",
+  "fetched_at": "2026-08-11T14:56:18.791656+00:00",
+  "top_n": 200,
+  "leaderboard": [
+    {
+      "rank": 1,
+      "teamId": 16421599,
+      "teamName": "熱異常",
+      "submissionDate": "2026-08-11T12:04:26.553000",
+      "score": "1240.2"
+    },
+    {
+      "rank": 2,
+      "teamId": 16371703,
+      "teamName": "やる気元気ミワハルキ",
+      "submissionDate": "2026-08-11T06:41:43.263000",
+      "score": "1206.9"
+    },
+    {
+      "rank": 3,
+      "teamId": 16374395,
+      "teamName": "Majkel1337",
+      "submissionDate": "2026-08-08T01:03:19.113000",
+      "score": "1201.1"
+    },
+    {
+      "rank": 4,
+      "teamId": 16375647,
+      "teamName": "James Cox & Henry Chao",
+      "submissionDate": "2026-08-11T11:47:53.106000",
+      "score": "1197.9"
+    },
+    {
+      "rank": 5,
+      "teamId": 16404352,
+      "teamName": "Oshbocker",
+      "submissionDate": "2026-08-10T20:40:55.043000",
+      "score": "1196.1"
+    },
+    {
+      "rank": 6,
+      "teamId": 16380946,
+      "teamName": "flg",
+      "submissionDate": "2026-08-10T15:54:34.256000",
+      "score": "1163.5"
+    },
+    {
+      "rank": 7,
+      "teamId": 16381823,
+      "teamName": "AlphaStarmie",
+      "submissionDate": "2026-08-08T12:30:29.480000",
+      "score": "1159.6"
+    },
+    {
+      "rank": 8,
+      "teamId": 16581741,
+      "teamName": "Dipam Chakraborty",
+      "submissionDate": "2026-08-11T09:42:29.263000",
+      "score": "1150.9"
+    },
+    {
+      "rank": 9,
+      "teamId": 16561259,
+      "teamName": "@kdcyberdude",
+      "submissionDate": "2026-08-10T20:45:30.250000",
+      "score": "1150.8"
+    },
+    {
+      "rank": 10,
+      "teamId": 16385817,
+      "teamName": "M Sato",
+      "submissionDate": "2026-08-09T15:18:03.806000",
+      "score": "1150.7"
+    },
+    {
+      "rank": 11,
+      "teamId": 16452116,
+      "teamName": "Sixth Sense",
+      "submissionDate": "2026-08-11T13:37:27.630000",
+      "score": "1138.6"
+    },
+    {
+      "rank": 12,
+      "teamId": 16422241,
+      "teamName": "Raihan Ramadistra",
+      "submissionDate": "2026-08-11T06:37:56.010000",
+      "score": "1137.9"
+    },
+    {
+      "rank": 13,
+      "teamId": 16556346,
+      "teamName": "sadwat",
+      "submissionDate": "2026-08-09T21:47:36.410000",
+      "score": "1133.9"
+    },
+    {
+      "rank": 14,
+      "teamId": 16386110,
+      "teamName": "Jonathan Coletti",
+      "submissionDate": "2026-08-11T08:08:58.690000",
+      "score": "1128.9"
+    },
+    {
+      "rank": 15,
+      "teamId": 16636812,
+      "teamName": "Kam",
+      "submissionDate": "2026-08-11T14:07:50.506000",
+      "score": "1120.0"
+    },
+    {
+      "rank": 16,
+      "teamId": 16388654,
+      "teamName": "vvs",
+      "submissionDate": "2026-08-08T11:39:24.743000",
+      "score": "1109.3"
+    },
+    {
+      "rank": 17,
+      "teamId": 16531497,
+      "teamName": "Bart, Edwyn",
+      "submissionDate": "2026-08-11T13:36:10.150000",
+      "score": "1108.3"
+    },
+    {
+      "rank": 18,
+      "teamId": 16463316,
+      "teamName": "LiamK",
+      "submissionDate": "2026-08-10T15:32:15.390000",
+      "score": "1107.4"
+    },
+    {
+      "rank": 19,
+      "teamId": 16441104,
+      "teamName": "HCRL",
+      "submissionDate": "2026-08-11T11:19:01.930000",
+      "score": "1102.6"
+    },
+    {
+      "rank": 20,
+      "teamId": 16514272,
+      "teamName": "Dominic Peel & Rory Neville",
+      "submissionDate": "2026-08-11T08:46:41.896000",
+      "score": "1088.9"
+    },
+    {
+      "rank": 21,
+      "teamId": 16374074,
+      "teamName": "Octavi Grau",
+      "submissionDate": "2026-08-11T00:23:42.356000",
+      "score": "1088.3"
+    },
+    {
+      "rank": 22,
+      "teamId": 16594494,
+      "teamName": "Yopta",
+      "submissionDate": "2026-08-10T23:56:21.210000",
+      "score": "1087.0"
+    },
+    {
+      "rank": 23,
+      "teamId": 16375635,
+      "teamName": "palsystem",
+      "submissionDate": "2026-08-11T14:07:18.836000",
+      "score": "1086.3"
+    },
+    {
+      "rank": 24,
+      "teamId": 16391939,
+      "teamName": "PP kawada",
+      "submissionDate": "2026-08-10T13:56:27.730000",
+      "score": "1081.5"
+    },
+    {
+      "rank": 25,
+      "teamId": 16385250,
+      "teamName": "matsurih",
+      "submissionDate": "2026-08-11T00:24:34.046000",
+      "score": "1079.5"
+    },
+    {
+      "rank": 26,
+      "teamId": 16372168,
+      "teamName": "goonew",
+      "submissionDate": "2026-08-11T13:27:33.350000",
+      "score": "1077.8"
+    },
+    {
+      "rank": 27,
+      "teamId": 16421871,
+      "teamName": "Redi_",
+      "submissionDate": "2026-08-11T06:25:01.340000",
+      "score": "1077.6"
+    },
+    {
+      "rank": 28,
+      "teamId": 16408505,
+      "teamName": "JZ",
+      "submissionDate": "2026-08-10T02:15:39.170000",
+      "score": "1077.5"
+    },
+    {
+      "rank": 29,
+      "teamId": 16600240,
+      "teamName": "DavidFreelan",
+      "submissionDate": "2026-08-11T05:07:41.970000",
+      "score": "1076.4"
+    },
+    {
+      "rank": 30,
+      "teamId": 16381904,
+      "teamName": "NguyenThanhNhan",
+      "submissionDate": "2026-08-11T02:20:02.606000",
+      "score": "1073.8"
+    },
+    {
+      "rank": 31,
+      "teamId": 16379930,
+      "teamName": "Louis & Emile",
+      "submissionDate": "2026-08-11T01:24:43.063000",
+      "score": "1073.7"
+    },
+    {
+      "rank": 32,
+      "teamId": 16609576,
+      "teamName": "stnick",
+      "submissionDate": "2026-08-10T23:30:48.526000",
+      "score": "1070.7"
+    },
+    {
+      "rank": 33,
+      "teamId": 16372380,
+      "teamName": "THIRD PTCG Club",
+      "submissionDate": "2026-08-09T11:53:41.330000",
+      "score": "1070.1"
+    },
+    {
+      "rank": 34,
+      "teamId": 16425135,
+      "teamName": "Rmy",
+      "submissionDate": "2026-08-10T06:01:53.256000",
+      "score": "1068.4"
+    },
+    {
+      "rank": 35,
+      "teamId": 16371829,
+      "teamName": "e-toppo + kurupical",
+      "submissionDate": "2026-08-11T03:05:42.766000",
+      "score": "1060.5"
+    },
+    {
+      "rank": 36,
+      "teamId": 16695873,
+      "teamName": "pokemon",
+      "submissionDate": "2026-08-11T12:56:01.166000",
+      "score": "1058.9"
+    },
+    {
+      "rank": 37,
+      "teamId": 16371280,
+      "teamName": "loIzpo + emonga",
+      "submissionDate": "2026-08-11T11:08:08.553000",
+      "score": "1058.2"
+    },
+    {
+      "rank": 38,
+      "teamId": 16531787,
+      "teamName": "hatry",
+      "submissionDate": "2026-08-11T05:55:37.970000",
+      "score": "1057.1"
+    },
+    {
+      "rank": 39,
+      "teamId": 16374884,
+      "teamName": "Funky",
+      "submissionDate": "2026-08-11T03:35:48.746000",
+      "score": "1056.9"
+    },
+    {
+      "rank": 40,
+      "teamId": 16499803,
+      "teamName": "Team Rot-Weiß",
+      "submissionDate": "2026-08-11T10:02:00.066000",
+      "score": "1056.2"
+    },
+    {
+      "rank": 41,
+      "teamId": 16375979,
+      "teamName": "Jonathan Donham",
+      "submissionDate": "2026-08-10T01:06:14.713000",
+      "score": "1055.9"
+    },
+    {
+      "rank": 42,
+      "teamId": 16434348,
+      "teamName": "mealck",
+      "submissionDate": "2026-08-11T13:29:38.353000",
+      "score": "1055.5"
+    },
+    {
+      "rank": 43,
+      "teamId": 16531269,
+      "teamName": "Dries @ Tufa Labs",
+      "submissionDate": "2026-08-11T06:26:26.523000",
+      "score": "1055.2"
+    },
+    {
+      "rank": 44,
+      "teamId": 16450476,
+      "teamName": "Thai",
+      "submissionDate": "2026-08-11T09:20:07.623000",
+      "score": "1053.4"
+    },
+    {
+      "rank": 45,
+      "teamId": 16381624,
+      "teamName": "LumenLiquidity",
+      "submissionDate": "2026-08-11T11:38:37.706000",
+      "score": "1052.9"
+    },
+    {
+      "rank": 46,
+      "teamId": 16407428,
+      "teamName": "{{ team_name }} 🏆",
+      "submissionDate": "2026-08-11T13:27:58.813000",
+      "score": "1051.9"
+    },
+    {
+      "rank": 47,
+      "teamId": 16375519,
+      "teamName": "Klein Houmani",
+      "submissionDate": "2026-08-11T07:00:18.963000",
+      "score": "1049.5"
+    },
+    {
+      "rank": 48,
+      "teamId": 16372782,
+      "teamName": "Pokemon Siuuuu",
+      "submissionDate": "2026-08-10T09:26:31.340000",
+      "score": "1048.3"
+    },
+    {
+      "rank": 49,
+      "teamId": 16376653,
+      "teamName": "szlachetny snieg",
+      "submissionDate": "2026-08-09T05:12:18.600000",
+      "score": "1047.9"
+    },
+    {
+      "rank": 50,
+      "teamId": 16440585,
+      "teamName": "Brahim",
+      "submissionDate": "2026-08-10T22:49:08.086000",
+      "score": "1047.8"
+    },
+    {
+      "rank": 51,
+      "teamId": 16373946,
+      "teamName": "KawattaTaido",
+      "submissionDate": "2026-08-10T14:49:39.766000",
+      "score": "1047.4"
+    },
+    {
+      "rank": 52,
+      "teamId": 16375942,
+      "teamName": "perrodawn",
+      "submissionDate": "2026-08-11T06:22:15.966000",
+      "score": "1046.6"
+    },
+    {
+      "rank": 53,
+      "teamId": 16441077,
+      "teamName": "haggle",
+      "submissionDate": "2026-08-11T13:07:05.143000",
+      "score": "1038.6"
+    },
+    {
+      "rank": 54,
+      "teamId": 16407282,
+      "teamName": "SQUIRTLE (prime)",
+      "submissionDate": "2026-08-10T22:27:12.713000",
+      "score": "1037.0"
+    },
+    {
+      "rank": 55,
+      "teamId": 16595297,
+      "teamName": "Evgeniy Zdoronok",
+      "submissionDate": "2026-08-10T23:38:58.523000",
+      "score": "1036.4"
+    },
+    {
+      "rank": 56,
+      "teamId": 16566110,
+      "teamName": "你好哇",
+      "submissionDate": "2026-08-11T12:19:49.090000",
+      "score": "1035.3"
+    },
+    {
+      "rank": 57,
+      "teamId": 16464168,
+      "teamName": "Pokémon Day Care",
+      "submissionDate": "2026-08-10T10:06:06.036000",
+      "score": "1033.0"
+    },
+    {
+      "rank": 58,
+      "teamId": 16411029,
+      "teamName": "ANDPAD kaggler team",
+      "submissionDate": "2026-08-11T05:09:58.643000",
+      "score": "1028.8"
+    },
+    {
+      "rank": 59,
+      "teamId": 16375320,
+      "teamName": "カントー地方マスター(KantoRegionMaster)",
+      "submissionDate": "2026-08-11T13:19:41.466000",
+      "score": "1027.2"
+    },
+    {
+      "rank": 60,
+      "teamId": 16569286,
+      "teamName": "Kh0a",
+      "submissionDate": "2026-08-11T11:37:42.706000",
+      "score": "1026.7"
+    },
+    {
+      "rank": 61,
+      "teamId": 16662831,
+      "teamName": "sobameshi",
+      "submissionDate": "2026-08-11T05:56:00.976000",
+      "score": "1026.3"
+    },
+    {
+      "rank": 62,
+      "teamId": 16501184,
+      "teamName": "takayosi",
+      "submissionDate": "2026-08-09T11:30:53.096000",
+      "score": "1025.6"
+    },
+    {
+      "rank": 63,
+      "teamId": 16448747,
+      "teamName": "Luca",
+      "submissionDate": "2026-08-10T04:37:10.576000",
+      "score": "1025.4"
+    },
+    {
+      "rank": 64,
+      "teamId": 16553431,
+      "teamName": "pokemon master",
+      "submissionDate": "2026-08-11T13:12:20.596000",
+      "score": "1024.3"
+    },
+    {
+      "rank": 65,
+      "teamId": 16443122,
+      "teamName": "motono0223",
+      "submissionDate": "2026-08-11T14:40:56.620000",
+      "score": "1024.1"
+    },
+    {
+      "rank": 66,
+      "teamId": 16487905,
+      "teamName": "Latios17",
+      "submissionDate": "2026-08-11T03:21:53.953000",
+      "score": "1024.0"
+    },
+    {
+      "rank": 67,
+      "teamId": 16514878,
+      "teamName": "哈基米南北绿豆",
+      "submissionDate": "2026-08-11T00:17:28.950000",
+      "score": "1023.9"
+    },
+    {
+      "rank": 68,
+      "teamId": 16371945,
+      "teamName": "しんぴのしずく💧",
+      "submissionDate": "2026-08-10T00:45:33.090000",
+      "score": "1022.1"
+    },
+    {
+      "rank": 69,
+      "teamId": 16372422,
+      "teamName": "ei1333",
+      "submissionDate": "2026-08-06T10:38:03.686000",
+      "score": "1018.3"
+    },
+    {
+      "rank": 70,
+      "teamId": 16379289,
+      "teamName": "wkonishi",
+      "submissionDate": "2026-08-11T06:41:03.830000",
+      "score": "1018.0"
+    },
+    {
+      "rank": 71,
+      "teamId": 16639251,
+      "teamName": "Can",
+      "submissionDate": "2026-08-11T12:45:55.473000",
+      "score": "1017.8"
+    },
+    {
+      "rank": 72,
+      "teamId": 16602856,
+      "teamName": "GuerillaMoon",
+      "submissionDate": "2026-08-10T22:37:21.996000",
+      "score": "1016.4"
+    },
+    {
+      "rank": 73,
+      "teamId": 16507505,
+      "teamName": "Roman Nesterov",
+      "submissionDate": "2026-08-11T08:15:40.853000",
+      "score": "1016.2"
+    },
+    {
+      "rank": 74,
+      "teamId": 16450716,
+      "teamName": "Confusion",
+      "submissionDate": "2026-08-06T18:51:04.843000",
+      "score": "1013.4"
+    },
+    {
+      "rank": 75,
+      "teamId": 16375404,
+      "teamName": "tktkyamyam",
+      "submissionDate": "2026-08-06T10:41:14.666000",
+      "score": "1013.0"
+    },
+    {
+      "rank": 76,
+      "teamId": 16657932,
+      "teamName": "Byer Script",
+      "submissionDate": "2026-08-10T04:45:14.520000",
+      "score": "1011.5"
+    },
+    {
+      "rank": 77,
+      "teamId": 16543375,
+      "teamName": "我脑子不太好",
+      "submissionDate": "2026-08-11T13:43:11.556000",
+      "score": "1010.0"
+    },
+    {
+      "rank": 78,
+      "teamId": 16376582,
+      "teamName": "Arthurs Torres24",
+      "submissionDate": "2026-08-10T15:41:48.203000",
+      "score": "1008.2"
+    },
+    {
+      "rank": 79,
+      "teamId": 16675930,
+      "teamName": "Shang Bo",
+      "submissionDate": "2026-08-11T13:53:10.796000",
+      "score": "1007.3"
+    },
+    {
+      "rank": 80,
+      "teamId": 16373713,
+      "teamName": "Dakuma",
+      "submissionDate": "2026-08-10T03:20:51.513000",
+      "score": "1006.8"
+    },
+    {
+      "rank": 81,
+      "teamId": 16541520,
+      "teamName": "cabbage patch",
+      "submissionDate": "2026-08-11T08:51:44.210000",
+      "score": "1006.7"
+    },
+    {
+      "rank": 82,
+      "teamId": 16389304,
+      "teamName": "K.Yoshida",
+      "submissionDate": "2026-08-09T14:32:19.416000",
+      "score": "1006.2"
+    },
+    {
+      "rank": 83,
+      "teamId": 16400698,
+      "teamName": "MarineYY",
+      "submissionDate": "2026-08-11T11:40:22.760000",
+      "score": "1005.9"
+    },
+    {
+      "rank": 84,
+      "teamId": 16442659,
+      "teamName": "cununn",
+      "submissionDate": "2026-08-11T14:38:44.846000",
+      "score": "1005.5"
+    },
+    {
+      "rank": 85,
+      "teamId": 16395439,
+      "teamName": "YumeNeko",
+      "submissionDate": "2026-08-10T03:34:14.790000",
+      "score": "1004.5"
+    },
+    {
+      "rank": 86,
+      "teamId": 16675594,
+      "teamName": "pikapika",
+      "submissionDate": "2026-08-10T12:34:45.553000",
+      "score": "1003.9"
+    },
+    {
+      "rank": 87,
+      "teamId": 16561141,
+      "teamName": "A. R. SEKKAT",
+      "submissionDate": "2026-08-11T03:38:52.240000",
+      "score": "1003.3"
+    },
+    {
+      "rank": 88,
+      "teamId": 16468429,
+      "teamName": "hinox13",
+      "submissionDate": "2026-08-10T17:34:00.983000",
+      "score": "1001.7"
+    },
+    {
+      "rank": 89,
+      "teamId": 16431331,
+      "teamName": "insuperabilehart",
+      "submissionDate": "2026-08-11T13:20:18.933000",
+      "score": "1000.4"
+    },
+    {
+      "rank": 90,
+      "teamId": 16601361,
+      "teamName": "パチリス",
+      "submissionDate": "2026-08-11T09:50:46.986000",
+      "score": "1000.1"
+    },
+    {
+      "rank": 91,
+      "teamId": 16378002,
+      "teamName": "Battle Data Base",
+      "submissionDate": "2026-08-11T10:42:06.233000",
+      "score": "997.6"
+    },
+    {
+      "rank": 92,
+      "teamId": 16376465,
+      "teamName": "monnosuke",
+      "submissionDate": "2026-08-11T13:52:42.876000",
+      "score": "997.1"
+    },
+    {
+      "rank": 93,
+      "teamId": 16566841,
+      "teamName": "Yan",
+      "submissionDate": "2026-08-05T03:01:36.556000",
+      "score": "996.6"
+    },
+    {
+      "rank": 94,
+      "teamId": 16379316,
+      "teamName": "yumizu",
+      "submissionDate": "2026-08-11T09:22:42.476000",
+      "score": "996.4"
+    },
+    {
+      "rank": 95,
+      "teamId": 16676325,
+      "teamName": "huaiyuyoung",
+      "submissionDate": "2026-08-11T07:53:26.270000",
+      "score": "996.2"
+    },
+    {
+      "rank": 96,
+      "teamId": 16378507,
+      "teamName": "Magist",
+      "submissionDate": "2026-08-11T12:59:52.610000",
+      "score": "995.0"
+    },
+    {
+      "rank": 97,
+      "teamId": 16406640,
+      "teamName": "gecogeco",
+      "submissionDate": "2026-08-11T07:59:41.620000",
+      "score": "995.0"
+    },
+    {
+      "rank": 98,
+      "teamId": 16384286,
+      "teamName": "S. B.",
+      "submissionDate": "2026-08-08T07:27:29.380000",
+      "score": "993.3"
+    },
+    {
+      "rank": 99,
+      "teamId": 16382207,
+      "teamName": "Lunariz",
+      "submissionDate": "2026-08-11T12:25:05.446000",
+      "score": "992.7"
+    },
+    {
+      "rank": 100,
+      "teamId": 16388477,
+      "teamName": "Alan_Nasibullin",
+      "submissionDate": "2026-08-11T10:44:18.193000",
+      "score": "992.2"
+    },
+    {
+      "rank": 101,
+      "teamId": 16445258,
+      "teamName": "MTADA",
+      "submissionDate": "2026-08-11T13:38:35.190000",
+      "score": "991.1"
+    },
+    {
+      "rank": 102,
+      "teamId": 16536318,
+      "teamName": "李秉叡（ntumlnoob）",
+      "submissionDate": "2026-08-11T14:24:59.736000",
+      "score": "990.3"
+    },
+    {
+      "rank": 103,
+      "teamId": 16462035,
+      "teamName": "Azat Akhtyamov",
+      "submissionDate": "2026-08-11T00:55:55.896000",
+      "score": "989.9"
+    },
+    {
+      "rank": 104,
+      "teamId": 16505594,
+      "teamName": "Pokemon Fan",
+      "submissionDate": "2026-08-11T06:59:45.603000",
+      "score": "989.6"
+    },
+    {
+      "rank": 105,
+      "teamId": 16559688,
+      "teamName": "What Lucario",
+      "submissionDate": "2026-08-11T12:54:53.980000",
+      "score": "989.5"
+    },
+    {
+      "rank": 106,
+      "teamId": 16378553,
+      "teamName": "EliKal",
+      "submissionDate": "2026-08-11T12:55:00.523000",
+      "score": "989.3"
+    },
+    {
+      "rank": 107,
+      "teamId": 16471516,
+      "teamName": "wally0593",
+      "submissionDate": "2026-08-10T11:28:47.660000",
+      "score": "989.1"
+    },
+    {
+      "rank": 108,
+      "teamId": 16371723,
+      "teamName": "RtoABC",
+      "submissionDate": "2026-08-11T12:54:49.343000",
+      "score": "988.6"
+    },
+    {
+      "rank": 109,
+      "teamId": 16382115,
+      "teamName": "BluesLeeTW",
+      "submissionDate": "2026-08-10T11:17:39.073000",
+      "score": "988.2"
+    },
+    {
+      "rank": 110,
+      "teamId": 16381145,
+      "teamName": "G",
+      "submissionDate": "2026-08-11T13:37:38.573000",
+      "score": "987.9"
+    },
+    {
+      "rank": 111,
+      "teamId": 16388364,
+      "teamName": "miya",
+      "submissionDate": "2026-08-11T11:26:13.623000",
+      "score": "987.8"
+    },
+    {
+      "rank": 112,
+      "teamId": 16372765,
+      "teamName": "Mega Regigigas Ex Vmax",
+      "submissionDate": "2026-08-09T12:37:35.656000",
+      "score": "987.3"
+    },
+    {
+      "rank": 113,
+      "teamId": 16372608,
+      "teamName": "cm391",
+      "submissionDate": "2026-08-08T08:11:31.376000",
+      "score": "986.8"
+    },
+    {
+      "rank": 114,
+      "teamId": 16446941,
+      "teamName": "pikachu",
+      "submissionDate": "2026-08-09T02:04:19.953000",
+      "score": "986.7"
+    },
+    {
+      "rank": 115,
+      "teamId": 16566874,
+      "teamName": "kwa",
+      "submissionDate": "2026-08-10T15:38:55.963000",
+      "score": "986.7"
+    },
+    {
+      "rank": 116,
+      "teamId": 16487165,
+      "teamName": "yoshitaka agent",
+      "submissionDate": "2026-08-11T14:22:53.446000",
+      "score": "986.2"
+    },
+    {
+      "rank": 117,
+      "teamId": 16672708,
+      "teamName": "Dylan Xue",
+      "submissionDate": "2026-08-11T11:52:14.753000",
+      "score": "985.5"
+    },
+    {
+      "rank": 118,
+      "teamId": 16371427,
+      "teamName": "bono",
+      "submissionDate": "2026-08-11T11:49:30.280000",
+      "score": "985.4"
+    },
+    {
+      "rank": 119,
+      "teamId": 16630732,
+      "teamName": "BC+",
+      "submissionDate": "2026-08-09T06:46:22.530000",
+      "score": "985.3"
+    },
+    {
+      "rank": 120,
+      "teamId": 16693061,
+      "teamName": "Shoko",
+      "submissionDate": "2026-08-11T14:17:03.426000",
+      "score": "985.3"
+    },
+    {
+      "rank": 121,
+      "teamId": 16668226,
+      "teamName": "kanno",
+      "submissionDate": "2026-08-11T12:51:16.553000",
+      "score": "984.8"
+    },
+    {
+      "rank": 122,
+      "teamId": 16391395,
+      "teamName": "djschmit",
+      "submissionDate": "2026-08-05T04:32:57.163000",
+      "score": "983.4"
+    },
+    {
+      "rank": 123,
+      "teamId": 16427180,
+      "teamName": "typeIIIfairy",
+      "submissionDate": "2026-08-11T12:18:00.286000",
+      "score": "983.0"
+    },
+    {
+      "rank": 124,
+      "teamId": 16462943,
+      "teamName": "Ghleii",
+      "submissionDate": "2026-07-24T09:40:39.523000",
+      "score": "982.5"
+    },
+    {
+      "rank": 125,
+      "teamId": 16454280,
+      "teamName": "qb",
+      "submissionDate": "2026-08-07T15:55:47.306000",
+      "score": "982.4"
+    },
+    {
+      "rank": 126,
+      "teamId": 16454068,
+      "teamName": "Where is my orbit",
+      "submissionDate": "2026-07-24T20:33:58.450000",
+      "score": "981.0"
+    },
+    {
+      "rank": 127,
+      "teamId": 16428695,
+      "teamName": "redblackbst",
+      "submissionDate": "2026-08-11T13:27:54.850000",
+      "score": "979.9"
+    },
+    {
+      "rank": 128,
+      "teamId": 16683726,
+      "teamName": "Pikachu out",
+      "submissionDate": "2026-08-10T02:30:26.950000",
+      "score": "979.3"
+    },
+    {
+      "rank": 129,
+      "teamId": 16483241,
+      "teamName": "☕ Psyduck Needs Coffee",
+      "submissionDate": "2026-08-07T15:47:01.296000",
+      "score": "979.2"
+    },
+    {
+      "rank": 130,
+      "teamId": 16555679,
+      "teamName": "低消650元任你吃啊",
+      "submissionDate": "2026-08-11T02:48:24.743000",
+      "score": "978.8"
+    },
+    {
+      "rank": 131,
+      "teamId": 16411874,
+      "teamName": "Juyong",
+      "submissionDate": "2026-08-07T23:11:11.983000",
+      "score": "978.5"
+    },
+    {
+      "rank": 132,
+      "teamId": 16378476,
+      "teamName": "aaa",
+      "submissionDate": "2026-08-11T10:53:32.296000",
+      "score": "977.3"
+    },
+    {
+      "rank": 133,
+      "teamId": 16542009,
+      "teamName": "Ken Zhou",
+      "submissionDate": "2026-08-10T20:10:50.590000",
+      "score": "977.0"
+    },
+    {
+      "rank": 134,
+      "teamId": 16589783,
+      "teamName": "GPT-5.6 Sol🏆",
+      "submissionDate": "2026-08-09T04:17:03.500000",
+      "score": "976.2"
+    },
+    {
+      "rank": 135,
+      "teamId": 16414053,
+      "teamName": "タニシ",
+      "submissionDate": "2026-08-11T10:41:19.743000",
+      "score": "975.4"
+    },
+    {
+      "rank": 136,
+      "teamId": 16385383,
+      "teamName": "hatata",
+      "submissionDate": "2026-08-11T09:37:39.690000",
+      "score": "975.3"
+    },
+    {
+      "rank": 137,
+      "teamId": 16473278,
+      "teamName": "lll",
+      "submissionDate": "2026-08-08T21:41:41.666000",
+      "score": "974.9"
+    },
+    {
+      "rank": 138,
+      "teamId": 16474254,
+      "teamName": "fishcat",
+      "submissionDate": "2026-08-11T13:10:55.106000",
+      "score": "974.4"
+    },
+    {
+      "rank": 139,
+      "teamId": 16436573,
+      "teamName": "Yigit Kayali",
+      "submissionDate": "2026-08-07T04:46:41.480000",
+      "score": "974.0"
+    },
+    {
+      "rank": 140,
+      "teamId": 16668084,
+      "teamName": "dasfds",
+      "submissionDate": "2026-08-10T11:04:11.996000",
+      "score": "973.6"
+    },
+    {
+      "rank": 141,
+      "teamId": 16374469,
+      "teamName": "西松大祐",
+      "submissionDate": "2026-08-11T12:56:04.370000",
+      "score": "972.8"
+    },
+    {
+      "rank": 142,
+      "teamId": 16582540,
+      "teamName": "Ayanokoji Fan Club",
+      "submissionDate": "2026-08-11T06:28:00.990000",
+      "score": "972.6"
+    },
+    {
+      "rank": 143,
+      "teamId": 16431461,
+      "teamName": "Concord_k",
+      "submissionDate": "2026-08-10T03:22:10.303000",
+      "score": "972.5"
+    },
+    {
+      "rank": 144,
+      "teamId": 16372591,
+      "teamName": "Boseiju",
+      "submissionDate": "2026-08-10T19:21:34.083000",
+      "score": "971.6"
+    },
+    {
+      "rank": 145,
+      "teamId": 16455011,
+      "teamName": "mojyaP",
+      "submissionDate": "2026-08-10T17:14:14.203000",
+      "score": "970.0"
+    },
+    {
+      "rank": 146,
+      "teamId": 16389000,
+      "teamName": "Challengestone",
+      "submissionDate": "2026-08-10T15:20:21.056000",
+      "score": "969.6"
+    },
+    {
+      "rank": 147,
+      "teamId": 16685094,
+      "teamName": "LoomiLopster",
+      "submissionDate": "2026-08-11T14:55:01.930000",
+      "score": "969.4"
+    },
+    {
+      "rank": 148,
+      "teamId": 16633936,
+      "teamName": "Max Replays",
+      "submissionDate": "2026-08-10T03:04:24.810000",
+      "score": "969.0"
+    },
+    {
+      "rank": 149,
+      "teamId": 16377455,
+      "teamName": "POKEN",
+      "submissionDate": "2026-08-10T15:08:06.343000",
+      "score": "968.9"
+    },
+    {
+      "rank": 150,
+      "teamId": 16443196,
+      "teamName": "Changyuan Chen",
+      "submissionDate": "2026-08-07T04:14:09.680000",
+      "score": "968.7"
+    },
+    {
+      "rank": 151,
+      "teamId": 16514730,
+      "teamName": "kokun syu",
+      "submissionDate": "2026-08-10T01:45:29.186000",
+      "score": "968.6"
+    },
+    {
+      "rank": 152,
+      "teamId": 16454198,
+      "teamName": "隔壁老王",
+      "submissionDate": "2026-08-01T12:48:22.860000",
+      "score": "968.2"
+    },
+    {
+      "rank": 153,
+      "teamId": 16572463,
+      "teamName": "fsun",
+      "submissionDate": "2026-08-11T03:21:15.776000",
+      "score": "967.9"
+    },
+    {
+      "rank": 154,
+      "teamId": 16460880,
+      "teamName": "flxwld",
+      "submissionDate": "2026-08-08T10:42:46.040000",
+      "score": "967.1"
+    },
+    {
+      "rank": 155,
+      "teamId": 16671085,
+      "teamName": "pokewaves",
+      "submissionDate": "2026-08-11T04:06:07.486000",
+      "score": "966.4"
+    },
+    {
+      "rank": 156,
+      "teamId": 16374843,
+      "teamName": "あなまか",
+      "submissionDate": "2026-08-11T04:35:51.900000",
+      "score": "966.3"
+    },
+    {
+      "rank": 157,
+      "teamId": 16386246,
+      "teamName": "懒惰的金枪鱼",
+      "submissionDate": "2026-08-09T15:26:27.150000",
+      "score": "966.0"
+    },
+    {
+      "rank": 158,
+      "teamId": 16442375,
+      "teamName": "kkanayj",
+      "submissionDate": "2026-08-11T04:06:38.266000",
+      "score": "965.9"
+    },
+    {
+      "rank": 159,
+      "teamId": 16373846,
+      "teamName": "Gemini ch.",
+      "submissionDate": "2026-08-10T02:39:48.023000",
+      "score": "965.5"
+    },
+    {
+      "rank": 160,
+      "teamId": 16488476,
+      "teamName": "T.Suzuki",
+      "submissionDate": "2026-08-08T14:21:32.330000",
+      "score": "965.5"
+    },
+    {
+      "rank": 161,
+      "teamId": 16394599,
+      "teamName": "clora",
+      "submissionDate": "2026-08-10T23:32:28.383000",
+      "score": "965.0"
+    },
+    {
+      "rank": 162,
+      "teamId": 16374757,
+      "teamName": "kurigen",
+      "submissionDate": "2026-08-10T21:33:28.773000",
+      "score": "964.6"
+    },
+    {
+      "rank": 163,
+      "teamId": 16379865,
+      "teamName": "Abhyuday",
+      "submissionDate": "2026-08-09T14:05:17.773000",
+      "score": "964.5"
+    },
+    {
+      "rank": 164,
+      "teamId": 16395646,
+      "teamName": "KatR",
+      "submissionDate": "2026-08-11T01:53:13.536000",
+      "score": "964.3"
+    },
+    {
+      "rank": 165,
+      "teamId": 16541765,
+      "teamName": "less",
+      "submissionDate": "2026-08-10T13:19:19.790000",
+      "score": "963.9"
+    },
+    {
+      "rank": 166,
+      "teamId": 16505814,
+      "teamName": "john jiang zhifeng",
+      "submissionDate": "2026-08-09T00:42:31.910000",
+      "score": "963.8"
+    },
+    {
+      "rank": 167,
+      "teamId": 16684648,
+      "teamName": "Rikito Kanda",
+      "submissionDate": "2026-08-10T05:27:44.310000",
+      "score": "963.4"
+    },
+    {
+      "rank": 168,
+      "teamId": 16374432,
+      "teamName": "shg195",
+      "submissionDate": "2026-08-11T00:26:03.546000",
+      "score": "963.3"
+    },
+    {
+      "rank": 169,
+      "teamId": 16391123,
+      "teamName": "Iliamna",
+      "submissionDate": "2026-08-11T12:57:22.466000",
+      "score": "963.0"
+    },
+    {
+      "rank": 170,
+      "teamId": 16431351,
+      "teamName": "motemen",
+      "submissionDate": "2026-08-11T13:26:53.570000",
+      "score": "962.9"
+    },
+    {
+      "rank": 171,
+      "teamId": 16633777,
+      "teamName": "PKM Masters",
+      "submissionDate": "2026-08-09T12:18:28.366000",
+      "score": "962.7"
+    },
+    {
+      "rank": 172,
+      "teamId": 16376876,
+      "teamName": "Masatoshi Hidaka",
+      "submissionDate": "2026-08-05T01:37:44.290000",
+      "score": "962.3"
+    },
+    {
+      "rank": 173,
+      "teamId": 16633987,
+      "teamName": "full-auto agent",
+      "submissionDate": "2026-08-10T10:39:47.273000",
+      "score": "962.1"
+    },
+    {
+      "rank": 174,
+      "teamId": 16373089,
+      "teamName": "maco-macoo",
+      "submissionDate": "2026-08-10T13:32:59.543000",
+      "score": "961.9"
+    },
+    {
+      "rank": 175,
+      "teamId": 16538741,
+      "teamName": "I4Kaggle",
+      "submissionDate": "2026-08-06T19:03:36.936000",
+      "score": "961.3"
+    },
+    {
+      "rank": 176,
+      "teamId": 16386546,
+      "teamName": "Masaruto",
+      "submissionDate": "2026-08-09T16:31:47.366000",
+      "score": "960.9"
+    },
+    {
+      "rank": 177,
+      "teamId": 16377088,
+      "teamName": "syuuuuu",
+      "submissionDate": "2026-08-04T04:37:48.103000",
+      "score": "959.6"
+    },
+    {
+      "rank": 178,
+      "teamId": 16372029,
+      "teamName": "Jack",
+      "submissionDate": "2026-08-11T14:00:26.760000",
+      "score": "959.3"
+    },
+    {
+      "rank": 179,
+      "teamId": 16482183,
+      "teamName": "haruto",
+      "submissionDate": "2026-08-11T10:56:46.263000",
+      "score": "959.3"
+    },
+    {
+      "rank": 180,
+      "teamId": 16372307,
+      "teamName": "Team KASA.",
+      "submissionDate": "2026-08-11T09:46:31.613000",
+      "score": "958.8"
+    },
+    {
+      "rank": 181,
+      "teamId": 16371606,
+      "teamName": "Pokér-man",
+      "submissionDate": "2026-07-30T02:13:44.666000",
+      "score": "957.6"
+    },
+    {
+      "rank": 182,
+      "teamId": 16514497,
+      "teamName": "beeyan",
+      "submissionDate": "2026-08-09T13:43:06.590000",
+      "score": "957.3"
+    },
+    {
+      "rank": 183,
+      "teamId": 16585099,
+      "teamName": "luck is all you need",
+      "submissionDate": "2026-08-11T14:22:27.940000",
+      "score": "957.0"
+    },
+    {
+      "rank": 184,
+      "teamId": 16533373,
+      "teamName": "Roman Stupin",
+      "submissionDate": "2026-08-11T09:01:41.173000",
+      "score": "956.8"
+    },
+    {
+      "rank": 185,
+      "teamId": 16397982,
+      "teamName": "NorthStar",
+      "submissionDate": "2026-08-09T19:04:21.710000",
+      "score": "954.7"
+    },
+    {
+      "rank": 186,
+      "teamId": 16385751,
+      "teamName": "neuro168",
+      "submissionDate": "2026-08-11T14:55:24.196000",
+      "score": "954.5"
+    },
+    {
+      "rank": 187,
+      "teamId": 16416261,
+      "teamName": "Petit Canard",
+      "submissionDate": "2026-08-08T20:40:31.790000",
+      "score": "954.4"
+    },
+    {
+      "rank": 188,
+      "teamId": 16582756,
+      "teamName": "BhavitB",
+      "submissionDate": "2026-08-10T08:19:06.726000",
+      "score": "953.7"
+    },
+    {
+      "rank": 189,
+      "teamId": 16516416,
+      "teamName": "Dragon Ball Z",
+      "submissionDate": "2026-08-11T04:12:09.326000",
+      "score": "953.3"
+    },
+    {
+      "rank": 190,
+      "teamId": 16488765,
+      "teamName": "Scio",
+      "submissionDate": "2026-08-09T15:04:24.666000",
+      "score": "952.9"
+    },
+    {
+      "rank": 191,
+      "teamId": 16372394,
+      "teamName": "rmizuta",
+      "submissionDate": "2026-08-11T03:00:02.420000",
+      "score": "952.5"
+    },
+    {
+      "rank": 192,
+      "teamId": 16377682,
+      "teamName": "Mint120",
+      "submissionDate": "2026-08-10T03:53:19.803000",
+      "score": "952.0"
+    },
+    {
+      "rank": 193,
+      "teamId": 16376912,
+      "teamName": "Gyoukou",
+      "submissionDate": "2026-08-11T09:25:12.553000",
+      "score": "951.9"
+    },
+    {
+      "rank": 194,
+      "teamId": 16441839,
+      "teamName": "stardom",
+      "submissionDate": "2026-08-11T13:44:29.446000",
+      "score": "951.3"
+    },
+    {
+      "rank": 195,
+      "teamId": 16381127,
+      "teamName": "Boss's Orders Are All You Need",
+      "submissionDate": "2026-08-11T12:50:40.226000",
+      "score": "950.6"
+    },
+    {
+      "rank": 196,
+      "teamId": 16377338,
+      "teamName": "JiMing Feng",
+      "submissionDate": "2026-08-10T08:54:28.690000",
+      "score": "950.5"
+    },
+    {
+      "rank": 197,
+      "teamId": 16381755,
+      "teamName": "MoriBob",
+      "submissionDate": "2026-08-11T02:06:54.176000",
+      "score": "950.5"
+    },
+    {
+      "rank": 198,
+      "teamId": 16382190,
+      "teamName": "nsytsqdtn",
+      "submissionDate": "2026-08-11T10:51:48.293000",
+      "score": "949.9"
+    },
+    {
+      "rank": 199,
+      "teamId": 16390101,
+      "teamName": "Pokopia",
+      "submissionDate": "2026-08-11T14:51:50.736000",
+      "score": "949.9"
+    },
+    {
+      "rank": 200,
+      "teamId": 16493834,
+      "teamName": "浅田浩一",
+      "submissionDate": "2026-08-07T16:22:44.396000",
+      "score": "949.8"
+    }
+  ]
+}
