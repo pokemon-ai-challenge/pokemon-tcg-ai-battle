@@ -37,6 +37,7 @@ import json
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -45,9 +46,12 @@ from _common import (  # noqa: E402
     append_master_rows,
     build_master_rows,
     download_replay,
+    download_replays_parallel,
     fetch_episodes,
+    get_retry_stats,
     load_existing_episode_ids,
     run_kaggle_json,
+    set_min_interval,
 )
 
 
@@ -91,7 +95,20 @@ def main() -> None:
         help="API呼び出し間隔(秒)。kaggle CLI自体の起動コストが1回あたり約1〜2秒あるため、"
         "この値を下げても速度への影響は限定的(体感を大きく変えたいなら --max-episodes を絞る方が効果的)",
     )
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="ダウンロード/メタデータ取得の並列数(既定1=逐次、従来どおり)。1件あたり実測約5秒で"
+        "ほぼI/O待ちのため、数千件取得するときは6〜8程度にすると大幅に短縮できる",
+    )
+    parser.add_argument(
+        "--min-interval", type=float, default=None,
+        help="kaggle CLI 呼び出しの最小間隔(秒、全スレッド共有)。並列時に429を避けるための"
+        "レート制限。既定は workers>1 のとき0.7、逐次のとき0(従来どおり)",
+    )
     args = parser.parse_args()
+
+    min_interval = args.min_interval if args.min_interval is not None else (0.7 if args.workers > 1 else 0.0)
+    set_min_interval(min_interval)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -130,37 +147,63 @@ def main() -> None:
         for rank, row in enumerate(leaderboard, 1)
     }
 
-    print(f"[2/5] 各チームの提出IDを取得(チームごと最新{args.submissions_per_team}件)")
-    submission_ids: list[int] = []
-    for row in leaderboard:
+    def _team_submissions(row: dict) -> list[int]:
         team_id = row["teamId"]
         try:
             subs = fetch_team_submission_ids(team_id)
         except subprocess.CalledProcessError as e:
             print(f"  警告: team {team_id} ({row['teamName']}) の提出取得に失敗: {e.stderr}", file=sys.stderr)
-            continue
-        submission_ids.extend(subs[: args.submissions_per_team])
+            return []
         time.sleep(args.sleep)
+        return subs[: args.submissions_per_team]
 
-    print(f"[3/5] エピソード一覧を取得({len(submission_ids)}件の提出から)")
-    episode_meta: dict[str, dict] = {}
-    for sub_id in submission_ids:
+    def _submission_episodes(sub_id: int) -> list[dict]:
         try:
             episodes = fetch_episodes(sub_id)
         except subprocess.CalledProcessError as e:
             print(f"  警告: submission {sub_id} のエピソード取得に失敗: {e.stderr}", file=sys.stderr)
-            continue
+            return []
+        time.sleep(args.sleep)
+        return episodes
+
+    # メタデータ取得も kaggle CLI 1回あたり1〜2秒かかり、チーム数に比例して効いてくる
+    # (200チームで約10分)。ダウンロードと同じ --workers でここも並列化する。
+    print(f"[2/5] 各チームの提出IDを取得(チームごと最新{args.submissions_per_team}件, workers={args.workers})")
+    submission_ids: list[int] = []
+    if args.workers > 1:
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            for subs in pool.map(_team_submissions, leaderboard):
+                submission_ids.extend(subs)
+    else:
+        for row in leaderboard:
+            submission_ids.extend(_team_submissions(row))
+
+    print(f"[3/5] エピソード一覧を取得({len(submission_ids)}件の提出から)")
+    episode_meta: dict[str, dict] = {}
+    if args.workers > 1:
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            episode_lists = list(pool.map(_submission_episodes, submission_ids))
+    else:
+        episode_lists = [_submission_episodes(sub_id) for sub_id in submission_ids]
+    for episodes in episode_lists:
         for ep in episodes:
             episode_meta[str(ep["id"])] = ep
-        time.sleep(args.sleep)
 
     episode_id_list = sorted(episode_meta.keys(), key=int)
     if args.max_episodes is not None and args.max_episodes > 0:
         episode_id_list = episode_id_list[-args.max_episodes:]
 
-    print(f"[4/5] リプレイ{len(episode_id_list)}件をダウンロード -> {out_dir}")
+    print(f"[4/5] リプレイ{len(episode_id_list)}件をダウンロード -> {out_dir} (workers={args.workers})")
     downloaded: list[str] = []
-    for i, eid in enumerate(episode_id_list, 1):
+    if args.workers > 1:
+        ok, failed = download_replays_parallel(episode_id_list, out_dir, args.workers)
+        downloaded = [str(out_dir / f"episode-{eid}-replay.json") for eid in ok]
+        if failed:
+            print(f"  {len(failed)}件のダウンロードに失敗しました(再実行すれば続きから取得できます)")
+        episode_id_list_iter: list[str] = []
+    else:
+        episode_id_list_iter = episode_id_list
+    for i, eid in enumerate(episode_id_list_iter, 1):
         dest = out_dir / f"episode-{eid}-replay.json"
         if dest.exists():
             print(f"  ({i}/{len(episode_id_list)}) episode {eid} は取得済み、スキップ")
@@ -191,6 +234,7 @@ def main() -> None:
         f"完了: リプレイ{len(downloaded)}件を保存、"
         f"マスターインデックスに{len(new_rows)}件を追記、"
         f"リーダーボードスナップショットを {leaderboard_snapshot_path} に保存しました"
+        f"(429再試行 {get_retry_stats()['429']}回, min-interval={min_interval}s)"
     )
 
 
