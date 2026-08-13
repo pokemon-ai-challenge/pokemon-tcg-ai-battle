@@ -379,12 +379,19 @@ def _process_saved_state(item: dict, determinizations: int, full_deck: list[int]
     from cg import api as cg_api
     from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
 
+    from ptcg_ai.learning import ogerpon_strategy_encoder as ENC
+
     obs = item["obs"]
     ex_candidate, single_candidate = item["pair"]
     learner_index = item["learner_index"]
     opp_pm = _W["opp_models"][item["opponent_weights_path"]]
     state_id = state_id_of(obs.current)
     rng = random.Random((hash((item["match_seed"], item["turn"], state_id))) & 0xFFFFFFFF)
+
+    # continuous_features/slot_card_idsはOption間で共通(同じ発火局面の盤面)。option_features
+    # だけOptionごとに異なる。ここで1回だけ計算し、Option x 決定化のループ全体で使い回す。
+    encoded = ENC.encode_strategy_pair(obs, learner_index, (ex_candidate, single_candidate))
+
     records: list[dict] = []
     try:
         for det_id in range(determinizations):
@@ -405,11 +412,9 @@ def _process_saved_state(item: dict, determinizations: int, full_deck: list[int]
                     "learner_index": learner_index,
                     "trigger_kind": item["trigger_kind"],
                     "option_name": candidate.option_name,
-                    # Phase3のogerpon_strategy_encoderが実装されるまでは空配列のまま
-                    # (design.md §9.5のスキーマ例自体も空配列で示されている)。
-                    "continuous_features": [],
-                    "slot_card_ids": [],
-                    "option_features": [],
+                    "continuous_features": encoded["continuous_features"],
+                    "slot_card_ids": encoded["slot_card_ids"],
+                    "option_features": encoded["option_features"][candidate.option_name],
                     "first_action_identity": {
                         "first_action": candidate.first_action,
                         "target_serial": candidate.target_serial,
