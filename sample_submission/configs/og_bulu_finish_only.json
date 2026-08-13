@@ -1,0 +1,49 @@
+{
+  "name": "og_bulu_finish_only",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 3,
+    "time_limit_ms": 100,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {
+      "kind": "handcrafted"
+    },
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  },
+  "_note": "0/1エネから無理に育てず、2/3エネまで育ったブルルの完成だけを後押しする最終候補。旧ogerpon_planner補正(交代の壁ボーナス等)は enabled をfalseのままにして完全OFF。専用キー ogerpon_finish_only のみで駆動する。",
+  "ogerpon_planner": {
+    "enabled": false,
+    "main_enabled": false,
+    "attach_enabled": false
+  },
+  "ogerpon_finish_only": {
+    "enabled": true,
+    "shadow_only": false,
+    "cap_tier2": 0.03,
+    "cap_tier3": 0.08,
+    "w_tier2": 0.02,
+    "w_tier3": 0.06,
+    "w_required_ko_increase": 0.02,
+    "switch_bonus": 0.05
+  }
+}

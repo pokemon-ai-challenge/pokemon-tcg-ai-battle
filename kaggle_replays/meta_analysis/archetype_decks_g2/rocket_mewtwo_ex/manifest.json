@@ -1,0 +1,45 @@
+{
+  "archetype": "rocket_mewtwo_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Lunariz",
+      "rank_at_fetch": 99,
+      "leaderboard_score": 992.7,
+      "episode_id": "91975589",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "flxwld",
+      "rank_at_fetch": 154,
+      "leaderboard_score": 967.1,
+      "episode_id": "91931157",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "【ＡＩと共に、ＡＩと戦う】tubotu",
+      "rank_at_fetch": 225,
+      "leaderboard_score": 941.4,
+      "episode_id": "91932131",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "Flying Banana",
+      "rank_at_fetch": 499,
+      "leaderboard_score": 870.8,
+      "episode_id": "91970352",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "Magikarp",
+      "rank_at_fetch": 632,
+      "leaderboard_score": 849.4,
+      "episode_id": "91931986",
+      "player_index": 0
+    }
+  ]
+}

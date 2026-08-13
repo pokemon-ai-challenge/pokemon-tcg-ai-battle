@@ -128,6 +128,15 @@ def get_opponent_state(player_index: int) -> OpponentHiddenState:
     return state
 
 
+def get_opponent_knowledge(player_index: int) -> "OpponentKnowledge | None":
+    """``player_index`` の ``OpponentKnowledge``(相手デッキ推定の生データ)を返す。
+
+    アーキタイプルーター(``ml_policy.policy_registry``)が ``rough_predictor.predict()`` に
+    渡すために追加(update() 未呼び出し・reset直後は None)。
+    """
+    return _knowledge.get(player_index)
+
+
 def update(obs: Observation) -> None:
     """毎ターン、``rule_based_agent.agent(obs)`` の先頭で呼ぶ。
 

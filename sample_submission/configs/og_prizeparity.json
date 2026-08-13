@@ -1,0 +1,35 @@
+{
+  "name": "og_prizeparity",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 3,
+    "time_limit_ms": 100,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {
+      "kind": "handcrafted",
+      "prize_parity_coeff": 0.3
+    },
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  },
+  "_note": "abl_5_full にサイド価値(必要KO数)項を足しただけ。他は完全に同一。既存の prize_advantage はサイドの枚数しか見ず、全部ex の盤面と1枚ポケモンを混ぜた盤面を区別できないため、サイドが偶数のときにカプ・ブルル(1枚)を前に出して相手の勝ち筋を1KO遠のかせるプレイを探索が発見できなかった。その修正。"
+}

@@ -1,0 +1,45 @@
+{
+  "archetype": "archaludon_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "pepe",
+      "rank_at_fetch": 468,
+      "leaderboard_score": 875.0,
+      "episode_id": "91936527",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "DX Cao",
+      "rank_at_fetch": 498,
+      "leaderboard_score": 870.9,
+      "episode_id": "91972104",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "Yusuraume",
+      "rank_at_fetch": 507,
+      "leaderboard_score": 868.8,
+      "episode_id": "91966540",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "magu1234",
+      "rank_at_fetch": 557,
+      "leaderboard_score": 859.5,
+      "episode_id": "91925503",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "Kun Zhang",
+      "rank_at_fetch": 583,
+      "leaderboard_score": 855.6,
+      "episode_id": "91962900",
+      "player_index": 1
+    }
+  ]
+}

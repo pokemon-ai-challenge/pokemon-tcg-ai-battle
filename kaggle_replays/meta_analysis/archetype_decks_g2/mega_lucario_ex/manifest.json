@@ -1,0 +1,45 @@
+{
+  "archetype": "mega_lucario_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "やる気元気ミワハルキ",
+      "rank_at_fetch": 2,
+      "leaderboard_score": 1206.9,
+      "episode_id": "91934836",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "Majkel1337",
+      "rank_at_fetch": 3,
+      "leaderboard_score": 1201.1,
+      "episode_id": "91925488",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "DavidFreelan",
+      "rank_at_fetch": 29,
+      "leaderboard_score": 1076.4,
+      "episode_id": "91946120",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "Abhyuday",
+      "rank_at_fetch": 163,
+      "leaderboard_score": 964.5,
+      "episode_id": "91902044",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "Gyoukou",
+      "rank_at_fetch": 193,
+      "leaderboard_score": 951.9,
+      "episode_id": "91933551",
+      "player_index": 0
+    }
+  ]
+}

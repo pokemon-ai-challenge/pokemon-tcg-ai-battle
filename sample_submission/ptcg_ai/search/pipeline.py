@@ -256,6 +256,21 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
             return top1 if _is_legal_selection(top1, select) else None
 
         candidate_indices = _select_candidate_indices(select, ranked, config)
+        # デッキ専用の「戦略候補」注入口(既定 None = 何もしない)。extra_candidate_types
+        # (OptionType 全件を無条件に足す)と違い、呼び出し側が1件だけ厳選して追加できる。
+        # 例: オーガポンの控えアタッカーへの手貼りのうち最も価値の高い1件だけを、
+        # Policy top-k に入っていなくても候補へ加える(Policy top-4 + 戦略候補1件 = 最大5件)。
+        extra_fn = context.get("extra_candidate_indices_fn")
+        if extra_fn is not None:
+            try:
+                for i in (extra_fn(obs, select, candidate_indices) or []):
+                    if isinstance(i, int) and 0 <= i < len(select.option) and i not in candidate_indices:
+                        candidate_indices.append(i)
+            except Exception:
+                pass
+        max_candidates = int(config.get("max_candidates", 8))
+        if max_candidates > 0:
+            candidate_indices = candidate_indices[:max_candidates]
         candidates = [[i] for i in candidate_indices]
 
         evaluator = context.get("leaf_evaluator") or leaf_eval_module.build_evaluator(config.get("leaf_eval"))
@@ -299,11 +314,74 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
         if not scored:
             return None
 
+        # Step5': デッキ専用のリソース評価を **PIMC スコアを捨てずに** 合成する。
+        # 既定では bonus_fn が無いので何も起きない(従来挙動そのまま)。
+        # 「にげる」と「現在のポケモンで続行」が同じ scored の上で比較されるため、
+        # 二重介入(MAIN を別ロジックで上書きする)にはならない。
+        bonus_fn = context.get("candidate_bonus_fn")
+        shadow = {}
+        if bonus_fn is not None:
+            try:
+                pimc_only_best = max(scored, key=lambda i: scored[i])
+                bonuses = bonus_fn(obs, me, list(scored.keys())) or {}
+                # スケール確認用の内訳。retreat 候補と非 retreat 候補を分けて記録する。
+                retreat_idx = [i for i in scored if i in bonuses]
+                non_retreat = [i for i in scored if i not in bonuses]
+                best_non_retreat = max((scored[i] for i in non_retreat), default=None)
+                best_retreat = max((scored[i] for i in retreat_idx), default=None)
+                # planner_scores = PIMCスコア + bonus。shadow_only の値に関わらず**常に**計算する
+                # (「PIMC評価を再実行せず、既に得た scored からOFF/ON両方の判断を導出する」ため。
+                # 実際にどちらを最終行動として採用するかは shadow_only で分岐する後段のみで決まる)。
+                planner_scores = {i: scored[i] + float(bonuses.get(i, 0.0)) for i in scored}
+                planner_decision = max(planner_scores, key=lambda i: planner_scores[i])
+
+                def _identity(opt):
+                    return (int(getattr(opt, "type", -1)), getattr(opt, "area", None),
+                           getattr(opt, "index", None), getattr(opt, "inPlayArea", None),
+                           getattr(opt, "inPlayIndex", None), getattr(opt, "playerIndex", None),
+                           getattr(opt, "cardId", None), getattr(opt, "serial", None),
+                           getattr(opt, "attackId", None))
+
+                shadow = {
+                    "pimc_scores": dict(scored), "bonuses": dict(bonuses),
+                    "pimc_only_best": pimc_only_best,
+                    "planner_scores": dict(planner_scores),
+                    "planner_decision": planner_decision,
+                    "best_non_retreat_pimc_score": best_non_retreat,
+                    "retreat_pimc_score": best_retreat,
+                    "pimc_margin": (None if (best_non_retreat is None or best_retreat is None)
+                                    else best_non_retreat - best_retreat),
+                    "planner_raw_bonus": (max(bonuses.values()) if bonuses else None),
+                    "bonus_applied": not config.get("resource_bonus_shadow_only", False),
+                    "candidate_option_types": {i: int(getattr(select.option[i], "type", -1))
+                                               for i in scored if i < len(select.option)},
+                    "candidate_option_identities": {i: _identity(select.option[i])
+                                                    for i in scored if i < len(select.option)},
+                    "all_option_types": [int(getattr(o, "type", -1)) for o in select.option],
+                    "extra_candidate_types_cfg": config.get("extra_candidate_types"),
+                }
+                if not config.get("resource_bonus_shadow_only", False):
+                    for i, b in bonuses.items():
+                        if i in scored:
+                            scored[i] += float(b)
+                shadow["final_scores"] = dict(scored)
+            except Exception:
+                shadow = {}
+
         # Step5: 平均最大を採用。tie_eps 以内は Policy 確率上位で決める。
         best_mean = max(scored.values())
         tie_eps = float(config["tie_eps"])
         contenders = [i for i, m in scored.items() if best_mean - m <= tie_eps]
         best_idx = max(contenders, key=lambda i: probs[i])
+
+        sink = context.get("shadow_sink")
+        if sink is not None and shadow:
+            try:
+                shadow["chosen"] = best_idx
+                shadow["selection_flipped"] = (best_idx != shadow.get("pimc_only_best"))
+                sink(shadow)
+            except Exception:
+                pass
 
         best = [best_idx]
         return best if _is_legal_selection(best, select) else None

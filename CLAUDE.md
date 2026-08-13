@@ -34,6 +34,20 @@ pokemon-tcg-ai-battle/
 - 構成: **Plan A アラカザム(フーディン)デッキ × `abl_5_full`（確定リーサル探索 → PIMC 前読み → Policy fallback）× climb 方策（BC 模倣 → field self-play PPO）**。
 - **注意**: 既定の `ptcg_ai/learning/policy_weights.json` は **BC 模倣重みであって climb ではない**（sha256 `735dd38a…`）。ローカル評価で climb を測るときは重みパスを明示すること。
 
+### 挑戦中の候補（2026-08、LB未収束）
+
+**「オーガポンのやつ」「ハンマー4枚のやつ」を探しているならここ** →
+[sample_submission/models/gen2_candidates/README.md](sample_submission/models/gen2_candidates/README.md)
+（機械可読版 [MANIFEST.json](sample_submission/models/gen2_candidates/MANIFEST.json)）
+
+2026-08 取得データ(gen2)の模倣学習とアーキタイプ別上位デッキで climb の改善を試みた4候補。
+`mixogerpon`(オーガポン, LB最高874.1) / `mixhammer`(フーディン ハンマー4枚, 最高839.0) /
+`mixclimb` / `g2climb`。**どれも未収束のため champion は climb のまま**。
+
+判明した最重要事実: **効いているのはデッキであって RL ではない**（3候補ともデッキ変更は有意、
+リーグRLの上乗せは判定不能）。また **同一提出の LB スコアが1時間で30点以上動く**ので、
+1回の読みで優劣を判断してはいけない（実測記録 `kaggle_replays/_lb_history.tsv`）。
+
 ---
 
 ## 絶対に守るルール

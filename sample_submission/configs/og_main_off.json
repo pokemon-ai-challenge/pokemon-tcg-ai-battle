@@ -1,0 +1,44 @@
+{
+  "name": "og_main_off",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 3,
+    "time_limit_ms": 100,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {
+      "kind": "handcrafted"
+    },
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  },
+  "_note": "MAIN補正OFF。CARD系(ATTACH_TO/TO_ACTIVE/SWITCH)のみ介入する。",
+  "ogerpon_planner": {
+    "enabled": true,
+    "main_enabled": false,
+    "attach_backup_bonus": 1.0,
+    "attach_active_first_bonus": 6.0,
+    "promote_ready_bonus": 4.0,
+    "promote_one_prize_bonus": 2.0,
+    "promote_not_ready_penalty": 4.0,
+    "preserve_damaged_ex_bonus": 1.5
+  }
+}

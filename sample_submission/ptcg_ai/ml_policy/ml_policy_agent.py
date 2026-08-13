@@ -40,6 +40,7 @@ from ptcg_ai.hidden_information import match_context, search_adapter
 from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
 from ptcg_ai.learning import value_shadow_log
 from ptcg_ai.learning.policy_model import PolicyModel
+from ptcg_ai.ml_policy import ogerpon_planner, policy_registry
 from ptcg_ai.rule_based.main_turn_parts import proposals as rb_proposals
 from ptcg_ai.rule_based.main_turn_parts import weights as rb_weights
 from ptcg_ai.rule_based.rule_based_agent import read_deck_csv
@@ -143,26 +144,35 @@ def agent(obs: Observation, config: dict | None = None) -> list[int]:
         global _match_start_perf, _selects_seen
         _match_start_perf = time.perf_counter()
         _selects_seen = 0
+        policy_registry.reset()
         return read_deck_csv()
     return _select_action(obs, config)
 
 
-def _get_model(config: dict | None = None) -> PolicyModel:
-    """`config["policy_weights_path"]` があればそのパスの重みを読んだ `PolicyModel` を返す
-    (プロセス内でパスごとにキャッシュ)。無ければ従来どおりモジュールグローバルの
-    既定モデル(`_model`)を返す(挙動不変)。"""
-    weights_path = (config or {}).get("policy_weights_path")
-    if weights_path is None:
-        global _model
-        if _model is None:
-            _model = PolicyModel()
-        return _model
+def _get_model(config: dict | None = None, obs: Observation | None = None) -> PolicyModel:
+    """model 解決。優先順位:
 
-    model = _model_cache_by_weights_path.get(weights_path)
-    if model is None:
-        model = PolicyModel(weights_path)
-        _model_cache_by_weights_path[weights_path] = model
-    return model
+    1. `config["policy_weights_path"]` が明示されていればそれ(既存の A/B比較・オフライン評価
+       用の注入点。後方互換のため最優先のまま変更しない)。
+    2. アーキタイプルーター(`policy_registry`)。`route_map.json` が空/存在しない既定状態では
+       常に general(climb) を返すため、これまでの単一 `climb` 挙動と完全に一致する。
+    3. obs が無い場合は従来のモジュールグローバル `_model`(`policy_weights.json` 既定パス)。
+    """
+    weights_path = (config or {}).get("policy_weights_path")
+    if weights_path is not None:
+        model = _model_cache_by_weights_path.get(weights_path)
+        if model is None:
+            model = PolicyModel(weights_path)
+            _model_cache_by_weights_path[weights_path] = model
+        return model
+
+    if obs is not None and policy_registry.has_routes():
+        return policy_registry.get_model(obs)
+
+    global _model
+    if _model is None:
+        _model = PolicyModel()
+    return _model
 
 
 def _get_config() -> dict:
@@ -406,20 +416,258 @@ def _try_pipeline(obs: Observation, config: dict | None = None) -> list[int] | N
                 match_context.get_opponent_state(obs.current.yourIndex),
                 obs,
             )
-        model = _get_model(config)
-        action = pipeline.search(obs.current, obs.select.option, {
+        model = _get_model(config, obs=obs)
+        search_context = {
             "observation": obs,
             "config": run_config,
             "hidden_state_factory": factory,
             "model_hidden_state_factory": _model_hidden_state_factory(obs, config),
             "policy_model": model,
-        })
+        }
+        # オーガポン専用のリソース評価を MAIN の候補スコアへ合成する(既定 OFF)。
+        # PIMC スコアは捨てず補助項として足すだけなので、「にげる」と「続行」は
+        # 同じ土俵で比較される。main_shadow_only=True なら値を記録するだけで採用しない。
+        main_cfg = ogerpon_planner.main_config(effective_config)
+        attach_cfg = ogerpon_planner.attach_config(effective_config)
+        main_on = main_cfg.get("main_enabled")
+        attach_on = attach_cfg.get("attach_enabled")
+        legacy_on = (main_on or attach_on) and ogerpon_planner.is_active(effective_config, _get_deck())
+        # finish_only は旧 ogerpon_planner.enabled(全補正共通ゲート)には依存しない、
+        # 完全に独立した config キー("ogerpon_finish_only")で駆動する。
+        fo_cfg = ogerpon_planner.finish_only_config(effective_config)
+        fo_on = bool(fo_cfg.get("enabled")) and ogerpon_planner.deck_is_ogerpon(_get_deck())
+        if legacy_on or fo_on:
+            deck_ids = _get_deck()
+
+            def _bonus_fn(o, me, cand, _cfg=effective_config, _deck=deck_ids):
+                combined: dict[int, float] = {}
+                if legacy_on and main_on:
+                    combined.update(ogerpon_planner.main_candidate_bonus(o, me, cand, _cfg, _deck))
+                if legacy_on and attach_on:
+                    # ATTACH 候補は RETREAT 候補と交わらないので単純にマージしてよい。
+                    combined.update(ogerpon_planner.attach_candidate_bonus(o, me, cand, _cfg, _deck))
+                if fo_on:
+                    for k, v in ogerpon_planner.finish_only_attach_bonus(o, me, cand, _cfg, _deck).items():
+                        combined[k] = combined.get(k, 0.0) + v
+                return combined
+
+            def _extra_fn(o, sel, ranked, _cfg=effective_config, _deck=deck_ids):
+                out = []
+                if legacy_on and attach_on:
+                    idx = ogerpon_planner.select_strategic_attach_candidate(
+                        o, o.current.yourIndex, _cfg, _deck)
+                    if idx is not None:
+                        out.append(idx)
+                if fo_on:
+                    idx2 = ogerpon_planner.finish_only_select_attach_candidate(
+                        o, o.current.yourIndex, _cfg, _deck)
+                    if idx2 is not None and idx2 not in out:
+                        out.append(idx2)
+                return out
+
+            search_context["candidate_bonus_fn"] = _bonus_fn
+            search_context["extra_candidate_indices_fn"] = _extra_fn
+            search_context["shadow_sink"] = _ogerpon_shadow_sink(obs, effective_config)
+            shadow_only = (bool(main_cfg.get("main_shadow_only"))
+                          or bool(attach_cfg.get("attach_shadow_only"))
+                          or bool(fo_cfg.get("shadow_only")))
+            run_config["resource_bonus_shadow_only"] = shadow_only
+        action = pipeline.search(obs.current, obs.select.option, search_context)
     except Exception:
         return None
 
     if action is not None and _is_valid_action(action, obs.select):
         return action
     return None
+
+
+# MAIN の shadow 診断の記録先。テスト・計測スクリプトが差し替えて使う
+# (既定 None = 何も記録しない。本番のオーバーヘッドはゼロ)。
+OGERPON_SHADOW_LOG: list | None = None
+# CARD系(ATTACH_TO/TO_ACTIVE/SWITCH)でプランナー補正が発火した記録。
+# 既定 None = 何もしない(本番のオーバーヘッドはゼロ)。
+OGERPON_CARD_LOG: list | None = None
+
+
+def _ogerpon_shadow_sink(obs, effective_config):
+    """PIMC の候補スコアと Planner の補正を突き合わせて記録するコールバックを返す。
+
+    実際に上書きする前に「PIMC が選んだ手 / Planner が推した手 / 両者のスコア」を
+    残せるようにするための診断口。`OGERPON_SHADOW_LOG` が None なら何もしない。
+    """
+    if OGERPON_SHADOW_LOG is None:
+        return None
+
+    def _resolve_candidate_target(state, me, option, otype):
+        from cg.api import OptionType
+        if otype == int(OptionType.ATTACH):
+            return ogerpon_planner._resolve_attach_target(state, me, option)  # noqa: SLF001
+        # RETREAT はエンジン上「行き先」を持たないので、ogerpon_planner が使う想定先
+        # (直接は参照できないため、ここでは呼び出し元の想定 target 解決には立ち入らない。
+        # RETREAT 候補は main_candidate_bonus 側で別途 target を評価しているため、ここでは
+        # 「ex かどうか」等の分類のみベンチ全体から近似する必要はなく、type だけ記録する)。
+        return None
+
+    def _sink(record):
+        try:
+            from cg.api import OptionType as _OptionType
+            state = obs.current
+            me = state.yourIndex
+            mine = state.players[me]
+            opp = state.players[1 - me]
+            active = next((s for s in (mine.active or []) if s is not None), None)
+            opp_active = next((s for s in (opp.active or []) if s is not None), None)
+            cfg = ogerpon_planner.main_config(effective_config)
+            risk, reason = ogerpon_planner.ko_risk(active, opp_active, cfg)
+            bench = [s for s in (mine.bench or []) if s is not None]
+            one_prize = [b for b in bench if not ogerpon_planner.is_ex(b)]
+            bulu = one_prize[0] if one_prize else None
+            active_serial = getattr(active, "serial", None)
+            bulu_serial = getattr(bulu, "serial", None)
+            active_shortfall_before = (ogerpon_planner.energy_shortfall(active)
+                                       if active is not None else None)
+            active_ready_before = (ogerpon_planner.can_attack_now(active)
+                                   if active is not None else None)
+
+            # --- 候補ごとの解決(ATTACH のみ target を持つ。他は type だけ) ---
+            identities = record.get("candidate_option_identities", {})
+            otypes = record.get("candidate_option_types", {})
+            resolved = {}
+            for i, otype in otypes.items():
+                tgt = _resolve_candidate_target(state, me, obs.select.option[i], otype)
+                resolved[i] = {
+                    "option_type": otype,
+                    "target_serial": getattr(tgt, "serial", None),
+                    "target_card_id": getattr(tgt, "id", None),
+                    "target_is_active": (getattr(tgt, "serial", None) == active_serial
+                                         if tgt is not None else False),
+                    "target_is_bulu": (getattr(tgt, "serial", None) == bulu_serial
+                                       if tgt is not None else False),
+                }
+
+            def _classify(idx):
+                if idx is None or idx not in resolved:
+                    return "unchanged"
+                return resolved[idx]
+
+            baseline_idx = record.get("pimc_only_best")
+            planner_idx = record.get("planner_decision")
+            baseline_r = _classify(baseline_idx)
+            planner_r = _classify(planner_idx)
+
+            flip_direction = "unchanged"
+            if baseline_idx != planner_idx:
+                b_bulu = isinstance(baseline_r, dict) and baseline_r.get("target_is_bulu")
+                b_active = isinstance(baseline_r, dict) and baseline_r.get("target_is_active")
+                p_bulu = isinstance(planner_r, dict) and planner_r.get("target_is_bulu")
+                p_active = isinstance(planner_r, dict) and planner_r.get("target_is_active")
+                if p_bulu and not b_bulu:
+                    b_is_attach = (isinstance(baseline_r, dict)
+                                   and baseline_r.get("option_type") == int(_OptionType.ATTACH))
+                    if b_active:
+                        flip_direction = "active_attach_to_bulu_attach"
+                    elif not b_is_attach:
+                        flip_direction = "non_attach_to_bulu_attach"
+                    else:
+                        flip_direction = "other_pokemon_attach_to_bulu_attach"
+                elif b_bulu and not p_bulu:
+                    flip_direction = ("bulu_attach_to_active_attach" if p_active
+                                      else "bulu_attach_to_non_attach")
+                else:
+                    flip_direction = "other"
+
+            # --- テンポ損失分類(6.1/6.2。6.3は未計測) ---
+            baseline_completes_active = (isinstance(baseline_r, dict)
+                                         and baseline_r.get("target_is_active")
+                                         and active_shortfall_before == 1)
+            planner_diverts_from_active = (baseline_completes_active
+                                           and isinstance(planner_r, dict)
+                                           and not planner_r.get("target_is_active"))
+            baseline_tempo_loss = bool(
+                active_shortfall_before == 1 and not baseline_completes_active
+                and any(isinstance(v, dict) and v.get("target_is_active") for v in resolved.values()))
+            planner_induced_direct_tempo_loss = bool(planner_diverts_from_active
+                                                     and not active_ready_before)
+
+            record.update({
+                "active_serial": active_serial, "bulu_serial": bulu_serial,
+                "active_hp": None if active is None else active.hp,
+                "active_max_hp": None if active is None else active.maxHp,
+                "active_is_ex": None if active is None else ogerpon_planner.is_ex(active),
+                "active_attackable_before": active_ready_before,
+                "active_energy_shortfall_before": active_shortfall_before,
+                "ko_risk": risk,
+                "ko_risk_reason": reason,
+                "bulu_energy_before": None if bulu is None else len(ogerpon_planner.energies_of(bulu)),
+                "bulu_can_attack_before": None if bulu is None else ogerpon_planner.can_attack_now(bulu),
+                "next_attacker_ready": any(ogerpon_planner.is_ex(b)
+                                           and ogerpon_planner.can_attack_now(b) for b in bench),
+                "my_prize": len(mine.prize or []),
+                "opp_prize": len(opp.prize or []),
+                "required_ko_against_me": ogerpon_planner.kos_needed_against(mine),
+                "required_ko_delta_for_bulu": (
+                    None if bulu is None else ogerpon_planner.required_ko_delta(mine, bulu)),
+                "shadow_only": bool(cfg.get("main_shadow_only")),
+                "resolved_candidates": resolved,
+                "baseline_target_is_bulu": bool(isinstance(baseline_r, dict)
+                                                and baseline_r.get("target_is_bulu")),
+                "planner_target_is_bulu": bool(isinstance(planner_r, dict)
+                                               and planner_r.get("target_is_bulu")),
+                "flip_direction": flip_direction,
+                "baseline_tempo_loss": baseline_tempo_loss,
+                "planner_induced_direct_tempo_loss": planner_induced_direct_tempo_loss,
+                "planner_induced_reachable_attack_loss": None,  # 未計測(search_step未実装)
+                "active_unattackable_observation": (active_ready_before is False),
+            })
+            OGERPON_SHADOW_LOG.append(record)
+        except Exception:  # noqa: BLE001
+            pass
+
+    return _sink
+
+
+def _try_ogerpon_planner(obs, model, effective_config, model_factory, model_deadline):
+    """オーガポン専用プランナーの補正を Policy スコアに足して選び直す。
+
+    適用外(既定 OFF / 非オーガポンデッキ / 対象外の選択コンテキスト)や、補正が
+    全て 0、あるいは例外時は None を返し、呼び出し側は従来どおり
+    `model.select_option()` の結果を使う。
+    """
+    try:
+        adj = ogerpon_planner.score_adjustments(
+            obs, obs.current.yourIndex, effective_config, _get_deck())
+        fo_adj = ogerpon_planner.finish_only_switch_adjustments(
+            obs, obs.current.yourIndex, effective_config, _get_deck())
+        if adj is None:
+            adj = fo_adj
+        elif fo_adj is not None:
+            adj = [a + b for a, b in zip(adj, fo_adj)]
+        if not adj or not any(adj):
+            return None
+        scores = model.score_options(obs, model_factory, model_deadline)
+        if not scores or len(scores) != len(adj):
+            return None
+        combined = [s + a for s, a in zip(scores, adj)]
+        best = max(range(len(combined)), key=lambda i: combined[i])
+        if not (0 <= best < len(obs.select.option)):
+            return None
+        if OGERPON_CARD_LOG is not None:
+            try:
+                policy_best = max(range(len(scores)), key=lambda i: scores[i])
+                OGERPON_CARD_LOG.append({
+                    "context": int(obs.select.context),
+                    "policy_best": policy_best, "planner_best": best,
+                    "flipped": best != policy_best,
+                    "policy_scores": list(scores), "adjustments": list(adj),
+                    "policy_margin": (max(scores) - sorted(scores)[-2]
+                                      if len(scores) > 1 else None),
+                    "max_adjustment": max(adj), "min_adjustment": min(adj),
+                })
+            except Exception:  # noqa: BLE001
+                pass
+        return best
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
@@ -438,7 +686,7 @@ def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
     if pipeline_action is not None:
         return pipeline_action
 
-    model = _get_model(config)
+    model = _get_model(config, obs=obs)
     model_factory = _model_hidden_state_factory(obs, config)
     model_deadline = time.perf_counter() + _MODEL_TIME_BUDGET_MS / 1000
     attack_hybrid_action = _try_attack_hybrid(obs, config=config)
@@ -446,9 +694,18 @@ def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
         baseline_action = attack_hybrid_action
         policy_scores = None
     elif select.maxCount == 1:
-        idx = model.select_option(obs, model_factory, model_deadline)
-        baseline_action = [idx if idx is not None else 0]
         effective_config = config if config is not None else _get_config()
+        # オーガポン専用リソースプランナー(既定 OFF)。
+        # ここは lethal 探索と pipeline(PIMC)を通り抜けた後なので、確定リーサルや
+        # MAIN の探索結果を上書きすることはない。対象は PIMC が構造的に適用されない
+        # CARD 系の選択(ATTACH_TO / TO_ACTIVE / SWITCH)のみ。
+        planner_idx = _try_ogerpon_planner(obs, model, effective_config,
+                                           model_factory, model_deadline)
+        if planner_idx is not None:
+            baseline_action = [planner_idx]
+        else:
+            idx = model.select_option(obs, model_factory, model_deadline)
+            baseline_action = [idx if idx is not None else 0]
         plan_config = (effective_config or {}).get("attack_plan") or {}
         policy_scores = (
             model.score_options(obs, model_factory, model_deadline)

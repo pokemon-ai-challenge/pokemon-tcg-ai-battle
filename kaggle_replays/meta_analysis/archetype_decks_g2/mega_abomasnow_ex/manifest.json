@@ -1,0 +1,37 @@
+{
+  "archetype": "mega_abomasnow_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Priestess",
+      "rank_at_fetch": 317,
+      "leaderboard_score": 909.7,
+      "episode_id": "91940188",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "Kunal Gurung",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "91930169",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "River (River_jp)",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "91951575",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "James Shi 8808",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "91957110",
+      "player_index": 1
+    }
+  ]
+}
