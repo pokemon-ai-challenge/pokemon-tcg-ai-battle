@@ -278,6 +278,45 @@ def test_build_candidates_for_main_attach(mod, OS):
     assert single_c.safety_flags["legal"] is True
 
 
+def test_ex_tempo_resolves_its_own_target_when_attach(mod, OS):
+    """P1-12: EX_TEMPO側のbaseline_actionがATTACHなら、その対象も解決する
+    (以前はSINGLE_PRIZE_ROTATION側だけtarget系フィールドが埋まっていた)。
+    """
+    active = _Pokemon(OGERPON_EX, [GRASS] * 2)   # あと1で攻撃可能
+    bulu = _Pokemon(TAPU_BULU, [GRASS] * 3)
+    state = _State([_Player(active=[active], bench=[bulu], hand=[_Card(GRASS, 1)], prize_count=6),
+                    _Player(active=[_Pokemon(OGERPON_EX, [])], prize_count=6)])
+    attach_to_active = _AttachOption(_area_int("HAND"), 0, _area_int("ACTIVE"), 0)
+    attach_to_bulu = _AttachOption(_area_int("HAND"), 0, _area_int("BENCH"), 0)
+    sel = _main_select([attach_to_active, attach_to_bulu])
+    obs = _Obs(state, sel)
+    baseline = [0]  # activeへの手貼りを選んだ、というbaselineの体
+    pair = mod.build_candidates(obs, 0, {}, OGERPON_DECK, mod.TRIGGER_MAIN_ATTACH, baseline)
+    assert pair is not None
+    ex_c, _ = pair
+    assert ex_c.target_serial == active.serial
+    assert ex_c.target_card_id == OGERPON_EX
+    assert ex_c.turns_until_ready == 1
+    assert ex_c.safety_flags.get("legal") is True
+
+
+def test_ex_tempo_target_stays_empty_for_attack_action(mod, OS):
+    """ATTACK等、対象ポケモンという概念を持たない型ではtargetは解決されない(既定値のまま)。"""
+    active = _Pokemon(OGERPON_EX, [GRASS] * 3)
+    bulu = _Pokemon(TAPU_BULU, [GRASS] * 3)
+    state = _State([_Player(active=[active], bench=[bulu], hand=[_Card(GRASS, 1)], prize_count=6),
+                    _Player(active=[_Pokemon(OGERPON_EX, [])], prize_count=6)])
+    attach_opt = _AttachOption(_area_int("HAND"), 0, _area_int("BENCH"), 0)
+    from cg.api import OptionType
+    sel = _main_select([attach_opt, _SimpleOption(OptionType.ATTACK)])
+    obs = _Obs(state, sel)
+    pair = mod.build_candidates(obs, 0, {}, OGERPON_DECK, mod.TRIGGER_MAIN_ATTACH, [1])
+    assert pair is not None
+    ex_c, _ = pair
+    assert ex_c.target_serial is None
+    assert ex_c.safety_flags == {}
+
+
 def test_build_candidates_for_promote(mod, OS):
     ready_bulu = _Pokemon(TAPU_BULU, [GRASS] * 4)
     ready_ex = _Pokemon(OGERPON_EX, [GRASS] * 3)

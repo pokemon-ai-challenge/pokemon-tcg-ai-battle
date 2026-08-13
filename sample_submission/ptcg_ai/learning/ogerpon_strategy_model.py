@@ -157,12 +157,43 @@ class OgerponStrategyModel:
             self._continuous_dim = int(contract["continuous_feature_count"])
             self._option_dim = int(contract["option_feature_count"])
             self._slot_count = int(contract.get("slot_count", 12))
+
+            # design.md §10.4 + 外部レビュー指摘: 次元数だけでなく、特徴量の名前・順序・
+            # encoderバージョンが現在のogerpon_strategy_encoderと完全一致することを確認する。
+            # 一致しなければ黙って未ロード扱いにする(次元数だけ偶然一致した並び替えを
+            # 検出できずに壊れた推論を続けることを防ぐ)。
+            if not self._contract_matches_current_encoder(contract):
+                self._models = []
+                return
+
             models = []
             for entry in payload["models"]:
                 models.append(_SingleModel(entry, self._continuous_dim, self._option_dim, self._slot_count))
             self._models = models
         except Exception:  # noqa: BLE001
             self._models = []
+
+    @staticmethod
+    def _contract_matches_current_encoder(contract: dict) -> bool:
+        """exportされたfeature_contractが、現在ロードできるencoderの契約と一致するか。
+
+        encoderをimportできない(通常起きないが、依存が壊れている等)場合は、この検証を
+        スキップして次元数だけの弱いチェックに委ねる(fail-soft。意思決定を壊さないという
+        プロジェクト全体の方針を優先する)。
+        """
+        try:
+            from ptcg_ai.learning import ogerpon_strategy_encoder as _enc
+        except Exception:  # noqa: BLE001
+            return True
+        if contract.get("encoder_version") != getattr(_enc, "ENCODER_VERSION", None):
+            return False
+        if contract.get("continuous_feature_names") != list(_enc.CONTINUOUS_FEATURE_NAMES):
+            return False
+        if contract.get("option_feature_names") != list(_enc.OPTION_FEATURE_NAMES):
+            return False
+        if contract.get("slot_names") != list(_enc.SLOT_NAMES):
+            return False
+        return True
 
     def predict(self, continuous_features, slot_card_ids, option_features, option_name: str) -> dict:
         """1Optionぶんのensemble平均・標準偏差を返す。

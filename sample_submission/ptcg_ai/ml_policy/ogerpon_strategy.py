@@ -215,6 +215,42 @@ def _resolve_single_prize_first_action(obs, me, config, deck_ids, trigger_kind, 
     return None, None
 
 
+def _resolve_baseline_target(obs, me, select, state, baseline_action):
+    """EX_TEMPO(``baseline_action``)が指す対象ポケモンを、選択肢の型に応じて解決する。
+
+    ATTACK/END/PLAY(トレーナーズ)等、そもそも「対象ポケモン」という概念を持たない
+    選択肢ではNoneを返す(安全側。その場合はtarget系フィールドが空のまま=既定値になる)。
+    外部レビュー指摘: 以前はEX_TEMPO側の対象を一切解決しておらず、option_featuresが
+    SINGLE_PRIZE_ROTATIONに比べて情報量に乏しかった。
+    """
+    if not baseline_action or not (0 <= baseline_action[0] < len(select.option)):
+        return None
+    opt = select.option[baseline_action[0]]
+    otype = int(getattr(opt, "type", -1))
+    if otype == int(OptionType.ATTACH):
+        return P._resolve_attach_target(state, me, opt)  # noqa: SLF001
+    if otype == int(OptionType.RETREAT):
+        return P._retreat_target_of(opt, obs, me)  # noqa: SLF001
+    if int(select.type) == int(SelectType.CARD):
+        return P._resolve_option_pokemon(obs, opt, me)  # noqa: SLF001
+    return None
+
+
+def _candidate_for_target(option_name, trigger_kind, first_action, target, mine, opp, state, me, config):
+    candidate = StrategyCandidate(option_name=option_name, first_action=list(first_action),
+                                  trigger_kind=trigger_kind)
+    if target is None:
+        return candidate
+    safety_flags = _static_safety_flags(state, me, target, config)
+    safety_flags["legal"] = True
+    candidate.target_serial = getattr(target, "serial", None)
+    candidate.target_card_id = getattr(target, "id", None)
+    candidate.turns_until_ready = max(0, P.energy_shortfall(target))
+    candidate.required_ko_gain = P.required_ko_delta(mine, target, len(opp.prize or []))
+    candidate.safety_flags = safety_flags
+    return candidate
+
+
 def build_candidates(
     obs: Observation, me: int, config: dict | None, deck_ids,
     trigger_kind: str, baseline_action: list[int],
@@ -223,38 +259,28 @@ def build_candidates(
     構築する。SINGLE_PRIZE_ROTATION側の合法な最初の一手が作れなければNone。
 
     ``baseline_action`` は呼び出し側が既存Policy/PIMCで既に決めた行動
-    (EX_TEMPO側の first_action としてそのまま使う)。
+    (EX_TEMPO側の first_action としてそのまま使う)。EX_TEMPO側も、その行動が対象
+    ポケモンを持つ型(ATTACH/RETREAT/CARD)であれば同じ特徴群(target_serial・
+    turns_until_ready・required_ko_gain・safety_flags)を解決する。
     """
     try:
         select = obs.select
         state = obs.current
         if select is None or state is None or trigger_kind is None:
             return None
-        idx, target = _resolve_single_prize_first_action(
+        idx, single_target = _resolve_single_prize_first_action(
             obs, me, config, deck_ids, trigger_kind, select, state)
-        if idx is None or target is None or not (0 <= idx < len(select.option)):
+        if idx is None or single_target is None or not (0 <= idx < len(select.option)):
             return None
 
         mine = state.players[me]
         opp = state.players[1 - me]
-        turns_until_ready = max(0, P.energy_shortfall(target))
-        required_ko_gain = P.required_ko_delta(mine, target, len(opp.prize or []))
-        safety_flags = _static_safety_flags(state, me, target, config)
-        safety_flags["legal"] = True
 
-        ex_candidate = StrategyCandidate(
-            option_name=EX_TEMPO, first_action=list(baseline_action),
-            trigger_kind=trigger_kind,
-        )
-        single_candidate = StrategyCandidate(
-            option_name=SINGLE_PRIZE_ROTATION, first_action=[idx],
-            trigger_kind=trigger_kind,
-            target_serial=getattr(target, "serial", None),
-            target_card_id=getattr(target, "id", None),
-            turns_until_ready=turns_until_ready,
-            required_ko_gain=required_ko_gain,
-            safety_flags=safety_flags,
-        )
+        ex_target = _resolve_baseline_target(obs, me, select, state, baseline_action)
+        ex_candidate = _candidate_for_target(
+            EX_TEMPO, trigger_kind, baseline_action, ex_target, mine, opp, state, me, config)
+        single_candidate = _candidate_for_target(
+            SINGLE_PRIZE_ROTATION, trigger_kind, [idx], single_target, mine, opp, state, me, config)
         return ex_candidate, single_candidate
     except Exception:  # noqa: BLE001
         return None

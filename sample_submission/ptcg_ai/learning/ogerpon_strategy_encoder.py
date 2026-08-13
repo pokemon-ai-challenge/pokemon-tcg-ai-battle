@@ -27,9 +27,19 @@ from ptcg_ai.learning import encoder
 from ptcg_ai.ml_policy import ogerpon_planner as P
 from ptcg_ai.ml_policy import ogerpon_strategy as STRAT
 
+# このencoderの契約バージョン。特徴の名前・順序・本数を変えたら必ず上げる。
+# ogerpon_strategy_model.py の実行時ローダーが、export済みJSONのfeature_contractと
+# 現在のこの値・SLOT_NAMES/CONTINUOUS_FEATURE_NAMES/OPTION_FEATURE_NAMESを突き合わせて
+# 完全一致を検証する(外部レビュー指摘: 次元数が同じままの並び替えを検出できていなかった)。
+ENCODER_VERSION = 1
+
 # 場のスロット順序: 自分 active + bench5、相手 active + bench5。
 SLOT_COUNT = 12
 _BENCH_SLOTS = 5
+SLOT_NAMES: list[str] = (
+    ["self_active"] + [f"self_bench{i}" for i in range(_BENCH_SLOTS)]
+    + ["opp_active"] + [f"opp_bench{i}" for i in range(_BENCH_SLOTS)]
+)
 
 # 未使用/不明なスロット・埋め込みのID(学習時に「空」として扱う)。
 UNKNOWN_CARD_ID = 0

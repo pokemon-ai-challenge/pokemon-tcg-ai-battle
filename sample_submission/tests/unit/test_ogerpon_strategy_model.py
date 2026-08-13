@@ -20,6 +20,19 @@ def mod():
     return m
 
 
+@pytest.fixture(autouse=True)
+def _fake_encoder_contract(monkeypatch):
+    """全テストで、実物のencoder(184/25次元)ではなく手計算しやすい2/1次元の
+    フェイク契約を「現在のencoder」として扱う(実行時のcontract完全一致検証と
+    整合させるため)。個別テストは ``_write_weights`` が埋め込む値と一致させる。
+    """
+    from ptcg_ai.learning import ogerpon_strategy_encoder as enc
+    monkeypatch.setattr(enc, "ENCODER_VERSION", 999)
+    monkeypatch.setattr(enc, "CONTINUOUS_FEATURE_NAMES", ["c0", "c1"])
+    monkeypatch.setattr(enc, "OPTION_FEATURE_NAMES", ["o0"])
+    monkeypatch.setattr(enc, "SLOT_NAMES", ["s0", "s1"])
+
+
 def _sigmoid(x):
     return 1.0 / (1.0 + math.exp(-x))
 
@@ -44,20 +57,56 @@ def _single_model_payload():
     }
 
 
-def _write_weights(tmp_path, models, extra_meta=None):
+def _write_weights(tmp_path, models, extra_meta=None, contract_overrides=None):
+    contract = {
+        "continuous_feature_count": 2, "option_feature_count": 1,
+        "slot_count": 2, "embedding_dim": 1, "bulu_card_ids": [920],
+        "encoder_version": 999,
+        "continuous_feature_names": ["c0", "c1"],
+        "option_feature_names": ["o0"],
+        "slot_names": ["s0", "s1"],
+    }
+    contract.update(contract_overrides or {})
     payload = {
         "schema_version": 1,
         "model_type": "ogerpon_option_q_mlp_ensemble",
-        "feature_contract": {
-            "continuous_feature_count": 2, "option_feature_count": 1,
-            "slot_count": 2, "embedding_dim": 1, "bulu_card_ids": [920],
-        },
+        "feature_contract": contract,
         "models": models,
         "meta": extra_meta or {},
     }
     path = tmp_path / "ogerpon_strategy_weights.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
+
+
+# --- feature contractの完全一致検証(外部レビュー指摘) ----------------------------
+
+def test_contract_mismatch_on_encoder_version_rejects_load(mod, tmp_path):
+    path = _write_weights(tmp_path, [_single_model_payload()],
+                          contract_overrides={"encoder_version": 1})  # 現在は999
+    model = mod.OgerponStrategyModel(path)
+    assert model.is_ready is False
+
+
+def test_contract_mismatch_on_feature_name_order_rejects_load(mod, tmp_path):
+    """次元数は一致していても、名前の並びが違えば読み込まない(並び替えの静かな破損防止)。"""
+    path = _write_weights(tmp_path, [_single_model_payload()],
+                          contract_overrides={"continuous_feature_names": ["c1", "c0"]})
+    model = mod.OgerponStrategyModel(path)
+    assert model.is_ready is False
+
+
+def test_contract_mismatch_on_slot_names_rejects_load(mod, tmp_path):
+    path = _write_weights(tmp_path, [_single_model_payload()],
+                          contract_overrides={"slot_names": ["wrong", "names"]})
+    model = mod.OgerponStrategyModel(path)
+    assert model.is_ready is False
+
+
+def test_matching_contract_loads_successfully(mod, tmp_path):
+    path = _write_weights(tmp_path, [_single_model_payload()])
+    model = mod.OgerponStrategyModel(path)
+    assert model.is_ready is True
 
 
 # --- 未配置・壊れたJSON: フォールバック -------------------------------------------

@@ -37,6 +37,8 @@ for _p in (str(_HERE), str(_HERE.parent.parent), str(_HERE.parent.parent / "samp
 
 from matchup_common import atomic_write_json, read_deck  # noqa: E402
 from eval_agent_field import build_field, make_tasks  # noqa: E402
+from ogerpon_rollout_common import detect_vanished as detect_ko_after_bulu_attack  # noqa: E402
+from ogerpon_rollout_common import is_emergency_retreat_allowed as _is_emergency_retreat_allowed  # noqa: E402
 
 MAX_STEPS = 3000
 _W: dict = {}
@@ -51,35 +53,12 @@ def classify_emergency_retreat(bulu, opp_active, config) -> bool:
     """ACTIVE中のブルルが交代させられた直前の局面が、design.md 5.4のいう緊急
     (確定リーサル・攻撃不能・確定敗北回避)に近いと静的に判定できるか。
 
-    `search_step` による仮実行(design.md item4のPhase2以降のスコープ)は行わず、
-    「その時点で攻撃不能だったか」「確定KO圏内だったか」の2条件だけで近似する。
-    確定リーサル・確定敗北回避の厳密な検出はこの関数の対象外(過大にemergency側へ
-    倒すより、判定できないことを明示する方を優先する)。
+    実体は ``ogerpon_rollout_common.is_emergency_retreat_allowed``(collector側と定義を
+    共有する)。ここでは既存の呼び出し口(引数3個)を維持するための薄いラッパー。
     """
     from ptcg_ai.ml_policy import ogerpon_planner as P
 
-    if bulu is None:
-        return True  # 直前の対象を取得できていない = 判定不能。安全側でemergency扱いにする
-    if not P.can_attack_now(bulu):
-        return True
-    cfg = P.main_config(config)
-    risk, _ = P.ko_risk(bulu, opp_active, cfg)
-    return risk == P.CERTAIN_KO
-
-
-def detect_ko_after_bulu_attack(target_serial, opp_player) -> bool:
-    """ブルルの攻撃直後、攻撃時点でバトル場にいた相手個体(target_serial)が
-    相手の場(active+bench)のどこにも見つからなければKOとみなす。
-
-    進化で同じserialのまま姿を変えるケースは未対応(見つからない=KOとして扱う、
-    telemetry用の近似)。
-    """
-    if target_serial is None:
-        return False
-    for slot in list(opp_player.active or []) + list(opp_player.bench or []):
-        if slot is not None and getattr(slot, "serial", None) == target_serial:
-            return False
-    return True
+    return _is_emergency_retreat_allowed(bulu, opp_active, config, P)
 
 
 def _init(weights_path, ml_config_name, workdir, opponents):
