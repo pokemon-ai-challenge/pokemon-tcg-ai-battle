@@ -123,6 +123,17 @@ def test_energy_shortfall(planner):
     assert planner.energy_shortfall(_Pokemon(TAPU_BULU, [GRASS] * 4)) == 0
 
 
+def test_energy_shortfall_is_color_aware(planner):
+    """総数だけでなく色指定も考慮する(``_true_shortfall`` への統一)。
+
+    カプ・ブルルのコストは[草,草,無色,無色]。非草エネを3個付けても、無色2枠は
+    埋まるが草2枚の要求は満たせないので、総数ベースの『あと1』ではなく
+    『あと2(=草2枚)』が正しい不足数。
+    """
+    FIRE = 2
+    assert planner.energy_shortfall(_Pokemon(TAPU_BULU, [FIRE] * 3)) == 2
+
+
 # --- 1. Planner無効時に従来選択が保たれる --------------------------------------
 
 def test_disabled_by_default_returns_no_adjustment_1(planner):
@@ -195,7 +206,7 @@ def test_required_ko_delta_is_zero_when_no_extra_ko_is_forced(planner):
     bulu_a = _Pokemon(TAPU_BULU, [GRASS] * 4)
     bulu_b = _Pokemon(TAPU_BULU, [GRASS] * 4)
     mine = _Player([ogerpon], [bulu_a, bulu_b], prize_count=6)
-    assert planner.required_ko_delta(mine, bulu_a) == 0.0
+    assert planner.required_ko_delta(mine, bulu_a, 6) == 0.0
 
 
 def test_required_ko_delta_is_positive_when_it_forces_an_extra_ko(planner):
@@ -204,7 +215,30 @@ def test_required_ko_delta_is_positive_when_it_forces_an_extra_ko(planner):
     ogerpon2 = _Pokemon(OGERPON_EX, [GRASS] * 3)
     bulu = _Pokemon(TAPU_BULU, [GRASS] * 4)
     mine = _Player([ogerpon1], [ogerpon2, bulu], prize_count=6)
-    assert planner.required_ko_delta(mine, bulu) >= 1.0
+    assert planner.required_ko_delta(mine, bulu, 6) >= 1.0
+
+
+def test_required_ko_delta_uses_attacker_prize_not_victim_prize(planner):
+    """必要KO回数の基準は倒す側(相手)の残サイドであって、盤面の持ち主(mine)の
+    残サイドではない。mine.prize を変えても結果が変わらず、attacker_prize_remaining
+    を変えると正しく変わることを確認する(以前はここを取り違えていたバグの再発防止)。
+    """
+    ogerpon1 = _Pokemon(OGERPON_EX, [GRASS] * 3)
+    ogerpon2 = _Pokemon(OGERPON_EX, [GRASS] * 3)
+    bulu = _Pokemon(TAPU_BULU, [GRASS] * 4)
+    mine_6 = _Player([ogerpon1], [ogerpon2, bulu], prize_count=6)
+    mine_2 = _Player([ogerpon1], [ogerpon2, bulu], prize_count=2)
+
+    # victim_board(mine)側の残サイド枚数を変えても、attacker_prize_remaining が
+    # 同じなら結果は変わらない。
+    assert (planner.required_ko_delta(mine_6, bulu, 6)
+            == planner.required_ko_delta(mine_2, bulu, 6))
+
+    # attacker_prize_remaining が 0 なら常に 0(相手は既にサイドを取り切っている)。
+    assert planner.required_ko_delta(mine_6, bulu, 0) == 0.0
+    # attacker_prize_remaining を変えれば結果も変わりうる。
+    assert planner.required_ko_delta(mine_6, bulu, 1) == 0.0
+    assert planner.required_ko_delta(mine_6, bulu, 6) >= 1.0
 
 
 # --- 6. 0エネルギーのカプ・ブルルを無条件で前に出さない --------------------------
@@ -236,12 +270,15 @@ def test_parity_bonus_only_when_it_increases_required_kos_7(planner):
 # --- 8. カプ・ブルルで必要KO回数が増えない局面では過大評価しない -----------------
 
 def test_no_parity_bonus_when_no_gain_8(planner):
-    """残サイド1: 相手はあと1KOで勝ち。1枚ポケモンを挟んでもKO回数は増えない。"""
+    """相手の残サイド1: 相手はあと1KOで勝ち。1枚ポケモンを挟んでもKO回数は増えない。
+
+    「相手が勝つまでに必要なKO回数」の基準は相手自身の残サイド枚数
+    (``opp.prize``)であって自分の残サイド枚数ではない。
+    """
     ready_bulu = _Pokemon(TAPU_BULU, [GRASS] * 4)
     ready_ogerpon = _Pokemon(OGERPON_EX, [GRASS] * 3)
-    mine = _Player([], [ready_ogerpon, ready_bulu], prize_count=1)
-    state = _State([mine, _Player([_Pokemon(OGERPON_EX)], prize_count=6)])
-    assert planner.parity_gain_from_one_prize(mine) == 0.0
+    mine = _Player([], [ready_ogerpon, ready_bulu], prize_count=6)
+    state = _State([mine, _Player([_Pokemon(OGERPON_EX)], prize_count=1)])
     obs = _Obs(state, _card_select("TO_ACTIVE", [ready_ogerpon, ready_bulu]))
     adj = planner.score_adjustments(obs, 0, _enabled(), OGERPON_DECK)
     # どちらも攻撃可能なので ready ボーナスは同点。パリティ加点が乗らないこと。
@@ -271,6 +308,22 @@ def test_phase_classification_11_12(planner):
                                         [_Pokemon(OGERPON_EX, [GRASS] * 3)]),
                                 _Player([_Pokemon(OGERPON_EX)])])
     assert planner.classify(with_ready_backup, 0) == planner.NEXT_OGERPON_SETUP
+
+
+def test_classify_does_not_treat_arbitrary_non_ex_as_bulu(planner):
+    """カプ・ブルル(ID 920)以外の非exがactiveにいても BULU_* 扱いしない。
+
+    以前は場の非exを無条件にカプ・ブルルとみなしていた(``not is_ex()``)ため、
+    別の非exがデッキに増えると誤判定していた。カードID判定への回帰防止。
+    """
+    OTHER_NON_EX = 741  # ALAKAZAM_DECK の控えとして使われる、カプ・ブルルではないカード
+    other = _Pokemon(OTHER_NON_EX, [GRASS] * 4, max_hp=140)
+    assert not planner.is_bulu(other), "カプ・ブルル以外はis_buluでFalseになるべき"
+    assert planner.is_bulu(_Pokemon(TAPU_BULU)), "カプ・ブルル自身はis_buluでTrue"
+    ready_ogerpon = _Pokemon(OGERPON_EX, [GRASS] * 3)
+    state = _State([_Player([other], [ready_ogerpon]), _Player([_Pokemon(OGERPON_EX)])])
+    assert planner.classify(state, 0) == planner.NORMAL, \
+        "カプ・ブルル以外の非exがactiveでもBULU_ACTIVEにしてはいけない"
 
     setup = _State([_Player([_Pokemon(OGERPON_EX, [GRASS] * 3)], [_Pokemon(TAPU_BULU, [GRASS])]),
                     _Player([_Pokemon(OGERPON_EX)])])

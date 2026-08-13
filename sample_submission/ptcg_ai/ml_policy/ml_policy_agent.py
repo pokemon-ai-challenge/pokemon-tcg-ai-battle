@@ -472,6 +472,10 @@ def _try_pipeline(obs: Observation, config: dict | None = None) -> list[int] | N
                           or bool(attach_cfg.get("attach_shadow_only"))
                           or bool(fo_cfg.get("shadow_only")))
             run_config["resource_bonus_shadow_only"] = shadow_only
+            # top1 shortcut は candidate_bonus_fn/extra_candidate_indices_fn より前段で
+            # 即returnしてしまうため、戦略候補注入が発火する局面では無効化する
+            # (Policy が確信している局面ほど戦略候補が一切比較されなくなるのを防ぐ)。
+            run_config["disable_top1_shortcut"] = True
         action = pipeline.search(obs.current, obs.select.option, search_context)
     except Exception:
         return None
@@ -520,8 +524,9 @@ def _ogerpon_shadow_sink(obs, effective_config):
             cfg = ogerpon_planner.main_config(effective_config)
             risk, reason = ogerpon_planner.ko_risk(active, opp_active, cfg)
             bench = [s for s in (mine.bench or []) if s is not None]
-            one_prize = [b for b in bench if not ogerpon_planner.is_ex(b)]
-            bulu = one_prize[0] if one_prize else None
+            bulu_candidates = [b for b in bench if ogerpon_planner.is_bulu(b)]
+            bulu = (bulu_candidates[0] if bulu_candidates
+                   else (active if active is not None and ogerpon_planner.is_bulu(active) else None))
             active_serial = getattr(active, "serial", None)
             bulu_serial = getattr(bulu, "serial", None)
             active_shortfall_before = (ogerpon_planner.energy_shortfall(active)
@@ -530,12 +535,14 @@ def _ogerpon_shadow_sink(obs, effective_config):
                                    if active is not None else None)
 
             # --- 候補ごとの解決(ATTACH のみ target を持つ。他は type だけ) ---
+            # ATTACH 候補には前後の攻撃可否・不足エネ・required_ko_delta も付す
+            # (「競合する手貼り候補」を突き合わせて見られるようにするための拡張)。
             identities = record.get("candidate_option_identities", {})
             otypes = record.get("candidate_option_types", {})
             resolved = {}
             for i, otype in otypes.items():
                 tgt = _resolve_candidate_target(state, me, obs.select.option[i], otype)
-                resolved[i] = {
+                entry = {
                     "option_type": otype,
                     "target_serial": getattr(tgt, "serial", None),
                     "target_card_id": getattr(tgt, "id", None),
@@ -544,6 +551,24 @@ def _ogerpon_shadow_sink(obs, effective_config):
                     "target_is_bulu": (getattr(tgt, "serial", None) == bulu_serial
                                        if tgt is not None else False),
                 }
+                if tgt is not None and otype == int(_OptionType.ATTACH):
+                    shortfall_before = ogerpon_planner.energy_shortfall(tgt)
+                    et = ogerpon_planner._attach_source_energy_type(  # noqa: SLF001
+                        obs.select.option[i])
+                    if et is not None:
+                        shortfall_after = ogerpon_planner._true_shortfall(  # noqa: SLF001
+                            tgt, ogerpon_planner.energies_of(tgt) + [et])
+                    else:
+                        shortfall_after = shortfall_before
+                    entry.update({
+                        "energy_shortfall_before": shortfall_before,
+                        "energy_shortfall_after": shortfall_after,
+                        "attack_capable_before": ogerpon_planner.can_attack_now(tgt),
+                        "attack_capable_after": shortfall_after <= 0,
+                        "required_ko_delta": ogerpon_planner.required_ko_delta(
+                            mine, tgt, len(opp.prize or [])),
+                    })
+                resolved[i] = entry
 
             def _classify(idx):
                 if idx is None or idx not in resolved:
@@ -606,7 +631,8 @@ def _ogerpon_shadow_sink(obs, effective_config):
                 "opp_prize": len(opp.prize or []),
                 "required_ko_against_me": ogerpon_planner.kos_needed_against(mine),
                 "required_ko_delta_for_bulu": (
-                    None if bulu is None else ogerpon_planner.required_ko_delta(mine, bulu)),
+                    None if bulu is None else ogerpon_planner.required_ko_delta(
+                        mine, bulu, len(opp.prize or []))),
                 "shadow_only": bool(cfg.get("main_shadow_only")),
                 "resolved_candidates": resolved,
                 "baseline_target_is_bulu": bool(isinstance(baseline_r, dict)

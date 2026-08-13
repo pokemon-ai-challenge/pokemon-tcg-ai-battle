@@ -39,6 +39,13 @@ from ptcg_ai.shared import card_cache
 # オーガポン みどりのめんex。自分の60枚にこれが含まれるときだけ有効化する。
 OGERPON_EX_CARD_ID = 96
 
+# 中継アタッカーとして扱う「カプ・ブルル」のカードID。以前は場の非exポケモンを
+# 無条件にカプ・ブルルとみなしていたが(``not is_ex()``)、デッキに別の非exが
+# 増えると誤判定する。個体識別が要る箇所(``classify()`` の局面分類)はこの
+# 明示リストで判定する。将来別レギュレーションのカプ・ブルルを追加する場合は
+# ここへ明示的に追記する(カード名の文字列比較はしない)。
+BULU_CARD_IDS = frozenset({920})
+
 # 既定係数。config の "ogerpon_planner" で上書きできる。
 DEFAULTS: dict = {
     "enabled": False,
@@ -78,6 +85,14 @@ def is_ex(pokemon) -> bool:
 def prize_value(pokemon) -> int:
     """気絶したとき相手が取るサイド枚数。判定できないときは安全側の 1。"""
     return 2 if is_ex(pokemon) else 1
+
+
+def is_bulu(pokemon) -> bool:
+    """このポケモンが中継戦略の対象「カプ・ブルル」個体か(カードIDで判定)。"""
+    try:
+        return int(pokemon.id) in BULU_CARD_IDS
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def retreat_cost(pokemon) -> int:
@@ -144,16 +159,15 @@ def can_attack_now(pokemon) -> bool:
 
 
 def energy_shortfall(pokemon) -> int:
-    """一番安いワザを撃つのにあと何個エネルギーが要るか(撃てるなら 0)。"""
+    """一番安いワザを撃つのにあと何個エネルギーが要るか(色指定込み。撃てるなら 0)。
+
+    以前は総数のみで判定しており、無色枠が既に埋まっているのに色エネが
+    足りない局面で不足数を過小評価しうる問題があった。``_true_shortfall``
+    (色指定を考慮する実装)へ統一する。
+    """
     if pokemon is None:
         return 99
-    attached = len(energies_of(pokemon))
-    costs = attack_costs(pokemon)
-    if not costs:
-        return 99
-    if can_attack_now(pokemon):
-        return 0
-    return max(0, min(len(c) for c in costs) - attached)
+    return _true_shortfall(pokemon, energies_of(pokemon))
 
 
 def best_damage(pokemon) -> int:
@@ -231,21 +245,27 @@ def _kos_needed_for_values(remaining: int, values: list[int]) -> float:
     return float(kos)
 
 
-def required_ko_delta(player, candidate) -> float:
+def required_ko_delta(victim_board, candidate, attacker_prize_remaining: int) -> float:
     """``candidate``(1枚ポケモン)を場に置くことで、相手の必要KO回数が何回増えるか。
 
     「挟んだ場合」と「挟まなかった場合」の必要KO回数を実際に両方計算して差を取る。
     偶数サイドかどうかのような代理条件ではなく、**実差**で判定するための関数。
 
+    サイドは**倒した側が自分の山から取る**ので、必要KO回数の基準になるのは
+    倒す側(相手)の残サイド枚数(``attacker_prize_remaining``)であって、
+    倒される側(``victim_board``、通常は自分)の残サイド枚数ではない
+    (以前はここを取り違えていた)。``victim_board`` は盤面構成(サイド価値の内訳)
+    にのみ使う。
+
     戻り値が 1 以上なら挟む価値が大きい。0 なら挟んでも相手の手間は増えないので
     過剰に優先してはいけない。
     """
     try:
-        remaining = len(player.prize or [])
+        remaining = int(attacker_prize_remaining)
         if remaining <= 0:
             return 0.0
         on_field = []
-        for slot in list(player.active or []) + list(player.bench or []):
+        for slot in list(victim_board.active or []) + list(victim_board.bench or []):
             if slot is not None:
                 on_field.append(slot)
         cand_serial = getattr(candidate, "serial", None)
@@ -314,19 +334,23 @@ NEXT_OGERPON_SETUP = "NEXT_OGERPON_SETUP"
 
 
 def classify(state, me: int) -> str:
-    """盤面から局面を分類する(永続状態を持たず毎回再計算する)。"""
+    """盤面から局面を分類する(永続状態を持たず毎回再計算する)。
+
+    BULU_* の各局面は「カプ・ブルル個体」を指すので、任意の非exではなく
+    ``is_bulu()``(カードID判定)で対象を絞る。
+    """
     try:
         mine = state.players[me]
         active = next((s for s in (mine.active or []) if s is not None), None)
         bench = [s for s in (mine.bench or []) if s is not None]
-        if active is not None and not is_ex(active):
-            # 1枚アタッカーが前に出ている = 中継中。次のアタッカーを作る局面。
+        if active is not None and is_bulu(active):
+            # カプ・ブルルが前に出ている = 中継中。次のアタッカーを作る局面。
             ready_backup = any(is_ex(b) and can_attack_now(b) for b in bench)
             return BULU_ACTIVE if not ready_backup else NEXT_OGERPON_SETUP
-        one_prize_bench = [b for b in bench if not is_ex(b)]
-        if not one_prize_bench:
+        bulu_bench = [b for b in bench if is_bulu(b)]
+        if not bulu_bench:
             return NORMAL
-        if any(can_attack_now(b) for b in one_prize_bench):
+        if any(can_attack_now(b) for b in bulu_bench):
             return BULU_READY
         return BULU_SETUP
     except Exception:  # noqa: BLE001
@@ -435,7 +459,7 @@ def score_adjustments(obs: Observation, me: int, config: dict | None,
                     continue  # 既に完成しているので追加は不要
                 # 完成が近いほど強く押す(遠いほど投資が無駄になりやすい)。
                 # 必要KO回数の実差で判定する(偶数サイドは特徴として見るが最終判定には使わない)。
-                if required_ko_delta(mine, target) > 0:
+                if required_ko_delta(mine, target, len(opp.prize or [])) > 0:
                     adj[i] += float(cfg["attach_backup_bonus"]) / float(short)
             return adj
 
@@ -455,7 +479,7 @@ def score_adjustments(obs: Observation, me: int, config: dict | None,
                     # サイド1枚で済む候補。**必要KO回数の実差**で判定する
                     # (偶数サイドという代理条件ではなく、挟んだ場合と挟まない場合を
                     #  両方計算した差。0 なら相手の手間が増えないので加点しない)。
-                    delta = required_ko_delta(mine, target)
+                    delta = required_ko_delta(mine, target, len(opp.prize or []))
                     if delta > 0 and ready:
                         adj[i] += float(cfg["promote_one_prize_bonus"]) * min(delta, 2.0)
                 else:
@@ -939,7 +963,7 @@ def attach_candidate_bonus(obs: Observation, me: int, candidate_indices: list[in
                 continue
 
             bonus += _energy_stage_bonus(shortfall_before, acfg)
-            ko_gain = required_ko_delta(mine, target)
+            ko_gain = required_ko_delta(mine, target, opp_prize)
             bonus += acfg["w_required_ko_increase"] * ko_gain
 
             if not active_ready_now:
@@ -1105,6 +1129,7 @@ def finish_only_attach_bonus(obs: Observation, me: int, candidate_indices: list[
         if select is None or state is None:
             return out
         mine = state.players[me]
+        opp = state.players[1 - me]
         active = next((s for s in (mine.active or []) if s is not None), None)
         active_ready = can_attack_now(active) if active is not None else False
 
@@ -1134,7 +1159,8 @@ def finish_only_attach_bonus(obs: Observation, me: int, candidate_indices: list[
             else:  # n_before == 3 (=4エネ完成候補)
                 bonus = float(cfg["w_tier3"])
                 cap = float(cfg["cap_tier3"])
-            bonus += float(cfg["w_required_ko_increase"]) * required_ko_delta(mine, target)
+            bonus += float(cfg["w_required_ko_increase"]) * required_ko_delta(
+                mine, target, len(opp.prize or []))
             out[i] = max(0.0, min(cap, bonus))
     except Exception:  # noqa: BLE001
         return {}

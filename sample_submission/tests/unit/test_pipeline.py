@@ -88,6 +88,50 @@ def test_top1_shortcut_skips_search(pipeline, fixtures):
     assert pipeline.search(obs.current, obs.select.option, ctx) == [0]
 
 
+def test_disable_top1_shortcut_flag_bypasses_shortcut(pipeline, fixtures, monkeypatch):
+    """disable_top1_shortcut=True なら top1 集中でも即返しせず、決定化を実行する。
+
+    デッキ専用の戦略候補(candidate_bonus_fn/extra_candidate_indices_fn)は top1
+    shortcut より後段でしか評価されない。Policy が確信している局面ほど戦略候補が
+    一切比較されない構造穴があったための回帰防止。
+    """
+    obs = _obs(fixtures, "mid_game")
+    me = obs.current.yourIndex
+    fake = _fake_cg({}, me=me)
+    monkeypatch.setattr(pipeline, "cg_api", fake)
+    called = {"n": 0}
+
+    def _factory():
+        called["n"] += 1
+        return {"your_deck": [], "your_prize": [], "opponent_deck": [],
+                "opponent_prize": [], "opponent_hand": [], "opponent_active": []}
+
+    ctx = {
+        "observation": obs,
+        "config": _base_config(disable_top1_shortcut=True, num_determinizations=1),
+        "policy_model": _StubPolicy([10.0, 0.0, 0.0, 0.0]),  # softmax top1 ~ 1.0
+        "hidden_state_factory": _factory,
+    }
+    pipeline.search(obs.current, obs.select.option, ctx)
+    assert called["n"] >= 1, "disable_top1_shortcut=True なら決定化(factory)を実行するはず"
+
+
+def test_disable_top1_shortcut_defaults_to_off(pipeline, fixtures):
+    """既定(disable_top1_shortcut 未指定)では従来どおり top1 shortcut が効く。"""
+    obs = _obs(fixtures, "mid_game")
+
+    def _factory_must_not_be_called():
+        raise AssertionError("hidden_state_factory must not be called on the top1 shortcut path")
+
+    ctx = {
+        "observation": obs,
+        "config": _base_config(),
+        "policy_model": _StubPolicy([10.0, 0.0, 0.0, 0.0]),
+        "hidden_state_factory": _factory_must_not_be_called,
+    }
+    assert pipeline.search(obs.current, obs.select.option, ctx) == [0]
+
+
 def _fake_cg(result_by_first_move, me, your_index_leaf=None):
     """search_begin/step/release/end のフェイク。search_step の最初の呼び出し(root からの
     first move)で、その選択インデックスに応じた result を持つ末端ノードを返す。

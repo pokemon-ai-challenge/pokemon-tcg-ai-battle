@@ -39,6 +39,11 @@ DEFAULTS: dict = {
     "module": "pipeline",
     "top_k": 4,
     "top1_shortcut_prob": 0.9,
+    # True にすると top1 集中でも即返ししない。デッキ専用の戦略候補(candidate_bonus_fn /
+    # extra_candidate_indices_fn)は top1 shortcut より後段でしか評価されないため、
+    # Policy の確信度が高い局面ほど戦略候補が一切比較されずに終わってしまう問題への対処
+    # (呼び出し側が戦略候補を使う局面でだけ True を渡す想定。既定 False = 従来挙動)。
+    "disable_top1_shortcut": False,
     "num_determinizations": 8,
     "opponent_depth": 1,        # 相手ターンを何回展開してから末端評価するか(1〜2)
     "max_rollout_steps": 40,    # 1 決定化・1 候補あたりの search_step 上限(暴走防止)
@@ -250,8 +255,10 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
         probs = _softmax(scores)
         ranked = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
 
-        # top1 集中なら自明手として即返し(探索スキップ)。
-        if probs[ranked[0]] >= config["top1_shortcut_prob"]:
+        # top1 集中なら自明手として即返し(探索スキップ)。ただし disable_top1_shortcut=True
+        # のときはスキップしない(デッキ専用の戦略候補を後段で必ず評価させるため)。
+        if (not config.get("disable_top1_shortcut", False)
+                and probs[ranked[0]] >= config["top1_shortcut_prob"]):
             top1 = [ranked[0]]
             return top1 if _is_legal_selection(top1, select) else None
 

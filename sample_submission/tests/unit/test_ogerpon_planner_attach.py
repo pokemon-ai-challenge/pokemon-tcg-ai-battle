@@ -409,3 +409,46 @@ def test_phases_3_and_5_not_implemented_documented():
     明示するプレースホルダ。将来実装する際はこのテストを実際の検証に置き換える。
     """
     pytest.skip("みどりのまい使用可否の探索的判定・草エネ枯渇判定は未実装(FINAL_REPORT記載)")
+
+
+# ===========================================================================
+# Phase 0 item5: shadow ログへの ATTACH 候補の前後差分の拡張
+# ===========================================================================
+
+def test_shadow_log_includes_attach_before_after_diff():
+    """OGERPON_SHADOW_LOG に、ATTACH候補ごとの前後の攻撃可否・不足エネ・
+    required_ko_delta が残ること(競合する手貼り候補を突き合わせて見るための拡張)。
+    """
+    from cg.api import OptionType
+
+    from ptcg_ai.ml_policy import ml_policy_agent
+
+    active = _Pokemon(OGERPON_EX, [GRASS_ENERGY] * 3)  # 攻撃可能
+    bulu = _Pokemon(TAPU_BULU, [GRASS_ENERGY] * 3)      # あと1(草1枚で完成)
+    state = _State([_Player(active=[active], bench=[bulu], hand=[_Card(GRASS_ENERGY, 1)]),
+                    _Player(active=[_Pokemon(OGERPON_EX, [])])])
+    opt = _AttachOption(_area_int("HAND"), 0, _area_int("BENCH"), 0)
+    opt.cardId = GRASS_ENERGY
+    obs = _Obs(state, _main_select([opt]))
+
+    ml_policy_agent.OGERPON_SHADOW_LOG = []
+    try:
+        sink = ml_policy_agent._ogerpon_shadow_sink(
+            obs, {"ogerpon_planner": {"enabled": True, "attach_enabled": True}})
+        assert sink is not None
+        record = {
+            "candidate_option_types": {0: int(OptionType.ATTACH)},
+            "candidate_option_identities": {},
+            "pimc_only_best": 0,
+            "planner_decision": 0,
+        }
+        sink(record)
+        assert len(ml_policy_agent.OGERPON_SHADOW_LOG) == 1
+        entry = ml_policy_agent.OGERPON_SHADOW_LOG[0]["resolved_candidates"][0]
+        assert entry["attack_capable_before"] is False
+        assert entry["attack_capable_after"] is True
+        assert entry["energy_shortfall_before"] == 1
+        assert entry["energy_shortfall_after"] == 0
+        assert entry["required_ko_delta"] >= 0.0
+    finally:
+        ml_policy_agent.OGERPON_SHADOW_LOG = None
