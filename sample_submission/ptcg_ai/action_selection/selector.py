@@ -18,9 +18,15 @@ from ptcg_ai.core.config import load_config
 from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
 from ptcg_ai.opponent_modeling import tracker as opponent_tracker
 from ptcg_ai.search import lethal_simple
+from ptcg_ai.search.lethal import entry as lethal_phase1
 
+# 探索モジュールの登録表。**ここに登録しただけでは挙動は変わらない**:
+# どれを使うかは config の ``lethal_search.module`` が決める。
+# 既定 config(``rule_lethal.json``)は従来どおり ``lethal_simple`` のまま。
+# ``lethal_phase1`` は Phase 1 のみを使う新実装(configs/rule_lethal_phase1.json)。
 _SEARCH_MODULES = {
     "lethal_simple": lethal_simple,
+    "lethal_phase1": lethal_phase1,
 }
 
 _CONFIG_CACHE: dict | None = None
@@ -80,6 +86,9 @@ def select_action(obs: Observation, full_deck: list[int], config: dict | None = 
                 # The search takes the hidden state from the outside; here
                 # it is the dummy stub until real estimation is available.
                 "hidden_state_factory": lambda: build_dummy_search_state(obs, full_deck),
+                # 自分のデッキ構成(60枚)。lethal_phase1 は境界で multiset へ落として使う。
+                # 実際の山札順ではないので、渡しても隠れ情報の漏洩にはならない。
+                "full_deck": full_deck,
             }
             try:
                 action = module.search(obs.current, select.option, context)

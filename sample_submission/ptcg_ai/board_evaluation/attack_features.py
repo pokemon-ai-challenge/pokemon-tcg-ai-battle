@@ -44,8 +44,18 @@ _FIXED_DAMAGE_PATTERN = re.compile(r"does (\d+) damage", re.IGNORECASE)
 _PER_HAND_CARD_PATTERN = re.compile(r"(\d+) damage counters? .*? for each card in your hand", re.IGNORECASE)
 
 
-def _estimate_variable_damage(attack: Attack, attacker_hand_size: int | None) -> int:
-    """attack.damage が 0 の可変ダメージ技を、attack.text から推定する（不明なら0）。"""
+def _estimate_variable_damage(
+    attack: Attack, attacker_hand_size: int | None
+) -> tuple[int, bool]:
+    """attack.damage が 0 の可変ダメージ技を、attack.text から推定する（不明なら0）。
+
+    Returns:
+        (推定ダメージ, ダメージカウンター配置によるものか) のタプル。
+
+    第2要素が True の技は「ダメージカウンターを置く」効果であり、公式ルール上
+    弱点・抵抗力は適用されない（弱点/抵抗力が働くのは「ワザのダメージ」のみ）。
+    呼び出し側はこのフラグを見て倍率補正をスキップすること。
+    """
     text = attack.text or ""
 
     if attacker_hand_size is not None:
@@ -53,13 +63,13 @@ def _estimate_variable_damage(attack: Attack, attacker_hand_size: int | None) ->
         if match:
             # 抽出した数値は「ダメージカウンター」の個数であり、ダメージ点数そのものではない
             # （1個=10ダメージ）。手札1枚あたりの点数に換算してから手札枚数を掛ける。
-            return int(match.group(1)) * _DAMAGE_PER_COUNTER * attacker_hand_size
+            return int(match.group(1)) * _DAMAGE_PER_COUNTER * attacker_hand_size, True
 
     match = _FIXED_DAMAGE_PATTERN.search(text)
     if match:
-        return int(match.group(1))
+        return int(match.group(1)), False
 
-    return 0
+    return 0, False
 
 
 def resolve_damage(
@@ -75,10 +85,18 @@ def resolve_damage(
     weakness/resistance を比較して判定する。attack.damage が 0 の可変ダメージ技は、
     attacker_hand_size（攻撃側の手札枚数、PlayerState.handCount）が渡されていれば
     _estimate_variable_damage で推定する。
+
+    ただし「ダメージカウンターを置く」効果（例: フーディンの Powerful Hand）は
+    ワザのダメージではないため、弱点・抵抗力を適用しない。
     """
     damage = attack.damage
+    places_damage_counters = False
     if damage <= 0:
-        damage = _estimate_variable_damage(attack, attacker_hand_size)
+        damage, places_damage_counters = _estimate_variable_damage(
+            attack, attacker_hand_size
+        )
+    if places_damage_counters:
+        return damage
 
     attacker_type = card_cache.get_card(attacker.id).energyType
 

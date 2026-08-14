@@ -48,36 +48,44 @@ def _filler_ids() -> tuple[int, int]:
     return _FILLER_CACHE["energy"], _FILLER_CACHE["pokemon"]
 
 
-def _visible_own_card_ids(state, player_index: int) -> Iterator[int] | None:
-    """Yield the card IDs of every own card visible in the observation.
+def _visible_own_cards(state, player_index: int) -> list[tuple[int, int]] | None:
+    """Return the (card id, serial) of every own card visible in the observation.
 
     Returns None if the observation contains zones we cannot account for
     (face-down own Pokemon, cards being looked at), in which case the
     caller should give up instead of risking an inconsistent prediction.
     """
     player = state.players[player_index]
-    ids: list[int] = []
+    cards: list[tuple[int, int]] = []
     for card in player.hand or []:
-        ids.append(card.id)
+        cards.append((card.id, card.serial))
     for card in player.discard:
-        ids.append(card.id)
+        cards.append((card.id, card.serial))
     for pokemon in list(player.active) + list(player.bench):
         if pokemon is None:
             return None  # own face-down Pokemon: cannot account for it
-        ids.append(pokemon.id)
+        cards.append((pokemon.id, pokemon.serial))
         for card in pokemon.energyCards:
-            ids.append(card.id)
+            cards.append((card.id, card.serial))
         for card in pokemon.tools:
-            ids.append(card.id)
+            cards.append((card.id, card.serial))
         for card in pokemon.preEvolution:
-            ids.append(card.id)
+            cards.append((card.id, card.serial))
     for card in player.prize:
         if card is not None:
-            ids.append(card.id)
+            cards.append((card.id, card.serial))
     for card in state.stadium:
         if card.playerIndex == player_index:
-            ids.append(card.id)
-    return iter(ids)
+            cards.append((card.id, card.serial))
+    return cards
+
+
+def _visible_own_card_ids(state, player_index: int) -> Iterator[int] | None:
+    """Backwards-compatible view of :func:`_visible_own_cards` (IDs only)."""
+    cards = _visible_own_cards(state, player_index)
+    if cards is None:
+        return None
+    return iter(card_id for card_id, _ in cards)
 
 
 def build_dummy_search_state(
@@ -107,11 +115,25 @@ def build_dummy_search_state(
     me = state.yourIndex
     my = state.players[me]
 
-    visible = _visible_own_card_ids(state, me)
+    visible = _visible_own_cards(state, me)
     if visible is None:
         return None
+
+    # A Trainer being resolved right now (``select.effect``) has already left
+    # the hand but has not reached the discard pile yet, so it shows up in no
+    # zone at all. Without counting it, the leftover pool is one card too big
+    # and the consistency check below rejects the position -- which used to
+    # skip the search on every mid-effect selection (deck search results,
+    # bench placement, ...). Dedupe by serial: for effects that are already
+    # visible somewhere (e.g. an attached Special Energy whose on-attach
+    # effect is resolving) the card must not be counted twice.
+    effect = obs.select.effect if obs.select is not None else None
+    if effect is not None and effect.playerIndex == me:
+        if all(serial != effect.serial for _, serial in visible):
+            visible.append((effect.id, effect.serial))
+
     unseen = Counter(full_deck)
-    for card_id in visible:
+    for card_id, _ in visible:
         if unseen[card_id] <= 0:
             return None  # observation inconsistent with the deck list
         unseen[card_id] -= 1
