@@ -437,3 +437,489 @@ def test_try_attack_hybrid_rejects_illegal_action(ml_policy_agent, encoder_obser
     monkeypatch.setattr(ml_policy_agent.rb_proposals, "collect_proposals", _stub_collect_proposals)
 
     assert ml_policy_agent._try_attack_hybrid(obs, config=_ATTACK_HYBRID_ON) is None
+
+
+# ===========================================================================
+# _ogerpon_q_shadow: design.md Phase3 item4のshadow-only Q-critic評価
+# ===========================================================================
+
+def test_ogerpon_q_shadow_noop_when_log_disabled(ml_policy_agent, encoder_observations, monkeypatch):
+    """既定(OGERPON_Q_SHADOW_LOG=None)では即returnし、_get_deck等には一切触れない。"""
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", None)
+
+    def _boom():
+        raise AssertionError("OGERPON_Q_SHADOW_LOG=Noneのときは_get_deckすら呼ばれてはいけない")
+    monkeypatch.setattr(ml_policy_agent, "_get_deck", _boom)
+
+    obs = _obs(encoder_observations, "mid_game")
+    assert ml_policy_agent._ogerpon_q_shadow(obs, [0], {}) is None
+
+
+def test_ogerpon_q_shadow_skips_non_ogerpon_deck(ml_policy_agent, encoder_observations, monkeypatch):
+    """実際のdeck.csv(フーディン)はオーガポンデッキではないため、ログは空のまま。"""
+    log = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    obs = _obs(encoder_observations, "mid_game")
+    ml_policy_agent._ogerpon_q_shadow(obs, [0], {})
+    assert log == []
+
+
+def test_ogerpon_q_shadow_logs_unsupported_trigger(ml_policy_agent, encoder_observations, monkeypatch):
+    log = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: "promote")
+    obs = _obs(encoder_observations, "mid_game")
+    ml_policy_agent._ogerpon_q_shadow(obs, [0], {})
+    assert len(log) == 1
+    assert log[0]["outcome"] == "unsupported_trigger"
+    assert log[0]["trigger_kind"] == "promote"
+
+
+def test_ogerpon_q_shadow_logs_candidate_build_failed(ml_policy_agent, encoder_observations, monkeypatch):
+    log = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: "main_attach")
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates",
+                        lambda *a, **k: None)
+    obs = _obs(encoder_observations, "mid_game")
+    ml_policy_agent._ogerpon_q_shadow(obs, [0], {})
+    assert log[0]["outcome"] == "candidate_build_failed"
+
+
+def test_ogerpon_q_shadow_logs_weights_not_ready(ml_policy_agent, encoder_observations, monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    log = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent, "_ogerpon_q_model", None)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: "main_attach")
+    ex_c = SimpleNamespace(option_name="EX_TEMPO", first_action=[0], target_serial=None, target_card_id=None)
+    single_c = SimpleNamespace(option_name="SINGLE_PRIZE_ROTATION", first_action=[1],
+                               target_serial=1, target_card_id=920, required_ko_gain=0.0)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates",
+                        lambda *a, **k: (ex_c, single_c))
+    monkeypatch.setattr(ml_policy_agent, "OgerponStrategyModel",
+                        lambda *a, **k: SimpleNamespace(is_ready=False))
+    obs = _obs(encoder_observations, "mid_game")
+    ml_policy_agent._ogerpon_q_shadow(obs, [0], {})
+    assert log[0]["outcome"] == "weights_not_ready"
+
+
+def test_ogerpon_q_shadow_swallows_exceptions(ml_policy_agent, encoder_observations, monkeypatch):
+    log = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+
+    def _raise(*a, **k):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger", _raise)
+    obs = _obs(encoder_observations, "mid_game")
+    assert ml_policy_agent._ogerpon_q_shadow(obs, [0], {}) is None
+    assert log == []
+
+
+def test_ogerpon_q_shadow_never_mutates_final_action(ml_policy_agent, encoder_observations, monkeypatch):
+    log = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: "main_attach")
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates", lambda *a, **k: None)
+    obs = _obs(encoder_observations, "mid_game")
+    action = [2]
+    ml_policy_agent._ogerpon_q_shadow(obs, action, {})
+    assert action == [2], "final_actionはshadow評価によって一切変更されてはいけない"
+
+
+def test_agent_return_value_identical_with_shadow_logging_on_or_off(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """design.md Phase3完了条件の核心: shadow logging有効/無効でagent()の戻り値が
+    完全に一致すること(154ゲーム回帰の単体テスト版)。実dekcはオーガポンではないので
+    _ogerpon_q_shadowは早期returnするだけだが、呼び出し自体が経路に混入しても
+    挙動が変わらないことを確認する。"""
+    for key in ("mid_game", "early_active_none"):
+        obs_off = _obs(encoder_observations, key)
+        monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", None)
+        result_off = ml_policy_agent.agent(obs_off)
+
+        obs_on = _obs(encoder_observations, key)
+        monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", [])
+        result_on = ml_policy_agent.agent(obs_on)
+
+        assert result_off == result_on
+
+
+# ===========================================================================
+# _ogerpon_q_shadow: 整合性安全網(final_action/RNG状態の変化検知、ユーザー指摘の
+# 「同一意思決定内での厳密な非干渉判定」への対応)
+# ===========================================================================
+
+def test_ogerpon_q_shadow_detects_and_reverts_action_mutation(ml_policy_agent, encoder_observations, monkeypatch):
+    """_ogerpon_q_shadow_implがfinal_actionを書き換えてしまった場合、ラッパーが検知し、
+    元の値へ戻し、OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONSへ記録する(安全網自体の回帰テスト)。
+    """
+    log = []
+    violations = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS", violations)
+
+    def _broken_impl(obs, final_action, effective_config, q_config, shadow_only, is_lethal=False):
+        final_action.append(999)  # 意図的にfinal_actionを壊す
+
+    monkeypatch.setattr(ml_policy_agent, "_ogerpon_q_shadow_impl", _broken_impl)
+    obs = _obs(encoder_observations, "mid_game")
+    action = [2]
+    ml_policy_agent._ogerpon_q_shadow(obs, action, {})
+    assert action == [2], "検知後は元の値へ戻すべき"
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "final_action_mutated"
+
+
+def test_ogerpon_q_shadow_detects_and_reverts_rng_state_change(ml_policy_agent, encoder_observations, monkeypatch):
+    log = []
+    violations = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS", violations)
+
+    def _broken_impl(obs, final_action, effective_config, q_config, shadow_only, is_lethal=False):
+        import random as _random
+        _random.random()  # 意図的にRNG状態を消費する
+
+    monkeypatch.setattr(ml_policy_agent, "_ogerpon_q_shadow_impl", _broken_impl)
+    obs = _obs(encoder_observations, "mid_game")
+    import random
+    state_before = random.getstate()
+    ml_policy_agent._ogerpon_q_shadow(obs, [0], {})
+    assert random.getstate() == state_before, "検知後は元のRNG状態へ戻すべき"
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "rng_state_changed"
+
+
+def test_ogerpon_q_shadow_no_integrity_violations_on_real_evaluated_path(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """実際に(モックした)候補構築・モデル評価まで到達するevaluated経路でも、
+    final_action/RNG状態のいずれも変化しないこと。"""
+    from types import SimpleNamespace
+
+    log = []
+    violations = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS", violations)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: "main_attach")
+    ex_c = SimpleNamespace(option_name="EX_TEMPO", first_action=[0], target_serial=None, target_card_id=None)
+    single_c = SimpleNamespace(option_name="SINGLE_PRIZE_ROTATION", first_action=[1],
+                               target_serial=1, target_card_id=920, required_ko_gain=1.0)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates",
+                        lambda *a, **k: (ex_c, single_c))
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy_encoder, "encode_strategy_pair",
+                        lambda *a, **k: {"continuous_features": [], "slot_card_ids": [],
+                                        "option_features": {"EX_TEMPO": [], "SINGLE_PRIZE_ROTATION": []}})
+    # shadowモデルがSINGLEを強く推す(高いdelta)結果を返しても、baseline_actionは不変。
+    monkeypatch.setattr(ml_policy_agent, "OgerponStrategyModel",
+                        lambda *a, **k: SimpleNamespace(is_ready=True))
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "compare_options",
+                        lambda *a, **k: {"p_ex": 0.2, "p_single": 0.9, "delta": 0.7, "delta_std": 0.0,
+                                         "lcb_delta": 0.7, "p_loop_complete": 0.95,
+                                         "required_ko_gain": 1.0, "chosen_option": "SINGLE_PRIZE_ROTATION",
+                                         "reason": "strict_override", "n_ensemble_members": 3,
+                                         "thresholds": ml_policy_agent.ogerpon_strategy.DEFAULT_DECISION_THRESHOLDS})
+
+    obs = _obs(encoder_observations, "mid_game")
+    action = [7]  # baselineが実際に返した行動(ATTACHではない、任意の値)
+    action_before = list(action)
+    ml_policy_agent._ogerpon_q_shadow(obs, action, {})
+
+    assert log[0]["outcome"] == "evaluated"
+    assert log[0]["would_override"] is True, "shadowはSINGLEを推すログを残す"
+    assert action == action_before, "shadowがSINGLEを推しても、最終行動はbaselineのまま変わらない"
+    assert violations == []
+
+
+# ===========================================================================
+# _ogerpon_q_shadow_impl: ソース検査による静的保証(探索エンジンの再実行・Option State
+# の実開始・match_contextへの関与が一切無いこと)
+# ===========================================================================
+
+def test_ogerpon_q_shadow_impl_never_touches_search_engine_or_match_context(ml_policy_agent):
+    import inspect
+
+    src = inspect.getsource(ml_policy_agent._ogerpon_q_shadow_impl)
+    forbidden = ["search_step", "search_begin", "match_context", "advance_state", ".advance("]
+    for token in forbidden:
+        assert token not in src, f"_ogerpon_q_shadow_implは{token!r}を使ってはいけない"
+    assert "ogerpon_option_state_mod.IDLE" in src, "detect_triggerには常にIDLEを渡すこと"
+
+
+def test_ogerpon_q_shadow_action_unchanged_when_weights_not_ready(ml_policy_agent, encoder_observations, monkeypatch):
+    from types import SimpleNamespace
+
+    log = []
+    violations = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS", violations)
+    monkeypatch.setattr(ml_policy_agent, "_ogerpon_q_model", None)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: "main_attach")
+    ex_c = SimpleNamespace(option_name="EX_TEMPO", first_action=[0], target_serial=None, target_card_id=None)
+    single_c = SimpleNamespace(option_name="SINGLE_PRIZE_ROTATION", first_action=[1],
+                               target_serial=1, target_card_id=920, required_ko_gain=0.0)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates",
+                        lambda *a, **k: (ex_c, single_c))
+    monkeypatch.setattr(ml_policy_agent, "OgerponStrategyModel",
+                        lambda *a, **k: SimpleNamespace(is_ready=False))
+    obs = _obs(encoder_observations, "mid_game")
+    action = [4]
+    ml_policy_agent._ogerpon_q_shadow(obs, action, {})
+    assert action == [4]
+    assert violations == []
+
+
+def test_ogerpon_q_shadow_action_unchanged_on_exception_mid_evaluation(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    log = []
+    violations = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS", violations)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: "main_attach")
+
+    exceptions = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_EXCEPTIONS", exceptions)
+
+    def _raise(*a, **k):
+        raise RuntimeError("mid-evaluation failure")
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates", _raise)
+    obs = _obs(encoder_observations, "mid_game")
+    action = [5]
+    ml_policy_agent._ogerpon_q_shadow(obs, action, {})
+    assert action == [5]
+    assert violations == []
+    assert log == []
+    assert len(exceptions) == 1
+    assert "mid-evaluation failure" in exceptions[0]
+
+
+def test_ogerpon_q_shadow_action_unchanged_when_shadow_recommends_ex_tempo(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """shadowが(既定通り)EX_TEMPOを推す場合も、最終行動はbaselineのまま(自明だが明示確認)。"""
+    from types import SimpleNamespace
+
+    log = []
+    violations = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS", violations)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: "main_attach")
+    ex_c = SimpleNamespace(option_name="EX_TEMPO", first_action=[0], target_serial=None, target_card_id=None)
+    single_c = SimpleNamespace(option_name="SINGLE_PRIZE_ROTATION", first_action=[1],
+                               target_serial=1, target_card_id=920, required_ko_gain=0.0)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates",
+                        lambda *a, **k: (ex_c, single_c))
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy_encoder, "encode_strategy_pair",
+                        lambda *a, **k: {"continuous_features": [], "slot_card_ids": [],
+                                        "option_features": {"EX_TEMPO": [], "SINGLE_PRIZE_ROTATION": []}})
+    monkeypatch.setattr(ml_policy_agent, "OgerponStrategyModel",
+                        lambda *a, **k: SimpleNamespace(is_ready=True))
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "compare_options",
+                        lambda *a, **k: {"p_ex": 0.6, "p_single": 0.55, "delta": -0.05, "delta_std": 0.01,
+                                         "lcb_delta": -0.06, "p_loop_complete": 0.3,
+                                         "required_ko_gain": 0.0, "chosen_option": "EX_TEMPO",
+                                         "reason": "default", "n_ensemble_members": 3,
+                                         "thresholds": ml_policy_agent.ogerpon_strategy.DEFAULT_DECISION_THRESHOLDS})
+    obs = _obs(encoder_observations, "mid_game")
+    action = [3]
+    action_before = list(action)
+    ml_policy_agent._ogerpon_q_shadow(obs, action, {})
+    assert log[0]["would_override"] is False
+    assert action == action_before
+    assert violations == []
+
+
+# ===========================================================================
+# Phase4 能動ゲート(shadow_only=False): design.md §11.2の厳密しきい値を満たし、
+# かつtriggerがactive_triggersに含まれ、かつ旧Plannerが非shadowで同時稼働していない
+# 場合だけ、SINGLE_PRIZE_ROTATION側の行動へ実際に置き換える。
+# ===========================================================================
+
+def _active_gate_setup(monkeypatch, ml_policy_agent, chosen_option="SINGLE_PRIZE_ROTATION",
+                       trigger="main_attach", single_first_action=None):
+    from types import SimpleNamespace
+
+    log = []
+    violations = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS", violations)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger",
+                        lambda obs, me, deck_ids, mode: trigger)
+    ex_c = SimpleNamespace(option_name="EX_TEMPO", first_action=[0], target_serial=None, target_card_id=None)
+    single_action = single_first_action if single_first_action is not None else [1]
+    single_c = SimpleNamespace(option_name="SINGLE_PRIZE_ROTATION", first_action=single_action,
+                               target_serial=1, target_card_id=920, required_ko_gain=1.0)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates",
+                        lambda *a, **k: (ex_c, single_c))
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy_encoder, "encode_strategy_pair",
+                        lambda *a, **k: {"continuous_features": [], "slot_card_ids": [],
+                                        "option_features": {"EX_TEMPO": [], "SINGLE_PRIZE_ROTATION": []}})
+    monkeypatch.setattr(ml_policy_agent, "OgerponStrategyModel",
+                        lambda *a, **k: SimpleNamespace(is_ready=True))
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "compare_options",
+                        lambda *a, **k: {"p_ex": 0.2, "p_single": 0.9, "delta": 0.7, "delta_std": 0.0,
+                                         "lcb_delta": 0.7, "p_loop_complete": 0.95,
+                                         "required_ko_gain": 1.0, "chosen_option": chosen_option,
+                                         "reason": "strict_override" if chosen_option == "SINGLE_PRIZE_ROTATION"
+                                         else "default",
+                                         "n_ensemble_members": 3,
+                                         "thresholds": ml_policy_agent.ogerpon_strategy.DEFAULT_DECISION_THRESHOLDS})
+    monkeypatch.setattr(ml_policy_agent, "_legacy_ogerpon_planner_is_live", lambda cfg, deck_ids: False)
+    return log, violations
+
+
+def test_phase4_active_override_applies_when_conditions_met(ml_policy_agent, encoder_observations, monkeypatch):
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    obs = _obs(encoder_observations, "mid_game")  # 4択(index 0-3)。single_first_action=[1]は合法。
+    action = [0]
+    override = ml_policy_agent._ogerpon_q_shadow(obs, action, config)
+    assert override == [1]
+    assert action == [0], "オーバーライドはfinal_actionを書き換えず、別の戻り値で伝える"
+
+
+def test_phase4_no_override_when_shadow_only_default(ml_policy_agent, encoder_observations, monkeypatch):
+    """shadow_only未指定(既定True)なら、active_triggersを設定していても絶対に置き換わらない。"""
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+    config = {"ogerpon_q_critic": {"active_triggers": ["main_attach"]}}
+    obs = _obs(encoder_observations, "mid_game")
+    override = ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+    assert override is None
+
+
+def test_phase4_no_override_when_trigger_not_in_active_triggers(ml_policy_agent, encoder_observations, monkeypatch):
+    _active_gate_setup(monkeypatch, ml_policy_agent, trigger="retreat", single_first_action=[1])
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    obs = _obs(encoder_observations, "mid_game")
+    override = ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+    assert override is None
+
+
+def test_phase4_no_override_when_active_triggers_empty_by_default(ml_policy_agent, encoder_observations, monkeypatch):
+    """active_triggers省略時は既定で空集合(=どのtriggerも能動化しない、安全側デフォルト)。"""
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+    config = {"ogerpon_q_critic": {"shadow_only": False}}
+    obs = _obs(encoder_observations, "mid_game")
+    override = ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+    assert override is None
+
+
+def test_phase4_no_override_when_chosen_option_is_ex_tempo(ml_policy_agent, encoder_observations, monkeypatch):
+    _active_gate_setup(monkeypatch, ml_policy_agent, chosen_option="EX_TEMPO", single_first_action=[1])
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    obs = _obs(encoder_observations, "mid_game")
+    override = ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+    assert override is None
+
+
+def test_phase4_no_override_when_legacy_planner_live(ml_policy_agent, encoder_observations, monkeypatch):
+    """旧Plannerが非shadowで同時稼働している場合、条件を満たしていても能動介入しない
+    (design.md Phase3 item4の排他要件)。"""
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+    monkeypatch.setattr(ml_policy_agent, "_legacy_ogerpon_planner_is_live", lambda cfg, deck_ids: True)
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    obs = _obs(encoder_observations, "mid_game")
+    override = ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+    assert override is None
+
+
+def test_phase4_no_override_when_action_illegal_for_current_select(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """single_first_actionが現在のselectに対して不正(範囲外等)なら、安全側でNoneに倒す。"""
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[999])
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    obs = _obs(encoder_observations, "mid_game")
+    override = ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+    assert override is None
+
+
+def test_phase4_agent_returns_override_action_end_to_end(ml_policy_agent, encoder_observations, monkeypatch):
+    """agent()自体がoverrideを実際に採用して返すことのend-to-end確認。"""
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[2])
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    obs = _obs(encoder_observations, "mid_game")
+    result = ml_policy_agent.agent(obs, config)
+    assert result == [2]
+
+
+def test_legacy_ogerpon_planner_is_live_detects_non_shadow_main_bonus(ml_policy_agent):
+    config = {"ogerpon_planner": {"enabled": True, "main_enabled": True, "main_shadow_only": False}}
+    deck_ids = [96, 96, 96, 96, 920] + [7] * 55
+    assert ml_policy_agent._legacy_ogerpon_planner_is_live(config, deck_ids) is True
+
+
+def test_legacy_ogerpon_planner_is_live_false_when_shadow_only(ml_policy_agent):
+    config = {"ogerpon_planner": {"enabled": True, "main_enabled": True, "main_shadow_only": True}}
+    deck_ids = [96, 96, 96, 96, 920] + [7] * 55
+    assert ml_policy_agent._legacy_ogerpon_planner_is_live(config, deck_ids) is False
+
+
+def test_legacy_ogerpon_planner_is_live_false_when_disabled(ml_policy_agent):
+    deck_ids = [96, 96, 96, 96, 920] + [7] * 55
+    assert ml_policy_agent._legacy_ogerpon_planner_is_live({}, deck_ids) is False
+
+
+def test_phase4_active_override_never_replaces_lethal_action(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """回帰テスト: Stage7の安全レビューで発見した実バグ。確定リーサル(`_try_lethal`)が
+    見つかった回に、Q-criticの能動ゲート条件がたまたま同時に成立しても、lethalの行動を
+    上書きしてはいけない(lethal最優先はこのプロジェクト全体の絶対要件)。
+    """
+    obs = _obs(encoder_observations, "mid_game")
+    lethal_action = [2]
+
+    class _StubSearch:
+        @staticmethod
+        def search(state, options, context):
+            return lethal_action
+
+    monkeypatch.setitem(ml_policy_agent._SEARCH_MODULES, "lethal_simple", _StubSearch)
+    # Q-criticが強くSINGLE(=lethalとは異なる行動[1])を推す状況を作る。
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+    config = {
+        "lethal_search": {"enabled": True, "module": "lethal_simple"},
+        "ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]},
+    }
+    result = ml_policy_agent.agent(obs, config)
+    assert result == lethal_action, "lethalが見つかった回はQ-criticの能動ゲートで上書きしてはいけない"
+
+
+def test_ogerpon_q_shadow_is_lethal_suppresses_override_and_records_it(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """`_ogerpon_q_shadow`単体でも、`is_lethal=True`を渡すとoverride条件を満たしていても
+    `active_override_applied`がFalseになり、ログにも`is_lethal_baseline=True`として
+    正しく記録されること(一次防御そのものの単体確認。agent()レベルの二次防御とは別)。
+    """
+    log, violations = _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    obs = _obs(encoder_observations, "mid_game")
+    override = ml_policy_agent._ogerpon_q_shadow(obs, [0], config, is_lethal=True)
+    assert override is None
+    assert log[0]["is_lethal_baseline"] is True
+    assert log[0]["active_override_applied"] is False
+    assert violations == []

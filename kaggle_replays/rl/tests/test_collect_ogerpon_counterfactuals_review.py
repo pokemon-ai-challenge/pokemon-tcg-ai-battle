@@ -279,7 +279,8 @@ def test_same_determinization_shared_across_both_options(mod, monkeypatch):
 
     records = mod._process_triggered_state(
         obs, (ex_c, single_c), "main_attach", learner_index=0, match_seed=123, turn=5,
-        arch="alakazam", opp_pm=None, deck_ids=[], determinizations=3)
+        arch="alakazam", opp_pm=None, deck_ids=[], determinizations=3,
+        state_id="fixed_state_id", sample_id="fixed_sample_id")
 
     assert calls["n"] == 3, "hidden stateは決定化ごとに1回だけ生成し、Option間で共有するべき"
     assert len(records) == 6  # 3決定化 x 2Option

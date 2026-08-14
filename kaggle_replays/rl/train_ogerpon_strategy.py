@@ -133,17 +133,23 @@ def validate_dataset(records: list[dict], cfg: dict) -> dict:
 
 
 def aggregate_by_state_option(records: list[dict]) -> dict[str, dict[str, dict]]:
-    """``(state_id, option_name)`` ごとに複数決定化のoutcomeを平均する。
+    """``(sample_id, option_name)`` ごとに複数決定化のoutcomeを平均する。
+
+    ``sample_id``(collector側で match_seed + learner_index + opponent_archetype + turn +
+    state_id + 試合内発火連番 から作る一意ID)で集約する。``state_id``(公開盤面の内容
+    ハッシュ)だけで集約すると、異なる試合が偶然同じ盤面内容に達した場合に、無関係な
+    2つのtrigger事象のrolloutを1つの学習サンプルへ誤って混ぜてしまう(外部レビュー指摘)。
+    ``state_id`` は情報として結果dictに残すが、集約キーとしては使わない。
 
     features(continuous_features/slot_card_ids/option_features)は同じ
-    (state_id, option_name)内で決定化に依らず同一(collector側の仕様)なので先頭行を使う。
+    (sample_id, option_name)内で決定化に依らず同一(collector側の仕様)なので先頭行を使う。
     """
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for r in records:
-        groups[(r["state_id"], r["option_name"])].append(r)
+        groups[(r["sample_id"], r["option_name"])].append(r)
 
     out: dict[str, dict[str, dict]] = defaultdict(dict)
-    for (state_id, option_name), rows in groups.items():
+    for (sample_id, option_name), rows in groups.items():
         wins, loops, kos, signed_turns = [], [], [], []
         for r in rows:
             o = r["outcome"]
@@ -158,8 +164,8 @@ def aggregate_by_state_option(records: list[dict]) -> dict[str, dict[str, dict]]
         if not wins:
             continue
         first = rows[0]
-        out[state_id][option_name] = {
-            "state_id": state_id, "option_name": option_name,
+        out[sample_id][option_name] = {
+            "sample_id": sample_id, "state_id": first.get("state_id"), "option_name": option_name,
             "opponent_archetype": first["opponent_archetype"],
             "match_seed": first["match_seed"], "trigger_kind": first["trigger_kind"],
             "learner_index": first["learner_index"],
@@ -180,9 +186,10 @@ def aggregate_by_state_option(records: list[dict]) -> dict[str, dict[str, dict]]
 # ---------------------------------------------------------------------------
 
 def split_state_ids(by_state: dict, seed: int, train=0.70, val=0.15) -> tuple[list, list, list]:
-    """state_idをmatch_seed単位でグルーピングし(同一match由来の近接状態は同じsplitへ)、
-    対面(opponent_archetype)x先後(learner_index)で層化した上で分割する(design.md §10.1)。
-    層ごとの件数が少ない場合でも単純な按分にフォールバックし、壊れずに動く。
+    """sample_id(``aggregate_by_state_option`` の出力キー)をmatch_seed単位でグルーピングし
+    (同一match由来の近接状態は同じsplitへ)、対面(opponent_archetype)x先後(learner_index)で
+    層化した上で分割する(design.md §10.1)。層ごとの件数が少ない場合でも単純な按分に
+    フォールバックし、壊れずに動く。
     """
     by_match: dict[int, list[str]] = defaultdict(list)
     match_stratum: dict[int, tuple] = {}
@@ -293,7 +300,10 @@ def _to_tensors(examples: list[dict], std: dict, device):
 
 
 def _pairwise_ranking_pairs(examples: list[dict], min_gap: float) -> list[tuple[int, int, float]]:
-    """train_examples内で同じstate_idの両Optionが揃っている行番号ペアを列挙する。
+    """train_examples内で同じsample_id(同一trigger事象)の両Optionが揃っている行番号ペアを
+    列挙する。``state_id``(内容ハッシュ)ではなく``sample_id``でマッチングする理由は
+    ``aggregate_by_state_option`` と同じ(内容衝突で無関係な事象のEX_TEMPO/SINGLE_PRIZE_ROTATION
+    を誤ってペアリングしないため)。
 
     戻り値は (single_prize側のindex, ex_tempo側のindex, sign) のリスト。sign は
     「実際にどちらのwin_rateが高いか」(+1ならSINGLE側が高い)。勝率差が
@@ -301,7 +311,7 @@ def _pairwise_ranking_pairs(examples: list[dict], min_gap: float) -> list[tuple[
     """
     by_state: dict[str, dict[str, int]] = defaultdict(dict)
     for i, e in enumerate(examples):
-        by_state[e["state_id"]][e["option_name"]] = i
+        by_state[e["sample_id"]][e["option_name"]] = i
     pairs = []
     for sid, opts in by_state.items():
         if EX_TEMPO not in opts or SINGLE_PRIZE_ROTATION not in opts:

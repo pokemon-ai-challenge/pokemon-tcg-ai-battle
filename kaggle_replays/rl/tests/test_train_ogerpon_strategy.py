@@ -38,7 +38,8 @@ def _rec(option_name, pair_id, win=1, error=None, cont=None, opt=None):
         "outcome": {"win": win, "error": error, "loop_complete": False,
                    "opponent_ko_count": 0, "terminal_turns": 1},
         "option_name": option_name, "pair_id": pair_id,
-        "state_id": pair_id.split(":")[0], "determinization_id": 0,
+        "state_id": pair_id.split(":")[0], "sample_id": pair_id.split(":")[0],
+        "determinization_id": 0,
         "match_seed": 1, "opponent_archetype": "alakazam", "learner_index": 0,
         "trigger_kind": "main_attach",
         "continuous_features": cont if cont is not None else [1.0, 2.0],
@@ -110,8 +111,9 @@ def _write_synthetic_dataset(path: Path, n_states: int, continuous_dim: int, opt
                 for name in ("EX_TEMPO", "SINGLE_PRIZE_ROTATION"):
                     win = 1 if (i + det_id) % 2 == 0 else 0
                     rec = {
-                        "schema_version": 1, "git_commit": "test",
-                        "state_id": state_id, "pair_id": f"{state_id}:{det_id}",
+                        "schema_version": 2, "git_commit": "test",
+                        "state_id": state_id, "sample_id": state_id,
+                        "pair_id": f"{state_id}:{det_id}",
                         "match_seed": i, "determinization_id": det_id,
                         "opponent_archetype": arch, "learner_index": side,
                         "trigger_kind": "main_attach", "option_name": name,

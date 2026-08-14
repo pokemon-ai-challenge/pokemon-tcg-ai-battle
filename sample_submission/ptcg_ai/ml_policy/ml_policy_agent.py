@@ -32,6 +32,7 @@ Step1)。`rule_based.main_turn_parts.proposals.collect_proposals(obs)` を呼び
 """
 
 import os
+import random
 import time
 
 from cg.api import Observation, OptionType, SelectData
@@ -39,8 +40,11 @@ from ptcg_ai.core.config import load_config
 from ptcg_ai.hidden_information import match_context, search_adapter
 from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
 from ptcg_ai.learning import value_shadow_log
+from ptcg_ai.learning.ogerpon_strategy_model import OgerponStrategyModel
+from ptcg_ai.learning import ogerpon_strategy_encoder
 from ptcg_ai.learning.policy_model import PolicyModel
-from ptcg_ai.ml_policy import ogerpon_planner, policy_registry
+from ptcg_ai.ml_policy import ogerpon_option_state as ogerpon_option_state_mod
+from ptcg_ai.ml_policy import ogerpon_planner, ogerpon_strategy, policy_registry
 from ptcg_ai.rule_based.main_turn_parts import proposals as rb_proposals
 from ptcg_ai.rule_based.main_turn_parts import weights as rb_weights
 from ptcg_ai.rule_based.rule_based_agent import read_deck_csv
@@ -146,7 +150,27 @@ def agent(obs: Observation, config: dict | None = None) -> list[int]:
         _selects_seen = 0
         policy_registry.reset()
         return read_deck_csv()
-    return _select_action(obs, config)
+    final_action, is_lethal = _select_action(obs, config)
+    # design.md Phase3 item4: shadow評価は`_select_action`のどの内部経路(lethal即return/
+    # pipeline即return/通常Policy経路)で確定した行動に対しても必ず1回だけ呼ばれる必要がある。
+    # `_select_action`内部の複数のearly returnそれぞれに個別に配線すると、経路によって
+    # shadowが呼ばれたり呼ばれなかったりする(実際にpipeline側にだけ配線して他のearly
+    # returnを取りこぼした結果、`pipeline.enabled=True`な本番configではpipelineがほぼ
+    # 毎回先にreturnしてしまいshadowが実質一度も評価まで到達しないというバグを
+    # 154試合検証で発見した)。ここで`_select_action`の戻り値そのものに対して呼ぶことで、
+    # 内部経路に関わらず必ず1回だけ評価される。
+    #
+    # 戻り値(override)は既定(shadow_only=True、Phase3)では常にNoneであり、Phase4の
+    # 能動ゲート(shadow_only=False)を明示的に有効化した場合だけ、厳密しきい値を満たした
+    # SINGLE_PRIZE_ROTATIONの行動で置き換える。`is_lethal`(確定リーサル探索由来の行動か)
+    # を`_ogerpon_q_shadow`へ明示的に渡し、lethalの回はoverrideを一次防御として評価内部で
+    # 無効化させる(`_ogerpon_q_shadow_impl`側)。ここでの`if is_lethal: return final_action`
+    # は二次防御(多層防御)。lethalを上書きしてしまう経路が実際に存在したことをStage7の
+    # 安全レビューで発見したため、lethalは常に最優先という要件をここで二重に保証する。
+    override = _ogerpon_q_shadow(obs, final_action, config, is_lethal=is_lethal)
+    if is_lethal:
+        return final_action
+    return override if override is not None else final_action
 
 
 def _get_model(config: dict | None = None, obs: Observation | None = None) -> PolicyModel:
@@ -492,6 +516,198 @@ OGERPON_SHADOW_LOG: list | None = None
 # 既定 None = 何もしない(本番のオーバーヘッドはゼロ)。
 OGERPON_CARD_LOG: list | None = None
 
+# design.md Phase3 item4(shadow)+ Phase4(能動ゲート)。
+#
+# `OGERPON_Q_SHADOW_LOG` が None かつ config の `ogerpon_q_critic.shadow_only` が既定値
+# (True、キー自体が無い場合を含む)のときは、`_ogerpon_q_shadow` は最初の行で即returnし、
+# 意思決定・RNG・match_context・OptionState・baseline_action のいずれにも一切触れない
+# (本番のオーバーヘッドはゼロ)。
+#
+# `shadow_only=True`(既定)では、有効化してもこの関数は常に副作用としてログへ追記する
+# だけで、戻り値は常に ``None``(=呼び出し側は必ず既存の ``final_action`` を使う)。
+#
+# `shadow_only=False` を明示した場合だけ、Phase4の能動ゲートに入る: 厳密しきい値
+# (design.md §11.2)を満たし、かつtriggerが `active_triggers`(≥30状態集まった
+# supported triggerのみを運用側が明示的に指定する。既定は空集合=何も能動化しない)に
+# 含まれ、かつ旧Planner補正システムが非shadowで同時に稼働していない場合に限り、
+# ``SINGLE_PRIZE_ROTATION`` 側の ``first_action``(=候補構築時点で合法性を確認済み)を
+# 戻り値として返す。呼び出し側(`agent()`)がこの戻り値を採用するかどうかを決める
+# (この関数自体は ``final_action`` を書き換えない。オーバーライドは常に別の戻り値
+# として明示的に伝える)。
+OGERPON_Q_SHADOW_LOG: list | None = None
+# `_ogerpon_q_shadow` の呼び出し前後で `final_action` または Python `random` の内部状態が
+# 変化した場合にだけ追記される(構造上は絶対に起きないはずの整合性違反の実測記録)。
+# 空リストのままであることがPhase3完了条件の1つ(design.md Phase3 item4)。
+OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS: list = []
+# `_ogerpon_q_shadow_impl` 内部で例外が発生し握りつぶされた回数の実測記録(常時ON。
+# 追記コストはリスト1件のappendのみで、`OGERPON_Q_SHADOW_LOG` が None かつ
+# `shadow_only=True` の既定状態では `_ogerpon_q_shadow_impl` 自体が呼ばれないため、
+# 本番のオーバーヘッドはゼロ)。
+OGERPON_Q_SHADOW_EXCEPTIONS: list = []
+_ogerpon_q_model: OgerponStrategyModel | None = None
+
+
+def _get_ogerpon_q_model() -> OgerponStrategyModel:
+    global _ogerpon_q_model
+    if _ogerpon_q_model is None:
+        _ogerpon_q_model = OgerponStrategyModel()
+    return _ogerpon_q_model
+
+
+def _legacy_ogerpon_planner_is_live(effective_config: dict, deck_ids) -> bool:
+    """旧Planner補正システム(`ogerpon_planner`の候補ボーナス)が、shadow_onlyではなく
+    実際に行動へ介入する状態で稼働しているかを判定する。`_try_pipeline`が
+    `legacy_on`/`fo_on`/`shadow_only`を計算するのと同じロジックをここでも独立に
+    評価する(Phase4の能動ゲートと旧Plannerの能動介入を同時に成立させないための
+    排他チェック専用。design.md Phase3 item4の「旧Plannerと同時に使わない」要件)。
+    """
+    main_cfg = ogerpon_planner.main_config(effective_config)
+    attach_cfg = ogerpon_planner.attach_config(effective_config)
+    main_on = bool(main_cfg.get("main_enabled"))
+    attach_on = bool(attach_cfg.get("attach_enabled"))
+    legacy_on = (main_on or attach_on) and ogerpon_planner.is_active(effective_config, deck_ids)
+    fo_cfg = ogerpon_planner.finish_only_config(effective_config)
+    fo_on = bool(fo_cfg.get("enabled")) and ogerpon_planner.deck_is_ogerpon(deck_ids)
+    if not (legacy_on or fo_on):
+        return False
+    shadow_only_legacy = (bool(main_cfg.get("main_shadow_only"))
+                          or bool(attach_cfg.get("attach_shadow_only"))
+                          or bool(fo_cfg.get("shadow_only")))
+    return not shadow_only_legacy
+
+
+def _ogerpon_q_shadow(obs: Observation, final_action: list[int], config: dict | None,
+                      is_lethal: bool = False) -> list[int] | None:
+    """design.md §11.2のQ比較を評価する(Phase3のshadowログ記録 + Phase4の能動ゲート統合口)。
+
+    既定(`OGERPON_Q_SHADOW_LOG is None` かつ `shadow_only=True`)では即returnし、意思決定・
+    RNG・match_context・OptionState・baseline_action のいずれにも一切触れない(本番の
+    オーバーヘッドはゼロ)。呼び出し前後で ``final_action`` の内容とPython `random` の
+    内部状態(``random.getstate()``)をスナップショット比較し、万一どちらかが変化していれば
+    ``OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS`` へ記録した上で元へ戻し、その回の
+    オーバーライドは無条件で不採用にする(整合性違反時は安全側=baselineへ倒す)。
+
+    ``is_lethal`` が True(``final_action`` が確定リーサル探索由来)の場合は、
+    オーバーライドを評価すらしない(lethal最優先はこのプロジェクト全体の絶対要件。
+    呼び出し側(`agent()`)も独立に同じガードを持つ多層防御だが、ログ自体を正しく
+    「override不採用」として記録するため、ここでも一次防御として明示的に扱う)。
+
+    Returns:
+        list[int] | None: `is_lethal=False` かつ `shadow_only=False` かつ厳密しきい値を
+            満たしtriggerが `active_triggers` に含まれる場合だけ、
+            `SINGLE_PRIZE_ROTATION` 側の行動を返す。それ以外は常に ``None``。
+    """
+    effective_config = config if config is not None else _get_config()
+    q_config = (effective_config or {}).get("ogerpon_q_critic") or {}
+    shadow_only = q_config.get("shadow_only", True)
+    if OGERPON_Q_SHADOW_LOG is None and shadow_only:
+        return None
+    action_snapshot = list(final_action)
+    rng_state_before = random.getstate()
+    override = None
+    try:
+        override = _ogerpon_q_shadow_impl(obs, final_action, effective_config, q_config,
+                                          shadow_only or is_lethal, is_lethal)
+    except Exception:  # noqa: BLE001
+        override = None
+    if final_action != action_snapshot:
+        OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS.append({
+            "kind": "final_action_mutated",
+            "before": action_snapshot, "after": list(final_action),
+        })
+        final_action[:] = action_snapshot  # 検知した場合は直ちに元へ戻す(安全側)。
+        override = None  # 整合性違反を検知した回はオーバーライドを絶対に採用しない。
+    if random.getstate() != rng_state_before:
+        OGERPON_Q_SHADOW_INTEGRITY_VIOLATIONS.append({"kind": "rng_state_changed"})
+        random.setstate(rng_state_before)  # 検知した場合は直ちに元へ戻す(安全側)。
+        override = None
+    return override
+
+
+def _ogerpon_q_shadow_impl(obs: Observation, final_action: list[int], effective_config: dict,
+                           q_config: dict, shadow_only: bool, is_lethal: bool = False) -> list[int] | None:
+    """`_ogerpon_q_shadow` の実処理。Option Stateは実際には開始しない(`detect_trigger`へは
+    常に`IDLE`を渡す。``SINGLE_PRIZE_ROTATION``を選ぶ判断はQ-criticの比較結果のみに基づき、
+    実行中のOption Stateという概念自体をここでは使わない)。RNGは一切使わない(推論は
+    publicな盤面特徴からの決定的なforward passのみで、hidden stateのサンプリングを
+    必要としない)。ゲームエンジンの探索API・PIMC・確定リーサル探索の再実行は一切行わない
+    (確定済みの候補・特徴量に対する純Python推論とログ記録のみ)。
+    """
+    try:
+        select = obs.select
+        if obs.current is None or select is None or select.maxCount != 1:
+            return None
+        deck_ids = _get_deck()
+        if not ogerpon_planner.deck_is_ogerpon(deck_ids):
+            return None
+
+        supported_triggers = set(q_config.get("supported_triggers", ["main_attach"]))
+        me = obs.current.yourIndex
+
+        t0 = time.perf_counter()
+        trigger = ogerpon_strategy.detect_trigger(obs, me, deck_ids, ogerpon_option_state_mod.IDLE)
+        if trigger is None:
+            return None
+        record = {
+            "turn": obs.current.turn, "trigger_kind": trigger,
+            "final_action": list(final_action),
+        }
+        if trigger not in supported_triggers:
+            record["outcome"] = "unsupported_trigger"
+            record["duration_ms"] = (time.perf_counter() - t0) * 1000.0
+            if OGERPON_Q_SHADOW_LOG is not None:
+                OGERPON_Q_SHADOW_LOG.append(record)
+            return None
+
+        pair = ogerpon_strategy.build_candidates(obs, me, effective_config, deck_ids, trigger, final_action)
+        if pair is None:
+            record["outcome"] = "candidate_build_failed"
+            record["duration_ms"] = (time.perf_counter() - t0) * 1000.0
+            if OGERPON_Q_SHADOW_LOG is not None:
+                OGERPON_Q_SHADOW_LOG.append(record)
+            return None
+        ex_candidate, single_candidate = pair
+
+        model = _get_ogerpon_q_model()
+        if not model.is_ready:
+            record["outcome"] = "weights_not_ready"
+            record["duration_ms"] = (time.perf_counter() - t0) * 1000.0
+            if OGERPON_Q_SHADOW_LOG is not None:
+                OGERPON_Q_SHADOW_LOG.append(record)
+            return None
+
+        encoded = ogerpon_strategy_encoder.encode_strategy_pair(obs, me, pair)
+        thresholds = q_config.get("decision_thresholds") or ogerpon_strategy.DEFAULT_DECISION_THRESHOLDS
+        comparison = ogerpon_strategy.compare_options(model, encoded, single_candidate, thresholds)
+        would_override = comparison["chosen_option"] == ogerpon_strategy.SINGLE_PRIZE_ROTATION
+        record.update({
+            "outcome": "evaluated",
+            "ex_first_action": ex_candidate.first_action,
+            "single_first_action": single_candidate.first_action,
+            "single_target_serial": single_candidate.target_serial,
+            "single_target_card_id": single_candidate.target_card_id,
+            "would_override": would_override,
+            "is_lethal_baseline": is_lethal,
+            **comparison,
+        })
+
+        override_action = None
+        if not shadow_only and would_override:
+            active_triggers = set(q_config.get("active_triggers", []))
+            if (trigger in active_triggers
+                    and not _legacy_ogerpon_planner_is_live(effective_config, deck_ids)
+                    and _is_valid_action(single_candidate.first_action, select)):
+                override_action = list(single_candidate.first_action)
+        record["active_override_applied"] = override_action is not None
+
+        record["duration_ms"] = (time.perf_counter() - t0) * 1000.0
+        if OGERPON_Q_SHADOW_LOG is not None:
+            OGERPON_Q_SHADOW_LOG.append(record)
+        return override_action
+    except Exception as exc:  # noqa: BLE001
+        OGERPON_Q_SHADOW_EXCEPTIONS.append(repr(exc))
+        return None
+
 
 def _ogerpon_shadow_sink(obs, effective_config):
     """PIMC の候補スコアと Planner の補正を突き合わせて記録するコールバックを返す。
@@ -696,7 +912,10 @@ def _try_ogerpon_planner(obs, model, effective_config, model_factory, model_dead
         return None
 
 
-def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
+def _select_action(obs: Observation, config: dict | None = None) -> tuple[list[int], bool]:
+    """戻り値は ``(action, is_lethal)``。``is_lethal`` は確定リーサル探索
+    (``_try_lethal``)由来の行動かどうか(呼び出し側がQ-critic能動ゲートで
+    lethalを上書きしないためのガードに使う)。"""
     select = obs.select
 
     # pipeline の動的時間予算用に、意思決定を要する選択のたびにカウンタを進める
@@ -706,11 +925,11 @@ def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
 
     lethal_action = _try_lethal(obs, config=config)
     if lethal_action is not None:
-        return lethal_action
+        return lethal_action, True
 
     pipeline_action = _try_pipeline(obs, config=config)
     if pipeline_action is not None:
-        return pipeline_action
+        return pipeline_action, False
 
     model = _get_model(config, obs=obs)
     model_factory = _model_hidden_state_factory(obs, config)
@@ -742,7 +961,7 @@ def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
         policy_scores = None
 
     planned_action = _try_attack_plan(obs, baseline_action, config, policy_scores)
-    return planned_action if planned_action is not None else baseline_action
+    return (planned_action if planned_action is not None else baseline_action), False
 
 
 def _greedy_multi_select(

@@ -224,6 +224,32 @@ class OgerponStrategyModel:
             out["loop_complete"] = 0.5
         return out
 
+    def predict_members(self, continuous_features, slot_card_ids, option_features,
+                        option_name: str) -> list[dict[str, float]]:
+        """ensemble各メンバーの生予測(較正済みだが未平均)をリストで返す。
+
+        design.md §11.2のQ比較は ``delta_std``(2Optionの差をモデルごとにペアで取った上での
+        標準偏差)を要求する。これは ``win`` の独立な標準偏差(``predict()`` が返す
+        ``win_std``)とは別物(相関を保ったまま差を取る必要がある)なので、呼び出し側
+        (``ogerpon_strategy.compare_options``)がEX_TEMPO/SINGLE_PRIZE_ROTATION双方の
+        メンバー別予測をペアで受け取れるようにする。
+
+        未ロード・次元不一致・例外時は空リスト(呼び出し側は中立値にフォールバックする)。
+        """
+        if (not self.is_ready
+                or len(continuous_features) != self._continuous_dim
+                or len(option_features) != self._option_dim):
+            return []
+        try:
+            per_model = [m.forward(continuous_features, slot_card_ids, option_features)
+                        for m in self._models]
+        except Exception:  # noqa: BLE001
+            return []
+        if option_name != "SINGLE_PRIZE_ROTATION":
+            for p in per_model:
+                p["loop_complete"] = 0.5
+        return per_model
+
     def predict_pair(self, continuous_features, slot_card_ids, option_features_by_name: dict) -> dict:
         """EX_TEMPO/SINGLE_PRIZE_ROTATION両方の予測を返す。design.md §11.2の入力形。"""
         return {

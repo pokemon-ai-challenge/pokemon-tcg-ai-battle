@@ -24,7 +24,7 @@
 4. 決定化ごとに、Optionごとに ``search_begin`` でrootを作り直す(design.mdの推奨どおり、
    1つのrootをsearch_stepで分岐させるのではなく、同じhidden state payloadからOptionごとに
    新しいrootを作る。速度よりペアの公平性を優先する)。同じdeterminizationは必ず両Optionで
-   共有する。
+   共有する(``hidden_state_hash`` フィールドで検証できる。生のhidden情報自体は記録しない)。
 5. ``first_action`` を強制した後は、学習側は既存Policyのgreedy選択で継続する
    (``pipeline.py`` の内部rolloutと同じ簡略化。lethal探索・PIMC再帰は行わない)。
    ``SINGLE_PRIZE_ROTATION`` 側は ``ogerpon_option_state`` の固定Option Controllerに
@@ -36,6 +36,13 @@
    abort理由を記録する。
 7. search nodeは経路上のものを含めて必ず ``search_release`` し、1状態の処理が終わるごとに
    ``search_end`` する。
+
+## trigger別quota(外部レビュー指摘への対応)
+
+1試合あたりの発火局面数を単純な共通上限(全trigger合算)で切ると、ゲーム序盤に頻発する
+``main_attach`` が上限を独占し、``promote``/``retreat`` がほぼ収集できなくなる。
+``--max-states-per-trigger-per-game`` でtrigger種別ごとに独立した上限を設け、
+``--max-states-per-game`` は全trigger合算の安全上限(暴走防止)として別途維持する。
 """
 
 from __future__ import annotations
@@ -47,6 +54,7 @@ import random
 import sys
 import tempfile
 import time
+from collections import defaultdict
 from dataclasses import asdict
 from multiprocessing import Pool
 from pathlib import Path
@@ -60,11 +68,12 @@ from matchup_common import append_jsonl, atomic_write_json, git_commit_sha, read
 from eval_agent_field import build_field, make_tasks  # noqa: E402
 from ogerpon_rollout_common import detect_vanished, is_emergency_retreat_allowed  # noqa: E402
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # sample_id/hidden_state_hash追加でスキーマを更新
 MAX_OUTER_STEPS = 3000       # 外側(state収集用)の1試合あたり上限
 MAX_ROLLOUT_STEPS = 400      # 反実仮想rolloutの1本あたり上限
 EX_TEMPO = "EX_TEMPO"
 SINGLE_PRIZE_ROTATION = "SINGLE_PRIZE_ROTATION"
+TRACKED_TRIGGER_KINDS = ("main_attach", "promote", "retreat")
 _W: dict = {}
 
 
@@ -99,8 +108,35 @@ def _init(weights_path, ml_config_name, workdir, opponents):
 
 
 def state_id_of(state) -> str:
-    """公開盤面(``obs.current``。logsは含まれない)のsha256。"""
+    """公開盤面(``obs.current``。logsは含まれない)のsha256。試合内の重複局面検出、
+    およびデバッグ用の内容フィンガープリントとして使う(一意な識別子としては使わない。
+    異なる試合が偶然同じ盤面内容に達すると衝突しうるため。一意性は ``sample_id`` が担う)。
+    """
     payload = json.dumps(asdict(state), sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def sample_id_of(match_seed: int, learner_index: int, opponent_archetype: str, turn: int,
+                 state_id: str, fire_seq: int) -> str:
+    """試合をまたいでも衝突しない一意なID(外部レビュー指摘)。
+
+    ``state_id``(盤面内容ハッシュ)だけでは、異なる試合が偶然同じ盤面内容に達した場合に
+    衝突しうる。``match_seed``(試合ごとに一意)・``learner_index``・相手アーキタイプ・
+    ターン数・同一試合内の発火連番(``fire_seq``)を合わせることで、内容が同じでも
+    実イベントとしては別物であることを保証する。
+    """
+    payload = f"{match_seed}:{learner_index}:{opponent_archetype}:{turn}:{state_id}:{fire_seq}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def hidden_state_hash_of(hidden_state: dict) -> str:
+    """hidden state(相手の非公開領域のサンプル)のフィンガープリント。
+
+    生の非公開情報は通常ログへ出力せず、このhashだけを記録する。同一pairの2 Optionが
+    同じdeterminizationを使っているか、異なるdeterminizationで実際に値が変わっているかを、
+    生データを晒さずに検証できる。
+    """
+    payload = json.dumps(hidden_state, sort_keys=True, default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -408,16 +444,15 @@ def _rollout_option(root_obs, hidden_state, candidate, learner_index, opp_pm, de
 # ---------------------------------------------------------------------------
 
 def _process_triggered_state(obs, pair, trigger_kind, learner_index, match_seed, turn,
-                             arch, opp_pm, deck_ids, determinizations: int) -> list[dict]:
+                             arch, opp_pm, deck_ids, determinizations: int,
+                             state_id: str, sample_id: str) -> list[dict]:
     from cg import api as cg_api
 
     ENC = _W["ENC"]
     ex_candidate, single_candidate = pair
-    state_id = state_id_of(obs.current)
     encoded = ENC.encode_strategy_pair(obs, learner_index, pair)
 
     records: list[dict] = []
-    hidden_state_failures = 0
     try:
         for det_id in range(determinizations):
             seed = determinization_seed(match_seed, turn, state_id, det_id)
@@ -425,18 +460,20 @@ def _process_triggered_state(obs, pair, trigger_kind, learner_index, match_seed,
             try:
                 hidden_state = build_estimated_hidden_state(obs, learner_index, rng)
             except Exception as exc:  # noqa: BLE001
-                hidden_state_failures += 1
                 records.append({
                     "schema_version": SCHEMA_VERSION, "git_commit": _W["git_commit"],
-                    "state_id": state_id, "pair_id": f"{state_id}:{det_id}",
+                    "state_id": state_id, "sample_id": sample_id,
+                    "pair_id": f"{sample_id}:{det_id}",
                     "match_seed": match_seed, "determinization_id": det_id,
                     "opponent_archetype": arch, "learner_index": learner_index,
                     "trigger_kind": trigger_kind, "option_name": None,
+                    "hidden_state_hash": None,
                     "continuous_features": [], "slot_card_ids": [], "option_features": [],
                     "first_action_identity": {},
                     "outcome": {"win": None, "error": f"hidden_state_build_failed: {exc!r}"},
                 })
                 continue
+            hs_hash = hidden_state_hash_of(hidden_state)
             for candidate in (ex_candidate, single_candidate):
                 outcome = _rollout_option(
                     obs, hidden_state, candidate, learner_index, opp_pm, deck_ids, _W["config"])
@@ -444,13 +481,15 @@ def _process_triggered_state(obs, pair, trigger_kind, learner_index, match_seed,
                     "schema_version": SCHEMA_VERSION,
                     "git_commit": _W["git_commit"],
                     "state_id": state_id,
-                    "pair_id": f"{state_id}:{det_id}",
+                    "sample_id": sample_id,
+                    "pair_id": f"{sample_id}:{det_id}",
                     "match_seed": match_seed,
                     "determinization_id": det_id,
                     "opponent_archetype": arch,
                     "learner_index": learner_index,
                     "trigger_kind": trigger_kind,
                     "option_name": candidate.option_name,
+                    "hidden_state_hash": hs_hash,
                     "continuous_features": encoded["continuous_features"],
                     "slot_card_ids": encoded["slot_card_ids"],
                     "option_features": encoded["option_features"][candidate.option_name],
@@ -472,11 +511,32 @@ def _process_triggered_state(obs, pair, trigger_kind, learner_index, match_seed,
     return records
 
 
+def _diagnose_candidate_build_failure(obs, learner_index, config, deck_l, trigger, select, state) -> str:
+    """``build_candidates`` がNoneを返した理由を粗く分類する(外部レビュー指摘: trigger別に
+    「候補構築失敗理由」を出力する)。``build_candidates`` 自体を再実行せず、内部で使っている
+    のと同じresolverを直接呼んで失敗箇所を特定する(成功経路には一切コストをかけない)。
+    """
+    STRAT = _W["STRAT"]
+    try:
+        idx, target = STRAT._resolve_single_prize_first_action(  # noqa: SLF001
+            obs, learner_index, config, deck_l, trigger, select, state)
+    except Exception as exc:  # noqa: BLE001
+        return f"resolver_exception: {exc!r}"
+    if idx is None:
+        return "no_index_resolved"
+    if target is None:
+        return "no_target_resolved"
+    if not (0 <= idx < len(select.option)):
+        return "index_out_of_range"
+    return "unknown"
+
+
 # ---------------------------------------------------------------------------
 # 通常self-playを進めながら、発火局面をその場でrolloutする
 # ---------------------------------------------------------------------------
 
-def _process_task(task, determinizations: int, max_states_per_game: int) -> dict:
+def _process_task(task, determinizations: int, max_states_per_trigger_per_game: int,
+                  max_states_per_game: int) -> dict:
     from cg.api import to_observation_class
     from cg.game import battle_finish, battle_select, battle_start
 
@@ -497,11 +557,20 @@ def _process_task(task, determinizations: int, max_states_per_game: int) -> dict
 
     all_records: list[dict] = []
     n_states = 0
+    trigger_saved_count: dict[str, int] = defaultdict(int)
+    trigger_diag: dict[str, dict[str, int]] = {
+        k: {"fired": 0, "quota_skipped": 0, "duplicate_state_skipped": 0,
+           "build_attempted": 0, "build_failed": 0, "build_failure_reasons": defaultdict(int),
+           "saved": 0}
+        for k in TRACKED_TRIGGER_KINDS
+    }
+    seen_state_ids_this_game: set = set()
+    fire_seq = 0
     err = None
     n = 0
     obs_dict, sd = battle_start(deck0, deck1)
     if sd.errorType != 0:
-        return {"error": f"start {sd.errorType}", "records": [], "n_states": 0}
+        return {"error": f"start {sd.errorType}", "records": [], "n_states": 0, "trigger_diag": trigger_diag}
     try:
         while True:
             obs = to_observation_class(obs_dict)
@@ -523,14 +592,36 @@ def _process_task(task, determinizations: int, max_states_per_game: int) -> dict
                     # main_attach/promote/retreatの発火局面が事実上収集できなくなる
                     # (外部レビュー指摘、実コードで確認済みのバグ)。
                     trigger = STRAT.detect_trigger(obs, learner_index, deck_l, OS.IDLE)
-                    if trigger is not None:
-                        pair = STRAT.build_candidates(
-                            obs, learner_index, config, deck_l, trigger, baseline_action)
-                        if pair is not None:
-                            n_states += 1
-                            all_records.extend(_process_triggered_state(
-                                obs, pair, trigger, learner_index, seed, cur.turn,
-                                arch, opp_pm, deck_l, determinizations))
+                    if trigger in trigger_diag:
+                        diag = trigger_diag[trigger]
+                        diag["fired"] += 1
+                        if trigger_saved_count[trigger] >= max_states_per_trigger_per_game:
+                            diag["quota_skipped"] += 1
+                        else:
+                            cur_state_id = state_id_of(cur)
+                            if cur_state_id in seen_state_ids_this_game:
+                                diag["duplicate_state_skipped"] += 1
+                            else:
+                                diag["build_attempted"] += 1
+                                pair = STRAT.build_candidates(
+                                    obs, learner_index, config, deck_l, trigger, baseline_action)
+                                if pair is None:
+                                    diag["build_failed"] += 1
+                                    reason = _diagnose_candidate_build_failure(
+                                        obs, learner_index, config, deck_l, trigger, sel, cur)
+                                    diag["build_failure_reasons"][reason] += 1
+                                else:
+                                    seen_state_ids_this_game.add(cur_state_id)
+                                    trigger_saved_count[trigger] += 1
+                                    diag["saved"] += 1
+                                    n_states += 1
+                                    fire_seq += 1
+                                    sample_id = sample_id_of(
+                                        seed, learner_index, arch, cur.turn, cur_state_id, fire_seq)
+                                    all_records.extend(_process_triggered_state(
+                                        obs, pair, trigger, learner_index, seed, cur.turn,
+                                        arch, opp_pm, deck_l, determinizations,
+                                        cur_state_id, sample_id))
                 action = baseline_action
             else:
                 if sel is None or not sel.option:
@@ -551,12 +642,29 @@ def _process_task(task, determinizations: int, max_states_per_game: int) -> dict
     finally:
         battle_finish()
 
-    return {"error": err, "records": all_records, "n_states": n_states}
+    # defaultdict(int)はプロセス間でpickleできないworker結果に混ぜたくないので、普通のdictへ戻す。
+    for diag in trigger_diag.values():
+        diag["build_failure_reasons"] = dict(diag["build_failure_reasons"])
+
+    return {"error": err, "records": all_records, "n_states": n_states, "trigger_diag": trigger_diag}
 
 
 def _process_task_star(packed):
-    task, determinizations, max_states_per_game = packed
-    return _process_task(task, determinizations, max_states_per_game)
+    task, determinizations, max_states_per_trigger_per_game, max_states_per_game = packed
+    return _process_task(task, determinizations, max_states_per_trigger_per_game, max_states_per_game)
+
+
+def _merge_trigger_diag(total: dict, part: dict) -> None:
+    for kind, diag in part.items():
+        t = total.setdefault(kind, {"fired": 0, "quota_skipped": 0, "duplicate_state_skipped": 0,
+                                    "build_attempted": 0, "build_failed": 0,
+                                    "build_failure_reasons": {}, "saved": 0})
+        for k, v in diag.items():
+            if k == "build_failure_reasons":
+                for reason, count in v.items():
+                    t["build_failure_reasons"][reason] = t["build_failure_reasons"].get(reason, 0) + count
+            else:
+                t[k] = t.get(k, 0) + v
 
 
 # ---------------------------------------------------------------------------
@@ -570,13 +678,14 @@ def main():
     ap.add_argument("--ml-config", default="abl_5_full")
     ap.add_argument("--games", type=int, default=50)
     ap.add_argument("--determinizations", type=int, default=4)
-    ap.add_argument("--max-states-per-game", type=int, default=3)
+    ap.add_argument("--max-states-per-trigger-per-game", type=int, default=2)
+    ap.add_argument("--max-states-per-game", type=int, default=6)
     ap.add_argument("--seed", type=int, default=13571113)
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--output", required=True)
     args = ap.parse_args()
 
-    from matchup_common import resolve_path
+    from matchup_common import resolve_path, sha256_file
 
     deck = read_deck(resolve_path(args.deck))
     opponents, weights, _ = build_field(deck_gen="g2")
@@ -595,48 +704,127 @@ def main():
     option_counts: dict[str, int] = {}
     abort_reason_counts: dict[str, int] = {}
     pair_options: dict[str, set] = {}
+    archetype_state_counts: dict[str, int] = {}
+    side_state_counts: dict[int, int] = {}
+    win_counts: dict[int, int] = {}
+    ko_counts: dict[int, int] = {}
+    turns_counts: dict[int, int] = {}
+    loop_complete_counts: dict[bool, int] = {}
+    determinization_split_win_states = 0  # 決定化間で勝敗が分かれた局面数
+    hidden_hash_same_across_dets = 0
+    hidden_hash_diff_across_dets = 0
     illegal_actions = 0
+    trigger_diag_total: dict[str, dict] = {}
+    seen_sample_ids: set = set()
 
-    packed_tasks = [(t, args.determinizations, args.max_states_per_game) for t in tasks]
+    packed_tasks = [(t, args.determinizations, args.max_states_per_trigger_per_game,
+                    args.max_states_per_game) for t in tasks]
     with Pool(processes=args.workers, initializer=_init,
               initargs=(str(resolve_path(args.weights)), args.ml_config, workdir, opponents)) as pool:
+        by_sample_win: dict[str, set] = defaultdict(set)
+        by_sample_hashes: dict[str, dict[int, set]] = defaultdict(lambda: defaultdict(set))
         for res in pool.imap_unordered(_process_task_star, packed_tasks):
             if res.get("error"):
                 n_outer_errors += 1
             n_states += res.get("n_states", 0)
+            _merge_trigger_diag(trigger_diag_total, res.get("trigger_diag", {}))
             for rec in res.get("records", []):
                 append_jsonl(out_path, rec)
                 n_records += 1
                 trigger_counts[rec["trigger_kind"]] = trigger_counts.get(rec["trigger_kind"], 0) + 1
+                sample_id = rec.get("sample_id")
+                if sample_id and sample_id not in seen_sample_ids:
+                    seen_sample_ids.add(sample_id)
+                    archetype_state_counts[rec["opponent_archetype"]] = (
+                        archetype_state_counts.get(rec["opponent_archetype"], 0) + 1)
+                    side_state_counts[rec["learner_index"]] = side_state_counts.get(rec["learner_index"], 0) + 1
                 if rec.get("option_name"):
                     option_counts[rec["option_name"]] = option_counts.get(rec["option_name"], 0) + 1
                     pair_options.setdefault(rec["pair_id"], set()).add(rec["option_name"])
-                err = rec["outcome"].get("error")
+                outcome = rec["outcome"]
+                err = outcome.get("error")
                 if err:
                     n_rollout_errors += 1
                     if "hidden_state_build_failed" in str(err):
                         n_hidden_state_failures += 1
                     if "illegal" in str(err):
                         illegal_actions += 1
-                reason = rec["outcome"].get("abort_reason")
+                else:
+                    win = outcome.get("win")
+                    if win is not None:
+                        win_counts[win] = win_counts.get(win, 0) + 1
+                        if sample_id:
+                            by_sample_win[sample_id].add(win)
+                    ko = outcome.get("opponent_ko_count")
+                    if ko is not None:
+                        ko_counts[ko] = ko_counts.get(ko, 0) + 1
+                    turns = outcome.get("terminal_turns")
+                    if turns is not None:
+                        turns_counts[turns] = turns_counts.get(turns, 0) + 1
+                    if rec.get("option_name") == SINGLE_PRIZE_ROTATION:
+                        lc = outcome.get("loop_complete")
+                        loop_complete_counts[lc] = loop_complete_counts.get(lc, 0) + 1
+                reason = outcome.get("abort_reason")
                 if reason:
                     abort_reason_counts[reason] = abort_reason_counts.get(reason, 0) + 1
+                hs_hash = rec.get("hidden_state_hash")
+                if sample_id and hs_hash:
+                    by_sample_hashes[sample_id][rec["determinization_id"]].add(hs_hash)
+
+        for sample_id, wins in by_sample_win.items():
+            if len(wins) > 1:
+                determinization_split_win_states += 1
+        within_pair_hash_mismatches = 0
+        for sample_id, det_map in by_sample_hashes.items():
+            hashes_by_det = {}
+            for det_id, hs in det_map.items():
+                # 同じ(sample_id, determinization_id)内で2 Optionのhidden_state_hashが
+                # 食い違っていれば、「同じdeterminizationを両Optionで共有する」という
+                # 前提が崩れている(バグ)。ユーザー指摘の明示的な検証項目。
+                if len(hs) > 1:
+                    within_pair_hash_mismatches += 1
+                hashes_by_det[det_id] = next(iter(hs)) if hs else None
+            distinct = set(hashes_by_det.values())
+            if len(distinct) > 1:
+                hidden_hash_diff_across_dets += 1
+            elif len(hashes_by_det) > 1:
+                hidden_hash_same_across_dets += 1
 
     complete_pairs = sum(1 for opts in pair_options.values() if len(opts) == 2)
     incomplete_pairs = sum(1 for opts in pair_options.values() if len(opts) != 2)
+    n_valid_records = n_records - n_rollout_errors
+
+    supported_triggers = [k for k in TRACKED_TRIGGER_KINDS
+                          if trigger_diag_total.get(k, {}).get("saved", 0) >= 30]
+    unsupported_triggers = [k for k in TRACKED_TRIGGER_KINDS if k not in supported_triggers]
 
     summary = {
         "schema_version": SCHEMA_VERSION,
         "games": args.games, "determinizations": args.determinizations,
+        "max_states_per_trigger_per_game": args.max_states_per_trigger_per_game,
         "max_states_per_game": args.max_states_per_game,
         "n_states_collected": n_states, "n_rollout_records": n_records,
+        "n_valid_rollout_records": n_valid_records,
         "n_outer_game_errors": n_outer_errors, "n_rollout_errors": n_rollout_errors,
         "n_hidden_state_failures": n_hidden_state_failures, "n_illegal_actions": illegal_actions,
-        "trigger_kind_counts": trigger_counts, "option_name_counts": option_counts,
+        "trigger_kind_counts": trigger_counts, "trigger_diagnostics": trigger_diag_total,
+        "supported_triggers": supported_triggers, "unsupported_triggers": unsupported_triggers,
+        "option_name_counts": option_counts,
+        "opponent_archetype_state_counts": archetype_state_counts,
+        "learner_side_state_counts": side_state_counts,
         "abort_reason_counts": abort_reason_counts,
+        "win_counts": win_counts, "opponent_ko_count_distribution": ko_counts,
+        "terminal_turns_distribution": turns_counts, "loop_complete_counts": loop_complete_counts,
+        "determinization_split_win_states": determinization_split_win_states,
+        "hidden_state_hash_same_across_determinizations": hidden_hash_same_across_dets,
+        "hidden_state_hash_diff_across_determinizations": hidden_hash_diff_across_dets,
+        "hidden_state_hash_mismatch_within_pair_determinization": within_pair_hash_mismatches,
         "complete_pairs": complete_pairs, "incomplete_pairs": incomplete_pairs,
+        "dataset_sha256": None,  # ファイル書き込み後に計算して埋める
         "wall_seconds": time.time() - t0, "output": str(out_path),
     }
+    if out_path.exists():
+        summary["dataset_sha256"] = sha256_file(out_path)
     atomic_write_json(Path(str(out_path) + ".summary.json"), summary)
     print(json.dumps(summary, ensure_ascii=False, indent=2), flush=True)
 

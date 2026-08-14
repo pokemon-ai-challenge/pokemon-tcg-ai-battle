@@ -251,6 +251,74 @@ def _candidate_for_target(option_name, trigger_kind, first_action, target, mine,
     return candidate
 
 
+DEFAULT_DECISION_THRESHOLDS = {
+    "strict_override_threshold": 0.02,
+    "near_tie_enabled": False,
+    "near_tie_epsilon": 0.015,
+    "loop_threshold": 0.45,
+    "uncertainty_coef": 1.0,
+}
+
+
+def compare_options(model, encoded: dict, single_candidate: StrategyCandidate,
+                    thresholds: dict | None = None) -> dict:
+    """design.md §11.2のQ比較。まだ意思決定には配線しない(shadow-only、Phase3 item4)。
+
+    ensemble各メンバーのwin予測を EX_TEMPO/SINGLE_PRIZE_ROTATION の両方で取り、モデル
+    ごとにペアで差を取ってから標準偏差(``delta_std``)を計算する(独立な2つの標準偏差の
+    合成ではない。相関を保ったまま「同じモデルが2Optionをどれだけ違って見ているか」を
+    測る必要があるため)。
+
+    初期判断規則(``near_tie_enabled=False``)では、不確実性を考慮した下側信頼値
+    (``lcb_delta = delta - uncertainty_coef * delta_std``)が ``strict_override_threshold``
+    以上のときだけ ``SINGLE_PRIZE_ROTATION`` を選ぶ。モデル未ロード・特徴量不一致時は
+    ``delta=0`` の中立値になり、自然に ``EX_TEMPO`` へフォールバックする(呼び出し側で
+    特別分岐は不要)。
+    """
+    thresholds = dict(DEFAULT_DECISION_THRESHOLDS) if thresholds is None else dict(thresholds)
+    cont = encoded["continuous_features"]
+    slots = encoded["slot_card_ids"]
+    opt_features = encoded["option_features"]
+    members_ex = model.predict_members(cont, slots, opt_features[EX_TEMPO], EX_TEMPO)
+    members_single = model.predict_members(
+        cont, slots, opt_features[SINGLE_PRIZE_ROTATION], SINGLE_PRIZE_ROTATION)
+
+    if not members_ex or not members_single or len(members_ex) != len(members_single):
+        p_ex = p_single = 0.5
+        delta = delta_std = lcb_delta = 0.0
+        p_loop_complete = 0.5
+    else:
+        wins_ex = [m["win"] for m in members_ex]
+        wins_single = [m["win"] for m in members_single]
+        p_ex = sum(wins_ex) / len(wins_ex)
+        p_single = sum(wins_single) / len(wins_single)
+        delta = p_single - p_ex
+        diffs = [ws - we for ws, we in zip(wins_single, wins_ex)]
+        mean_diff = sum(diffs) / len(diffs)
+        delta_std = (sum((d - mean_diff) ** 2 for d in diffs) / len(diffs)) ** 0.5
+        lcb_delta = delta - thresholds["uncertainty_coef"] * delta_std
+        p_loop_complete = sum(m["loop_complete"] for m in members_single) / len(members_single)
+
+    required_ko_gain = single_candidate.required_ko_gain
+    chosen_option, reason = EX_TEMPO, "default"
+    if lcb_delta >= thresholds["strict_override_threshold"]:
+        chosen_option, reason = SINGLE_PRIZE_ROTATION, "strict_override"
+    elif (thresholds.get("near_tie_enabled")
+          and delta >= -thresholds["near_tie_epsilon"]
+          and p_loop_complete >= thresholds["loop_threshold"]
+          and required_ko_gain > 0):
+        chosen_option, reason = SINGLE_PRIZE_ROTATION, "near_tie"
+
+    return {
+        "p_ex": p_ex, "p_single": p_single, "delta": delta, "delta_std": delta_std,
+        "lcb_delta": lcb_delta, "p_loop_complete": p_loop_complete,
+        "required_ko_gain": required_ko_gain,
+        "chosen_option": chosen_option, "reason": reason,
+        "n_ensemble_members": len(members_ex),
+        "thresholds": thresholds,
+    }
+
+
 def build_candidates(
     obs: Observation, me: int, config: dict | None, deck_ids,
     trigger_kind: str, baseline_action: list[int],

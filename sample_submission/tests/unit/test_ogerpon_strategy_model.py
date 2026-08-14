@@ -221,3 +221,35 @@ def test_predict_pair_returns_both_options(mod, tmp_path):
                                 {"EX_TEMPO": [3.0], "SINGLE_PRIZE_ROTATION": [3.0]})
     assert set(result.keys()) == {"EX_TEMPO", "SINGLE_PRIZE_ROTATION"}
     assert result["EX_TEMPO"]["loop_complete"] == 0.5
+
+
+# --- predict_members(design.md §11.2のQ比較用、delta_std計算のため個別モデル予測が要る) ---
+
+def test_predict_members_returns_one_entry_per_ensemble_model(mod, tmp_path):
+    p1 = _single_model_payload()
+    p2 = _single_model_payload()
+    p2["heads"]["win"] = {"weight": [[1.0]], "bias": [-14.0]}
+    path = _write_weights(tmp_path, [p1, p2])
+    model = mod.OgerponStrategyModel(path)
+    members = model.predict_members([1.0, 2.0], [1, 0], [3.0], "SINGLE_PRIZE_ROTATION")
+    assert len(members) == 2
+    assert members[0]["win"] == pytest.approx(_sigmoid(7.0), abs=1e-9)
+    assert members[1]["win"] == pytest.approx(_sigmoid(-7.0), abs=1e-9)
+
+
+def test_predict_members_forces_loop_complete_neutral_for_ex_tempo(mod, tmp_path):
+    path = _write_weights(tmp_path, [_single_model_payload()])
+    model = mod.OgerponStrategyModel(path)
+    members = model.predict_members([1.0, 2.0], [1, 0], [3.0], "EX_TEMPO")
+    assert members[0]["loop_complete"] == 0.5
+
+
+def test_predict_members_empty_when_not_ready(mod, tmp_path):
+    model = mod.OgerponStrategyModel(tmp_path / "missing.json")
+    assert model.predict_members([1.0, 2.0], [1, 0], [3.0], "EX_TEMPO") == []
+
+
+def test_predict_members_empty_on_dimension_mismatch(mod, tmp_path):
+    path = _write_weights(tmp_path, [_single_model_payload()])
+    model = mod.OgerponStrategyModel(path)
+    assert model.predict_members([1.0], [1, 0], [3.0], "EX_TEMPO") == []
