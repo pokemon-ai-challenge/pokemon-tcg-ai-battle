@@ -92,7 +92,16 @@ _SEARCH_MODULES = {
 #
 # (履歴: 2026-07-22 は ml_lethal_attackplan_v0only を提出。ロック闘エネルギー等で攻撃が
 # 0ダメージになる局面の事後veto。ローカル400試合では有意差未確認・エラー0件だった。)
-_CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "abl_5_full")
+#
+# 2026-08-14: 提出用の既定を abl_5_full_lethalphase2 に変更(champion climb の
+# パイプラインのうち1段目の確定リーサルだけを Phase 1/2 探索器へ差し替えたもの)。
+# pipeline / Policy 重み / デッキは climb(LB 823.5)と同一。
+# **注意**: design.md 付録 Z.1 の production 接続条件のうち
+# `RNG_NON_INTERFERENCE_VERIFIED` は False のまま(探索の有無だけを変えて本番 RNG を
+# 比較する手段が SDK に無い= not verified。証明ロジック側の問題ではない)。
+# 誤 PROVEN_WIN 0 / 不正行動 0 / replay 検証 100% / fallback 100% / リーク 0 は満たす。
+# 元に戻すときはこの既定値を "abl_5_full" へ戻すだけでよい。
+_CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "abl_5_full_lethalphase2")
 
 _model: PolicyModel | None = None
 _config_cache: dict | None = None

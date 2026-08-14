@@ -25,19 +25,36 @@ BC→PPO ポリシー、Kaggle publicScore 823.5）を1つのブランチに載�
 (3) Policy フォールバック（変更なし: climb 重み）
 ```
 
-## 2. 既定では OFF
+## 2. 既定 = 提出構成（2026-08-14 に切り替え）
 
-`design.md` 付録 Z.1 の production 接続条件のうち `RNG_NON_INTERFERENCE_VERIFIED` が
-**False** のままなので、既定 config（`abl_5_full`）は従来どおり `lethal_simple` を選ぶ。
-Phase 1/2 を使うのは明示的に config を切り替えたときだけ:
+`ml_policy_agent._CONFIG_NAME` の既定値を `abl_5_full_lethalphase2` にしてある。
+Kaggle 提出時は環境変数を設定できないため、提出したい config はここに直接書く必要がある。
+**この状態で tar を作れば Phase 1/2（Phase 2 含む）が有効なまま提出される。**
+
+ローカルで別 config を試すときだけ環境変数で上書きする:
 
 ```bash
-PTCG_AI_ML_CONFIG=abl_5_full_lethalphase2 python league/run_league.py
+PTCG_AI_ML_CONFIG=abl_5_full python league/run_league.py    # 従来の champion(lethal_simple)
 ```
 
-Kaggle 提出でこれを既定にする場合は `ml_policy_agent._CONFIG_NAME` の既定値を
-`abl_5_full_lethalphase2` に変える（環境変数は提出時に設定できないため）。
-その際は付録 Z.1 の未検証項目を承知の上で行うこと。
+元に戻すのは `_CONFIG_NAME` の既定値を `"abl_5_full"` に書き戻すだけ。
+
+### 承知の上での未検証項目
+
+`design.md` 付録 Z.1 の production 接続条件6つのうち、5つ（誤 `PROVEN_WIN` 0 / 不正行動 0 /
+replay 検証 100% / 失敗時 fallback 100% / リソースリーク 0）は満たすが、
+`RNG_NON_INTERFERENCE_VERIFIED` は **False** のまま。「探索の有無だけを変えて本番の乱数結果を
+比較する」手段（seed 設定 / state clone / RNG 状態取得）が SDK に無いため *not verified* で、
+証明ロジック側に問題が見つかったわけではない（付録 Z.1 / `step0-capability-report.md` §11）。
+
+なお `rule_based` 側の既定（`configs/rule_lethal.json`）は `lethal_simple` のままで、
+`test_feature_flag_safety.py::test_default_config_never_invokes_phase1` がそれを固定している。
+
+### 時間予算
+
+Phase 1/2 が動くのは precheck を通った局面（残りサイド ≤ 2 など）だけで、その場合の
+1手あたり最悪時間は `phase12_ms=500` + pipeline（動的予算、`max_ms=2000`）。
+疎通確認した2試合では 123 select 中 8 回の発火だった。
 
 ## 3. パラメータの根拠
 
@@ -82,3 +99,18 @@ python tools/build_capability_corpus.py
   誤 `PROVEN_WIN` 0
 
 勝率の評価には足りない試合数。強さの比較は league の gauntlet で別途。
+
+### 提出パッケージ単体での動作確認
+
+README の手順で作った tar を展開し、**展開先だけを `sys.path`/cwd にして** `main.agent` を呼び、
+リポジトリ本体に依存していないことを確認した（`decks/` 入れ忘れのような事故の検出）:
+
+```bash
+cd sample_submission
+tar -czf submission.tar.gz main.py deck.csv cg ptcg_ai decks configs
+```
+
+- 展開先で読まれた config = `abl_5_full_lethalphase2`（`module=lethal_phase1` / `phase2=True`）
+- Policy 重みロード `is_ready=True`、デッキ選択 60 枚、通常 select は範囲内の有効な選択
+- `ptcg_ai/search/lethal/` は stdlib + `cg.api` + `ptcg_ai` 内部しか import しない
+  （`tools/` や `tests/` に依存しないので tar に入れる必要はない）

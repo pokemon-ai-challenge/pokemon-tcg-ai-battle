@@ -103,6 +103,10 @@ def test_try_lethal_returns_search_result_when_lethal_found(
     monkeypatch.setitem(ml_policy_agent._SEARCH_MODULES, "lethal_simple", _StubSearch)
     assert ml_policy_agent._try_lethal(obs, config=_LETHAL_ON) == [2]
     # agent() 経由でもリーサルが優先される(model のスコアに上書きされない)。
+    # 既定 config が選ぶモジュール名は提出構成によって変わる(現在は lethal_phase1)ので、
+    # ハードコードせず config から引いて同じスタブを差し込む。
+    default_module = ml_policy_agent._get_config()["lethal_search"].get("module", "lethal_simple")
+    monkeypatch.setitem(ml_policy_agent._SEARCH_MODULES, default_module, _StubSearch)
     assert ml_policy_agent.agent(obs) == [2]
 
 
