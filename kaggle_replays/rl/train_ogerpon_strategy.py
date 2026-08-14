@@ -32,6 +32,7 @@ option_name)`` ごとに複数決定化の結果を集約してから学習す�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 import sys
@@ -324,6 +325,71 @@ def _pairwise_ranking_pairs(examples: list[dict], min_gap: float) -> list[tuple[
     return pairs
 
 
+def _delta_regression_pairs(examples: list[dict]) -> list[tuple[int, int, float]]:
+    """診断フェーズ(外部指摘対応、Model B): ``_pairwise_ranking_pairs`` と同じペアリングだが
+    ``min_gap`` フィルタをかけない全ペアを対象に、経験的delta(``single_win_rate -
+    ex_win_rate``)そのものを回帰教師として使う。ranking lossは「符号を強い教師にする」設計
+    (min_gapでノイズの大きい小差ペアを除外)だが、この除外が学習ペアの56.5%(4214-state
+    データで実測)を切り捨てており、ノイズはあっても符号を含む情報を丸ごと捨てている。
+    Huber回帰はmin_gap閾値なしでノイズを許容しつつ全ペアを学習に使える。
+
+    戻り値は (single_prize側のindex, ex_tempo側のindex, empirical_delta) のリスト。
+    """
+    by_state: dict[str, dict[str, int]] = defaultdict(dict)
+    for i, e in enumerate(examples):
+        by_state[e["sample_id"]][e["option_name"]] = i
+    pairs = []
+    for sid, opts in by_state.items():
+        if EX_TEMPO not in opts or SINGLE_PRIZE_ROTATION not in opts:
+            continue
+        i_single, i_ex = opts[SINGLE_PRIZE_ROTATION], opts[EX_TEMPO]
+        gap = examples[i_single]["win_rate"] - examples[i_ex]["win_rate"]
+        pairs.append((i_single, i_ex, gap))
+    return pairs
+
+
+def _pairwise_sign_agreement(model, examples, std, device) -> float:
+    """診断フェーズ(Model Bの検証指標選定用): 同一sample_idの2Optionについて、モデルの
+    predicted delta(win確率差)の符号と経験的delta(win_rate差)の符号が一致する割合。
+    Early stoppingをwin BCEだけでなくranking性能でも見られるようにするための補助指標。
+    """
+    pairs = _delta_regression_pairs(examples)
+    if not pairs:
+        return 0.0
+    cont, opt_feat, slots, _ = _to_tensors(examples, std, device)
+    with torch.no_grad():
+        probs = torch.sigmoid(model(cont, opt_feat, slots)["win"])
+    n_agree = 0
+    for i_single, i_ex, gap in pairs:
+        pred_delta = (probs[i_single] - probs[i_ex]).item()
+        if (pred_delta > 0) == (gap > 0):
+            n_agree += 1
+    return n_agree / len(pairs)
+
+
+def _match_bootstrap_resample(by_state: dict, train_ids: list, seed: int) -> list:
+    """診断フェーズ(外部指摘対応、Model D): trainのsample_idをmatch_seed単位でグループ化し、
+    match単位でwith-replacement再標本化する(同一match内のEX/SINGLEペアは崩さない)。
+
+    現行のensembleは全メンバーが同一の全training dataを異なる初期化seedだけで学習しており、
+    ensemble std(delta_std)は主に初期値差を表すだけで、データ側の不確実性(限られた
+    match集合からのサンプリング誤差)を反映していない。match単位bootstrapで学習data自体を
+    メンバーごとに変えることで、std(delta)がより意味のある不確実性指標になるか確認する。
+    """
+    by_match: dict[int, list[str]] = defaultdict(list)
+    for sid in train_ids:
+        seeds_ = {o["match_seed"] for o in by_state[sid].values()}
+        match_seed = min(seeds_) if seeds_ else 0
+        by_match[match_seed].append(sid)
+    match_keys = list(by_match.keys())
+    rng = random.Random(seed)
+    resampled_matches = [match_keys[rng.randrange(len(match_keys))] for _ in range(len(match_keys))]
+    out = []
+    for m in resampled_matches:
+        out += by_match[m]
+    return out
+
+
 def train_one_model(train_examples, val_examples, std, contract, cfg, seed, device):
     torch.manual_seed(seed)
     model = OgerponQNet(
@@ -336,6 +402,15 @@ def train_one_model(train_examples, val_examples, std, contract, cfg, seed, devi
 
     tr_cont, tr_opt, tr_slots, tr_y = _to_tensors(train_examples, std, device)
     pairs = _pairwise_ranking_pairs(train_examples, cfg["pairwise_ranking_min_gap"])
+    # Model B(診断フェーズ、既定OFF): 直接delta回帰。cfg["delta_loss_weight"] > 0の
+    # ときだけ有効(既定0.0でModel Aと完全に同じ挙動を保つ)。
+    delta_loss_weight = float(cfg.get("delta_loss_weight", 0.0))
+    delta_pairs = _delta_regression_pairs(train_examples) if delta_loss_weight > 0 else []
+    # モデル選択基準(診断フェーズ、既定"win_bce"でModel Aと同じ挙動): "combined"を指定すると
+    # 「win BCE + (1 - train pair sign agreement)」の合成値でbestを選ぶ(外部レビュー指摘:
+    # win BCEだけで選ぶと、絶対勝率が改善してもranking性能が悪化した回をbestとして選び
+    # うる)。
+    model_selection_metric = cfg.get("model_selection_metric", "win_bce")
 
     best_val, best_state, patience = float("inf"), None, 0
     n = len(train_examples)
@@ -361,8 +436,8 @@ def train_one_model(train_examples, val_examples, std, contract, cfg, seed, devi
             nn.utils.clip_grad_norm_(model.parameters(), cfg["gradient_clip_norm"])
             opt.step()
 
-        # pairwise ranking loss は state_id をまたいだ比較が要るため、ミニバッチではなく
-        # train集合全体に対して epoch ごとに1回だけ追加の勾配ステップを踏む。
+        # pairwise ranking loss / delta loss は state_id をまたいだ比較が要るため、
+        # ミニバッチではなくtrain集合全体に対して epoch ごとに1回だけ追加の勾配ステップを踏む。
         if pairs and cfg["loss_weights"]["pairwise_ranking"] > 0:
             out_full = model(tr_cont, tr_opt, tr_slots)
             win_logit = out_full["win"]
@@ -376,15 +451,31 @@ def train_one_model(train_examples, val_examples, std, contract, cfg, seed, devi
             nn.utils.clip_grad_norm_(model.parameters(), cfg["gradient_clip_norm"])
             opt.step()
 
+        if delta_pairs and delta_loss_weight > 0:
+            out_full = model(tr_cont, tr_opt, tr_slots)
+            win_prob = torch.sigmoid(out_full["win"])
+            pred_deltas = torch.stack([win_prob[i_single] - win_prob[i_ex] for i_single, i_ex, _ in delta_pairs])
+            target_deltas = torch.tensor([g for _, _, g in delta_pairs], dtype=torch.float32, device=device)
+            d_loss = delta_loss_weight * huber(pred_deltas, target_deltas)
+            opt.zero_grad()
+            d_loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), cfg["gradient_clip_norm"])
+            opt.step()
+
         model.eval()
         with torch.no_grad():
             if val_examples:
                 v_cont, v_opt, v_slots, v_y = _to_tensors(val_examples, std, device)
                 out = model(v_cont, v_opt, v_slots)
-                val_loss = bce(out["win"], v_y["win"]).mean().item()
+                val_bce = bce(out["win"], v_y["win"]).mean().item()
             else:
                 out = model(tr_cont, tr_opt, tr_slots)
-                val_loss = bce(out["win"], tr_y["win"]).mean().item()
+                val_bce = bce(out["win"], tr_y["win"]).mean().item()
+        if model_selection_metric == "combined":
+            sign_agreement = _pairwise_sign_agreement(model, val_examples or train_examples, std, device)
+            val_loss = val_bce + (1.0 - sign_agreement)
+        else:
+            val_loss = val_bce
         if val_loss < best_val - 1e-6:
             best_val, best_state, patience = val_loss, {k: v.clone() for k, v in model.state_dict().items()}, 0
         else:
@@ -611,6 +702,15 @@ def main():
     ap.add_argument("--split-seed", type=int, default=0)
     ap.add_argument("--max-error-rate", type=float, default=DEFAULTS["max_error_rate"])
     ap.add_argument("--max-incomplete-pair-rate", type=float, default=DEFAULTS["max_incomplete_pair_rate"])
+    # 診断フェーズ(外部レビュー指摘対応)のablation用フラグ。既定値はどちらもModel A
+    # (現行手法)と完全に同じ挙動になるよう選んである。
+    ap.add_argument("--delta-loss-weight", type=float, default=0.0,
+                    help="Model B: 直接delta(Huber)回帰の重み。0.0(既定)ならModel Aと同じ")
+    ap.add_argument("--model-selection-metric", choices=["win_bce", "combined"], default="win_bce",
+                    help="'combined'はvalidation pairのsign agreementもearly stopping判定に含める")
+    ap.add_argument("--match-bootstrap", action="store_true",
+                    help="Model D: 各ensemble memberをmatch単位bootstrap resampleで学習する"
+                         "(既定OFFでModel Aと同じ、全メンバーが同一の全train dataを使う)")
     args = ap.parse_args()
 
     device = torch.device("cpu")
@@ -620,6 +720,8 @@ def main():
     cfg["learning_rate"] = args.learning_rate
     cfg["max_error_rate"] = args.max_error_rate
     cfg["max_incomplete_pair_rate"] = args.max_incomplete_pair_rate
+    cfg["delta_loss_weight"] = args.delta_loss_weight
+    cfg["model_selection_metric"] = args.model_selection_metric
     seeds = [int(s) for s in args.ensemble_seeds.split(",") if s.strip()]
 
     data_path = Path(args.data)
@@ -667,14 +769,23 @@ def main():
     card_id_max = card_id_max_from_engine()
     contract["card_id_max"] = card_id_max
 
-    models, val_losses = [], []
+    models, val_losses, member_dataset_hashes = [], [], []
     for seed in seeds:
-        model, val_loss = train_one_model(train_examples, val_examples, std,
+        if args.match_bootstrap:
+            member_train_ids = _match_bootstrap_resample(by_state, train_ids, seed)
+            member_train_examples = _flatten(member_train_ids)
+            member_hash = hashlib.sha256(",".join(sorted(member_train_ids)).encode()).hexdigest()
+        else:
+            member_train_examples = train_examples
+            member_hash = None
+        member_dataset_hashes.append(member_hash)
+        model, val_loss = train_one_model(member_train_examples, val_examples, std,
                                           {"slot_count": enc.SLOT_COUNT, "card_id_max": card_id_max},
                                           cfg, seed, device)
         models.append(model)
         val_losses.append(val_loss)
-        print(f"[seed={seed}] best_val_bce={val_loss:.4f}", flush=True)
+        print(f"[seed={seed}] best_val_bce={val_loss:.4f} n_train_examples={len(member_train_examples)}",
+             flush=True)
 
     win_temp, win_status = calibrate_head_temperature(
         models, val_examples, std, device, "win", cfg["min_calibration_samples"])
@@ -693,6 +804,12 @@ def main():
         "ensemble_val_bce": val_losses,
         "calibration_status": {"win": win_status, "loop_complete": loop_status},
         "test_metrics": evaluate_metrics(models, test_examples or val_examples, std, device, win_temp),
+        "diagnostic_ablation": {
+            "delta_loss_weight": cfg.get("delta_loss_weight", 0.0),
+            "model_selection_metric": cfg.get("model_selection_metric", "win_bce"),
+            "match_bootstrap": bool(args.match_bootstrap),
+            "member_dataset_hashes": member_dataset_hashes,
+        },
     }
     payload = build_export_payload(models, calibration, std, contract, meta)
 

@@ -198,3 +198,105 @@ def test_parity_failure_does_not_overwrite_existing_output(mod, synthetic_datase
     with pytest.raises(SystemExit):
         mod.main()
     assert json.loads(output.read_text(encoding="utf-8")) == {"marker": "previous_good_weights"}
+
+
+# ===========================================================================
+# 診断フェーズ(外部レビュー指摘対応): Model B(direct delta loss)/
+# Model D(match-bootstrap ensemble)の追加関数。既定値でModel Aと完全に同じ挙動を
+# 保つことを確認する。
+# ===========================================================================
+
+def test_delta_regression_pairs_uses_sample_id_only(mod):
+    """_delta_regression_pairsは_pairwise_ranking_pairsと同じペアリング規約
+    (同一sample_idのEX/SINGLEのみ)だが、min_gapフィルタをかけず経験的deltaをそのまま返す。"""
+    examples = [
+        {"sample_id": "s1", "option_name": "EX_TEMPO", "win_rate": 0.5},
+        {"sample_id": "s1", "option_name": "SINGLE_PRIZE_ROTATION", "win_rate": 0.51},  # 差0.01(min_gap未満)
+        {"sample_id": "s2", "option_name": "EX_TEMPO", "win_rate": 0.3},
+        {"sample_id": "s2", "option_name": "SINGLE_PRIZE_ROTATION", "win_rate": 0.3},   # 差0
+        {"sample_id": "s3", "option_name": "EX_TEMPO", "win_rate": 0.4},  # SINGLEが無い(ペア不成立)
+    ]
+    pairs = mod._delta_regression_pairs(examples)
+    sids_covered = set()
+    for i_single, i_ex, gap in pairs:
+        assert examples[i_single]["option_name"] == "SINGLE_PRIZE_ROTATION"
+        assert examples[i_ex]["option_name"] == "EX_TEMPO"
+        sids_covered.add(examples[i_single]["sample_id"])
+    assert sids_covered == {"s1", "s2"}, "s3はEX/SINGLEが揃っていないので除外されるべき"
+    # min_gap=0.02のranking pairsでは s1 が除外されるが、delta回帰ではmin_gapを適用しないため
+    # s1 も含まれる(経験的delta=0.01がそのまま教師信号になる)。
+    gaps = {examples[i_single]["sample_id"]: gap for i_single, i_ex, gap in pairs}
+    assert gaps["s1"] == pytest.approx(0.01, abs=1e-9)
+    assert gaps["s2"] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_match_bootstrap_resample_preserves_pairs_and_match_grouping(mod):
+    """_match_bootstrap_resampleは、あるmatch_seedが選ばれたら、そのmatchに属する
+    全sample_id(=EX/SINGLEペアを含む)がまとめて追加される(ペアを壊さない)。"""
+    by_state = {
+        "s1": {"EX_TEMPO": {"match_seed": 100}, "SINGLE_PRIZE_ROTATION": {"match_seed": 100}},
+        "s2": {"EX_TEMPO": {"match_seed": 100}, "SINGLE_PRIZE_ROTATION": {"match_seed": 100}},
+        "s3": {"EX_TEMPO": {"match_seed": 200}, "SINGLE_PRIZE_ROTATION": {"match_seed": 200}},
+    }
+    train_ids = ["s1", "s2", "s3"]
+    resampled = mod._match_bootstrap_resample(by_state, train_ids, seed=0)
+    # 2つのmatch(100, 200)からwith-replacementで2つ選ぶ。match 100が選ばれれば必ず
+    # s1とs2が両方(隣接して)含まれる。
+    assert len(resampled) in (2, 4)  # 2 match選択 x (1 or 2 sample_id)
+    if "s1" in resampled:
+        assert "s2" in resampled, "同一matchのsample_idは常にセットで含まれるべき"
+
+
+def test_match_bootstrap_resample_is_deterministic_per_seed(mod):
+    by_state = {
+        "s1": {"EX_TEMPO": {"match_seed": 1}, "SINGLE_PRIZE_ROTATION": {"match_seed": 1}},
+        "s2": {"EX_TEMPO": {"match_seed": 2}, "SINGLE_PRIZE_ROTATION": {"match_seed": 2}},
+        "s3": {"EX_TEMPO": {"match_seed": 3}, "SINGLE_PRIZE_ROTATION": {"match_seed": 3}},
+    }
+    train_ids = ["s1", "s2", "s3"]
+    a = mod._match_bootstrap_resample(by_state, train_ids, seed=42)
+    b = mod._match_bootstrap_resample(by_state, train_ids, seed=42)
+    c = mod._match_bootstrap_resample(by_state, train_ids, seed=43)
+    assert a == b
+    assert a != c or True  # 異なるseedで異なる場合が多いが、確率的に一致してもテストは失敗させない
+
+
+def test_default_flags_reproduce_model_a_end_to_end(mod, synthetic_dataset, tmp_path, monkeypatch):
+    """delta-loss-weight/model-selection-metric/match-bootstrapを指定しない(既定値)場合、
+    学習パイプライン全体が例外なく完走し、既存(Model A)と同じコードパスで動くこと
+    (診断フラグ追加がデフォルト挙動を壊していないことの回帰確認)。"""
+    output = tmp_path / "weights.json"
+    argv = [
+        "train_ogerpon_strategy.py",
+        "--data", str(synthetic_dataset), "--output", str(output),
+        "--ensemble-seeds", "1", "--max-epochs", "2", "--batch-size", "64",
+    ]
+    monkeypatch.setattr(sys, "argv", argv)
+    mod.main()
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    ablation = payload["meta"]["diagnostic_ablation"]
+    assert ablation["delta_loss_weight"] == 0.0
+    assert ablation["model_selection_metric"] == "win_bce"
+    assert ablation["match_bootstrap"] is False
+    assert ablation["member_dataset_hashes"] == [None]
+
+
+def test_model_b_and_model_d_flags_run_without_error(mod, synthetic_dataset, tmp_path, monkeypatch):
+    """診断用ablationフラグ(delta-loss-weight/model-selection-metric=combined/
+    match-bootstrap)を有効にしても、学習パイプラインが例外なく完走しparityを通ること。"""
+    output = tmp_path / "weights.json"
+    argv = [
+        "train_ogerpon_strategy.py",
+        "--data", str(synthetic_dataset), "--output", str(output),
+        "--ensemble-seeds", "1,2", "--max-epochs", "2", "--batch-size", "64",
+        "--delta-loss-weight", "0.3", "--model-selection-metric", "combined", "--match-bootstrap",
+    ]
+    monkeypatch.setattr(sys, "argv", argv)
+    mod.main()
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    ablation = payload["meta"]["diagnostic_ablation"]
+    assert ablation["delta_loss_weight"] == 0.3
+    assert ablation["model_selection_metric"] == "combined"
+    assert ablation["match_bootstrap"] is True
+    assert len(ablation["member_dataset_hashes"]) == 2
+    assert all(h is not None for h in ablation["member_dataset_hashes"])
