@@ -80,7 +80,7 @@ def play_one_game_with_invariant_checks(deck0: list[int], deck1: list[int], verb
             if obs.select is not None and obs.current is not None:
                 # agent()呼び出し直後・obs_dictを次へ進める前に検査する
                 # (match_contextはこのobsを使って直前に更新されたばかり)。
-                own = match_context.get_own_state()
+                own = match_context.get_own_state(obs.current.yourIndex)
                 player = obs.current.players[obs.current.yourIndex]
                 expected_total = player.deckCount + len(player.prize)
                 actual_total = sum(own._pool.values())

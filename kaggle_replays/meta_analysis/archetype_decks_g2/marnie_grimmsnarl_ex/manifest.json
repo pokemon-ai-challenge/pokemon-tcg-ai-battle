@@ -1,0 +1,45 @@
+{
+  "archetype": "marnie_grimmsnarl_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "AlphaStarmie",
+      "rank_at_fetch": 7,
+      "leaderboard_score": 1159.6,
+      "episode_id": "91940322",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "JZ",
+      "rank_at_fetch": 27,
+      "leaderboard_score": 1077.5,
+      "episode_id": "91911540",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "Magist",
+      "rank_at_fetch": 81,
+      "leaderboard_score": 1007.0,
+      "episode_id": "91910445",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "Dakuma",
+      "rank_at_fetch": 80,
+      "leaderboard_score": 1006.8,
+      "episode_id": "91927448",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "YumeNeko",
+      "rank_at_fetch": 85,
+      "leaderboard_score": 1004.5,
+      "episode_id": "91976865",
+      "player_index": 0
+    }
+  ]
+}

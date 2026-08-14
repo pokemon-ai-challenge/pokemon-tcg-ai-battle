@@ -48,6 +48,17 @@ kaggle_replays/replays/*.json
 !kaggle_replays/replays/.gitkeep
 kaggle_replays/training_data/*
 !kaggle_replays/training_data/.gitkeep
+# データ世代を分けて取り直すときのプール(replays_g2 = 2026-08取得)も同じ扱い。
+# 本体JSONはローカルのみ、index_<世代>/ は取得時のリーダーボード順位を焼き込んだ
+# 再取得不可能な記録なので追跡する(index/ と同じ方針)。
+kaggle_replays/replays_g2/*.json
+kaggle_replays/replays_*/*.json
+!kaggle_replays/index_g2/**
+# 実行ログ(生ログは成果物ではない。監査レポート .md は追跡する)
+kaggle_replays/_g2_logs/*.log
+kaggle_replays/_g2_logs_driver.log
+kaggle_replays/_g2_train_driver.log
+kaggle_replays/_g2_topup_driver.log
 
 # kaggle_replays/deck_predictor: deck_db/deck_labels/dataset/model are all re-derivable from
 # replays/ + index/ via extract_decks.py -> label_decks.py -> build_dataset.py -> train.py.
@@ -59,6 +70,19 @@ kaggle_replays/deck_predictor/output/*
 # from training_data/value_positions.jsonl.gz via build_features.py. Too large to track in git.
 kaggle_replays/value_net/*.npz
 
+# kaggle_replays/policy_net: same reasoning as value_net above. features.npz is re-derivable
+# from training_data/policy_positions.jsonl.gz via build_features.py. train_full.log /
+# build_features_full.log are raw run logs, not a documented artifact.
+kaggle_replays/policy_net/*.npz
+kaggle_replays/policy_net/*.log
+
+# league/results: run_league.py output is re-derivable by re-running the league (though not
+# bit-for-bit reproducible across engine/agent code changes). Ignored by default; results worth
+# keeping as a permanent record are force-added individually. See league/README.md.
+league/results/*.json
+league/results/*.log
+!league/results/.gitkeep
+
 # battle_review_viewer: card images are generated locally from the data/ PDF (not shared).
 # Missing on first run → the viewer regenerates them in the background.
 battle_review_viewer/web/card_images/*.jpg
@@ -69,6 +93,17 @@ battle_review_viewer/web/card_images/manifest.json
 # Claude Code internal settings
 .claude/
 
+# AI agent team (local-only: subagents live in .claude/agents/, HQ docs here)
+pokemon-card-ai-team/
+# repo-root launcher for the (local-only) AIRFLOW board viewer
+/airflow-board.bat
+
+# AIRFLOW board state — defense-in-depth: never commit task state even if the
+# folder policy above changes (lesson from the "public board" incident).
+**/board.json
+**/archive.json
+**/board.html
+
 # OS
 .DS_Store
 Thumbs.db
@@ -77,3 +112,6 @@ desktop.ini
 # IDE
 .vscode/
 .idea/
+
+# RL チェックポイント(.pt): 再開用の中間状態。重みJSONから再現できるので追跡しない
+kaggle_replays/rl/*.pt

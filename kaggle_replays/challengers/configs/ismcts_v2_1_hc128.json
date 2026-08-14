@@ -1,0 +1,48 @@
+{
+  "name": "ismcts_v2_1_hc128",
+  "parent_champion": "abl_5_full",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 3,
+    "time_limit_ms": 100,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {
+      "kind": "handcrafted"
+    },
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  },
+  "ismcts": {
+    "enabled": true,
+    "iterations": 128,
+    "world_pool_size": 8,
+    "c_puct": 1.4,
+    "max_rollout_steps": 40,
+    "opponent_depth": 1,
+    "max_depth": 60,
+    "budget_ms": null,
+    "seed": 0,
+    "instrument": false,
+    "_note": "ISMCTS v2.1 leaf-at-node(rollout省略). iterations=128, no time cap. parent v1 59384591.",
+    "leaf_mode": "node"
+  }
+}

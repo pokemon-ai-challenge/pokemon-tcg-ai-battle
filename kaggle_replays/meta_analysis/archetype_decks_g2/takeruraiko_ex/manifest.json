@@ -1,0 +1,45 @@
+{
+  "archetype": "takeruraiko_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "James Cox & Henry Chao",
+      "rank_at_fetch": 4,
+      "leaderboard_score": 1197.9,
+      "episode_id": "91906620",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "Xiangyu Liu",
+      "rank_at_fetch": 432,
+      "leaderboard_score": 882.1,
+      "episode_id": "91964440",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "tempjohn",
+      "rank_at_fetch": 1680,
+      "leaderboard_score": 733.6,
+      "episode_id": "91934805",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "Jun Zheng",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "91962654",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "Haekal D",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "92086636",
+      "player_index": 0
+    }
+  ]
+}

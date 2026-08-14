@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import json
+import random
 import re
 import subprocess
 import sys
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -13,6 +17,95 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 KAGGLE = "kaggle"
+
+# --- kaggle API のレート制限(429)対策 -------------------------------------
+# 実測: 逐次(1呼び出し約1.5秒 + sleep 0.3 = 約0.55 req/s)では一度も429にならないが、
+# 8スレッドで team-submissions を叩くと200件すべてが 429 Too Many Requests になった。
+# そこで「全スレッド共有の最小呼び出し間隔」と「429時の指数バックオフ再試行」を入れる。
+# min_interval=0(既定)なら従来と完全に同じ挙動。
+_RATE_LOCK = threading.Lock()
+_RATE_STATE = {"next_slot": 0.0, "min_interval": 0.0, "cooldown_until": 0.0, "consecutive_429": 0}
+_RETRY_STATS = {"429": 0, "cooldown_seconds": 0}
+
+# 429 が出たときに「全スレッドまとめて」止まる時間。クォータ(GetEpisodeReplay は
+# 1600件ほど連続で落とすと枯渇する)は接続単位ではなくアカウント単位なので、
+# 1スレッドだけ待たせても他が叩き続ける限り回復しない。連続回数で伸ばす。
+_COOLDOWN_STEPS = (60.0, 180.0, 420.0, 900.0, 900.0)
+
+
+def set_min_interval(seconds: float) -> None:
+    """kaggle CLI 呼び出しの最小間隔(秒)を設定する。並列取得時に使う。"""
+    _RATE_STATE["min_interval"] = max(0.0, float(seconds))
+
+
+def get_retry_stats() -> dict[str, int]:
+    """429で再試行した回数などの累計を返す(実行末尾のサマリ表示用)。"""
+    return dict(_RETRY_STATS)
+
+
+def _rate_gate() -> None:
+    """全スレッド共有のトークンスロット。min_interval 秒に1回だけ通し、
+    クールダウン中(直近に429を食らった)は全スレッドをまとめて待たせる。"""
+    min_interval = _RATE_STATE["min_interval"]
+    while True:
+        with _RATE_LOCK:
+            now = time.monotonic()
+            remaining_cooldown = _RATE_STATE["cooldown_until"] - now
+            if remaining_cooldown <= 0:
+                slot = max(now, _RATE_STATE["next_slot"])
+                _RATE_STATE["next_slot"] = slot + min_interval
+                wait = slot - now
+                break
+        # クールダウンはロックを持たずに待つ(他スレッドも同じ地点で足並みを揃える)
+        time.sleep(min(remaining_cooldown, 5.0))
+    if wait > 0:
+        time.sleep(wait)
+
+
+def _enter_cooldown() -> float:
+    """429を受けたので全スレッド共通のクールダウンに入る。戻り値は待つ秒数。"""
+    with _RATE_LOCK:
+        _RETRY_STATS["429"] += 1
+        _RATE_STATE["consecutive_429"] += 1
+        step = _COOLDOWN_STEPS[min(_RATE_STATE["consecutive_429"], len(_COOLDOWN_STEPS)) - 1]
+        pause = step + random.uniform(0, 5.0)
+        now = time.monotonic()
+        already = max(0.0, _RATE_STATE["cooldown_until"] - now)
+        if pause > already:
+            _RATE_STATE["cooldown_until"] = now + pause
+            _RETRY_STATS["cooldown_seconds"] += int(pause - already)
+            return pause
+        return already
+
+
+def run_kaggle_cli(args: list[str], retries: int = 8) -> subprocess.CompletedProcess:
+    """kaggle CLI を1回呼ぶ。429 のときは全スレッド共通のクールダウンを挟んで再試行する。
+
+    429以外の失敗は従来どおり CalledProcessError を送出する(呼び出し側が
+    「このチームだけスキップして続行」等の判断をしているため握り潰さない)。
+    """
+    last: subprocess.CompletedProcess | None = None
+    for attempt in range(retries + 1):
+        _rate_gate()
+        last = subprocess.run([KAGGLE, *args], capture_output=True, encoding="utf-8")
+        if last.returncode == 0:
+            with _RATE_LOCK:
+                _RATE_STATE["consecutive_429"] = 0
+            return last
+        combined = (last.stdout or "") + (last.stderr or "")
+        if "429" in combined and attempt < retries:
+            pause = _enter_cooldown()
+            print(
+                f"  [rate-limit] 429を受信。全スレッドを{pause:.0f}秒クールダウンします"
+                f"(通算{_RETRY_STATS['429']}回、試行{attempt + 1}/{retries})",
+                flush=True,
+            )
+            continue
+        break
+    assert last is not None
+    raise subprocess.CalledProcessError(
+        last.returncode, [KAGGLE, *args], output=last.stdout, stderr=last.stderr
+    )
 
 
 def run_kaggle_json(args: list[str]):
@@ -28,12 +121,7 @@ def run_kaggle_json_with_page_token(args: list[str]) -> tuple[object, str | None
     (--page-token に渡すことで次ページを取得できる)。トークンが出力されない
     (最終ページ等)場合は None を返す。
     """
-    result = subprocess.run(
-        [KAGGLE, *args, "--format", "json"],
-        capture_output=True,
-        encoding="utf-8",
-        check=True,
-    )
+    result = run_kaggle_cli([*args, "--format", "json"])
     # 一部のサブコマンドは JSON の前後に "Next Page Token = ..." や
     # 使い方ヒント等の非JSON行を stdout に混ぜて出力するため、
     # JSON開始位置から raw_decode して末尾の余計な文字列は無視する。
@@ -59,13 +147,55 @@ def download_replay(episode_id: int, out_dir: Path) -> Path:
     dest = out_dir / f"episode-{episode_id}-replay.json"
     if dest.exists():
         return dest
-    subprocess.run(
-        [KAGGLE, "competitions", "replay", str(episode_id), "-p", str(out_dir), "-q"],
-        check=True,
-        capture_output=True,
-        encoding="utf-8",
-    )
+    run_kaggle_cli(["competitions", "replay", str(episode_id), "-p", str(out_dir), "-q"])
     return dest
+
+
+def download_replays_parallel(
+    episode_ids: list[str],
+    out_dir: Path,
+    workers: int,
+    progress_every: int = 25,
+    label: str = "",
+) -> tuple[list[str], list[str]]:
+    """リプレイを並列ダウンロードする。戻り値は (成功した episode_id, 失敗した episode_id)。
+
+    1件あたりの実測は約5秒(kaggle CLI の起動 1〜2秒 + 転送 4MB強)で、ほぼ全部が
+    I/O待ちのため GIL の影響は小さく、スレッドプールでほぼ線形に短縮できる。
+    数千件を逐次で回すと数時間かかるので、大量取得時は workers>1 を指定する。
+
+    既に out_dir にあるファイルは download_replay() 側の dest.exists() でスキップ
+    されるため、中断→再実行しても二重取得にはならない。
+    """
+    if workers <= 1:
+        raise ValueError("workers は2以上を指定してください(逐次版は download_replay を直接使う)")
+
+    done_lock = threading.Lock()
+    state = {"done": 0}
+    total = len(episode_ids)
+    ok: list[str] = []
+    failed: list[str] = []
+
+    def _one(eid: str) -> tuple[str, bool]:
+        try:
+            download_replay(int(eid), out_dir)
+            success = True
+        except subprocess.CalledProcessError as e:
+            print(f"  警告: episode {eid} のリプレイ取得に失敗: {e.stderr}", file=sys.stderr)
+            success = False
+        with done_lock:
+            state["done"] += 1
+            if progress_every and state["done"] % progress_every == 0:
+                print(f"  {label}{state['done']}/{total} 件完了", flush=True)
+        return eid, success
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(_one, eid) for eid in episode_ids]
+        for fut in as_completed(futures):
+            eid, success = fut.result()
+            (ok if success else failed).append(eid)
+
+    return ok, failed
 
 
 def load_existing_episode_ids(master_path: Path) -> set[str]:

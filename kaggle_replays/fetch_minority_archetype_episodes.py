@@ -37,9 +37,11 @@ from _common import (  # noqa: E402
     append_master_rows,
     build_master_rows,
     download_replay,
+    download_replays_parallel,
     fetch_episodes,
     load_existing_episode_ids,
     run_kaggle_json,
+    set_min_interval,
 )
 
 _HERE = Path(__file__).parent
@@ -109,7 +111,19 @@ def main() -> None:
         "--sleep", type=float, default=0.3,
         help="API呼び出し間隔(秒)。fetch_top_episodes.py / fetch_deep_decks.py と同じ既定値",
     )
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="リプレイダウンロードの並列数(既定1=逐次、従来どおり)",
+    )
+    parser.add_argument(
+        "--min-interval", type=float, default=None,
+        help="kaggle CLI 呼び出しの最小間隔(秒、全スレッド共有)。並列時の429対策。"
+        "既定は workers>1 のとき0.7、逐次のとき0",
+    )
     args = parser.parse_args()
+
+    min_interval = args.min_interval if args.min_interval is not None else (0.7 if args.workers > 1 else 0.0)
+    set_min_interval(min_interval)
 
     deck_labels_path = Path(args.deck_labels)
     if not deck_labels_path.exists():
@@ -242,19 +256,25 @@ def main() -> None:
             n_teams_processed += 1
             continue
 
-        downloaded_this_team = 0
-        for eid in target_episode_ids:
-            dest = out_dir / f"episode-{eid}-replay.json"
-            if dest.exists():
-                downloaded_this_team += 1
-                continue
-            try:
-                download_replay(int(eid), out_dir)
-                downloaded_this_team += 1
-                total_downloaded += 1
-            except subprocess.CalledProcessError as e:
-                print(f"{prefix}: episode {eid} のリプレイ取得に失敗: {e.stderr}", file=sys.stderr)
-            time.sleep(args.sleep)
+        pending = [
+            eid for eid in target_episode_ids if not (out_dir / f"episode-{eid}-replay.json").exists()
+        ]
+        # 既に手元にある分は「確認済み」として数える(target は全体上限で切ってあるので、
+        # pending を全部落としても max_episodes を超えない)。
+        downloaded_this_team = len(target_episode_ids) - len(pending)
+        if args.workers > 1 and pending:
+            ok, _failed = download_replays_parallel(pending, out_dir, args.workers)
+            downloaded_this_team += len(ok)
+            total_downloaded += len(ok)
+        else:
+            for eid in pending:
+                try:
+                    download_replay(int(eid), out_dir)
+                    downloaded_this_team += 1
+                    total_downloaded += 1
+                except subprocess.CalledProcessError as e:
+                    print(f"{prefix}: episode {eid} のリプレイ取得に失敗: {e.stderr}", file=sys.stderr)
+                time.sleep(args.sleep)
 
         # このチーム自身の team_id は既に判明しているので、新規マスター行にも引き継ぐ
         # (相手側の team_id はこのrunではリーダーボードを引いていないため null のままになる。

@@ -55,6 +55,7 @@ import json
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -64,10 +65,13 @@ from _common import (  # noqa: E402
     build_master_rows,
     count_episodes_by_team,
     download_replay,
+    download_replays_parallel,
     fetch_episodes,
+    get_retry_stats,
     load_existing_episode_ids,
     run_kaggle_json,
     run_kaggle_json_with_page_token,
+    set_min_interval,
 )
 
 
@@ -146,7 +150,21 @@ def main() -> None:
         help="API呼び出し間隔(秒)。kaggle CLI自体の起動コストが1回あたり約1〜2秒あるため、"
         "この値を下げても速度への影響は限定的",
     )
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="並列数(既定1=逐次、従来どおり)。>1 にすると 100チームずつのバッチで "
+        "「メタデータ収集 -> ダウンロード」を並列化する。1チームあたり実測13秒前後かかるため、"
+        "数千チームを回すときは6程度にすると大幅に短縮できる",
+    )
+    parser.add_argument(
+        "--min-interval", type=float, default=None,
+        help="kaggle CLI 呼び出しの最小間隔(秒、全スレッド共有)。並列時に429を避けるための"
+        "レート制限。既定は workers>1 のとき0.7、逐次のとき0(従来どおり)",
+    )
     args = parser.parse_args()
+
+    min_interval = args.min_interval if args.min_interval is not None else (0.7 if args.workers > 1 else 0.0)
+    set_min_interval(min_interval)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -201,24 +219,28 @@ def main() -> None:
     n_failed_teams = 0
     total_new_master_rows = 0
 
-    for i, row in enumerate(leaderboard, 1):
+    def collect_team_targets(i: int, row: dict) -> dict:
+        """1チーム分のメタデータだけを集める(ダウンロードはしない)。
+
+        status は "skip"(既にプール済み) / "fail"(API失敗) / "empty"(完了済み
+        エピソードなし) / "ok" のいずれか。--workers>1 のときはこの関数だけを
+        スレッドプールで並列に呼ぶ(1チームあたり kaggle CLI 2回≒3秒で、
+        ここも逐次だと数千チームで数時間になるため)。
+        """
         team_id = row["teamId"]
-        team_name = row["teamName"]
-        rank = row["rank"]
-        prefix = f"  ({i}/{total_teams}) rank={rank} team={team_name} (teamId={team_id})"
+        prefix = f"  ({i}/{total_teams}) rank={row['rank']} team={row['teamName']} (teamId={team_id})"
+        result = {"prefix": prefix, "episode_meta": {}, "target_episode_ids": []}
 
         if team_episode_counts.get(team_id, 0) >= args.episodes_per_team:
-            n_skipped_teams += 1
             print(f"{prefix}: プールに既に{team_episode_counts[team_id]}件あり、スキップ")
-            continue
+            return {**result, "status": "skip"}
 
         try:
             submission_ids = fetch_team_submission_ids(team_id, args.submissions_per_team)
             time.sleep(args.sleep)
         except subprocess.CalledProcessError as e:
-            n_failed_teams += 1
             print(f"{prefix}: 提出取得に失敗: {e.stderr}", file=sys.stderr)
-            continue
+            return {**result, "status": "fail"}
 
         episode_meta: dict[str, dict] = {}
         fetch_failed = False
@@ -234,35 +256,28 @@ def main() -> None:
             time.sleep(args.sleep)
 
         if not episode_meta:
-            if fetch_failed:
-                n_failed_teams += 1
-            else:
+            if not fetch_failed:
                 print(f"{prefix}: 完了済みエピソードなし")
-            continue
+            return {**result, "status": "fail" if fetch_failed else "empty"}
 
         # 最新(episode_idが大きい)ものから episodes_per_team 件だけ採用
-        target_episode_ids = sorted(episode_meta.keys(), key=int, reverse=True)[: args.episodes_per_team]
+        return {
+            **result,
+            "status": "ok",
+            "episode_meta": episode_meta,
+            "target_episode_ids": sorted(episode_meta.keys(), key=int, reverse=True)[: args.episodes_per_team],
+        }
 
-        downloaded_this_team = 0
-        for eid in target_episode_ids:
-            dest = out_dir / f"episode-{eid}-replay.json"
-            if dest.exists():
-                downloaded_this_team += 1
-                continue
-            try:
-                download_replay(int(eid), out_dir)
-                downloaded_this_team += 1
-                n_downloaded_replays += 1
-            except subprocess.CalledProcessError as e:
-                print(f"{prefix}: episode {eid} のリプレイ取得に失敗: {e.stderr}", file=sys.stderr)
-            time.sleep(args.sleep)
-
+    def index_team(collected: dict) -> None:
+        """ダウンロード済みのリプレイをマスターインデックスに追記する。"""
+        nonlocal n_fetched_teams, total_new_master_rows
+        target_episode_ids = collected["target_episode_ids"]
         new_rows = build_master_rows(
             run_id=run_id,
             fetched_at=fetched_at,
             competition=args.competition,
             replays_dir=out_dir,
-            episode_meta=episode_meta,
+            episode_meta=collected["episode_meta"],
             name_to_context=name_to_context,
             already_indexed=already_indexed,
             episode_ids=target_episode_ids,
@@ -278,10 +293,62 @@ def main() -> None:
             total_new_master_rows += len(new_rows)
 
         n_fetched_teams += 1
-        print(
-            f"{prefix}: エピソード{len(target_episode_ids)}件対象"
-            f"(手元に{downloaded_this_team}件確認、マスターに{len(new_rows)}件追記)"
+        n_present = sum(
+            1 for eid in target_episode_ids if (out_dir / f"episode-{eid}-replay.json").exists()
         )
+        print(
+            f"{collected['prefix']}: エピソード{len(target_episode_ids)}件対象"
+            f"(手元に{n_present}件確認、マスターに{len(new_rows)}件追記)"
+        )
+
+    if args.workers > 1:
+        # 並列モード: チームを BATCH_TEAMS 件ずつ処理する。バッチ内は
+        # 「メタデータ収集(並列)-> ダウンロード(並列)-> マスター追記(逐次)」。
+        # バッチ末尾で必ず追記するので、中断してもバッチ単位で再開できる。
+        BATCH_TEAMS = 100
+        for start in range(0, total_teams, BATCH_TEAMS):
+            batch = list(enumerate(leaderboard, 1))[start : start + BATCH_TEAMS]
+            print(f"  --- バッチ {start + 1}〜{start + len(batch)} / {total_teams} チーム ---")
+            with ThreadPoolExecutor(max_workers=args.workers) as pool:
+                collected_list = list(pool.map(lambda pair: collect_team_targets(*pair), batch))
+
+            n_skipped_teams += sum(1 for c in collected_list if c["status"] == "skip")
+            n_failed_teams += sum(1 for c in collected_list if c["status"] == "fail")
+            ok_list = [c for c in collected_list if c["status"] == "ok"]
+
+            pending = [
+                eid
+                for c in ok_list
+                for eid in c["target_episode_ids"]
+                if not (out_dir / f"episode-{eid}-replay.json").exists()
+            ]
+            if pending:
+                downloaded_ids, _failed_ids = download_replays_parallel(
+                    pending, out_dir, args.workers, label="リプレイ "
+                )
+                n_downloaded_replays += len(downloaded_ids)
+            for c in ok_list:
+                index_team(c)
+    else:
+        for i, row in enumerate(leaderboard, 1):
+            collected = collect_team_targets(i, row)
+            if collected["status"] == "skip":
+                n_skipped_teams += 1
+                continue
+            if collected["status"] in ("fail", "empty"):
+                if collected["status"] == "fail":
+                    n_failed_teams += 1
+                continue
+            for eid in collected["target_episode_ids"]:
+                if (out_dir / f"episode-{eid}-replay.json").exists():
+                    continue
+                try:
+                    download_replay(int(eid), out_dir)
+                    n_downloaded_replays += 1
+                except subprocess.CalledProcessError as e:
+                    print(f"{collected['prefix']}: episode {eid} のリプレイ取得に失敗: {e.stderr}", file=sys.stderr)
+                time.sleep(args.sleep)
+            index_team(collected)
 
     print("[3/4] 完了サマリ")
     print(f"  対象チーム数: {total_teams}")
@@ -289,6 +356,7 @@ def main() -> None:
     print(f"  処理したチーム: {n_fetched_teams}")
     print(f"  失敗したチーム: {n_failed_teams}")
     print(f"  ダウンロードした新規リプレイ: {n_downloaded_replays}")
+    print(f"  429による再試行: {get_retry_stats()['429']}回 (min-interval={min_interval}s, workers={args.workers})")
     print(f"  マスターインデックスに追記した行数: {total_new_master_rows}")
     print(f"[4/4] リーダーボードスナップショット -> {leaderboard_snapshot_path}")
     print(f"完了: マスターインデックス -> {master_index_path}")
