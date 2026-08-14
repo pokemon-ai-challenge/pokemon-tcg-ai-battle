@@ -66,7 +66,7 @@ for _p in (str(_HERE), str(_HERE.parent.parent), str(_HERE.parent.parent / "samp
 
 from matchup_common import append_jsonl, atomic_write_json, git_commit_sha, read_deck  # noqa: E402
 from eval_agent_field import build_field, make_tasks  # noqa: E402
-from ogerpon_rollout_common import detect_vanished, is_emergency_retreat_allowed  # noqa: E402
+from ogerpon_rollout_common import detect_vanished  # noqa: E402
 
 SCHEMA_VERSION = 2  # sample_id/hidden_state_hash追加でスキーマを更新
 MAX_OUTER_STEPS = 3000       # 外側(state収集用)の1試合あたり上限
@@ -180,91 +180,19 @@ def build_estimated_hidden_state(obs, learner_index: int, rng) -> dict:
 # SINGLE_PRIZE_ROTATION rollout用の固定Option Controller(design.md §5.4 / §11.3)
 # ---------------------------------------------------------------------------
 
-def _single_prize_low_level_action(obs, P, OS, config, deck_ids, option_mode):
-    """SINGLE_PRIZE_ROTATION rolloutの各局面で、Option Controllerが行動を拘束するか判定する。
-
-    ``None`` を返した場合だけ、呼び出し側は素のPolicy greedyへフォールバックする
-    (BUILD/READY中の「攻撃可能な手が無いなら通常Policyに任せる」局面など)。
-
-    - COMPLETE/ABORT: 常に ``None``(通常Policyへ完全に戻す。低位Controllerは一切介入しない)。
-    - ACTIVE: 気絶するまで攻撃を優先する。ATTACKが選べるなら必ずそれを選ぶ。にげる/交代は
-      ``is_emergency_retreat_allowed`` が緊急と判定した場合以外は選ばせない
-      (候補から除外し、除外後に残る最初の合法手を返す。他に選べる手が無ければNone)。
-    - BUILD/READY/IDLE: 既存Plannerのcandidate resolverを低位Controllerとして使う
-      (手貼り: ``select_strategic_attach_candidate``、昇格/交代: ``score_adjustments``)。
-    """
-    from cg.api import OptionType, SelectType
-
-    if option_mode in (OS.COMPLETE, OS.ABORT):
-        return None
-
-    select = obs.select
-    if select.maxCount != 1:
-        return None
-    state = obs.current
-    me = state.yourIndex
-    stype = int(select.type)
-    mine = state.players[me]
-    active = next((s for s in (mine.active or []) if s is not None), None)
-
-    if option_mode == OS.ACTIVE:
-        if stype == int(SelectType.MAIN):
-            attack_indices = [i for i, o in enumerate(select.option)
-                              if int(getattr(o, "type", -1)) == int(OptionType.ATTACK)]
-            if attack_indices:
-                return [attack_indices[0]]
-            retreat_indices = {i for i, o in enumerate(select.option)
-                              if int(getattr(o, "type", -1)) == int(OptionType.RETREAT)}
-            if retreat_indices:
-                opp = state.players[1 - me]
-                opp_active = next((s for s in (opp.active or []) if s is not None), None)
-                if not is_emergency_retreat_allowed(active, opp_active, config, P):
-                    non_retreat = [i for i in range(len(select.option)) if i not in retreat_indices]
-                    return [non_retreat[0]] if non_retreat else None
-            return None
-        if stype == int(SelectType.CARD):
-            # ACTIVEのブルルを自発的に手放すTO_ACTIVE/SWITCHは、緊急以外は選ばせない。
-            opp = state.players[1 - me]
-            opp_active = next((s for s in (opp.active or []) if s is not None), None)
-            if is_emergency_retreat_allowed(active, opp_active, config, P):
-                return None  # 緊急時は通常Policyの判断に委ねる
-            return None  # 緊急でなければCARD選択自体がこの局面では想定外(安全側でPolicyに委ねる)
-        return None
-
-    # BUILD/READY/IDLE
-    if stype == int(SelectType.MAIN):
-        forced_cfg = _forced_planner_config(config)
-        idx = P.select_strategic_attach_candidate(obs, me, forced_cfg, deck_ids)
-        if idx is None:
-            return None
-        if active is not None and not P.can_attack_now(active):
-            return None
-        return [idx]
-    if stype == int(SelectType.CARD):
-        forced_cfg = _forced_planner_config(config)
-        adj = P.score_adjustments(obs, me, forced_cfg, deck_ids)
-        if adj is None or not any(adj):
-            return None
-        best = max(range(len(adj)), key=lambda i: adj[i])
-        if adj[best] <= 0:
-            return None
-        return [best]
-    return None
-
-
-def _forced_planner_config(config):
-    base = dict((config or {}).get("ogerpon_planner") or {})
-    base["enabled"] = True
-    base["attach_enabled"] = True
-    return {**(config or {}), "ogerpon_planner": base}
+# ``_single_prize_low_level_action``/``_forced_planner_config`` は
+# ``ptcg_ai.ml_policy.ogerpon_strategy.single_prize_low_level_action``/``forced_planner_config``
+# へ移設した(外部レビュー指摘: 収集用rolloutと本番実行が異なる低位方策を使うと、学習した
+# ``Q(s, SINGLE_PRIZE_ROTATION)`` と実際に実行される戦略が食い違う。本番コード
+# ``ml_policy_agent.py`` が参照できる場所に定義を一本化し、このスクリプトはそれをimportする)。
 
 
 def _learner_rollout_action(obs, option_name, option_mode, deck_ids):
     """rollout中の学習側の一手。EX_TEMPOは常に素のPolicy greedy。SINGLE_PRIZE_ROTATIONは
-    ``_single_prize_low_level_action``(Option Controller、現在のphaseに応じて行動を拘束する)を
-    先に試し、Noneのときだけ素のPolicy greedyへフォールバックする。
+    ``STRAT.single_prize_low_level_action``(Option Controller、現在のphaseに応じて行動を
+    拘束する)を先に試し、Noneのときだけ素のPolicy greedyへフォールバックする。
     """
-    P, OS = _W["P"], _W["OS"]
+    STRAT = _W["STRAT"]
     policy_model = _W["learner_policy"]
     select = obs.select
     if select is None or not select.option:
@@ -273,7 +201,7 @@ def _learner_rollout_action(obs, option_name, option_mode, deck_ids):
     count = max(select.minCount, min(select.maxCount, n))
 
     if option_name == SINGLE_PRIZE_ROTATION and select.maxCount == 1:
-        forced = _single_prize_low_level_action(obs, P, OS, _W["config"], deck_ids, option_mode)
+        forced = STRAT.single_prize_low_level_action(obs, _W["config"], deck_ids, option_mode)
         if forced is not None:
             return forced
 

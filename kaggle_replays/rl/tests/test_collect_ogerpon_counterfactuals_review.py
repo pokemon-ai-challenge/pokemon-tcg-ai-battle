@@ -187,55 +187,10 @@ class _Obs:
         self.select = select
 
 
-def test_active_phase_forces_attack_when_available(mod, OS, P):
-    """#4/#6: ACTIVE中はATTACKが選べるなら必ずそれを選ぶ(気絶するまで攻撃する)。"""
-    from cg.api import OptionType
-
-    bulu = _Pokemon(TAPU_BULU, [GRASS] * 4)  # 攻撃可能
-    state = _State([_Player(active=[bulu]), _Player(active=[_Pokemon(OGERPON_EX, [])])])
-    sel = _Select([_Option(OptionType.RETREAT), _Option(OptionType.ATTACK)])
-    obs = _Obs(state, sel)
-    action = mod._single_prize_low_level_action(obs, P, OS, {}, [], OS.ACTIVE)
-    assert action == [1]  # ATTACKのindex
-
-
-def test_active_phase_rejects_non_emergency_retreat(mod, OS, P):
-    """#6: 攻撃可能な手が無くても、緊急でなければにげる/交代を選ばせない。"""
-    from cg.api import OptionType
-
-    bulu = _Pokemon(TAPU_BULU, [GRASS] * 4, hp=140)  # 満タン・攻撃可能(risk計算用に十分な状態)
-    opp_active = _Pokemon(OGERPON_EX, [])  # エネ0で確実な打点を持たない
-    state = _State([_Player(active=[bulu]), _Player(active=[opp_active])])
-    # ATTACKが無い(選べない)状況で、RETREATと別の何かがある場合。
-    sel = _Select([_Option(OptionType.RETREAT), _Option(OptionType.PLAY)])
-    obs = _Obs(state, sel)
-    action = mod._single_prize_low_level_action(obs, P, OS, {}, [], OS.ACTIVE)
-    assert action == [1], "RETREAT(index0)を除外し、残った合法手(PLAY)を返すべき"
-
-
-def test_active_phase_allows_policy_to_decide_when_emergency(mod, OS, P):
-    """#6: 攻撃不能(緊急)なら、低位Controllerは介入せずNoneを返し、Policyに委ねる。"""
-    from cg.api import OptionType
-
-    bulu = _Pokemon(TAPU_BULU, [])  # 攻撃不能 = 緊急
-    state = _State([_Player(active=[bulu]), _Player(active=[_Pokemon(OGERPON_EX, [])])])
-    sel = _Select([_Option(OptionType.RETREAT), _Option(OptionType.PLAY)])
-    obs = _Obs(state, sel)
-    action = mod._single_prize_low_level_action(obs, P, OS, {}, [], OS.ACTIVE)
-    assert action is None
-
-
-def test_complete_and_abort_phases_return_none(mod, OS, P):
-    """#5: COMPLETE/ABORT後は低位Controllerが一切介入しない(通常Policyへ戻す)。"""
-    from cg.api import OptionType
-
-    bulu = _Pokemon(TAPU_BULU, [GRASS] * 4)
-    state = _State([_Player(active=[bulu]), _Player(active=[_Pokemon(OGERPON_EX, [])])])
-    sel = _Select([_Option(OptionType.ATTACK)])
-    obs = _Obs(state, sel)
-    assert mod._single_prize_low_level_action(obs, P, OS, {}, [], OS.COMPLETE) is None
-    assert mod._single_prize_low_level_action(obs, P, OS, {}, [], OS.ABORT) is None
-
+# #4/#5/#6(低位Controllerの各phase挙動)のテストは、その実体
+# (ptcg_ai.ml_policy.ogerpon_strategy.single_prize_low_level_action)を
+# sample_submission/tests/unit/test_ogerpon_strategy.py へ移設済み(本番agentと収集
+# rolloutで低位方策の定義を一本化したため、そちらが正本)。
 
 # ===========================================================================
 # #2: 同一pairの2 Optionが同じdeterminization(hidden state)を使う

@@ -73,23 +73,10 @@ def test_state_id_is_a_sha256_hex_digest(mod, real_states):
     int(sid, 16)  # ValueErrorにならないこと(16進文字列であること)
 
 
-# --- _forced_planner_config ---------------------------------------------------------
-
-def test_forced_planner_config_enables_regardless_of_input(mod):
-    cfg = mod._forced_planner_config({"ogerpon_planner": {"enabled": False, "attach_enabled": False}})
-    assert cfg["ogerpon_planner"]["enabled"] is True
-    assert cfg["ogerpon_planner"]["attach_enabled"] is True
-
-
-def test_forced_planner_config_handles_none_and_missing_key(mod):
-    assert mod._forced_planner_config(None)["ogerpon_planner"]["enabled"] is True
-    assert mod._forced_planner_config({})["ogerpon_planner"]["attach_enabled"] is True
-
-
-def test_forced_planner_config_preserves_other_keys(mod):
-    cfg = mod._forced_planner_config({"pipeline": {"enabled": True}, "ogerpon_planner": {"enabled": False}})
-    assert cfg["pipeline"] == {"enabled": True}
-
+# forced_planner_config / single_prize_low_level_action は
+# ptcg_ai.ml_policy.ogerpon_strategy へ移設した(本番agentと収集rolloutで低位方策の定義を
+# 一本化するため)。そちらのテストは sample_submission/tests/unit/test_ogerpon_strategy.py
+# 側に移動済み。
 
 # --- _opponent_rollout_action --------------------------------------------------------
 

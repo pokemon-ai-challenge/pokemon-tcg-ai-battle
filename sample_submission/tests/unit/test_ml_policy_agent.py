@@ -651,13 +651,34 @@ def test_ogerpon_q_shadow_no_integrity_violations_on_real_evaluated_path(
 # ===========================================================================
 
 def test_ogerpon_q_shadow_impl_never_touches_search_engine_or_match_context(ml_policy_agent):
+    """探索エンジン・match_contextには一切触れないこと(静的検査で常に保証できる不変条件)。
+    永続Option Controllerの開始(``ogerpon_option_state_mod.advance``)はPhase4の能動ゲート
+    でのみ意図的に呼ばれるため、ここでは対象外(別テストで実行時に検証する)。
+    """
     import inspect
 
     src = inspect.getsource(ml_policy_agent._ogerpon_q_shadow_impl)
-    forbidden = ["search_step", "search_begin", "match_context", "advance_state", ".advance("]
+    forbidden = ["search_step", "search_begin", "match_context"]
     for token in forbidden:
         assert token not in src, f"_ogerpon_q_shadow_implは{token!r}を使ってはいけない"
-    assert "ogerpon_option_state_mod.IDLE" in src, "detect_triggerには常にIDLEを渡すこと"
+
+
+def test_ogerpon_q_shadow_never_advances_option_state_when_shadow_only(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """shadow_only=True(既定)では、strict override条件を満たしていても永続Option State
+    (``ogerpon_option_state_mod.advance``)を一切呼ばない(design.md Phase3 item4の
+    「shadow_onlyでは状態を開始・更新しない」要件)。"""
+    OS = ml_policy_agent.ogerpon_option_state_mod
+    calls = []
+    monkeypatch.setattr(OS, "advance", lambda *a, **k: calls.append(1) or OS.OgerponOptionState())
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+    # _active_gate_setup自体がadvanceを差し替えるので、監視用に再度上書きする。
+    monkeypatch.setattr(OS, "advance", lambda *a, **k: calls.append(1) or OS.OgerponOptionState())
+    config = {"ogerpon_q_critic": {"active_triggers": ["main_attach"]}}  # shadow_only省略=True
+    obs = _obs(encoder_observations, "mid_game")
+    ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+    assert calls == [], "shadow_onlyではOption Stateのadvance()を呼んではいけない"
 
 
 def test_ogerpon_q_shadow_action_unchanged_when_weights_not_ready(ml_policy_agent, encoder_observations, monkeypatch):
@@ -787,7 +808,25 @@ def _active_gate_setup(monkeypatch, ml_policy_agent, chosen_option="SINGLE_PRIZE
                                          "n_ensemble_members": 3,
                                          "thresholds": ml_policy_agent.ogerpon_strategy.DEFAULT_DECISION_THRESHOLDS})
     monkeypatch.setattr(ml_policy_agent, "_legacy_ogerpon_planner_is_live", lambda cfg, deck_ids: False)
+    # 永続Option Controllerを実際にBUILDへ開始できたことにする(テスト用obsには実際の
+    # カプ・ブルルが存在しないため、本物の advance_state() は IDLE のまま返してしまう)。
+    OS = ml_policy_agent.ogerpon_option_state_mod
+    _set_advance_mock(OS, monkeypatch, OS.BUILD, target_serial=1, target_card_id=920)
     return log, violations
+
+
+def _set_advance_mock(OS, monkeypatch, mode, **kwargs):
+    """``ogerpon_option_state_mod.advance`` を差し替える。本物の``advance``と同じく
+    モジュールグローバル ``_STATE`` を更新する副作用を持たせる(戻り値だけ差し替えると
+    次の呼び出しで永続状態が反映されない)。
+    """
+    state = OS.OgerponOptionState(mode=mode, phase=mode, **kwargs)
+
+    def _advance(obs, me, cfg, force_start=False):
+        OS._STATE = state
+        return state
+
+    monkeypatch.setattr(OS, "advance", _advance)
 
 
 def test_phase4_active_override_applies_when_conditions_met(ml_policy_agent, encoder_observations, monkeypatch):
@@ -923,3 +962,149 @@ def test_ogerpon_q_shadow_is_lethal_suppresses_override_and_records_it(
     assert log[0]["is_lethal_baseline"] is True
     assert log[0]["active_override_applied"] is False
     assert violations == []
+
+
+# ===========================================================================
+# 永続Option Controller(design.md Phase3 item4、ユーザー指摘対応)の統合テスト。
+#
+# 学習時のSINGLE_PRIZE_ROTATION rolloutはBUILD→READY→ACTIVE→COMPLETE/ABORTの固定
+# Controllerが最後まで低位行動を拘束することを前提にしている。実戦で最初の1手だけ
+# 差し替えて次ターンから通常Policyへ戻ってしまうと、学習した
+# ``Q(s, SINGLE_PRIZE_ROTATION)`` の値と実際に実行される戦略が食い違う。
+# この一連のテストは、``agent()`` が複数ターンにわたって永続状態
+# (``ogerpon_option_state_mod`` のモジュールグローバル)を保持し、低位Controllerが
+# 一貫して行動を拘束し続けることを確認する。
+# ===========================================================================
+
+def test_persistent_option_controller_full_rotation_lifecycle(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """IDLE → strict override → BUILD → READY → ACTIVE → ブルル攻撃 →
+    COMPLETE → 通常Policyへ復帰、を複数ターンのagent()呼び出しで追う。"""
+    OS = ml_policy_agent.ogerpon_option_state_mod
+    STRAT = ml_policy_agent.ogerpon_strategy
+    OS.reset()
+    monkeypatch.setattr(ml_policy_agent, "_select_action", lambda obs, cfg: ([0], False))
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+
+    # --- ターン1: IDLE。main_attachでstrict overrideが発火し、BUILDへ開始する。 ---
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+    assert OS.get_state().mode == OS.IDLE
+    result1 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result1 == [1], "strict override条件を満たしたので、SINGLE側の最初の一手を返す"
+    assert OS.get_state().mode == OS.BUILD
+    assert OS.get_state().target_card_id == 920
+
+    # --- ターン2: BUILD継続。低位Controllerが行動を拘束し、IDLEへは戻らない。 ---
+    _set_advance_mock(OS, monkeypatch, OS.BUILD, target_serial=1, target_card_id=920)
+    monkeypatch.setattr(STRAT, "single_prize_low_level_action", lambda obs, cfg, deck_ids, mode: [3])
+    result2 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result2 == [3], "BUILD中は低位Controllerの手貼り行動を拘束する"
+    assert OS.get_state().mode == OS.BUILD, "1手だけで元のIDLEへ戻ってはいけない"
+
+    # --- ターン3: READYへ遷移。 ---
+    _set_advance_mock(OS, monkeypatch, OS.READY, target_serial=1, target_card_id=920)
+    monkeypatch.setattr(STRAT, "single_prize_low_level_action", lambda obs, cfg, deck_ids, mode: [2])
+    result3 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result3 == [2]
+    assert OS.get_state().mode == OS.READY
+
+    # --- ターン4: ACTIVEへ遷移。ブルルが攻撃する。 ---
+    _set_advance_mock(OS, monkeypatch, OS.ACTIVE, target_serial=1, target_card_id=920, bulu_attack_count=1)
+    monkeypatch.setattr(STRAT, "single_prize_low_level_action", lambda obs, cfg, deck_ids, mode: [1])
+    result4 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result4 == [1], "ACTIVE中は原則ATTACKを拘束する"
+    assert OS.get_state().mode == OS.ACTIVE
+    assert OS.get_state().bulu_attack_count == 1
+
+    # --- ターン5: 気絶してCOMPLETEへ。通常Policy(final_action)へ復帰する。 ---
+    _set_advance_mock(OS, monkeypatch, OS.COMPLETE, target_serial=1, target_card_id=920, bulu_attack_count=1)
+    result5 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result5 == [0], "COMPLETE後は低位Controllerが介入せず、通常Policyの行動を返す"
+    assert OS.get_state().mode == OS.COMPLETE
+
+    # --- ターン6: COMPLETE後、再評価されても新しい中継として再開しない(介入0)。 ---
+    result6 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result6 == [0]
+    assert OS.get_state().mode == OS.COMPLETE, "COMPLETEから勝手にBUILDへ再開してはいけない"
+
+    OS.reset()
+
+
+def test_persistent_option_controller_abort_returns_to_normal_policy(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """ABORT(対象消失等)後も、COMPLETEと同様に通常Policyへ戻り、再介入しない。"""
+    OS = ml_policy_agent.ogerpon_option_state_mod
+    OS.reset()
+    monkeypatch.setattr(ml_policy_agent, "_select_action", lambda obs, cfg: ([9], False))
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    _active_gate_setup(monkeypatch, ml_policy_agent, single_first_action=[1])
+
+    result1 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result1 == [1]
+    assert OS.get_state().mode == OS.BUILD
+
+    _set_advance_mock(OS, monkeypatch, OS.ABORT, target_serial=1, target_card_id=920,
+                     abort_reason="target_lost_or_replaced")
+    result2 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result2 == [9], "ABORT後は通常Policyへ戻る"
+    assert OS.get_state().mode == OS.ABORT
+
+    result3 = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result3 == [9]
+    assert OS.get_state().mode == OS.ABORT, "ABORTから勝手に再開してはいけない"
+    OS.reset()
+
+
+def test_persistent_option_controller_lethal_interrupts_mid_rotation(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """中継進行中(ACTIVE)でも、lethalが見つかれば常にlethalが優先される。"""
+    OS = ml_policy_agent.ogerpon_option_state_mod
+    STRAT = ml_policy_agent.ogerpon_strategy
+    OS.reset()
+    OS._STATE = OS.OgerponOptionState(mode=OS.ACTIVE, phase=OS.ACTIVE,
+                                      target_serial=1, target_card_id=920, bulu_attack_count=1)
+    lethal_action = [7]
+    monkeypatch.setattr(ml_policy_agent, "_select_action", lambda obs, cfg: (lethal_action, True))
+
+    def _must_not_be_called(*a, **k):
+        raise AssertionError("lethal中はOption Controllerの継続判定を呼んではいけない")
+    monkeypatch.setattr(STRAT, "single_prize_low_level_action", _must_not_be_called)
+    monkeypatch.setattr(OS, "advance", _must_not_be_called)
+
+    config = {"ogerpon_q_critic": {"shadow_only": False, "active_triggers": ["main_attach"]}}
+    result = ml_policy_agent.agent(_obs(encoder_observations, "mid_game"), config)
+    assert result == lethal_action
+    assert OS.get_state().mode == OS.ACTIVE, "lethalの回はstateを変更しない(次ターンで再評価される)"
+    OS.reset()
+
+
+def test_persistent_option_controller_resets_on_new_match(ml_policy_agent):
+    """新しい試合(obs.select is None)では、shadow_onlyに関わらず必ず状態がresetされる。"""
+    from cg.api import to_observation_class
+
+    OS = ml_policy_agent.ogerpon_option_state_mod
+    OS._STATE = OS.OgerponOptionState(mode=OS.ACTIVE, phase=OS.ACTIVE,
+                                      target_serial=1, target_card_id=920)
+    obs = to_observation_class({"current": None, "logs": [], "select": None})
+    ml_policy_agent.agent(obs)
+    assert OS.get_state().mode == OS.IDLE, "新しい試合開始で必ずIDLEへ戻ること"
+
+
+def test_ogerpon_option_continue_returns_none_when_shadow_only_even_if_state_leaked(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """万一(バグ等で)永続状態がBUILD等に残っていても、shadow_only=Trueの回は
+    低位Controllerが一切介入しない(shadow_onlyでは状態を読み取って行動へ反映しない)。"""
+    OS = ml_policy_agent.ogerpon_option_state_mod
+    original_state = OS.get_state()
+    try:
+        OS._STATE = OS.OgerponOptionState(mode=OS.ACTIVE, phase=OS.ACTIVE,
+                                          target_serial=1, target_card_id=920)
+        obs = _obs(encoder_observations, "mid_game")
+        result = ml_policy_agent._ogerpon_option_continue(obs, {"ogerpon_q_critic": {}})
+        assert result is None
+    finally:
+        OS._STATE = original_state

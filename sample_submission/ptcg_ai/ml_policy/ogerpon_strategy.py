@@ -352,3 +352,112 @@ def build_candidates(
         return ex_candidate, single_candidate
     except Exception:  # noqa: BLE001
         return None
+
+
+# ---------------------------------------------------------------------------
+# 低位Controller(design.md §11.3、Phase4本番配線)。
+#
+# ``ogerpon_option_state``(状態機械そのもの)とは別に、「今この局面でどの行動を選ぶべきか」
+# を決める部分。もともと ``kaggle_replays/rl/collect_ogerpon_counterfactuals.py`` に
+# 収集用ロジックとして実装されていたが、学習データ収集時のrolloutと本番実行が
+# 同じ低位方策を使わなければ、学習した ``Q(s, SINGLE_PRIZE_ROTATION)`` と実際に実行される
+# 戦略が食い違ってしまうため、ここ(本番コードが参照できる場所)へ移設した。collector側は
+# この関数をimportして使う(定義の重複・食い違いを防ぐ)。
+# ---------------------------------------------------------------------------
+
+def is_emergency_retreat_allowed(active, opp_active, config) -> bool:
+    """design.md §5.4: ACTIVE中の交代は「確定リーサル・攻撃不能・確定敗北回避」だけ許可する。
+
+    ``search_step`` による仮実行(確定リーサル・確定敗北回避の厳密な確認)はこの関数の
+    対象外(Phase2/Phase4境界の簡略化。静的計算だけで判定できる「攻撃不能」「確実に
+    今ターン中に倒される(CERTAIN_KO)」の2条件で近似する)。判定できない(``active`` が
+    None)場合は安全側でTrue(緊急扱い)を返す。
+    """
+    if active is None:
+        return True
+    if not P.can_attack_now(active):
+        return True
+    cfg = P.main_config(config)
+    risk, _ = P.ko_risk(active, opp_active, cfg)
+    return risk == P.CERTAIN_KO
+
+
+def forced_planner_config(config: dict | None) -> dict:
+    """``select_strategic_attach_candidate``/``score_adjustments`` は旧Plannerのconfigゲート
+    (``ogerpon_planner.enabled``/``attach_enabled``)に依存する。低位Controllerはこれらを
+    「候補resolver」として再利用するだけで、bonusは一切足さない(design.md §21で明示されて
+    いる再利用方針)。呼び出し元の実運用config(旧bonus系がOFFかもしれない)に関わらず、
+    resolver呼び出しのためだけに内部で強制的に有効化する。
+    """
+    base = dict((config or {}).get("ogerpon_planner") or {})
+    base["enabled"] = True
+    base["attach_enabled"] = True
+    return {**(config or {}), "ogerpon_planner": base}
+
+
+def single_prize_low_level_action(obs, config, deck_ids, option_mode):
+    """SINGLE_PRIZE_ROTATION継続中の各局面で、Option Controllerが行動を拘束するか判定する。
+
+    ``None`` を返した場合だけ、呼び出し側は素のPolicy/PIMCへフォールバックする
+    (BUILD/READY中の「攻撃可能な手が無いなら通常Policyに任せる」局面など)。
+
+    - COMPLETE/ABORT: 常に ``None``(通常Policyへ完全に戻す。低位Controllerは一切介入しない)。
+    - ACTIVE: 気絶するまで攻撃を優先する。ATTACKが選べるなら必ずそれを選ぶ。にげる/交代は
+      ``is_emergency_retreat_allowed`` が緊急と判定した場合以外は選ばせない
+      (候補から除外し、除外後に残る最初の合法手を返す。他に選べる手が無ければNone)。
+    - BUILD/READY/IDLE: 既存Plannerのcandidate resolverを低位Controllerとして使う
+      (手貼り: ``select_strategic_attach_candidate``、昇格/交代: ``score_adjustments``)。
+    """
+    if option_mode in (option_state_mod.COMPLETE, option_state_mod.ABORT):
+        return None
+
+    select = obs.select
+    if select.maxCount != 1:
+        return None
+    state = obs.current
+    me = state.yourIndex
+    stype = int(select.type)
+    mine = state.players[me]
+    active = next((s for s in (mine.active or []) if s is not None), None)
+
+    if option_mode == option_state_mod.ACTIVE:
+        if stype == int(SelectType.MAIN):
+            attack_indices = [i for i, o in enumerate(select.option)
+                              if int(getattr(o, "type", -1)) == int(OptionType.ATTACK)]
+            if attack_indices:
+                return [attack_indices[0]]
+            retreat_indices = {i for i, o in enumerate(select.option)
+                              if int(getattr(o, "type", -1)) == int(OptionType.RETREAT)}
+            if retreat_indices:
+                opp = state.players[1 - me]
+                opp_active = next((s for s in (opp.active or []) if s is not None), None)
+                if not is_emergency_retreat_allowed(active, opp_active, config):
+                    non_retreat = [i for i in range(len(select.option)) if i not in retreat_indices]
+                    return [non_retreat[0]] if non_retreat else None
+            return None
+        if stype == int(SelectType.CARD):
+            # ACTIVEのブルルを自発的に手放すTO_ACTIVE/SWITCHは、緊急以外は選ばせない。
+            # (緊急・非緊急いずれの場合も、この関数自体はCARD選択には介入せず通常Policyへ
+            # 委ねる。緊急交代の実行是非はPolicy側の判断に任せる安全側の設計。)
+            return None
+        return None
+
+    # BUILD/READY/IDLE
+    if stype == int(SelectType.MAIN):
+        forced_cfg = forced_planner_config(config)
+        idx = P.select_strategic_attach_candidate(obs, me, forced_cfg, deck_ids)
+        if idx is None:
+            return None
+        if active is not None and not P.can_attack_now(active):
+            return None
+        return [idx]
+    if stype == int(SelectType.CARD):
+        forced_cfg = forced_planner_config(config)
+        adj = P.score_adjustments(obs, me, forced_cfg, deck_ids)
+        if adj is None or not any(adj):
+            return None
+        best = max(range(len(adj)), key=lambda i: adj[i])
+        if adj[best] <= 0:
+            return None
+        return [best]
+    return None

@@ -464,3 +464,75 @@ def test_compare_options_near_tie_requires_positive_required_ko_gain(mod):
                         loop_completes_single=[0.9, 0.9])
     result = mod.compare_options(model, _encoded(), _candidate(required_ko_gain=0.0), thresholds)
     assert result["chosen_option"] == mod.EX_TEMPO
+
+
+# ===========================================================================
+# forced_planner_config / single_prize_low_level_action: 低位Controller
+# (design.md §11.3、旧 kaggle_replays/rl/collect_ogerpon_counterfactuals.py から移設。
+# 本番agentと収集rolloutで低位方策の定義を一本化するため、ここが正本になる)
+# ===========================================================================
+
+def test_forced_planner_config_enables_regardless_of_input(mod):
+    cfg = mod.forced_planner_config({"ogerpon_planner": {"enabled": False, "attach_enabled": False}})
+    assert cfg["ogerpon_planner"]["enabled"] is True
+    assert cfg["ogerpon_planner"]["attach_enabled"] is True
+
+
+def test_forced_planner_config_handles_none_and_missing_key(mod):
+    assert mod.forced_planner_config(None)["ogerpon_planner"]["enabled"] is True
+    assert mod.forced_planner_config({})["ogerpon_planner"]["attach_enabled"] is True
+
+
+def test_forced_planner_config_preserves_other_keys(mod):
+    cfg = mod.forced_planner_config({"pipeline": {"enabled": True}, "ogerpon_planner": {"enabled": False}})
+    assert cfg["pipeline"] == {"enabled": True}
+
+
+def test_active_phase_forces_attack_when_available(mod, OS):
+    """ACTIVE中はATTACKが選べるなら必ずそれを選ぶ(気絶するまで攻撃する)。"""
+    from cg.api import OptionType
+
+    bulu = _Pokemon(TAPU_BULU, [GRASS] * 4)  # 攻撃可能
+    state = _State([_Player(active=[bulu]), _Player(active=[_Pokemon(OGERPON_EX, [])])])
+    sel = _main_select([_RetreatOption(), _SimpleOption(OptionType.ATTACK)])
+    obs = _Obs(state, sel)
+    action = mod.single_prize_low_level_action(obs, {}, [], OS.ACTIVE)
+    assert action == [1]  # ATTACKのindex
+
+
+def test_active_phase_rejects_non_emergency_retreat(mod, OS):
+    """攻撃可能な手が無くても、緊急でなければにげる/交代を選ばせない。"""
+    from cg.api import OptionType
+
+    bulu = _Pokemon(TAPU_BULU, [GRASS] * 4, hp=140)  # 満タン・攻撃可能(risk計算用に十分な状態)
+    opp_active = _Pokemon(OGERPON_EX, [])  # エネ0で確実な打点を持たない
+    state = _State([_Player(active=[bulu]), _Player(active=[opp_active])])
+    # ATTACKが無い(選べない)状況で、RETREATと別の何かがある場合。
+    sel = _main_select([_RetreatOption(), _SimpleOption(OptionType.PLAY)])
+    obs = _Obs(state, sel)
+    action = mod.single_prize_low_level_action(obs, {}, [], OS.ACTIVE)
+    assert action == [1], "RETREAT(index0)を除外し、残った合法手(PLAY)を返すべき"
+
+
+def test_active_phase_allows_policy_to_decide_when_emergency(mod, OS):
+    """攻撃不能(緊急)なら、低位Controllerは介入せずNoneを返し、Policyに委ねる。"""
+    from cg.api import OptionType
+
+    bulu = _Pokemon(TAPU_BULU, [])  # 攻撃不能 = 緊急
+    state = _State([_Player(active=[bulu]), _Player(active=[_Pokemon(OGERPON_EX, [])])])
+    sel = _main_select([_RetreatOption(), _SimpleOption(OptionType.PLAY)])
+    obs = _Obs(state, sel)
+    action = mod.single_prize_low_level_action(obs, {}, [], OS.ACTIVE)
+    assert action is None
+
+
+def test_complete_and_abort_phases_return_none(mod, OS):
+    """COMPLETE/ABORT後は低位Controllerが一切介入しない(通常Policyへ戻す)。"""
+    from cg.api import OptionType
+
+    bulu = _Pokemon(TAPU_BULU, [GRASS] * 4)
+    state = _State([_Player(active=[bulu]), _Player(active=[_Pokemon(OGERPON_EX, [])])])
+    sel = _main_select([_SimpleOption(OptionType.ATTACK)])
+    obs = _Obs(state, sel)
+    assert mod.single_prize_low_level_action(obs, {}, [], OS.COMPLETE) is None
+    assert mod.single_prize_low_level_action(obs, {}, [], OS.ABORT) is None

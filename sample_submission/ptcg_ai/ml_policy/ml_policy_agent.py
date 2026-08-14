@@ -149,6 +149,10 @@ def agent(obs: Observation, config: dict | None = None) -> list[int]:
         _match_start_perf = time.perf_counter()
         _selects_seen = 0
         policy_registry.reset()
+        # design.md Phase3 item4(Phase4能動ゲート): 永続Option Controllerの状態を
+        # 試合間で必ずresetする(shadow_only状態にかかわらず無条件。前の試合が能動モードで
+        # 中継を開始したまま次の試合(shadow_onlyかもしれない)へ状態が漏れることを防ぐ)。
+        ogerpon_option_state_mod.reset()
         return read_deck_csv()
     final_action, is_lethal = _select_action(obs, config)
     # design.md Phase3 item4: shadow評価は`_select_action`のどの内部経路(lethal即return/
@@ -160,16 +164,29 @@ def agent(obs: Observation, config: dict | None = None) -> list[int]:
     # 154試合検証で発見した)。ここで`_select_action`の戻り値そのものに対して呼ぶことで、
     # 内部経路に関わらず必ず1回だけ評価される。
     #
-    # 戻り値(override)は既定(shadow_only=True、Phase3)では常にNoneであり、Phase4の
-    # 能動ゲート(shadow_only=False)を明示的に有効化した場合だけ、厳密しきい値を満たした
-    # SINGLE_PRIZE_ROTATIONの行動で置き換える。`is_lethal`(確定リーサル探索由来の行動か)
-    # を`_ogerpon_q_shadow`へ明示的に渡し、lethalの回はoverrideを一次防御として評価内部で
-    # 無効化させる(`_ogerpon_q_shadow_impl`側)。ここでの`if is_lethal: return final_action`
-    # は二次防御(多層防御)。lethalを上書きしてしまう経路が実際に存在したことをStage7の
-    # 安全レビューで発見したため、lethalは常に最優先という要件をここで二重に保証する。
-    override = _ogerpon_q_shadow(obs, final_action, config, is_lethal=is_lethal)
+    # lethalは常に最優先(design.md §11.3)。`is_lethal=True`ならOption Controllerの継続
+    # 判定・Q-critic評価のどちらも一切行わずに即returnする(継続中の中継があっても、その回の
+    # `advance()`は呼ばない=状態は「1手分先延ばし」になるだけで、次にこの関数が呼ばれた時に
+    # 改めて盤面から判定される。lethalが見つかった時点でほぼ勝敗が決するため実害はない)。
     if is_lethal:
         return final_action
+
+    # design.md Phase3 item4(Phase4能動ゲート): 永続Option Controllerの継続判定。
+    # `shadow_only=False`かつ既に中継(BUILD/READY/ACTIVE)が進行中なら、低位Controllerが
+    # この局面の行動を拘束するかどうかをここで先に確認する(拘束されるなら、Q-critic評価
+    # そのものをスキップする。中継中は`detect_trigger`が`TRIGGER_CONTINUE`を返すため
+    # `_ogerpon_q_shadow`を呼んでも無害だが、無駄な評価を避けるため先に短絡する)。
+    option_action = _ogerpon_option_continue(obs, config)
+    if option_action is not None:
+        return option_action
+
+    # 戻り値(override)は既定(shadow_only=True、Phase3)では常にNoneであり、Phase4の
+    # 能動ゲート(shadow_only=False)を明示的に有効化した場合だけ、厳密しきい値を満たした
+    # SINGLE_PRIZE_ROTATIONの行動で置き換える(このタイミングでは`main_attach`等、IDLEから
+    # 新しい中継を開始する判断にしかならない。中継が既に進行中なら上のoption_actionで
+    # 短絡済みのはず)。`is_lethal=False`固定で渡す(このブロックへ到達している時点で
+    # 既にlethalではないことが確定している)。
+    override = _ogerpon_q_shadow(obs, final_action, config, is_lethal=False)
     return override if override is not None else final_action
 
 
@@ -576,6 +593,50 @@ def _legacy_ogerpon_planner_is_live(effective_config: dict, deck_ids) -> bool:
     return not shadow_only_legacy
 
 
+def _ogerpon_option_continue(obs: Observation, config: dict | None) -> list[int] | None:
+    """design.md §11.3: 永続Option Controller(``ogerpon_option_state`` のモジュール
+    グローバル)を1手分進め、まだ中継進行中(BUILD/READY/ACTIVE)なら低位Controllerの
+    拘束行動を返す。
+
+    学習時のSINGLE_PRIZE_ROTATION rolloutは、BUILD→READY→ACTIVE→COMPLETE/ABORTの固定
+    Controllerが最後まで低位行動を拘束することを前提に集計されている
+    (``kaggle_replays/rl/collect_ogerpon_counterfactuals.py`` の
+    ``ogerpon_strategy.single_prize_low_level_action`` 経由のrollout)。実戦で最初の1手
+    (main_attachのATTACH)だけを差し替えて次ターン以降は通常Policyへ戻ってしまうと、
+    学習した ``Q(s, SINGLE_PRIZE_ROTATION)`` の値が実際に実行される戦略と一致しなくなる
+    (ユーザー指摘)。そのため、この関数は「中継が始まっていれば、終わる(COMPLETE/ABORT)
+    まで低位Controllerが行動を拘束し続ける」ことを保証する。
+
+    ``shadow_only=True``(既定)では状態を一切開始・更新しない(``mode`` は常にIDLEの
+    ままで、この関数は即 ``None`` を返す)。lethalが見つかった回は呼び出し側
+    (``agent()``)がこの関数自体を呼ばないため、常にlethalが最優先される。
+    """
+    try:
+        select = obs.select
+        if obs.current is None or select is None:
+            return None
+        effective_config = config if config is not None else _get_config()
+        q_config = (effective_config or {}).get("ogerpon_q_critic") or {}
+        if q_config.get("shadow_only", True):
+            return None
+        prev_mode = ogerpon_option_state_mod.get_state().mode
+        if prev_mode not in (ogerpon_option_state_mod.BUILD, ogerpon_option_state_mod.READY,
+                             ogerpon_option_state_mod.ACTIVE):
+            return None
+        me = obs.current.yourIndex
+        state = ogerpon_option_state_mod.advance(obs, me, effective_config, force_start=False)
+        if state.mode not in (ogerpon_option_state_mod.BUILD, ogerpon_option_state_mod.READY,
+                              ogerpon_option_state_mod.ACTIVE):
+            return None  # COMPLETE/ABORTへ遷移した。通常Policyへ戻す。
+        deck_ids = _get_deck()
+        action = ogerpon_strategy.single_prize_low_level_action(obs, effective_config, deck_ids, state.mode)
+        if action is not None and not _is_valid_action(action, select):
+            return None  # 安全側フォールバック(理論上起きないはずだが念のため)。
+        return action
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _ogerpon_q_shadow(obs: Observation, final_action: list[int], config: dict | None,
                       is_lethal: bool = False) -> list[int] | None:
     """design.md §11.2のQ比較を評価する(Phase3のshadowログ記録 + Phase4の能動ゲート統合口)。
@@ -644,8 +705,14 @@ def _ogerpon_q_shadow_impl(obs: Observation, final_action: list[int], effective_
         supported_triggers = set(q_config.get("supported_triggers", ["main_attach"]))
         me = obs.current.yourIndex
 
+        # 永続Option Stateの実際のmodeを使う(shadow_onlyでは常にIDLE固定。実modeを使うと
+        # COMPLETE/ABORT後に別対象で誤って新しい中継を検出できてしまう理論上の隙が塞がる。
+        # なお非shadow_onlyでBUILD/READY/ACTIVE中はagent()側の`_ogerpon_option_continue`が
+        # 既に短絡しているため、ここへ到達する時点のmodeはIDLE/COMPLETE/ABORTのいずれか)。
+        option_mode = (ogerpon_option_state_mod.get_state().mode if not shadow_only
+                      else ogerpon_option_state_mod.IDLE)
         t0 = time.perf_counter()
-        trigger = ogerpon_strategy.detect_trigger(obs, me, deck_ids, ogerpon_option_state_mod.IDLE)
+        trigger = ogerpon_strategy.detect_trigger(obs, me, deck_ids, option_mode)
         if trigger is None:
             return None
         record = {
@@ -697,7 +764,15 @@ def _ogerpon_q_shadow_impl(obs: Observation, final_action: list[int], effective_
             if (trigger in active_triggers
                     and not _legacy_ogerpon_planner_is_live(effective_config, deck_ids)
                     and _is_valid_action(single_candidate.first_action, select)):
-                override_action = list(single_candidate.first_action)
+                # design.md Phase3 item4(ユーザー指摘対応): 単発でこのターンの行動だけを
+                # 差し替えるのではなく、永続Option Controllerを実際にIDLE→BUILDへ開始する。
+                # `advance_state`自身がCOMPLETE/ABORT(終端状態)からの再開始を拒否するため
+                # (force_start=Trueでも`prev`をそのまま返す)、遷移が実際にBUILDへ成功した
+                # ことを確認してから初めてoverrideを採用する(理論上の隙: COMPLETE/ABORT後に
+                # 誤ってoverrideだけ単発適用してしまう経路を塞ぐ)。
+                new_state = ogerpon_option_state_mod.advance(obs, me, effective_config, force_start=True)
+                if new_state.mode == ogerpon_option_state_mod.BUILD:
+                    override_action = list(single_candidate.first_action)
         record["active_override_applied"] = override_action is not None
 
         record["duration_ms"] = (time.perf_counter() - t0) * 1000.0
