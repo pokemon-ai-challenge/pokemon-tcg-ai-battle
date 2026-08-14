@@ -44,6 +44,7 @@ from ptcg_ai.rule_based.main_turn_parts import proposals as rb_proposals
 from ptcg_ai.rule_based.main_turn_parts import weights as rb_weights
 from ptcg_ai.rule_based.rule_based_agent import read_deck_csv
 from ptcg_ai.search import attack_plan, lethal_simple, pimc, pipeline
+from ptcg_ai.search.lethal import entry as lethal_phase1
 
 # `_try_attack_hybrid` 用。draw/board/ability/energyのいずれかが提案されている
 # (=まだ他にやるべき展開が残っている)行ではATTACKゲートを発火させない。
@@ -57,8 +58,14 @@ from ptcg_ai.search import attack_plan, lethal_simple, pimc, pipeline
 # 低recall・高精度の介入)。
 _ATTACK_HYBRID_BLOCKING_CATEGORIES = {"draw", "board", "ability", "energy"}
 
+# 探索モジュールの登録表。**登録しただけでは挙動は変わらない**: どれを使うかは
+# config の `lethal_search.module` が決める(既定 `abl_5_full` は `lethal_simple`)。
+# `lethal_phase1` は Phase 1/2 の確定リーサル探索(search/lethal/)。design.md 付録 Z.1 の
+# `RNG_NON_INTERFERENCE_VERIFIED` が False のため既定 config では選ばない。opt-in は
+# `configs/abl_5_full_lethalphase2.json`(PTCG_AI_ML_CONFIG で切り替え)。
 _SEARCH_MODULES = {
     "lethal_simple": lethal_simple,
+    "lethal_phase1": lethal_phase1,
     "pimc": pimc,
 }
 
@@ -228,12 +235,16 @@ def _try_lethal(obs: Observation, config: dict | None = None) -> list[int] | Non
             )
         else:
             # ダミースタブ(既定、既存configとの後方互換)。
-            full_deck = _get_deck()
-            factory = lambda: build_dummy_search_state(obs, full_deck)
+            factory = lambda: build_dummy_search_state(obs, _get_deck())
         context = {
             "observation": obs,
             "config": lethal_config,
             "hidden_state_factory": factory,
+            # 自分のデッキ構成(60枚)。`lethal_phase1` は境界で multiset へ落とし、
+            # Phase 2 の outcome 列挙に使う(無いと Phase 2 は必ず UNKNOWN)。
+            # 実際の山札順ではないので隠れ情報の漏洩にはならない。`lethal_simple`/`pimc`
+            # はこのキーを見ないので挙動は不変。
+            "full_deck": _get_deck(),
         }
         action = module.search(obs.current, obs.select.option, context)
     except Exception:

@@ -1,0 +1,33 @@
+{
+  "name": "abl_5_full_lethalphase2",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_phase1",
+    "max_remaining_prizes": 2,
+    "phase12_ms": 500,
+    "max_nodes": 10000,
+    "max_depth": 8,
+    "max_chance_depth": 1,
+    "phase1_enabled": true,
+    "phase2_enabled": true,
+    "phase3_enabled": false
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {"kind": "handcrafted"},
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  }
+}
