@@ -253,3 +253,27 @@ def test_predict_members_empty_on_dimension_mismatch(mod, tmp_path):
     path = _write_weights(tmp_path, [_single_model_payload()])
     model = mod.OgerponStrategyModel(path)
     assert model.predict_members([1.0], [1, 0], [3.0], "EX_TEMPO") == []
+
+
+# --- meta.deployment_status/active_gate(shadow candidate運用)への耐性 -----------------
+
+def test_loader_tolerates_deployment_status_and_active_gate_meta_fields(mod, tmp_path):
+    """weightsの`meta`に`deployment_status`/`active_approved`/`active_gate`という
+    未知フィールドが追加されていても、ロード・推論に一切影響しないこと(design.md
+    Phase3運用: strict override件数がゲート未達のweightsを"shadow_candidate"として
+    配布するための実運用フォーマット)。"""
+    extra_meta = {
+        "deployment_status": "shadow_candidate",
+        "active_approved": False,
+        "active_gate": {
+            "required_strict_override_states": 30,
+            "observed_strict_override_states": 7,
+            "passed": False,
+            "reason": "insufficient_strict_override_samples",
+        },
+    }
+    path = _write_weights(tmp_path, [_single_model_payload()], extra_meta=extra_meta)
+    model = mod.OgerponStrategyModel(path)
+    assert model.is_ready is True
+    pred = model.predict([1.0, 2.0], [1, 0], [3.0], "EX_TEMPO")
+    assert pred["win"] == pytest.approx(_sigmoid(7.0), abs=1e-9)

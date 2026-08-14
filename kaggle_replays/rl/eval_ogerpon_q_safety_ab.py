@@ -53,6 +53,11 @@ BASELINE_Q_CONFIG = {
         "near_tie_epsilon": 0.015, "loop_threshold": 0.45, "uncertainty_coef": 1.0,
     },
 }
+# !!! 実験専用設定。sample_submission/configs/ 配下の本番configには絶対にコピーしないこと !!!
+# `shadow_only: False` はこのスクリプト(オフラインA/B)内でのみ使う。本番提出パス
+# (`abl_5_full` 等)には `ogerpon_q_critic` キー自体が存在せず、既定で `shadow_only=True`
+# (=Q-criticは一切行動へ介入しない)。2026-08-14時点でheld-out strict override件数が
+# 7件(<30必須)のため、active_approved=falseのまま(weights側のmeta.active_gateを参照)。
 ACTIVE_Q_CONFIG = {
     "shadow_only": False,
     "active_triggers": ["main_attach"],
