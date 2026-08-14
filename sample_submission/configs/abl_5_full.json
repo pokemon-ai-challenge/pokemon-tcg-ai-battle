@@ -27,5 +27,10 @@
       "min_ms": 50,
       "max_ms": 2000
     }
+  },
+  "ogerpon_q_critic": {
+    "enabled": false,
+    "shadow_only": true,
+    "_note": "2026-08-15、label-fidelity study(docs/experiments/ogerpon_bulu_qcritic_final_report.md)でHypothesis Bを採用しBulu Q-critic開発を終了。enabled=falseにより本番では推論・OptionState起動・ログ記録を一切行わない。研究再開時はconfigs/ogerpon_q_shadow_research.jsonを参照。"
   }
 }

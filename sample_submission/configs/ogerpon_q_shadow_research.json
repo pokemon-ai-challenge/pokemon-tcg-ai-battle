@@ -1,0 +1,45 @@
+{
+  "name": "ogerpon_q_shadow_research",
+  "_submission_warning": "研究用configです。提出(Kaggle投稿)には絶対に使用しないこと。本番config(configs/abl_5_full.json)はogerpon_q_critic.enabled=falseで固定されています。詳細はdocs/experiments/ogerpon_bulu_qcritic_final_report.mdを参照。",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 3,
+    "time_limit_ms": 100,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {"kind": "handcrafted"},
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  },
+  "ogerpon_q_critic": {
+    "enabled": true,
+    "shadow_only": true,
+    "supported_triggers": ["main_attach"],
+    "decision_thresholds": {
+      "strict_override_threshold": 0.02,
+      "near_tie_enabled": false,
+      "near_tie_epsilon": 0.015,
+      "loop_threshold": 0.45,
+      "uncertainty_coef": 1.0
+    },
+    "_note": "enabled=true + shadow_only=trueなので推論・ログ記録は行うが行動には一切介入しない(既存Phase3のshadow計測と同じ経路)。2026-08-15時点でこの開発方向はHypothesis B採用により終了しており、この設定はコードパスの再現・追加調査専用。行動に介入させるにはshadow_only=falseとactive_triggersの追加が必要だが、active_gateが不合格(strict subset precision 22.6%、mean actual deltaはほぼ0)のため現時点では非推奨。"
+  }
+}

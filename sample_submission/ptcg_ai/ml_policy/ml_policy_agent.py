@@ -607,6 +607,10 @@ def _ogerpon_option_continue(obs: Observation, config: dict | None) -> list[int]
     (ユーザー指摘)。そのため、この関数は「中継が始まっていれば、終わる(COMPLETE/ABORT)
     まで低位Controllerが行動を拘束し続ける」ことを保証する。
 
+    ``enabled=False``(2026-08-15のBulu Q-critic開発終了以降、本番config
+    ``abl_5_full`` の既定)では ``_get_config()``/OptionState取得すら行わず即
+    ``None`` を返す(推論ゼロ・状態変更ゼロ)。``enabled`` キー自体が無いconfig
+    (既存テスト・レガシー呼び出し)は ``True`` 扱いで従来どおり動作する。
     ``shadow_only=True``(既定)では状態を一切開始・更新しない(``mode`` は常にIDLEの
     ままで、この関数は即 ``None`` を返す)。lethalが見つかった回は呼び出し側
     (``agent()``)がこの関数自体を呼ばないため、常にlethalが最優先される。
@@ -617,6 +621,8 @@ def _ogerpon_option_continue(obs: Observation, config: dict | None) -> list[int]
             return None
         effective_config = config if config is not None else _get_config()
         q_config = (effective_config or {}).get("ogerpon_q_critic") or {}
+        if not q_config.get("enabled", True):
+            return None  # 完全無効化(推論・OptionState起動を一切行わない)。
         if q_config.get("shadow_only", True):
             return None
         prev_mode = ogerpon_option_state_mod.get_state().mode
@@ -641,6 +647,11 @@ def _ogerpon_q_shadow(obs: Observation, final_action: list[int], config: dict | 
                       is_lethal: bool = False) -> list[int] | None:
     """design.md §11.2のQ比較を評価する(Phase3のshadowログ記録 + Phase4の能動ゲート統合口)。
 
+    ``enabled=False``(2026-08-15のBulu Q-critic開発終了以降、本番config
+    ``abl_5_full`` の既定)では ``_get_config()`` の結果を見た直後に即returnし、
+    モデルロード・detect_trigger・ログ記録のいずれも行わない。``enabled`` キー
+    自体が無いconfig(既存テスト・研究用config)は ``True`` 扱いで従来どおり動作する。
+
     既定(`OGERPON_Q_SHADOW_LOG is None` かつ `shadow_only=True`)では即returnし、意思決定・
     RNG・match_context・OptionState・baseline_action のいずれにも一切触れない(本番の
     オーバーヘッドはゼロ)。呼び出し前後で ``final_action`` の内容とPython `random` の
@@ -660,6 +671,8 @@ def _ogerpon_q_shadow(obs: Observation, final_action: list[int], config: dict | 
     """
     effective_config = config if config is not None else _get_config()
     q_config = (effective_config or {}).get("ogerpon_q_critic") or {}
+    if not q_config.get("enabled", True):
+        return None  # 完全無効化(推論・ログ記録を一切行わない)。
     shadow_only = q_config.get("shadow_only", True)
     if OGERPON_Q_SHADOW_LOG is None and shadow_only:
         return None

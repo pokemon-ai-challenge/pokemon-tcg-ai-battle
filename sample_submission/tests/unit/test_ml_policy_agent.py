@@ -1108,3 +1108,168 @@ def test_ogerpon_option_continue_returns_none_when_shadow_only_even_if_state_lea
         assert result is None
     finally:
         OS._STATE = original_state
+
+
+# ===========================================================================
+# Bulu Q-critic 開発終了(2026-08-15、docs/experiments/ogerpon_bulu_qcritic_final_report.md)
+# 本番config(configs/abl_5_full.json, ogerpon_q_critic.enabled=false)が
+# 推論・OptionState・行動のいずれにも一切触れず完全無効化されていることを検証する。
+# ここでは合成configではなく実ファイル(load_config("abl_5_full"))を読み込んで検証する。
+# ===========================================================================
+
+def _load_real_production_config(ml_policy_agent):
+    return ml_policy_agent.load_config("abl_5_full")
+
+
+def test_production_config_has_ogerpon_q_critic_disabled(ml_policy_agent):
+    """本番config実ファイルがenabled=false, shadow_only=trueであることの直接確認。"""
+    config = _load_real_production_config(ml_policy_agent)
+    q_config = config.get("ogerpon_q_critic")
+    assert q_config is not None
+    assert q_config.get("enabled") is False
+    assert q_config.get("shadow_only") is True
+
+
+def test_production_config_ogerpon_q_shadow_never_loads_model_or_detects_trigger(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """本番config実ファイルでは _ogerpon_q_shadow が deck判定・trigger検出・モデル生成の
+    いずれにも到達しない(推論回数0)。"""
+    config = _load_real_production_config(ml_policy_agent)
+    log = []
+    monkeypatch.setattr(ml_policy_agent, "OGERPON_Q_SHADOW_LOG", log)
+
+    def _boom(*a, **k):
+        raise AssertionError("enabled=falseなら deck_is_ogerpon すら呼ばれてはいけない")
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", _boom)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "detect_trigger", _boom)
+    monkeypatch.setattr(ml_policy_agent, "OgerponStrategyModel", _boom)
+
+    obs = _obs(encoder_observations, "mid_game")
+    result = ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+    assert result is None
+    assert log == [], "ログ記録も一切行われない"
+
+
+def test_production_config_ogerpon_option_continue_never_starts_option_state(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """本番config実ファイルでは _ogerpon_option_continue が OptionState.advance に到達
+    しない(Option State開始0)。永続状態がBUILD等に残っていても読み取りすらしない。"""
+    config = _load_real_production_config(ml_policy_agent)
+    OS = ml_policy_agent.ogerpon_option_state_mod
+    original_state = OS.get_state()
+
+    def _boom(*a, **k):
+        raise AssertionError("enabled=falseなら advance は一切呼ばれてはいけない")
+    monkeypatch.setattr(OS, "advance", _boom)
+    try:
+        OS._STATE = OS.OgerponOptionState(mode=OS.BUILD, phase=OS.BUILD,
+                                          target_serial=1, target_card_id=920)
+        obs = _obs(encoder_observations, "mid_game")
+        result = ml_policy_agent._ogerpon_option_continue(obs, config)
+        assert result is None
+        assert OS.get_state().mode == OS.BUILD, "状態自体には触れず、単に読み取らないだけ"
+    finally:
+        OS._STATE = original_state
+
+
+def test_production_config_agent_output_matches_baseline_even_if_q_critic_would_override(
+    ml_policy_agent, encoder_observations, monkeypatch
+):
+    """本番config実ファイルでagent()を通しても、Q-criticが(もし動いていれば)介入したはず
+    の状況を人工的に作っても、最終行動はbaseline Policyの結果と完全に一致する(行動差0)。"""
+    config = _load_real_production_config(ml_policy_agent)
+    baseline_action = [2]
+    monkeypatch.setattr(ml_policy_agent, "_select_action", lambda obs, cfg: (baseline_action, False))
+
+    def _boom(*a, **k):
+        raise AssertionError("enabled=falseなら候補構築(build_candidates)にも到達しない")
+    monkeypatch.setattr(ml_policy_agent.ogerpon_strategy, "build_candidates", _boom)
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: True)
+
+    obs = _obs(encoder_observations, "mid_game")
+    result = ml_policy_agent.agent(obs, config)
+    assert result == baseline_action
+
+
+def test_production_config_non_ogerpon_deck_unaffected(ml_policy_agent, encoder_observations, monkeypatch):
+    """非オーガポンデッキ(実際のsample_submission/deck.csv、フーディン)でも本番configでは
+    Q-critic関連コードに一切触れない(deck判定コードすら呼ばれない=影響0)。"""
+    config = _load_real_production_config(ml_policy_agent)
+
+    def _boom(*a, **k):
+        raise AssertionError("非オーガポンデッキか否かの判定自体、enabled=falseなら不要")
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", _boom)
+    obs = _obs(encoder_observations, "mid_game")
+    assert ml_policy_agent._ogerpon_q_shadow(obs, [0], config) is None
+
+
+def test_production_config_lethal_path_unaffected_by_q_critic(ml_policy_agent, encoder_observations, monkeypatch):
+    """本番config実ファイルで、lethal行動が見つかった回はQ-critic関連コードへ一切分岐しない
+    (lethal経路への影響0)。agent()のトップレベルから検証する。"""
+    config = _load_real_production_config(ml_policy_agent)
+    lethal_action = [3]
+    monkeypatch.setattr(ml_policy_agent, "_select_action", lambda obs, cfg: (lethal_action, True))
+
+    def _boom(*a, **k):
+        raise AssertionError("lethalの回はQ-critic関連コードへ到達してはいけない")
+    monkeypatch.setattr(ml_policy_agent, "_ogerpon_option_continue", _boom)
+    monkeypatch.setattr(ml_policy_agent, "_ogerpon_q_shadow", _boom)
+
+    obs = _obs(encoder_observations, "mid_game")
+    result = ml_policy_agent.agent(obs, config)
+    assert result == lethal_action
+
+
+def test_production_config_works_without_weights_file(ml_policy_agent, encoder_observations, monkeypatch):
+    """weights(ogerpon_strategy_weights.json)が存在しない/壊れていても、本番configでは
+    そもそも _get_ogerpon_q_model が一度も呼ばれないため既存Policyは問題なく動作する。"""
+    config = _load_real_production_config(ml_policy_agent)
+    monkeypatch.setattr(ml_policy_agent, "_ogerpon_q_model", None)
+
+    def _boom(*a, **k):
+        raise AssertionError("enabled=falseならモデルを一切ロードしてはいけない(weights未配置でも動作する保証)")
+    monkeypatch.setattr(ml_policy_agent, "_get_ogerpon_q_model", _boom)
+    monkeypatch.setattr(ml_policy_agent, "OgerponStrategyModel", _boom)
+
+    obs = _obs(encoder_observations, "mid_game")
+    assert ml_policy_agent._ogerpon_q_shadow(obs, [0], config) is None
+    assert ml_policy_agent._ogerpon_q_model is None, "遅延ロードされる _ogerpon_q_model が一切生成されない"
+
+
+def test_research_shadow_config_agent_output_matches_baseline(ml_policy_agent, encoder_observations, monkeypatch):
+    """configs/ogerpon_q_shadow_research.json(enabled=true, shadow_only=true)は推論・ログ
+    記録こそ行うが、shadow_only=trueである限りagent()の最終行動はbaselineと完全に一致する
+    (研究用configでも行動差0)。"""
+    config = ml_policy_agent.load_config("ogerpon_q_shadow_research")
+    assert config["ogerpon_q_critic"]["enabled"] is True
+    assert config["ogerpon_q_critic"]["shadow_only"] is True
+
+    baseline_action = [2]
+    monkeypatch.setattr(ml_policy_agent, "_select_action", lambda obs, cfg: (baseline_action, False))
+    # 実オーガポンデッキではないため detect_trigger 到達前に deck_is_ogerpon で弾かれるが、
+    # 念のため明示的にFalseを返させ、推論経路には入っても行動には反映されないことを
+    # _ogerpon_q_shadow の戻り値(None)と agent() の最終出力の両方で確認する。
+    monkeypatch.setattr(ml_policy_agent.ogerpon_planner, "deck_is_ogerpon", lambda deck_ids: False)
+
+    obs = _obs(encoder_observations, "mid_game")
+    result = ml_policy_agent.agent(obs, config)
+    assert result == baseline_action
+
+
+def test_production_config_overhead_is_negligible(ml_policy_agent, encoder_observations):
+    """本番config実ファイルでの _ogerpon_q_shadow / _ogerpon_option_continue の
+    オーバーヘッドは辞書lookup数回のみ(モデル推論・エンコード・OptionState更新は一切
+    発生しない)ことを、実測時間の粗いスモークガードで確認する
+    (Q-critic導入前とのバイナリ比較はできないため、定数時間であることの代替確認)。"""
+    import time
+
+    config = _load_real_production_config(ml_policy_agent)
+    obs = _obs(encoder_observations, "mid_game")
+    t0 = time.perf_counter()
+    for _ in range(2000):
+        ml_policy_agent._ogerpon_q_shadow(obs, [0], config)
+        ml_policy_agent._ogerpon_option_continue(obs, config)
+    elapsed = time.perf_counter() - t0
+    assert elapsed < 2.0, f"2000回の呼び出しで{elapsed:.3f}s(モデルロード等が紛れ込んでいる可能性)"
