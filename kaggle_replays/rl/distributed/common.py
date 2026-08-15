@@ -129,9 +129,20 @@ def seed_base(generation: int, worker_index: int) -> int:
 # ---------------------------------------------------------------- デッキ / 相手
 def resolve_deck(spec: str) -> Path:
     """run.json のデッキ指定を実ファイルへ。リポジトリからの相対パスか、
-    アーキタイプ名(その場合 <archetype>/01.csv)を受け付ける。"""
+    アーキタイプ名(その場合 ``<archetype>/06.csv``、無ければ ``<archetype>/01.csv``)を受け付ける。
+
+    2026-08-13 修正: 従来は無条件に 01.csv だった。``rl/pools.py._deck_csv_for_archetype`` と
+    同じ規則(06.csv があれば必ずそちらが正)に揃えた。根拠は
+    ``league/results/matchup/vs_crustle.json`` 等の ``deck_a_path``/``deck_b_path`` が
+    06.csv を指していること(crustle/01.csv と crustle/06.csv は別デッキ、md5 も別)。
+    06.csv が無いアーキタイプは今まで通り 01.csv にフォールバックする。
+    """
     # アーキタイプ名で渡されると DECK_ROOT/<名前> はディレクトリなので、必ず is_file() で見る。
-    for cand in (REPO_ROOT / spec, DECK_ROOT / spec, DECK_ROOT / spec / "01.csv"):
+    for cand in (REPO_ROOT / spec, DECK_ROOT / spec):
+        if cand.is_file():
+            return cand
+    for name in ("06.csv", "01.csv"):
+        cand = DECK_ROOT / spec / name
         if cand.is_file():
             return cand
     raise SystemExit(f"デッキが見つからない: {spec}")

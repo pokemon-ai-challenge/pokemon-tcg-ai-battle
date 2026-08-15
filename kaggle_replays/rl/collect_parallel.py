@@ -17,6 +17,7 @@ import math
 import random
 import sys
 from multiprocessing import Pool
+from multiprocessing import TimeoutError as MpTimeoutError
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
@@ -54,17 +55,41 @@ def _softmax_sample(scores, temperature, rng):
     return len(probs) - 1, math.log(max(probs[-1], 1e-12))
 
 
+def _valid_wall_guard_action(action, select) -> bool:
+    """`ml_policy_agent._is_valid_action` と同内容(モジュール依存を増やさないため複製、
+    同ファイルのdocstringにある既存の複製方針と同じ)。"""
+    if not isinstance(action, list) or not all(isinstance(i, int) for i in action):
+        return False
+    if not (select.minCount <= len(action) <= select.maxCount):
+        return False
+    if len(action) != len(set(action)):
+        return False
+    return all(0 <= i < len(select.option) for i in action)
+
+
 def _play_one(task):
-    """1試合を pure-Python 方策(sampling)で。learner の単一選択を記録して dict で返す。"""
+    """1試合を pure-Python 方策(sampling)で。learner の単一選択を記録して dict で返す。
+
+    2026-08-14: learner側の意思決定に wall_guard(Guard A/B + pending target)を pre-step
+    として追加(requirements-kamitsuorochi-2026-08-12.md §step2「根本原因、コード確認で確定」)。
+    crustle対面のRL(gen0-25、kamitsuorochi_vs_crustle_v1)は
+    これが無いまま行われており、本番(ml_policy_agent.py)の対応する呼び出し順序
+    (pending -> guard_a -> guard_b -> モデル)と揃っていなかった(collect_parallel.py には
+    wall_guard の呼び出しが一切無かった)。相手側(opponent)には適用しない
+    (wall_guardは自分の0打点攻撃を直すためのもので、相手の忠実さを変える理由が無い)。
+    """
     from cg.api import LogType, to_observation_class
     from cg.game import battle_finish, battle_select, battle_start
     from ptcg_ai.learning import encoder
+    from ptcg_ai.search import wall_guard
 
     learner_index, seed = task
     pm = _W["pm"]
     temp = _W["temp"]
     rng = random.Random(seed ^ 0x5DEECE66D)
     random.seed(seed)
+    wall_guard.reset_pending_target()
+    wg_config = {"enabled": True}
 
     deck0, deck1 = (_W["deck_l"], _W["deck_o"]) if learner_index == 0 else (_W["deck_o"], _W["deck_l"])
     steps = []
@@ -116,7 +141,29 @@ def _play_one(task):
                 error = "max_steps"; break
             select = obs.select
             if cur.yourIndex == learner_index:
-                if select is not None and select.option and select.maxCount == 1:
+                wg_action = None
+                if select is not None and select.option:
+                    # 本番(ml_policy_agent._select_action)と同じ順序: pending -> Guard A -> Guard B。
+                    # いずれも盤面(obs)だけから判定するpre-stepで、モデルのスコアは使わない。
+                    # ml_policy_agent の _try_wall_guard_* と同じく例外はここで握りつぶし、
+                    # 「このガードは発火しない」として通常経路にフォールバックする
+                    # (1試合が丸ごと error 扱いで捨てられるのを防ぐ)。
+                    try:
+                        wg_action = wall_guard.try_consume_pending_target(obs, wg_config)
+                        if wg_action is None:
+                            wg_action = wall_guard.guard_a_retreat(obs, wg_config)
+                        if wg_action is None:
+                            wg_action = wall_guard.guard_b_boss_orders(obs, wg_config)
+                    except Exception:  # noqa: BLE001 - ガードの失敗で1試合を丸ごと捨てない
+                        wg_action = None
+                    if wg_action is not None and not _valid_wall_guard_action(wg_action, select):
+                        wg_action = None
+
+                if wg_action is not None:
+                    # wall_guard の決定はモデルのサンプリングではないので PPO の学習対象には
+                    # しない(本番でもこの経路ではモデルを一切呼ばない)。
+                    action = wg_action
+                elif select is not None and select.option and select.maxCount == 1:
                     sf = encoder.encode_state_from_state(cur)
                     of = encoder.encode_options_from_state(cur, select)
                     ci = encoder.encode_option_card_ids(cur, select)
@@ -181,10 +228,74 @@ def _init_worker2(weights_path, opp_weights, deck_l, deck_o, temperature):
     _W["temp"] = temperature
 
 
+# 2026-08-13 実測: initializer(_init_worker2)が例外を投げると、multiprocessing.Pool は
+# 死んだ子プロセスを黙って無限に再spawnし続ける(Pool 自体に「初期化失敗が続いたら諦める」
+# 仕組みが無い)。親プロセスには何も伝播しないので pool.map() は一生完了せず、実際には
+# 一瞬で分かる設定ミス(重みのパス間違い・次元不一致)が「タイムアウトまでハング」に化ける。
+# ローカル再現: 166次元(旧)の重みを故意に渡すと90秒で321回 respawn し、例外は一度も
+# 親へは上がらない。詳細は kaggle_replays/rl/distributed/README.md の Kaggle 運用ノート参照。
+#
+# 対策は2段構え:
+#  1. _preflight_check_policies: 本番 Pool を作る**前**に親プロセス側で PolicyModel を
+#     読み込み、is_ready を確認する。既知の失敗モード(パス間違い・次元不一致)はこれで
+#     ミリ秒〜数秒で検出でき、Pool を1つも作らずに済む。
+#  2. _probe_pool_initializer: 1に引っかからない未知の失敗モード向けの一般的な安全網。
+#     本番と全く同じ initializer/initargs で processes=1 の使い捨て Pool を作り、
+#     ダミータスクの結果を短いタイムアウトで待つ。initializer が失敗し続けていれば
+#     タイムアウトで検出でき、1800秒待たずに数十秒で「原因不明だが初期化が終わらない」
+#     ことが分かる(健全なときは実際の初期化時間だけで完了し、追加コストはほぼ無い)。
+_PROBE_TIMEOUT_SECONDS = 30
+
+
+def _preflight_check_policies(weights_path, opp_weights) -> None:
+    """Pool を作る前に、learner/opponent 両方の PolicyModel が読み込めることを確認する。
+    失敗なら即座に例外(Pool の無限 respawn ループに入る前に落とす)。"""
+    from ptcg_ai.learning.policy_model import PolicyModel
+    pm = PolicyModel(weights_path)
+    if not pm.is_ready:
+        raise RuntimeError(
+            f"[preflight] learner policy not ready (path/dim mismatch?): {weights_path}")
+    opp = PolicyModel(opp_weights)
+    if not opp.is_ready:
+        raise RuntimeError(
+            f"[preflight] opponent policy not ready (path/dim mismatch?): {opp_weights}")
+
+
+def _noop(x):
+    return x
+
+
+def _probe_pool_initializer(weights_path, opp_weights, deck_l, deck_o, temperature) -> None:
+    """本番の Pool を作る前に、initializer が実際に完走するかを短いタイムアウトで確認する
+    一般的な安全網(未知の失敗モード向け。既知の失敗モードは _preflight_check_policies が
+    先に、もっと速く・具体的なメッセージで捕まえる)。"""
+    probe = Pool(processes=1, initializer=_init_worker2,
+                 initargs=(weights_path, opp_weights, deck_l, deck_o, temperature))
+    try:
+        probe.apply_async(_noop, (1,)).get(timeout=_PROBE_TIMEOUT_SECONDS)
+    except MpTimeoutError:
+        raise RuntimeError(
+            f"[preflight] Pool initializer が {_PROBE_TIMEOUT_SECONDS}秒以内に完走しなかった。"
+            "initializer が例外を出し続けて multiprocessing.Pool が子プロセスを無限に "
+            "再spawn している可能性が高い(標準エラー出力に子プロセスのトレースバックが "
+            "出ているはずなので確認する)。"
+        ) from None
+    finally:
+        probe.terminate()
+        probe.join()
+
+
 def parallel_collect(weights_path, opp_weights, deck_l, deck_o, n_games, seed0,
                      temperature, workers):
     """ワーカー並列で n_games 収集。learner は weights_path(temp JSON)、相手は opp_weights。
-    戻り: (trajectories(list[dict]), wins, valid, errors)。"""
+    戻り: (trajectories(list[dict]), wins, valid, errors)。
+
+    本番 Pool を作る前に、initializer が確実に完走することを確認する(上記コメント参照)。
+    ここで検出された失敗は例外としてすぐ伝播する(呼び出し元は worker.py の main で、
+    そこで SystemExit / traceback として表面化する)。"""
+    _preflight_check_policies(weights_path, opp_weights)
+    _probe_pool_initializer(weights_path, opp_weights, deck_l, deck_o, temperature)
+
     tasks = [(g % 2, seed0 + g) for g in range(n_games)]
     with Pool(processes=workers, initializer=_init_worker2,
               initargs=(weights_path, opp_weights, deck_l, deck_o, temperature)) as pool:

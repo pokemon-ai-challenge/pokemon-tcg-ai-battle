@@ -1,0 +1,58 @@
+features.npz を読み込み: features_mega_froslass_ex_v715.npz
+hand_card_vocab: 45種 [3, 10, 11, 12, 47, 49, 66, 104, 122, 140, 174, 305, 306, 414, 666, 860, 861, 938, 939, 1079, 1086, 1087, 1088, 1097, 1102, 1120, 1121, 1122, 1123, 1137, 1145, 1152, 1159, 1182, 1197, 1224, 1225, 1227, 1228, 1229, 1231, 1236, 1260, 1262, 1264]
+opponent_card_vocab: 157種 [1, 2, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 18, 19, 20, 31, 42, 44, 58, 63, 65, 66, 73, 74, 89, 90, 92, 93, 96, 100, 104, 108, 112, 117, 119, 120, 121, 131, 132, 133, 140, 149, 184, 230, 235, 240, 272, 305, 306, 318, 341, 342, 343, 344, 345, 379, 380, 381, 387, 400, 401, 414, 431, 432, 434, 463, 607, 646, 647, 648, 649, 687, 741, 742, 743, 756, 791, 860, 978, 1071, 1079, 1080, 1081, 1086, 1087, 1092, 1094, 1097, 1116, 1118, 1119, 1120, 1121, 1122, 1123, 1127, 1129, 1134, 1137, 1139, 1141, 1142, 1147, 1152, 1153, 1158, 1159, 1161, 1169, 1172, 1173, 1174, 1175, 1182, 1184, 1185, 1186, 1188, 1190, 1191, 1192, 1193, 1194, 1197, 1198, 1199, 1203, 1204, 1205, 1206, 1208, 1210, 1211, 1212, 1213, 1216, 1217, 1218, 1219, 1220, 1221, 1225, 1227, 1231, 1240, 1245, 1246, 1247, 1250, 1256, 1257, 1259, 1260, 1261, 1264, 1266, 1267]
+  ablate: 状態側 464 次元 / 選択肢側 0 次元を 0 で潰した ['self_board_card_slot', 'self_discard_card_slot', 'opp_board_card_slot', 'opp_discard_card_slot']
+card_id_max=1267  embedding table size=1268 x 8
+train=49365 val=6727 test=6944 (全63036件)
+option特徴の標準化元行列 shape=(415618, 65)
+  ablate対策: 状態側 464 / 選択肢側 0 次元の std を 0 に修正(std<1e-6クリップの上書き。measurement-plan-2026-08-04.md §3.1)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.4795  val_nll=1.4410 (best=1.4410, no_improve=0)  val_top1=0.5155
+    [baseline] epoch   5  train_loss=1.4326  val_nll=1.4361 (best=1.4339, no_improve=3)  val_top1=0.5158
+    [baseline] epoch  10  train_loss=1.4324  val_nll=1.4384 (best=1.4333, no_improve=2)  val_top1=0.5155
+    [baseline] epoch  15  train_loss=1.4307  val_nll=1.4347 (best=1.4307, no_improve=2)  val_top1=0.5139
+    [baseline] epoch  20  train_loss=1.4316  val_nll=1.4320 (best=1.4307, no_improve=7)  val_top1=0.5181
+    [baseline] 早期終了: epoch 23(val_nll が 10 epoch 改善せず)
+  学習完了 (140.4s)
+  val : top1=0.5170  nll=1.4307
+  test: top1=0.5160  nll=1.4208
+
+=== 本命: MLP(PolicyScorer(T1), embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.2936  val_nll=1.2339 (best=1.2339, no_improve=0)  val_top1=0.5638
+    [main] epoch   5  train_loss=1.0650  val_nll=1.1941 (best=1.1884, no_improve=1)  val_top1=0.5913
+    [main] epoch  10  train_loss=1.0070  val_nll=1.1961 (best=1.1860, no_improve=4)  val_top1=0.5970
+    [main] epoch  15  train_loss=0.9708  val_nll=1.2032 (best=1.1860, no_improve=9)  val_top1=0.6012
+    [main] 早期終了: epoch 16(val_nll が 10 epoch 改善せず)
+  学習完了 (143.8s, 16 epochs)
+  train: top1=0.6216  nll=1.0153
+  val  : top1=0.5925  nll=1.1860
+  test : top1=0.6005  nll=1.1798
+  train-val gap: top1=+0.0291  nll=+0.1707(overfitting指標)
+  param_counts: {'fc1': 25248, 'fc2': 33, 'embedding': 10144, 'mlp': 25281, 'total': 35425}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5170  nll=1.4307
+  本命(state ++ option ++ embed): top1=0.5925  nll=1.1860
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  4930  top1=0.5613  nll=1.3193
+  select_type= 1  n=  1869  top1=0.6768  nll=0.8685
+  select_type= 4  n=    73  top1=0.9589  nll=0.2315
+  select_type= 8  n=    21  top1=0.8095  nll=1.4971
+  select_type= 9  n=    51  top1=1.0000  nll=0.0000
+
+重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_mega_froslass_ex_v715_s42.json (789.4 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=1.77635684e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.5160 nll=1.4208
+  本命(state ++ option ++ embed) test: top1=0.6005 nll=1.1798
+  自己検証: 最大誤差=1.77635684e-15 -> PASS
+  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_mega_froslass_ex_v715_s42.json
+  offline指標を書き出しました: archetype_runs\mega_froslass_ex_v715_s42_metrics.json

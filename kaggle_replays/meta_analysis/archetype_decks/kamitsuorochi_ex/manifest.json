@@ -40,6 +40,15 @@
       "leaderboard_score": null,
       "episode_id": "86820450",
       "player_index": 0
+    },
+    {
+      "file": "06.csv",
+      "team": "palsystem",
+      "rank_at_fetch": null,
+      "leaderboard_score": 1189.1,
+      "episode_id": "91802249",
+      "player_index": 0,
+      "note": "2026-08-12 にメインデッキとして採用。sample_submission/deck.csv と同一。新ログ(2026-08-10)のリスト L3（採用 n=116・勝率 69.0%・使用者平均スコア 1077、最頻リスト L1 とは3枚差）。hand_card_vocab を通すために追加している"
     }
   ]
 }

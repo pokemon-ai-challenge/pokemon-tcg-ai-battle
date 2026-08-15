@@ -9,6 +9,25 @@
   6. 世代をまたいだシャードの取り違えを、モデルのハッシュで検出できる
 
 試合数を絞ってあるので数分で終わる。学習の中身(強くなるか)ではなく、配管の検査。
+
+2026-08-13 注記1: ここで使っていた dragapult_ex/alakazam の素の重み
+(policy_weights_dragapult_ex.json / policy_weights_alakazam.json)は166次元で、
+2026-08-08以降の251/715次元への拡張より前の旧いファイル。現行の715次元 encoder.FEATURE_NAMES
+の下では ``PolicyModel.is_ready`` が False になり(次元ガード)、``collect_parallel._init_worker2``
+が起動直後に例外を投げる。multiprocessing.Pool は initializer が例外を投げると failed worker を
+無限に再spawnし続ける実装になっており、実行してもエラーが延々スパムされて実質ハングする
+(このテストの範囲では新規に踏んだ挙動。7件の修正とは無関係の、コーパス側の旧ファイル起因の
+既存の落とし穴)。そのためここでは production の現行715次元重み(PRODUCTION_WEIGHTS)を
+明示的な --learner-weights として渡す。デッキ(アーキタイプ名)は dragapult_ex/alakazam の
+ままで変えていない(配管テストなので重みとデッキの対応が実際のアーキタイプとズレていても
+問題ない)。
+
+2026-08-13 注記2: defect#3(Critic.from_value_net)と defect#5(報酬シェーピング)は
+現行の715次元 encoder.FEATURE_NAMES を前提にしている。注記1の修正で715次元重みを使うように
+なったため両方とも動くはずだが、この配管テストの目的はPPO配管の検証であって7件の修正の
+検証ではないため、既定のまま(有効)にして「7件の修正が入っていてもこの配管テストが壊れない」
+ことも合わせて確認する形にしている。7件の修正そのものの検証は test_distributed_defects.py
+の役目。
 """
 
 from __future__ import annotations
@@ -23,6 +42,8 @@ from pathlib import Path
 import common as C
 
 HERE = Path(__file__).resolve().parent
+REPO_ROOT = C.REPO_ROOT
+PRODUCTION_WEIGHTS = REPO_ROOT / "sample_submission" / "ptcg_ai" / "learning" / "policy_weights.json"
 GAMES = 12          # 1台あたり。速度優先で最小限
 PROCS = 8           # 収集の並列プロセス数
 
@@ -59,13 +80,17 @@ def run(cmd, expect_ok=True):
 
 
 def main():
+    assert PRODUCTION_WEIGHTS.is_file(), f"715次元の現行重みが無い: {PRODUCTION_WEIGHTS}"
     tmp = Path(tempfile.mkdtemp(prefix="ptcg_dist_test_"))
     run_dir = tmp / "run"
     try:
         # ---------------------------------------------------------- 1. 初期化
+        # --learner-weights で現行の715次元重みを明示する(上の注記1参照。dragapult_ex 自身の
+        # 素の重みファイルは166次元で is_ready=False になり multiprocessing.Pool がハングする)。
         run(["init_run.py", "--run-id", "testrun", "--run-dir", str(run_dir),
              "--workers", "alpha", "beta", "--games-per-worker", str(GAMES),
-             "--learner-arch", "dragapult_ex", "--opponent-arch", "alakazam"])
+             "--learner-arch", "dragapult_ex", "--learner-weights", str(PRODUCTION_WEIGHTS),
+             "--opponent-arch", "alakazam"])
         assert C.model_path(run_dir, 0).exists(), "model_v0 が作られていない"
         print("1. init OK")
 

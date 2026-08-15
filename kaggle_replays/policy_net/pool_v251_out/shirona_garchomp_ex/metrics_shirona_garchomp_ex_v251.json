@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_shirona_garchomp_ex_v251.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 10400,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 10433,
+    "total": 20577
+  },
+  "n_train": 24545,
+  "n_val": 2641,
+  "n_test": 2556,
+  "epochs_trained": 17,
+  "train": {
+    "top1_accuracy": 0.6177225504176004,
+    "mean_weighted_nll": 0.9866827998401068
+  },
+  "val": {
+    "top1_accuracy": 0.5535781900795154,
+    "mean_weighted_nll": 1.1604021956403772
+  },
+  "test": {
+    "top1_accuracy": 0.5802034428794992,
+    "mean_weighted_nll": 1.1280603877115722
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.06414436033808502,
+    "mean_weighted_nll": 0.1737193958002704
+  },
+  "self_check_max_abs_err": 1.7763568394002505e-15,
+  "out_weights": "policy_weights_shirona_garchomp_ex_v251.json"
+}

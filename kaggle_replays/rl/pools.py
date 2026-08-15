@@ -24,6 +24,25 @@ for _p in (str(_ROOT), str(_ROOT / "sample_submission"), str(_ROOT / "league")):
 WDIR = _ROOT / "sample_submission" / "ptcg_ai" / "learning"
 DECKDIR = _ROOT / "kaggle_replays" / "meta_analysis" / "archetype_decks"
 
+
+def _deck_csv_for_archetype(arch: str) -> str:
+    """アーキタイプ名 -> 実際に使うデッキ csv のパス。
+
+    ``<arch>/06.csv``(現メタで採用されているリスト。存在すれば必ずこちらが正)があれば
+    それを使い、無ければ ``<arch>/01.csv`` にフォールバックする。
+
+    2026-08-13 修正: 従来は全アーキタイプで無条件に ``01.csv`` を使っていたが、
+    ``crustle/01.csv``(md5 a084df1454d7afbf4677f82ebd8f2d95)と
+    ``crustle/06.csv``(md5 93b4fbde018c2f0d7c89b31f50362ba7)は別物で、
+    ``league/results/matchup/vs_crustle.json`` の ``deck_b_path`` は 06.csv を指している
+    (= 本番/評価で実際に使われているのは 06.csv)。同様に vs_alakazam.json / vs_dragapult.json /
+    vs_froslass.json もいずれも 06.csv を使っている。一方 vs_marnie.json は 01.csv を使っており、
+    これは marnie_grimmsnarl_ex に 06.csv が存在しないため(このフォールバックと整合する)。
+    """
+    if (DECKDIR / arch / "06.csv").is_file():
+        return str(DECKDIR / arch / "06.csv")
+    return str(DECKDIR / arch / "01.csv")
+
 # 学習側レジストリ: 表示名 -> (重みファイル名 or None(=production alakazam), デッキのアーキタイプ名)。
 # calibrate_learner.py の CANDIDATES と同じ形式・同じ相手プールで実測した勝率(各48試合):
 #   表示名                    温度0.05  温度1.0
@@ -41,12 +60,35 @@ DECKDIR = _ROOT / "kaggle_replays" / "meta_analysis" / "archetype_decks"
 #: archaludon_ex(デッキ不良で POOL8 除外) と mega_lucario_ex(今回の再学習対象外)は
 #: 旧次元のまま残っている。使う場合は is_ready を必ず確認すること。
 LEARNER_REGISTRY = {
-    "alakazam": ("policy_weights_alakazam_v251.json", "alakazam"),
-    "marnie_grimmsnarl_ex": ("policy_weights_marnie_grimmsnarl_ex_v251.json", "marnie_grimmsnarl_ex"),
+    # 2026-08-13 追加。重みは複数選択(Ultra Ball/Bug Catching Set/Dawn のサーチ・
+    # Ultra Ballの捨て札コスト)を学習済みの版(policy_weights_kamitsuorochi_ex_multisel_s42.json)。
+    # production の policy_weights.json はこの改善を含んでいないため、RLの初期値としては
+    # 複数選択版を使う(§5-6/§5-7 参照)。デッキは _deck_csv_for_archetype 経由で 06.csv(L3)。
+    "kamitsuorochi_ex": ("policy_weights_kamitsuorochi_ex_multisel_s42.json", "kamitsuorochi_ex"),
+    # 2026-08-15 更新: 旧251次元版は現行715次元エンコーダで is_ready=False。715次元へ再学習
+    # した版に差し替え(§6 step0)。
+    "alakazam": ("policy_weights_alakazam_v715_s42.json", "alakazam"),
+    "marnie_grimmsnarl_ex": ("policy_weights_marnie_grimmsnarl_ex_v715_s42.json", "marnie_grimmsnarl_ex"),
+    # archaludon_ex はデッキ不良(マリガン率52.5%)で POOL8 から除外済み。715次元への再学習は
+    # 対象外のまま(壊れたデッキを相手/学習側どちらに使っても指標が歪むだけのため)。
     "archaludon_ex": ("policy_weights_archaludon_ex.json", "archaludon_ex"),
-    "mega_lucario_ex": ("policy_weights_mega_lucario_ex.json", "mega_lucario_ex"),
-    "crustle": ("policy_weights_crustle_v251.json", "crustle"),
-    "dragapult_ex": ("policy_weights_dragapult_ex_v251.json", "dragapult_ex"),
+    # 2026-08-14 更新: 旧166次元版は現行715次元エンコーダで is_ready=False になる
+    # (§step0 の対策と同じ理由)。715次元へ再学習した版に差し替え(§step3 参照)。
+    "mega_lucario_ex": ("policy_weights_mega_lucario_ex_v715_s42.json", "mega_lucario_ex"),
+    # 2026-08-14 更新: 旧251次元版は現行715次元エンコーダで is_ready=False。
+    # kamitsuorochi_ex 対crustle対面特化RL(§step2/3)で使った715次元版に差し替え。
+    "crustle": ("policy_weights_crustle_v715b_s42.json", "crustle"),
+    # 2026-08-14 更新: 旧251次元版は現行715次元エンコーダで is_ready=False。715次元へ
+    # 再学習した版に差し替え(v715/v715b どちらも存在、test top1 accuracy が僅かに良い
+    # v715b を採用。0.5849 vs 0.5801、archetype_runs/dragapult_ex_v715*_s42_metrics.json)。
+    "dragapult_ex": ("policy_weights_dragapult_ex_v715b_s42.json", "dragapult_ex"),
+    # 2026-08-14 追加。旧コーパスに2件しか無く今回はじめて学習できた(実メタ share 9.6%、
+    # §6 step0 参照)。POOL8(pools.POOL8 / encoder.py の POOL8_ARCHETYPES 固定9次元語彙)には
+    # 含めない ── 追加すると opp_arch one-hot の次元が増え、既存の715次元学習済み重み全部の
+    # 特徴量レイアウトが変わってしまう破壊的変更になるため。ここでは学習側の対戦相手候補
+    # (LEARNER_REGISTRY)としてのみ追加する。v715b 採用理由は dragapult_ex と同じ
+    # (test top1 0.6051 vs 0.6005)。
+    "mega_froslass_ex": ("policy_weights_mega_froslass_ex_v715b_s42.json", "mega_froslass_ex"),
     # 段階I(各アーキタイプを自分のミラーで60イテレーション鍛えたもの)の成果。
     # 全5体が BC 版の自分に勝ち越している(ミラー最終 0.599〜0.790、各1,200試合)。
     # 段階II「プール学習 vs 固定相手学習」を、相手が強い状態で測り直すために使う。
@@ -62,11 +104,15 @@ LEARNER_REGISTRY = {
     # (マリガン率35%未満・デッキ枚数60枚)。run_archetype_pipeline.py の標準3ステップ
     # (extract_policy_dataset.py -> build_features.py --weight-scheme concentrated -> train.py)
     # でそのまま模倣学習した BC ポリシー。POOL8 の構成要素。
-    "rocket_mewtwo_ex": ("policy_weights_rocket_mewtwo_ex_v251.json", "rocket_mewtwo_ex"),
-    "omatsuri_ondo": ("policy_weights_omatsuri_ondo_v251.json", "omatsuri_ondo"),
-    "shirona_garchomp_ex": ("policy_weights_shirona_garchomp_ex_v251.json", "shirona_garchomp_ex"),
-    "ogerpon_teal_ex": ("policy_weights_ogerpon_teal_ex_v251.json", "ogerpon_teal_ex"),
-    # dragapult_ex は上で定義済み(v251)。ここでの重複定義は削除。
+    # 2026-08-15 更新: 旧251次元版は現行715次元エンコーダで is_ready=False。715次元へ
+    # 再学習した版に差し替え(§6 step0)。
+    "rocket_mewtwo_ex": ("policy_weights_rocket_mewtwo_ex_v715_s42.json", "rocket_mewtwo_ex"),
+    "omatsuri_ondo": ("policy_weights_omatsuri_ondo_v715_s42.json", "omatsuri_ondo"),
+    "shirona_garchomp_ex": ("policy_weights_shirona_garchomp_ex_v715_s42.json", "shirona_garchomp_ex"),
+    # 2026-08-14 更新: 旧251次元版は現行715次元エンコーダで is_ready=False。715次元へ
+    # 再学習した版に差し替え(§step3 参照)。
+    "ogerpon_teal_ex": ("policy_weights_ogerpon_teal_ex_v715_s42.json", "ogerpon_teal_ex"),
+    # dragapult_ex は上で定義済み(v715b)。ここでの重複定義は削除。
 }
 
 #: 段階I で鍛え上がった相手プール(段階II の学習用)。
@@ -89,12 +135,12 @@ POOL8 = ("alakazam,crustle,marnie_grimmsnarl_ex,rocket_mewtwo_ex,omatsuri_ondo,"
 # (name, weights_path_or_None, deck_csv_path) のリスト。デッキはまだ読み込んでいない
 # (build_opponents() / selfplay_positions.build_opponents() が読み込む)。
 OPPONENT_SPECS = [
-    ("alakazam", None, str(DECKDIR / "alakazam" / "01.csv")),
-    ("crustle", str(WDIR / "policy_weights_crustle.json"), str(DECKDIR / "crustle" / "01.csv")),
+    ("alakazam", None, _deck_csv_for_archetype("alakazam")),
+    ("crustle", str(WDIR / "policy_weights_crustle.json"), _deck_csv_for_archetype("crustle")),
     ("marnie_grimmsnarl_ex", str(WDIR / "policy_weights_marnie_grimmsnarl_ex.json"),
-     str(DECKDIR / "marnie_grimmsnarl_ex" / "01.csv")),
+     _deck_csv_for_archetype("marnie_grimmsnarl_ex")),
     ("archaludon_ex", str(WDIR / "policy_weights_archaludon_ex.json"),
-     str(DECKDIR / "archaludon_ex" / "01.csv")),
+     _deck_csv_for_archetype("archaludon_ex")),
 ]
 
 
@@ -129,7 +175,7 @@ def resolve_learner(name: str):
         raise ValueError(f"未知の学習側名: {name!r}. 利用可能な名前: {available}")
     weights_file, arch = LEARNER_REGISTRY[name]
     weights_path = str(WDIR / weights_file) if weights_file else None
-    deck_csv = str(DECKDIR / arch / "01.csv")
+    deck_csv = _deck_csv_for_archetype(arch)
     return weights_path, deck_csv
 
 

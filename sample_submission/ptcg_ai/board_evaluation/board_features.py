@@ -56,6 +56,15 @@ def is_likely_ko_next_turn(pokemon: Pokemon, state: State, your_index: int) -> b
         for bench_pokemon in your_side.bench
     )
 
+    # 盤面依存の可変ダメージ技（カミツオロチexデッキの3ワザ、2026-08-12）の推定に使う。
+    # この関数は「攻守が入れ替わる」唯一の呼び出し口: attacker(=攻撃側)は相手(opponent)、
+    # pokemon(=defender、評価対象)は自分側でベンチのこともある。したがって
+    # attacker_side_pokemon は相手の場（先頭=バトル場、以降=ベンチ）、defender_active_pokemon
+    # は「両バトル場のエネ合計」用に自分側の"実際の"バトル場ポケモンを明示的に渡す
+    # （pokemon 自体がベンチだと defender へのフォールバックでは正しく求まらないため）。
+    attacker_side_pokemon: list[Pokemon | None] = list(opponent.active) + list(opponent.bench)
+    your_active = your_side.active[0] if your_side.active else None
+
     for attack_id in attacker_card.attacks:
         attack = card_cache.get_attack(attack_id)
         shortfall = energy_requirements.energy_shortfall(attack, attacker.energies)
@@ -66,6 +75,7 @@ def is_likely_ko_next_turn(pokemon: Pokemon, state: State, your_index: int) -> b
             attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size,
             defender=pokemon, defender_side_pokemon=defender_side_pokemon,
             defender_is_benched=defender_is_benched, damage_is_effect=damage_is_effect,
+            attacker_side_pokemon=attacker_side_pokemon, defender_active_pokemon=your_active,
         )
         if damage >= pokemon.hp:
             return True

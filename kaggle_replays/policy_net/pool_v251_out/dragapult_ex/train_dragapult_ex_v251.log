@@ -1,0 +1,66 @@
+features.npz を読み込み: features_dragapult_ex_v251.npz
+hand_card_vocab: 37種 [2, 5, 7, 12, 31, 66, 112, 119, 120, 121, 131, 132, 133, 140, 184, 235, 272, 305, 306, 343, 791, 1071, 1079, 1080, 1086, 1097, 1120, 1121, 1152, 1182, 1198, 1213, 1227, 1240, 1246, 1256, 1260]
+card_id_max=1267  embedding table size=1268 x 8
+train=29721 val=4676 test=4079 (全38476件)
+option特徴の標準化元行列 shape=(193909, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.3929  val_nll=1.3462 (best=1.3462, no_improve=0)  val_top1=0.5135
+    [baseline] epoch   5  train_loss=1.3086  val_nll=1.3247 (best=1.3247, no_improve=0)  val_top1=0.5165
+    [baseline] epoch  10  train_loss=1.3007  val_nll=1.3202 (best=1.3202, no_improve=0)  val_top1=0.5158
+    [baseline] epoch  15  train_loss=1.2962  val_nll=1.3169 (best=1.3169, no_improve=0)  val_top1=0.5201
+    [baseline] epoch  20  train_loss=1.2931  val_nll=1.3155 (best=1.3154, no_improve=3)  val_top1=0.5182
+    [baseline] epoch  25  train_loss=1.2916  val_nll=1.3134 (best=1.3131, no_improve=1)  val_top1=0.5216
+    [baseline] epoch  30  train_loss=1.2911  val_nll=1.3127 (best=1.3127, no_improve=0)  val_top1=0.5222
+    [baseline] epoch  35  train_loss=1.2908  val_nll=1.3133 (best=1.3120, no_improve=2)  val_top1=0.5259
+    [baseline] epoch  40  train_loss=1.2906  val_nll=1.3130 (best=1.3119, no_improve=4)  val_top1=0.5237
+    [baseline] epoch  45  train_loss=1.2894  val_nll=1.3114 (best=1.3114, no_improve=0)  val_top1=0.5197
+    [baseline] epoch  50  train_loss=1.2890  val_nll=1.3123 (best=1.3114, no_improve=5)  val_top1=0.5308
+    [baseline] epoch  55  train_loss=1.2891  val_nll=1.3116 (best=1.3113, no_improve=1)  val_top1=0.5235
+    [baseline] epoch  60  train_loss=1.2883  val_nll=1.3108 (best=1.3108, no_improve=0)  val_top1=0.5308
+    [baseline] epoch  65  train_loss=1.2899  val_nll=1.3114 (best=1.3108, no_improve=5)  val_top1=0.5297
+    [baseline] epoch  70  train_loss=1.2892  val_nll=1.3133 (best=1.3108, no_improve=10)  val_top1=0.5314
+    [baseline] 早期終了: epoch 70(val_nll が 10 epoch 改善せず)
+  学習完了 (152.1s)
+  val : top1=0.5308  nll=1.3108
+  test: top1=0.5050  nll=1.3108
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.2465  val_nll=1.1930 (best=1.1930, no_improve=0)  val_top1=0.5635
+    [main] epoch   5  train_loss=0.9728  val_nll=1.1136 (best=1.1136, no_improve=0)  val_top1=0.5774
+    [main] epoch  10  train_loss=0.8744  val_nll=1.1410 (best=1.1136, no_improve=5)  val_top1=0.5768
+    [main] epoch  15  train_loss=0.8192  val_nll=1.1799 (best=1.1136, no_improve=10)  val_top1=0.5708
+    [main] 早期終了: epoch 15(val_nll が 10 epoch 改善せず)
+  学習完了 (47.1s, 15 epochs)
+  train: top1=0.6239  nll=0.9284
+  val  : top1=0.5774  nll=1.1136
+  test : top1=0.5891  nll=1.0776
+  train-val gap: top1=+0.0465  nll=+0.1852(overfitting指標)
+  param_counts: {'fc1': 10400, 'fc2': 33, 'embedding': 10144, 'mlp': 10433, 'total': 20577}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5308  nll=1.3108
+  本命(state ++ option ++ embed): top1=0.5774  nll=1.1136
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  2022  top1=0.5277  nll=1.2751
+  select_type= 1  n=  1836  top1=0.6144  nll=0.9541
+  select_type= 4  n=    91  top1=0.9341  nll=0.3547
+  select_type= 7  n=     3  top1=1.0000  nll=0.0000
+  select_type= 8  n=    91  top1=0.9231  nll=0.2684
+  select_type= 9  n=    36  top1=1.0000  nll=0.0014
+
+重みを書き出しました: policy_weights_dragapult_ex_v251.json (452.9 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=2.66453526e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.5050 nll=1.3108
+  本命(state ++ option ++ embed) test: top1=0.5891 nll=1.0776
+  自己検証: 最大誤差=2.66453526e-15 -> PASS
+  出力: policy_weights_dragapult_ex_v251.json
+  offline指標を書き出しました: metrics_dragapult_ex_v251.json

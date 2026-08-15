@@ -81,11 +81,30 @@ def main() -> None:
             "拡張してから再実行してください。"
         )
 
+    # C2/T1 の card_id カウント特徴は語彙(meta.hand_card_vocab / meta.opponent_card_vocab)を
+    # 渡さないと全0になる。PolicyModel.score_options は meta の語彙を渡してエンコードするので、
+    # ここで渡さないと「期待値だけ card_id 特徴が死んだ状態」になり、ゴールデンテストが
+    # 実装のズレではなく生成側の手落ちで落ちる(2026-08-11 に実際に発生)。
+    hand_card_vocab = weights.get("meta", {}).get("hand_card_vocab") or None
+    opponent_card_vocab = weights.get("meta", {}).get("opponent_card_vocab") or None
+    if weights.get("meta", {}).get("use_board_set"):
+        raise SystemExit(
+            "policy_weights.json が meta.use_board_set=true です。score_all() は盤面 Deep Sets "
+            "(T2段階1)のプーリングに未対応のため、このスクリプトを拡張してから再実行してください。"
+        )
+
     n_changed = 0
     print(f"{'episode_id':<12}{'n_opt':>6}  {'max|diff|':>12}  変化した選択肢")
     for row in rows:
         obs = to_observation_class({**row["observation"], "logs": []})
-        state_features = np.asarray(encoder.encode_state_from_state(obs.current), dtype=np.float64)
+        state_features = np.asarray(
+            encoder.encode_state_from_state(
+                obs.current,
+                hand_card_vocab=hand_card_vocab,
+                opponent_card_vocab=opponent_card_vocab,
+            ),
+            dtype=np.float64,
+        )
         option_rows = np.asarray(encoder.encode_options_from_state(obs.current, obs.select), dtype=np.float64)
         card_ids = np.asarray(encoder.encode_option_card_ids(obs.current, obs.select), dtype=np.int64)
 

@@ -1,0 +1,45 @@
+{
+  "hidden_size": 32,
+  "features": "features_marnie_grimmsnarl_ex_v715.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 876243,
+  "n_val": 111500,
+  "n_test": 113888,
+  "epochs_trained": 59,
+  "train": {
+    "top1_accuracy": 0.7761358754601533,
+    "n_single": 842654,
+    "multi_select_precision_at_k": 0.8579291939052455,
+    "n_multi": 33589,
+    "mean_weighted_nll": 0.669788435345565
+  },
+  "val": {
+    "top1_accuracy": 0.7679366650173182,
+    "n_single": 107113,
+    "multi_select_precision_at_k": 0.8576103195490026,
+    "n_multi": 4387,
+    "mean_weighted_nll": 0.6941104844549995
+  },
+  "test": {
+    "top1_accuracy": 0.7700294026334532,
+    "n_single": 109514,
+    "multi_select_precision_at_k": 0.846851797417641,
+    "n_multi": 4374,
+    "mean_weighted_nll": 0.7006870602013642
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.008199210442835114,
+    "mean_weighted_nll": 0.024322049109434474
+  },
+  "self_check_max_abs_err": 7.993605777301127e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_marnie_grimmsnarl_ex_v715_s42.json"
+}

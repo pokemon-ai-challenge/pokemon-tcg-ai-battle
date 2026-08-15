@@ -1,0 +1,45 @@
+{
+  "archetype": "archaludon_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Nobu Kimura",
+      "rank_at_fetch": 188,
+      "leaderboard_score": 943.2,
+      "episode_id": "85341459",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "klog",
+      "rank_at_fetch": 201,
+      "leaderboard_score": 938.6,
+      "episode_id": "86798792",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "github/shepsci/kaggle-skill",
+      "rank_at_fetch": 206,
+      "leaderboard_score": 937.0,
+      "episode_id": "86785438",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "niyo",
+      "rank_at_fetch": 204,
+      "leaderboard_score": 936.8,
+      "episode_id": "86795957",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "y_nakai390",
+      "rank_at_fetch": 207,
+      "leaderboard_score": 936.3,
+      "episode_id": "86797375",
+      "player_index": 0
+    }
+  ]
+}

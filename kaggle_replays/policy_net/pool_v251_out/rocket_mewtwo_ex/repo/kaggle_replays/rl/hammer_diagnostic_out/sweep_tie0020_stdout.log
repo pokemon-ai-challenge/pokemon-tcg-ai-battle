@@ -1,0 +1,136 @@
+[info] running 120 games across 7 worker processes
+[progress] 10/120 games done (41.8s)
+[progress] 20/120 games done (74.2s)
+[progress] 30/120 games done (114.2s)
+[progress] 40/120 games done (139.0s)
+[progress] 50/120 games done (164.4s)
+[progress] 60/120 games done (194.3s)
+[progress] 70/120 games done (226.3s)
+[progress] 80/120 games done (258.9s)
+[progress] 90/120 games done (281.3s)
+[progress] 100/120 games done (312.8s)
+[progress] 110/120 games done (341.3s)
+[progress] 120/120 games done (375.4s)
+=== hammer diagnostic: alakazam(ml_policy/abl_5_full_tie0020) vs crustle, shirona_garchomp_ex ===
+tie_eps(pipeline)=0.002 (config=abl_5_full_tie0020; PTCG_AI_ML_CONFIG env override確認用)
+games: 120/120 valid (0 errors), elapsed 375.5s, workers=7
+
+条件緩和内訳(階層的。cond2 ⊇ cond2&3 ⊇ cond2&3&4 ⊇ qualifying=cond2&3&4&5):
+  cond2(Alakazamでハンマー先発可能なエネルギー)               2717 件
+  cond2&3(+ いまは倒せない)                                   1605 件
+  cond2&3&4(+ 特殊エネ1枚剥がせば倒せる)                       163 件
+  qualifying = cond2&3&4&5(+ 手札にハンマーがありプレイ可能)    65 件
+
+該当決定点            65 件（120 試合中）
+  ハンマーを使った     30 件（46.2%）
+  使わなかった        35 件（53.8%）
+    代わりに選んだ手の内訳（OptionType 別、上位5件）
+      PLAY: 14 件（40.0%）
+      EVOLVE: 10 件（28.6%）
+      ABILITY: 9 件（25.7%）
+      ATTACH: 2 件（5.7%）
+
+--- run2拡張: 経路 / pipeline未起動理由 / ハンマーの方策順位 ---
+  [該当決定点 全体] 65 件
+    行動を決めた経路
+      lethal             0 件（0.0%）
+      pipeline          64 件（98.5%）
+      attack_hybrid      0 件（0.0%）
+      policy 単体          1 件（1.5%）
+    pipeline が深い探索(Step3-5)を行わなかった理由の内訳
+      lethal が先に発火(pipeline未到達)                   0 件（0.0%）
+      maxCount!=1 / 選択肢なし                         0 件（0.0%）
+      自分の手番でない/決着済み                               0 件（0.0%）
+      スコア取得失敗/選択肢数と不一致                            0 件（0.0%）
+      top1集中でスキップ (prob >= top1_shortcut_prob)    1 件（1.5%）
+      深い探索を実行したが結果を得られず(scored空/例外等)              1 件（1.5%）
+      深い探索(Step3-5)が実際に走り、結果を採用                  63 件（96.9%）
+    ハンマーの方策順位（Step2 再現）
+      1位       26 件 / 2〜4位    35 件 / 5位以下     4 件（順位計算できたのは 65/65 件）
+      top_k=4 に入っていた              61 件（93.8%）
+      top1 確率の中央値                0.275
+
+  [使わなかった35件のみ] 35 件
+    行動を決めた経路
+      lethal             0 件（0.0%）
+      pipeline          34 件（97.1%）
+      attack_hybrid      0 件（0.0%）
+      policy 単体          1 件（2.9%）
+    pipeline が深い探索(Step3-5)を行わなかった理由の内訳
+      lethal が先に発火(pipeline未到達)                   0 件（0.0%）
+      maxCount!=1 / 選択肢なし                         0 件（0.0%）
+      自分の手番でない/決着済み                               0 件（0.0%）
+      スコア取得失敗/選択肢数と不一致                            0 件（0.0%）
+      top1集中でスキップ (prob >= top1_shortcut_prob)    0 件（0.0%）
+      深い探索を実行したが結果を得られず(scored空/例外等)              1 件（2.9%）
+      深い探索(Step3-5)が実際に走り、結果を採用                  34 件（97.1%）
+    ハンマーの方策順位（Step2 再現）
+      1位        4 件 / 2〜4位    27 件 / 5位以下     4 件（順位計算できたのは 35/35 件）
+      top_k=4 に入っていた              31 件（88.6%）
+      top1 確率の中央値                0.266
+
+  [使った30件のみ(比較用)] 30 件
+    行動を決めた経路
+      lethal             0 件（0.0%）
+      pipeline          30 件（100.0%）
+      attack_hybrid      0 件（0.0%）
+      policy 単体          0 件（0.0%）
+    pipeline が深い探索(Step3-5)を行わなかった理由の内訳
+      lethal が先に発火(pipeline未到達)                   0 件（0.0%）
+      maxCount!=1 / 選択肢なし                         0 件（0.0%）
+      自分の手番でない/決着済み                               0 件（0.0%）
+      スコア取得失敗/選択肢数と不一致                            0 件（0.0%）
+      top1集中でスキップ (prob >= top1_shortcut_prob)    1 件（3.3%）
+      深い探索を実行したが結果を得られず(scored空/例外等)              0 件（0.0%）
+      深い探索(Step3-5)が実際に走り、結果を採用                  29 件（96.7%）
+    ハンマーの方策順位（Step2 再現）
+      1位       22 件 / 2〜4位     8 件 / 5位以下     0 件（順位計算できたのは 30/30 件）
+      top_k=4 に入っていた              30 件（100.0%）
+      top1 確率の中央値                0.286
+
+--- 相手アーキタイプ別 ---
+  crustle                qualifying=  20  used=  11  (55.0%)
+  shirona_garchomp_ex    qualifying=  45  used=  19  (42.2%)
+
+--- 使わなかった事例（最大3件、全 35 件中）---
+  [1] opponent=crustle game=7
+      手札枚数: 19
+      相手: Mega Kangaskhan ex  HP 120/400
+      付いている特殊エネ: ['Spiky Energy', 'Mist Energy']
+      現状の想定ダメージ: 0  (Mist Energy を剥がした場合: 380)
+      実際に選んだ手: ATTACH(Basic {P} Energy)
+  [2] opponent=crustle game=7
+      手札枚数: 18
+      相手: Mega Kangaskhan ex  HP 120/400
+      付いている特殊エネ: ['Spiky Energy', 'Mist Energy']
+      現状の想定ダメージ: 0  (Mist Energy を剥がした場合: 360)
+      実際に選んだ手: PLAY(Buddy-Buddy Poffin)
+  [3] opponent=crustle game=8
+      手札枚数: 11
+      相手: Crustle  HP 170/170
+      付いている特殊エネ: ['Mist Energy', 'Grow Grass Energy']
+      現状の想定ダメージ: 0  (Mist Energy を剥がした場合: 220)
+      実際に選んだ手: PLAY(Dunsparce)
+
+=== 問い1: ハンマーの無駄打ちを測る ===
+実際にプレイされた Enhanced Hammer  278 件
+  ① そのターンに倒せるようになった                  29 件（10.4%）
+  ② 自分の攻撃の無効化を解いた(倒せない)              26 件（9.4%）
+  ③ 打点に無関係                          223 件（80.2%）
+    ③の内訳(合計 223 件):
+      その瞬間 Alakazam の Powerful Hand が使えない(未進化/エネ不足)   154 件
+      アクティブ以外(ベンチ)から剥がした                            37 件
+      上記以外(実際に打点計算しても無関係だった)                      32 件
+
+「倒せたのにハンマー無し」が発生した試合数           18 件
+  そのうち、それ以前に①以外のハンマーを撃っていた試合   14 件（77.8%）
+  平均で、その時点までに撃っていた①以外の枚数        1.72 枚
+  デッキのハンマーは4枚。使い切っていた試合            2 件（11.1%）
+
+=== 問い2: 葉評価を値ネットに替えたら直りそうか ===
+value 評価器に使った重み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\value_net\value_weights_wired_2026-08-07.json
+逃した局面 35 件中、比較可能  34 件
+  handcrafted  ハンマー後 > 選択手後 だった件数     25 (73.5%)   平均差 +0.019
+  値ネット         ハンマー後 > 選択手後 だった件数     19 (55.9%)   平均差 -0.006
+
+result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\rl\hammer_diagnostic_out\sweep_tie0020.json

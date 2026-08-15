@@ -1,0 +1,45 @@
+{
+  "archetype": "mega_abomasnow_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Kaiya Kawata",
+      "rank_at_fetch": 649,
+      "leaderboard_score": 846.8,
+      "episode_id": "86809195",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "jorge fabian avila",
+      "rank_at_fetch": 768,
+      "leaderboard_score": 833.3,
+      "episode_id": "86771343",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "HOUSEI Inc.",
+      "rank_at_fetch": 1245,
+      "leaderboard_score": 792.2,
+      "episode_id": "86143970",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "TOM@love",
+      "rank_at_fetch": 1909,
+      "leaderboard_score": 728.1,
+      "episode_id": "86825140",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "YangQinwei",
+      "rank_at_fetch": 3329,
+      "leaderboard_score": 589.4,
+      "episode_id": "86675585",
+      "player_index": 1
+    }
+  ]
+}

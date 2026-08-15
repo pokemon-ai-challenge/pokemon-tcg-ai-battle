@@ -1,0 +1,45 @@
+{
+  "archetype": "mega_lucario_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "hiro094",
+      "rank_at_fetch": 143,
+      "leaderboard_score": 963.7,
+      "episode_id": "86696648",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "ImANoob1122",
+      "rank_at_fetch": 201,
+      "leaderboard_score": 937.7,
+      "episode_id": "86813562",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "researcher_4242",
+      "rank_at_fetch": 220,
+      "leaderboard_score": 932.4,
+      "episode_id": "86783311",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "shu",
+      "rank_at_fetch": 230,
+      "leaderboard_score": 928.4,
+      "episode_id": "86810525",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "香村貴之",
+      "rank_at_fetch": 276,
+      "leaderboard_score": 913.9,
+      "episode_id": "86805512",
+      "player_index": 1
+    }
+  ]
+}

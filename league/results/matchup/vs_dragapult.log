@@ -1,0 +1,15 @@
+[progress] 50/100 games done (A win rate so far: 0.820 over 50 valid games, errors: 0, elapsed: 1005.3s)
+[progress] 100/100 games done (A win rate so far: 0.800 over 100 valid games, errors: 0, elapsed: 2002.7s)
+=== league result: ml_policy (A) vs ml_policy (B) ===
+games requested/run: 100/100
+elapsed: 2002.7s (workers: 1)
+
+overall: A 80/100 = 0.800 (95% CI [0.711, 0.867])
+avg turns: 15.9, avg steps: 161.7
+
+A as player0 (êÊéË): 38/50 = 0.760 (95% CI [0.626, 0.857])
+A as player1 (å„éË): 42/50 = 0.840 (95% CI [0.715, 0.917])
+
+errors: 0 (0.0%)
+
+result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\league\results\matchup\vs_dragapult.json

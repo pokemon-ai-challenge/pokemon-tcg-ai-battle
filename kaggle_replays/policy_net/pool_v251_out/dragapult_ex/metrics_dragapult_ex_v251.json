@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_dragapult_ex_v251.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 10400,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 10433,
+    "total": 20577
+  },
+  "n_train": 29721,
+  "n_val": 4676,
+  "n_test": 4079,
+  "epochs_trained": 15,
+  "train": {
+    "top1_accuracy": 0.6239359375525723,
+    "mean_weighted_nll": 0.9284499825346502
+  },
+  "val": {
+    "top1_accuracy": 0.5774165953806673,
+    "mean_weighted_nll": 1.1136473858706741
+  },
+  "test": {
+    "top1_accuracy": 0.5891149791615592,
+    "mean_weighted_nll": 1.0775775233760214
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.04651934217190501,
+    "mean_weighted_nll": 0.18519740333602397
+  },
+  "self_check_max_abs_err": 2.6645352591003757e-15,
+  "out_weights": "policy_weights_dragapult_ex_v251.json"
+}

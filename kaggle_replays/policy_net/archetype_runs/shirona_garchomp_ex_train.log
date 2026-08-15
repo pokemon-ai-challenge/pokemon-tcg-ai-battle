@@ -1,0 +1,63 @@
+features.npz を読み込み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_shirona_garchomp_ex.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=24545 val=2641 test=2556 (全29742件)
+option特徴の標準化元行列 shape=(185308, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.5215  val_nll=1.4407 (best=1.4407, no_improve=0)  val_top1=0.4938
+    [baseline] epoch   5  train_loss=1.3835  val_nll=1.4098 (best=1.4098, no_improve=0)  val_top1=0.4994
+    [baseline] epoch  10  train_loss=1.3781  val_nll=1.4038 (best=1.4034, no_improve=1)  val_top1=0.4972
+    [baseline] epoch  15  train_loss=1.3770  val_nll=1.4011 (best=1.4007, no_improve=1)  val_top1=0.4975
+    [baseline] epoch  20  train_loss=1.3749  val_nll=1.4027 (best=1.3995, no_improve=2)  val_top1=0.4953
+    [baseline] epoch  25  train_loss=1.3746  val_nll=1.4004 (best=1.3994, no_improve=1)  val_top1=0.4979
+    [baseline] epoch  30  train_loss=1.3740  val_nll=1.3998 (best=1.3990, no_improve=4)  val_top1=0.4941
+    [baseline] epoch  35  train_loss=1.3738  val_nll=1.3989 (best=1.3979, no_improve=4)  val_top1=0.4998
+    [baseline] epoch  40  train_loss=1.3736  val_nll=1.4017 (best=1.3973, no_improve=2)  val_top1=0.4934
+    [baseline] epoch  45  train_loss=1.3725  val_nll=1.3983 (best=1.3973, no_improve=7)  val_top1=0.4941
+    [baseline] epoch  50  train_loss=1.3735  val_nll=1.3990 (best=1.3972, no_improve=4)  val_top1=0.4930
+    [baseline] epoch  55  train_loss=1.3731  val_nll=1.3988 (best=1.3959, no_improve=2)  val_top1=0.4953
+    [baseline] epoch  60  train_loss=1.3721  val_nll=1.3987 (best=1.3959, no_improve=7)  val_top1=0.4960
+    [baseline] epoch  65  train_loss=1.3725  val_nll=1.3967 (best=1.3951, no_improve=4)  val_top1=0.4987
+    [baseline] epoch  70  train_loss=1.3729  val_nll=1.3982 (best=1.3951, no_improve=9)  val_top1=0.4975
+    [baseline] 早期終了: epoch 71(val_nll が 10 epoch 改善せず)
+  学習完了 (177.5s)
+  val : top1=0.5013  nll=1.3951
+  test: top1=0.5051  nll=1.4571
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.3241  val_nll=1.2584 (best=1.2584, no_improve=0)  val_top1=0.5214
+    [main] epoch   5  train_loss=1.0756  val_nll=1.1795 (best=1.1784, no_improve=2)  val_top1=0.5373
+    [main] epoch  10  train_loss=1.0147  val_nll=1.1776 (best=1.1653, no_improve=3)  val_top1=0.5369
+    [main] epoch  15  train_loss=0.9766  val_nll=1.1846 (best=1.1653, no_improve=8)  val_top1=0.5411
+    [main] 早期終了: epoch 17(val_nll が 10 epoch 改善せず)
+  学習完了 (52.7s, 17 epochs)
+  train: top1=0.6081  nll=1.0199
+  val  : top1=0.5498  nll=1.1653
+  test : top1=0.5810  nll=1.1220
+  train-val gap: top1=+0.0583  nll=+0.1454(overfitting指標)
+  param_counts: {'fc1': 7680, 'fc2': 33, 'embedding': 10144, 'mlp': 7713, 'total': 17857}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5013  nll=1.3951
+  本命(state ++ option ++ embed): top1=0.5498  nll=1.1653
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  1757  top1=0.5845  nll=1.1080
+  select_type= 1  n=   706  top1=0.5184  nll=1.2878
+  select_type= 4  n=    15  top1=1.0000  nll=0.0000
+  select_type= 8  n=     5  top1=1.0000  nll=0.0361
+  select_type= 9  n=    73  top1=0.9863  nll=0.1731
+
+重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_shirona_garchomp_ex.json (389.5 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=1.77635684e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.5051 nll=1.4571
+  本命(state ++ option ++ embed) test: top1=0.5810 nll=1.1220
+  自己検証: 最大誤差=1.77635684e-15 -> PASS
+  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_shirona_garchomp_ex.json

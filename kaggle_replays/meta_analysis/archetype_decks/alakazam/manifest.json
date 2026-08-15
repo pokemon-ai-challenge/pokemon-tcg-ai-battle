@@ -40,6 +40,15 @@
       "leaderboard_score": 1141.2,
       "episode_id": "86783792",
       "player_index": 0
+    },
+    {
+      "file": "06.csv",
+      "team": "Jonathan Coletti",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "91982442",
+      "player_index": 1,
+      "note": "2026-08-11 にメインデッキとして採用した構成。sample_submission/deck.csv と同一。hand_card_vocab に 1264 Battle Cage を通すために追加している"
     }
   ]
 }

@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_ogerpon_teal_ex_v251.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 10400,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 10433,
+    "total": 20577
+  },
+  "n_train": 21926,
+  "n_val": 2579,
+  "n_test": 3190,
+  "epochs_trained": 22,
+  "train": {
+    "top1_accuracy": 0.7310498951017057,
+    "mean_weighted_nll": 0.7494196154852062
+  },
+  "val": {
+    "top1_accuracy": 0.6607212097712292,
+    "mean_weighted_nll": 0.9818119787452404
+  },
+  "test": {
+    "top1_accuracy": 0.6592476489028213,
+    "mean_weighted_nll": 1.0230313283610757
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.07032868533047654,
+    "mean_weighted_nll": 0.2323923632600342
+  },
+  "self_check_max_abs_err": 3.552713678800501e-15,
+  "out_weights": "policy_weights_ogerpon_teal_ex_v251.json"
+}

@@ -128,6 +128,22 @@ def get_opponent_state(player_index: int) -> OpponentHiddenState:
     return state
 
 
+def get_knowledge(player_index: int) -> OpponentKnowledge:
+    """``player_index`` の ``OpponentKnowledge`` を返す（``update()`` が毎ターン
+    ``update_from_logs``→``update_from_state`` で更新している蓄積状態そのもの）。未初期化
+    （``reset()`` 直後・最初の ``update()`` 前）でも例外を出さないよう、その場で空の
+    インスタンスを作って返す（``get_own_state``/``get_opponent_state`` と同じフォールバック）。
+
+    2026-08-14 追加（model_router.py が rough_predictor.predict() に渡すため。それまでは
+    ``_knowledge`` を外から読む公開関数が無かった）。
+    """
+    knowledge = _knowledge.get(player_index)
+    if knowledge is None:
+        knowledge = OpponentKnowledge(opponent_index=1 - player_index)
+        _knowledge[player_index] = knowledge
+    return knowledge
+
+
 def update(obs: Observation) -> None:
     """毎ターン、``rule_based_agent.agent(obs)`` の先頭で呼ぶ。
 

@@ -1,6 +1,6 @@
 """train_pool.py の PPO 学習を Kaggle Notebook 上で走らせる。
 
-    python push_train_pool.py --train-args "--learner alakazam --train-opponents alakazam --iters 60 --tag k60" --dry-run
+    python push_train_pool.py --train-args "--learner alakazam --train-opponents alakazam --iters 25 --tag k25" --dry-run
 
 やること(--dry-run 無しの場合):
   1. 作業ツリーから明示リストでコードとデッキと重みを ptcg_bundle.zip にまとめる
@@ -23,6 +23,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import zipfile
 from pathlib import Path
@@ -43,6 +44,14 @@ BUNDLE_ROOTS = [
     Path("league"),
     Path("kaggle_replays") / "rl",
     Path("kaggle_replays") / "meta_analysis" / "archetype_decks",
+]
+
+# BUNDLE_ROOTS のディレクトリ丸ごとではなく個別ファイルとして含めるもの。
+# kaggle_replays/value_net/ には features*.npz (数百MB〜1GB超) が同居しているため
+# ディレクトリごと含めると肥大化しすぎる。train_pool.py の --critic-init value_net
+# (既定) が読む value_weights_v251.json だけを個別に含める。
+EXTRA_FILES = [
+    Path("kaggle_replays") / "value_net" / "value_weights_v251.json",
 ]
 
 
@@ -147,6 +156,15 @@ def iter_bundle_files(weights_filter: set[str]):
                 continue
             seen.add(arc)
             yield p, arc
+    for extra_rel in EXTRA_FILES:
+        p = REPO_ROOT / extra_rel
+        if not p.exists():
+            raise SystemExit(f"EXTRA_FILES に指定されたファイルが存在しない: {p}")
+        arc = extra_rel.as_posix()
+        if arc in seen:
+            continue
+        seen.add(arc)
+        yield p, arc
 
 
 def build_bundle_zip(dest: Path, weights_filter: set[str]) -> tuple[int, int, int]:
@@ -162,6 +180,76 @@ def build_bundle_zip(dest: Path, weights_filter: set[str]) -> tuple[int, int, in
             n += 1
             total += p.stat().st_size
     return n, total, dest.stat().st_size
+
+
+def run_bundle_smoke_test(zip_path: Path, final_args: list[str], script: str, timeout: int) -> None:
+    """バンドル zip を一時ディレクトリに展開し、極小設定(--iters 1 --games-per-iter 2)で
+    実際に実行してから Kaggle に送る。
+
+    2026-08-14: push_train_pool.py が kaggle_replays/value_net/value_weights_v251.json を
+    バンドルし忘れ、ogerpon・lucario 両方が Kaggle 側で起動直後(数秒後)に
+    FileNotFoundError で落ちる事故が起きた。ローカルのファイルは存在するので
+    「ローカルで動く」ことは何の保証にもならない ── バンドルに実際に入っているファイル
+    だけを使って動くかを、Kaggle に送る前にここで検証する。argparse は同名オプションの
+    再指定を後勝ちで解釈するので、final_args の末尾に軽量化オプションを足すだけでよい。
+
+    --final-eval-games も 0 にすること。--eval-games だけ 0 にしても train_pool.py の
+    最終評価は別引数 --final-eval-games(既定1200)を使うため、DEFAULT_POOL に含まれる
+    alakazam/archaludon_ex が現行715次元エンコーダで is_ready=False な間は、学習が
+    全イテレーション完走した直後に collect_pool._init_worker_pool が例外を出し続けて
+    multiprocessing.Pool が無限にワーカーを再spawnして見かけ上ハングする(2026-08-14に
+    このスモークテストの実装中に発見。§6 step0 で既知の「診断セルが無限再spawn」と同根の
+    バグが train_pool.py 側にも残っていた)。
+
+    --games-per-iter は相手の人数 k に応じて動的に決める。collect_pool.build_tasks は
+    per = n_games // k を偶数に丸めるため、固定値2のままだと k>=2(相手プール)で
+    per=0 になり、実ゲームを1試合も収集しないまま「OK」と出てしまう
+    (2026-08-15、8アーキタイプ・プール汎用RLを試すときに発見。games-per-iter 2 で
+    6秒完走という不自然な速さから気づいた)。2*k games を渡せば必ず per=2 になる。
+    """
+    n_opponents = 1
+    for i, tok in enumerate(final_args):
+        if tok == "--train-opponents" and i + 1 < len(final_args):
+            n_opponents = max(1, len(final_args[i + 1].split(",")))
+            break
+    smoke_games_per_iter = 2 * n_opponents
+    smoke_args = final_args + [
+        "--iters", "1",
+        "--games-per-iter", str(smoke_games_per_iter),
+        "--eval-games", "0",
+        "--final-eval-games", "0",
+        "--workers", "1",
+        "--tag", "_smoketest",
+    ]
+    tmp = Path(tempfile.mkdtemp(prefix="ptcg_smoke_"))
+    try:
+        print(f"\n--- スモークテスト(バンドルを展開して実際に実行。--skip-smoke-test で省略可) ---")
+        with zipfile.ZipFile(zip_path) as z:
+            z.extractall(tmp)
+        cwd = tmp / "kaggle_replays" / "rl"
+        cmd = [sys.executable, "-u", script] + smoke_args
+        print(f"$ (smoke, cwd={cwd}) {' '.join(cmd)}")
+        t0 = time.time()
+        try:
+            proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace", timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise SystemExit(
+                f"スモークテストが {timeout}s でタイムアウトした。重い処理が走っている可能性がある。"
+                "(--skip-smoke-test で省略するか --smoke-test-timeout で延ばす)"
+            )
+        elapsed = time.time() - t0
+        if proc.returncode != 0:
+            print(proc.stdout[-4000:])
+            print(proc.stderr[-4000:])
+            raise SystemExit(
+                f"スモークテスト失敗(exit {proc.returncode}, {elapsed:.0f}s)。Kaggle には送らなかった。"
+                "上のログでバンドル欠落・import エラーを確認して直す。"
+                "(応急で --skip-smoke-test を付ければ送れるが、原因を直してから使うこと)"
+            )
+        print(f"スモークテスト OK ({elapsed:.0f}s)")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 # ---------------------------------------------------------------- Notebook 生成
@@ -332,15 +420,29 @@ def resolve_final_args(train_args: str, workers: int) -> list[str]:
     if any(p == "--workers" or p.startswith("--workers=") for p in parts):
         print(f"[WARN] --train-args に --workers が含まれているため、そちらを優先する"
               f"(--workers {workers} は無視)")
-        return parts
-    return parts + ["--workers", str(workers)]
+    else:
+        parts = parts + ["--workers", str(workers)]
+
+    # 2026-08-14: train_pool.py の --eval-opponents 既定プール(DEFAULT_POOL =
+    # alakazam,crustle,marnie_grimmsnarl_ex,archaludon_ex)は alakazam/archaludon_ex が
+    # 現行715次元エンコーダで is_ready=False なままだと、学習が全イテレーション完走した
+    # 直後の最終評価(--final-eval-games、既定1200。--eval-games を0にしても効かない
+    # 別引数)で multiprocessing.Pool が初期化失敗ワーカーを無限に再spawnして見かけ上
+    # ハングし、出力が一切回収できなくなる(スモークテスト実装中に発見)。E3判定は
+    # eval_e3_gate.py で別途やるので train_pool.py 内蔵の最終評価は元々不要 ──
+    # 呼び出し側が明示していない限り既定で無効化する。
+    if not any(p == "--final-eval-games" or p.startswith("--final-eval-games=") for p in parts):
+        parts = parts + ["--final-eval-games", "0"]
+    return parts
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--train-args", required=True,
                     help="train_pool.py にそのまま渡す引数(1つの文字列)。"
-                         "例: \"--learner alakazam --train-opponents alakazam --iters 60 --tag k60\"")
+                         "例: \"--learner alakazam --train-opponents alakazam --iters 25 --tag k25\""
+                         "(train_pool.py の --iters 既定は25。旧60から2026-08-13に変更、"
+                         "requirements-kamitsuorochi-2026-08-12.md §6 step1 defect#2)")
     ap.add_argument("--workers", type=int, default=4, help="Kaggle 側のワーカー数(既定4)")
     ap.add_argument("--dataset-slug", default=DEFAULT_DATASET_SLUG)
     ap.add_argument("--kernel-slug", default=DEFAULT_KERNEL_SLUG)
@@ -353,6 +455,12 @@ def main():
                          "sample_submission/ptcg_ai/learning/policy_weights*.json 全部。")
     ap.add_argument("--dry-run", action="store_true",
                     help="バンドル・Notebook JSON・メタデータを作るだけで Kaggle へは送らない")
+    ap.add_argument("--skip-smoke-test", action="store_true",
+                    help="バンドルをローカルで --iters 1 実行検証してから送る既定の安全策を省略する。"
+                         "2026-08-14 の value_weights_v251.json バンドル漏れ事故の再発防止策なので、"
+                         "急ぎでない限り付けないこと。")
+    ap.add_argument("--smoke-test-timeout", type=int, default=240,
+                    help="スモークテストの上限秒数(既定240)")
     ap.add_argument("--out-dir", default=str(HERE / ".stage_train_pool"))
     ap.add_argument("--dataset-wait", type=int, default=90,
                     help="Dataset の新バージョンが反映されるまでの待ち時間(秒)")
@@ -373,6 +481,11 @@ def main():
     zip_path = data_dir / "ptcg_bundle.zip"
     n, total, zsize = build_bundle_zip(zip_path, weights_filter)
     print(f"バンドル: {n} ファイル, 展開後 {total/1e6:.1f} MB -> zip {zsize/1e6:.1f} MB ({zip_path})")
+
+    if args.skip_smoke_test:
+        print("[WARN] --skip-smoke-test 指定によりスモークテストを省略した。")
+    else:
+        run_bundle_smoke_test(zip_path, final_args, args.script, args.smoke_test_timeout)
 
     user = detect_username(args.username)
 

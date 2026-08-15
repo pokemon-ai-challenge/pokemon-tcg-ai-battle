@@ -1,0 +1,214 @@
+{
+  "generated_at": "2026-08-07T19:06:49",
+  "input": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\training_data\\policy_positions_marnie_grimmsnarl_ex.jsonl.gz",
+  "n_rows": 818350,
+  "n_resolve_error": 0,
+  "resolve_error_examples": [],
+  "new_method": {
+    "overall": {
+      "hit_a": 818321,
+      "n_a": 818350,
+      "hit_b": 5220,
+      "n_b": 5249,
+      "ceiling_a": 0.9999645628398607,
+      "ceiling_b": 0.994475138121547
+    },
+    "by_n_options_bucket": {
+      "2": {
+        "hit_a": 199635,
+        "n_a": 199653,
+        "hit_b": 5165,
+        "n_b": 5183,
+        "ceiling_a": 0.9999098435786089,
+        "ceiling_b": 0.996527107852595
+      },
+      "3-4": {
+        "hit_a": 236424,
+        "n_a": 236432,
+        "hit_b": 50,
+        "n_b": 58,
+        "ceiling_a": 0.9999661636326724,
+        "ceiling_b": 0.8620689655172413
+      },
+      "5-8": {
+        "hit_a": 243521,
+        "n_a": 243524,
+        "hit_b": 5,
+        "n_b": 8,
+        "ceiling_a": 0.9999876808856621,
+        "ceiling_b": 0.625
+      },
+      "9-16": {
+        "hit_a": 112817,
+        "n_a": 112817,
+        "hit_b": 0,
+        "n_b": 0,
+        "ceiling_a": 1.0,
+        "ceiling_b": null
+      },
+      "17+": {
+        "hit_a": 25924,
+        "n_a": 25924,
+        "hit_b": 0,
+        "n_b": 0,
+        "ceiling_a": 1.0,
+        "ceiling_b": null
+      }
+    },
+    "group_size_distribution": {
+      "n_groups": 813487,
+      "n_groups_size1": 813101,
+      "n_groups_size1_frac": 0.999525499485548,
+      "n_groups_size2plus": 386,
+      "n_groups_size2plus_frac": 0.00047450051445198263,
+      "max_group_size": 4450,
+      "decisions_in_size1_groups": 813101,
+      "decisions_in_size2plus_groups": 5249
+    }
+  },
+  "old_method_same_subset": {
+    "overall": {
+      "hit_a": 802508,
+      "n_a": 818350,
+      "hit_b": 49851,
+      "n_b": 65693,
+      "ceiling_a": 0.9806415347956253,
+      "ceiling_b": 0.7588479746700562
+    },
+    "by_n_options_bucket": {
+      "2": {
+        "hit_a": 194648,
+        "n_a": 199653,
+        "hit_b": 31131,
+        "n_b": 36136,
+        "ceiling_a": 0.9749315061631931,
+        "ceiling_b": 0.8614954615895506
+      },
+      "3-4": {
+        "hit_a": 227521,
+        "n_a": 236432,
+        "hit_b": 15748,
+        "n_b": 24659,
+        "ceiling_a": 0.9623105163429654,
+        "ceiling_b": 0.638630925828298
+      },
+      "5-8": {
+        "hit_a": 241743,
+        "n_a": 243524,
+        "hit_b": 2767,
+        "n_b": 4548,
+        "ceiling_a": 0.9926865524547889,
+        "ceiling_b": 0.6083992963940194
+      },
+      "9-16": {
+        "hit_a": 112672,
+        "n_a": 112817,
+        "hit_b": 205,
+        "n_b": 350,
+        "ceiling_a": 0.998714732708723,
+        "ceiling_b": 0.5857142857142857
+      },
+      "17+": {
+        "hit_a": 25924,
+        "n_a": 25924,
+        "hit_b": 0,
+        "n_b": 0,
+        "ceiling_a": 1.0,
+        "ceiling_b": null
+      }
+    },
+    "group_size_distribution": {
+      "n_groups": 776667,
+      "n_groups_size1": 752657,
+      "n_groups_size1_frac": 0.9690858501777467,
+      "n_groups_size2plus": 24010,
+      "n_groups_size2plus_frac": 0.030914149822253295,
+      "max_group_size": 4450,
+      "decisions_in_size1_groups": 752657,
+      "decisions_in_size2plus_groups": 65693
+    }
+  },
+  "old_method_test_split_only_sanity_check": {
+    "note": "diagnose_errors.py が元々計算していたのと同じ split(=test) だけに絞った旧方式の値。0.7685 の再現確認用。",
+    "overall": {
+      "hit_a": 83611,
+      "n_a": 85218,
+      "hit_b": 5286,
+      "n_b": 6893,
+      "ceiling_a": 0.9811424816353352,
+      "ceiling_b": 0.7668649354417525
+    },
+    "by_n_options_bucket": {
+      "2": {
+        "hit_a": 20432,
+        "n_a": 20949,
+        "hit_b": 3293,
+        "n_b": 3810,
+        "ceiling_a": 0.9753210177096758,
+        "ceiling_b": 0.8643044619422572
+      },
+      "3-4": {
+        "hit_a": 23962,
+        "n_a": 24861,
+        "hit_b": 1670,
+        "n_b": 2569,
+        "ceiling_a": 0.9638389445315957,
+        "ceiling_b": 0.650058388478007
+      },
+      "5-8": {
+        "hit_a": 25017,
+        "n_a": 25196,
+        "hit_b": 301,
+        "n_b": 480,
+        "ceiling_a": 0.9928956977297984,
+        "ceiling_b": 0.6270833333333333
+      },
+      "9-16": {
+        "hit_a": 11507,
+        "n_a": 11519,
+        "hit_b": 22,
+        "n_b": 34,
+        "ceiling_a": 0.9989582429030298,
+        "ceiling_b": 0.6470588235294118
+      },
+      "17+": {
+        "hit_a": 2693,
+        "n_a": 2693,
+        "hit_b": 0,
+        "n_b": 0,
+        "ceiling_a": 1.0,
+        "ceiling_b": null
+      }
+    }
+  },
+  "player_split": {
+    "all_repeated_groups": {
+      "max_group_size_cap": null,
+      "usable": true,
+      "n_repeated_groups_with_known_team": 348,
+      "n_groups_excluded_for_size": 0,
+      "decisions_with_unknown_team_in_repeated_groups": 308,
+      "same_player_pairs": 191884,
+      "same_player_agree_pairs": 191879,
+      "same_player_agreement_rate": 0.999973942590315,
+      "cross_player_pairs": 8555168,
+      "cross_player_agree_pairs": 8550966,
+      "cross_player_agreement_rate": 0.9995088348937157
+    },
+    "excluding_groups_larger_than_50": {
+      "max_group_size_cap": 50,
+      "usable": true,
+      "n_repeated_groups_with_known_team": 347,
+      "n_groups_excluded_for_size": 1,
+      "decisions_with_unknown_team_in_repeated_groups": 41,
+      "same_player_pairs": 16,
+      "same_player_agree_pairs": 15,
+      "same_player_agreement_rate": 0.9375,
+      "cross_player_pairs": 383,
+      "cross_player_agree_pairs": 359,
+      "cross_player_agreement_rate": 0.9373368146214099
+    },
+    "note": "all_repeated_groups は巨大な退化グループ（例: turn=0 の完全対称な初期局面が4450件、ほぼ固定の1アクションに収束）に支配され、cross_player の一致率がほぼ1.0になる。excluding_groups_larger_than_50 の方が「実質的にスタイル差が現れうる程度の繰り返し」に近い。"
+  },
+  "elapsed_sec": 81.51867413520813
+}

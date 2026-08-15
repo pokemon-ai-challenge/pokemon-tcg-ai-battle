@@ -19,11 +19,24 @@ kaggle_replays/deck_predictor/output/deck_labels.jsonl で
 
 さらに step2-design.md §2.4 の初期スコープ限定に従い、以下も満たす局面のみを採用する:
   - obs["current"] が存在する(初回デッキ選択などはスキップ)
-  - obs["select"] が存在し、maxCount == 1(単純選択のみ。複数選択は対象外)
-  - 実際に選ばれた action の長さがちょうど1(0個選択・複数選択はスキップ)
-  - action[0] が obs["select"]["option"] の範囲内(範囲外は異常データとしてスキップ)
+  - obs["select"] が存在する
+  - 実際に選ばれた action が空でない
+  - action の各要素が obs["select"]["option"] の範囲内・重複なし・個数が
+    minCount..maxCount の範囲内(外れる場合は異常データとしてスキップ)
+
+2026-08-12: maxCount > 1(複数選択)は以前はここで一律スキップしていたが、現在は採用対象。
+選ばれた全選択肢を chosen_indices に、後方互換用に先頭要素を chosen_index にも入れる
+(下記参照)。
 
 満たさない局面はスキップし、理由別に件数を集計して監査レポートに残す。
+
+2026-08-12(requirements-kamitsuorochi-2026-08-12.md 「What to build」): maxCount > 1(複数選択)
+は従来スキップしていたが、これを採用対象に変える。TO_HAND(ハイパーボール/むしとりセット等の
+サーチ)・DISCARD(ハイパーボールの2枚トラッシュ等)がこの対象の大半を占め、これらは
+このデッキ(進化ライン構築)の核心的な意思決定点のため、スキップしたままでは学習できない。
+複数選択の行は選ばれた全選択肢を ``chosen_indices``(list[int])に持つ。既存の ``chosen_index``
+(単一int)は後方互換のため引き続き全行に出力し、複数選択行では選ばれた集合の先頭要素を入れる
+(build_features.py 側の記録と合わせる)。
 
 サイズ削減のため、observation の "logs" フィールド(イベント履歴)は書き出し前に
 削除する。extract_value_dataset.py と違い、選択肢特徴のエンコードに使うため
@@ -68,7 +81,6 @@ SKIP_REASONS = (
     "not_alakazam",
     "no_current",
     "no_select",
-    "multi_select",
     "bad_action_count",
     "malformed_action",
 )
@@ -161,23 +173,32 @@ def iter_decision_points(
                 stats.record_skip("no_select")
                 continue
 
-            if select.get("maxCount") != 1:
-                stats.record_skip("multi_select")
-                continue
-
             # action は None のこともある(次ステップでそのプレイヤーが行動を記録して
             # いない=対象外)。len(None) で落ちないよう None も bad_action_count 扱いで
             # スキップする(dragapult_ex のリプレイで実際に None が観測された)。
+            # 2026-08-12: maxCount>1(複数選択)も採用対象にするため、action の長さは
+            # 「非空」だけを条件にし、正確な件数チェック(minCount/maxCount範囲・重複無し)は
+            # 下の malformed_action 判定にまとめる。
             action = steps[i + 1][player_index].get("action")
-            if action is None or len(action) != 1:
+            if action is None or len(action) == 0:
                 stats.record_skip("bad_action_count")
                 continue
 
-            chosen_index = action[0]
             options = select.get("option") or []
-            if not (0 <= chosen_index < len(options)):
+            min_count = select.get("minCount")
+            max_count = select.get("maxCount")
+            is_malformed = (
+                len(set(action)) != len(action)  # 重複
+                or not all(0 <= idx < len(options) for idx in action)  # 範囲外
+                or (min_count is not None and len(action) < min_count)
+                or (max_count is not None and len(action) > max_count)
+            )
+            if is_malformed:
                 stats.record_skip("malformed_action")
                 continue
+
+            chosen_indices = list(action)
+            chosen_index = chosen_indices[0]  # 後方互換: 既存の単一選択消費コードはこの列を読む
 
             reduced_obs = {k: v for k, v in obs.items() if k != "logs"}
             turn = obs["current"].get("turn")
@@ -190,6 +211,7 @@ def iter_decision_points(
                 "select_context": select.get("context"),
                 "n_options": len(options),
                 "chosen_index": chosen_index,
+                "chosen_indices": chosen_indices,
                 "rank_at_fetch": own_meta.get("rank_at_fetch"),
                 "leaderboard_score_at_fetch": own_meta.get("leaderboard_score_at_fetch"),
                 "observation": reduced_obs,
@@ -204,6 +226,7 @@ class Stats:
         self.n_replays_parsed = 0
         self.n_alakazam_episode_players = 0
         self.n_records = 0
+        self.n_multi_select_records = 0  # 2026-08-12: maxCount>1 で採用された行数(スキップではない)
         self.skip_reasons: Counter[str] = Counter()
         self.select_type_counts: Counter[int] = Counter()
         self.select_context_counts: Counter[int] = Counter()
@@ -217,6 +240,8 @@ class Stats:
 
     def record_record(self, row: dict) -> None:
         self.n_records += 1
+        if len(row["chosen_indices"]) > 1:
+            self.n_multi_select_records += 1
         self.select_type_counts[row["select_type"]] += 1
         self.select_context_counts[row["select_context"]] += 1
         self.turn_band_counts[turn_band(row["turn"])] += 1
@@ -285,6 +310,11 @@ def write_audit_report(stats: Stats, out_path: Path, audit_path: Path) -> None:
     lines.append("## 採用レコード数")
     lines.append("")
     lines.append(f"- 採用: {stats.n_records}")
+    lines.append(
+        f"- うち複数選択(maxCount>1、chosen_indices が2件以上): {stats.n_multi_select_records} "
+        f"({stats.n_multi_select_records / stats.n_records * 100 if stats.n_records else 0.0:.2f}%)"
+        "  ※ 2026-08-12以前はここがスキップ理由(multi_select)だったが、現在は採用対象"
+    )
     n_skipped = sum(stats.skip_reasons.values())
     lines.append(f"- スキップ計(意思決定点単位): {n_skipped}")
     lines.append("")
@@ -294,9 +324,8 @@ def write_audit_report(stats: Stats, out_path: Path, audit_path: Path) -> None:
         "not_alakazam": "archetypeラベル不一致/欠損 (not_alakazam)",
         "no_current": "盤面(current)欠損 (no_current)",
         "no_select": "select欠損 (no_select)",
-        "multi_select": "複数選択 maxCount != 1 (multi_select)",
-        "bad_action_count": "action長 != 1 (bad_action_count)",
-        "malformed_action": "選択インデックスが範囲外 (malformed_action)",
+        "bad_action_count": "action空/欠損 (bad_action_count)",
+        "malformed_action": "選択インデックスが範囲外/重複/個数がminCount..maxCount外 (malformed_action)",
     }
     for reason in SKIP_REASONS:
         count = stats.skip_reasons.get(reason, 0)

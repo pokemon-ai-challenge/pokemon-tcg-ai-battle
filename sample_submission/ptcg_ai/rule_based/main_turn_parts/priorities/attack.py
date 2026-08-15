@@ -46,6 +46,9 @@ def propose(obs: Observation) -> ActionProposal | None:
 
     # 可変ダメージ技（手札枚数依存など）の推定に使う、攻撃側自身の手札枚数。
     attacker_hand_size = player.handCount
+    # 盤面依存の可変ダメージ技（カミツオロチexデッキの3ワザ、2026-08-12）の推定に使う、
+    # 攻撃側自身の場（先頭=バトル場、以降=ベンチ）。
+    attacker_side_pokemon = [attacker] + list(player.bench or [])
 
     matchup_plan = opponent_tracker.current_matchup_plan()
 
@@ -61,6 +64,7 @@ def propose(obs: Observation) -> ActionProposal | None:
             attack, attacker, defender_card.weakness, defender_card.resistance, attacker_hand_size,
             defender=defender, defender_is_benched=False,
             damage_is_effect=attack_features.damage_is_effect_based(attack),
+            attacker_side_pokemon=attacker_side_pokemon,
         )
         value = float(damage) + _effect_bonus(option.attackId) + _matchup_bonus(option.attackId, matchup_plan)
         usable.append((i, value))

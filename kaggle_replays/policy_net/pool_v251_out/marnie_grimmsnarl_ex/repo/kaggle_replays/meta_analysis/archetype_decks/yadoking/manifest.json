@@ -1,0 +1,45 @@
+{
+  "archetype": "yadoking",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "テライFACC",
+      "rank_at_fetch": 1674,
+      "leaderboard_score": 751.7,
+      "episode_id": "86803742",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "Takahide Seki",
+      "rank_at_fetch": 1809,
+      "leaderboard_score": 738.6,
+      "episode_id": "86824924",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "DforDragon",
+      "rank_at_fetch": 2830,
+      "leaderboard_score": 638.9,
+      "episode_id": "86058142",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "Shaun Leong",
+      "rank_at_fetch": 3435,
+      "leaderboard_score": 579.1,
+      "episode_id": "86393067",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "シャカパチロボ",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86652136",
+      "player_index": 1
+    }
+  ]
+}

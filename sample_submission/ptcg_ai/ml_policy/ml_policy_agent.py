@@ -40,10 +40,11 @@ from ptcg_ai.hidden_information import match_context, search_adapter
 from ptcg_ai.hidden_information.search_state_stub import build_dummy_search_state
 from ptcg_ai.learning import value_shadow_log
 from ptcg_ai.learning.policy_model import PolicyModel
+from ptcg_ai.opponent_modeling import model_router
 from ptcg_ai.rule_based.main_turn_parts import proposals as rb_proposals
 from ptcg_ai.rule_based.main_turn_parts import weights as rb_weights
 from ptcg_ai.rule_based.rule_based_agent import read_deck_csv
-from ptcg_ai.search import attack_plan, lethal_simple, pimc, pipeline
+from ptcg_ai.search import attack_plan, lethal_simple, pimc, pipeline, wall_guard
 
 # `_try_attack_hybrid` 用。draw/board/ability/energyのいずれかが提案されている
 # (=まだ他にやるべき展開が残っている)行ではATTACKゲートを発火させない。
@@ -85,7 +86,13 @@ _SEARCH_MODULES = {
 #
 # (履歴: 2026-07-22 は ml_lethal_attackplan_v0only を提出。ロック闘エネルギー等で攻撃が
 # 0ダメージになる局面の事後veto。ローカル400試合では有意差未確認・エラー0件だった。)
-_CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "abl_5_full")
+#
+# 2026-08-14: abl_5_full + wall_guard(0ダメージ攻撃の代わりに撤退/Boss's Ordersでベンチ狙撃、
+# crustle対面RLでE3有意改善 p=0.0237 の根本原因修正)+ opponent_model_routing(対面アーキタイプを
+# 数ターンで認識し、対面特化でRL/BC再学習した重みに切り替える)を有効にした
+# abl_5_full_wallguard_routing に切り替え。両機能とも単体テスト・実対戦での統合テストで
+# 動作確認済み(requirements-kamitsuorochi-2026-08-12.md §6 step3/4)。
+_CONFIG_NAME = os.environ.get("PTCG_AI_ML_CONFIG", "abl_5_full_wallguard_routing")
 
 _model: PolicyModel | None = None
 _config_cache: dict | None = None
@@ -143,6 +150,12 @@ def agent(obs: Observation, config: dict | None = None) -> list[int]:
         global _match_start_perf, _selects_seen
         _match_start_perf = time.perf_counter()
         _selects_seen = 0
+        # `config["wall_guard"]` の2段階アクション(RETREAT/Boss's Orders -> 後続のSWITCH選択)が
+        # 前の試合の残留状態を跨がないようにする(wall_guard 無効時も無害なただの代入)。
+        wall_guard.reset_pending_target()
+        # `config["opponent_model_routing"]` で確定した対面アーキタイプも同様に試合をまたがない
+        # ようにする(model_router 無効時も無害なただの代入)。
+        model_router.reset()
         return read_deck_csv()
     return _select_action(obs, config)
 
@@ -326,6 +339,70 @@ def _try_attack_plan(
     return action if action is not None and _is_valid_action(action, obs.select) else None
 
 
+def _try_wall_guard_pending(obs: Observation, config: dict | None = None) -> list[int] | None:
+    """前の選択で wall_guard が開始した RETREAT/Boss's Orders の行き先(SWITCH/CARD選択)が
+    今回の select ならそれを埋める。`config["wall_guard"]["enabled"]` が真のときだけ動く
+    (既定は無効、挙動不変)。"""
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    wall_guard_config = (effective_config or {}).get("wall_guard") or {}
+    try:
+        action = wall_guard.try_consume_pending_target(obs, wall_guard_config)
+    except Exception:
+        return None
+    return action if action is not None and _is_valid_action(action, obs.select) else None
+
+
+def _try_wall_guard_b(obs: Observation, config: dict | None = None) -> list[int] | None:
+    """壁ポケモン（相手のバトル場）が自分の全アタッカーの打点を0にしているが、相手のベンチには
+    通る対象がいる場合、ボスの指令でそれを引きずり出す(`config["wall_guard"]["enabled"]`)。"""
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    wall_guard_config = (effective_config or {}).get("wall_guard") or {}
+    try:
+        action = wall_guard.guard_b_boss_orders(obs, wall_guard_config)
+    except Exception:
+        return None
+    return action if action is not None and _is_valid_action(action, obs.select) else None
+
+
+def _try_wall_guard_a(obs: Observation, config: dict | None = None) -> list[int] | None:
+    """攻撃が選択肢に載っているが最善でも0ダメージにしかならず、ベンチに通るアタッカーがいて
+    撤退が合法なら撤退に差し替える(`config["wall_guard"]["enabled"]`)。
+
+    `_try_pipeline` はモデル/baseline_action の計算より前に自分の答えを返して
+    `_select_action` を打ち切ってしまうため、baseline_action の後段でチェックする形
+    (旧実装)では pipeline 有効時に一度も発火しないことが実測(100試合中0回)で判明した。
+    そのため Guard B と同じ位置(pipeline より前)で、盤面から直接判定するpre-stepとして
+    呼ぶ。"""
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    wall_guard_config = (effective_config or {}).get("wall_guard") or {}
+    try:
+        action = wall_guard.guard_a_retreat(obs, wall_guard_config)
+    except Exception:
+        return None
+    return action if action is not None and _is_valid_action(action, obs.select) else None
+
+
+def _try_model_router(obs: Observation, config: dict | None = None) -> str | None:
+    """`config["opponent_model_routing"]["enabled"]` が真のとき、rough_predictor が対戦相手の
+    アーキタイプを確信を持って認識できていて、かつそのアーキタイプの個別RL重みが
+    `opponent_model_registry.json` に登録されていれば、その重みファイルの絶対パスを返す
+    (既定は無効、挙動不変)。wall_guardの `_try_wall_guard_*` と同じく例外はここで握りつぶす。
+    """
+    if obs.current is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    try:
+        return model_router.route(obs, effective_config)
+    except Exception:
+        return None
+
+
 # PolicyModelがconsequence特徴(Tier3 Stage3c、meta.consequence_fieldsを持つ重み)を使う
 # 場合の仮実行に割り当てる時間予算。既定重み(consequence特徴なし)ではこの値は一切参照
 # されない(PolicyModel._consequence_fields が空なら factory/deadline は無視される)。
@@ -430,15 +507,45 @@ def _select_action(obs: Observation, config: dict | None = None) -> list[int]:
     global _selects_seen
     _selects_seen += 1
 
+    # wall_guard の2段階アクション(前の選択でRETREAT/Boss's Ordersを開始済み)の行き先選択が
+    # 今回の select なら最優先で埋める(config無効時は常にNone、挙動不変)。
+    wall_guard_pending_action = _try_wall_guard_pending(obs, config=config)
+    if wall_guard_pending_action is not None:
+        return wall_guard_pending_action
+
     lethal_action = _try_lethal(obs, config=config)
     if lethal_action is not None:
         return lethal_action
+
+    # Guard A(0ダメージで突っ立たない)・Guard B(壁の向こう側を突く): どちらも pipeline より
+    # 前で、盤面から直接判定する(pipelineがbaseline_action計算より前に自分の答えを返して
+    # _select_actionを打ち切ってしまうため、後段のpost-checkでは発火しない。config無効時は
+    # 常にNone、挙動不変)。
+    wall_guard_a_action = _try_wall_guard_a(obs, config=config)
+    if wall_guard_a_action is not None:
+        return wall_guard_a_action
+
+    wall_guard_b_action = _try_wall_guard_b(obs, config=config)
+    if wall_guard_b_action is not None:
+        return wall_guard_b_action
 
     pipeline_action = _try_pipeline(obs, config=config)
     if pipeline_action is not None:
         return pipeline_action
 
-    model = _get_model(config)
+    # 相手のアーキタイプが確信を持って認識でき、その対面の個別RL重みが登録されていれば
+    # それを使う(config["opponent_model_routing"]["enabled"]、既定off、挙動不変)。
+    # 通常のconfig解決(_get_model単体の既定=グローバルの_model)より優先するが、
+    # ここより後段のconfig参照(hidden_state_source・attack_plan等)には影響させない
+    # (policy_weights_pathだけを差し替えた別dictを_get_modelにだけ渡す)。
+    routed_weights_path = _try_model_router(obs, config=config)
+    if routed_weights_path is not None:
+        base_config = config if config is not None else _get_config()
+        model_config = {**base_config, "policy_weights_path": routed_weights_path}
+    else:
+        model_config = config
+
+    model = _get_model(model_config)
     model_factory = _model_hidden_state_factory(obs, config)
     model_deadline = time.perf_counter() + _MODEL_TIME_BUDGET_MS / 1000
     attack_hybrid_action = _try_attack_hybrid(obs, config=config)

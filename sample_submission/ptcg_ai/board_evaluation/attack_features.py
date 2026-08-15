@@ -44,10 +44,148 @@ _DAMAGE_PER_COUNTER = 10
 _FIXED_DAMAGE_PATTERN = re.compile(r"does (\d+) damage", re.IGNORECASE)
 _PER_HAND_CARD_PATTERN = re.compile(r"(\d+) damage counters? .*? for each card in your hand", re.IGNORECASE)
 
+# 盤面依存の可変ダメージ（2026-08-12、カミツオロチexデッキの3ワザ対応で追加）。
+# 手札枚数ではなく「自分の場」「両バトルポケモン」を要求するため、_estimate_variable_damage に
+# 盤面コンテキスト（attacker_side_pokemon / defender_active_pokemon）が渡されたときだけ判定する。
+# 必ず _FIXED_DAMAGE_PATTERN より先に判定すること: 93 カミッチュ「Do the Wave」の
+# "This attack does 20 damage for each of your Benched Pokémon." は _FIXED_DAMAGE_PATTERN の
+# "does (\d+) damage" にも部分一致してしまい、ベンチ0体でも固定20点と誤判定する
+#（実測で確認済み）。
+#
+# マッチ対象テキストは "Pokémon" の é を "e" に正規化してから当てる（後述 _normalize_for_match）。
+_PER_BENCHED_POKEMON_PATTERN = re.compile(
+    r"does (\d+) damage for each of your benched pokemon", re.IGNORECASE
+)
+_PER_GRASS_ENERGY_ALL_POKEMON_PATTERN = re.compile(
+    r"does (\d+) more damage for each \{g\} energy attached to all of your pokemon", re.IGNORECASE
+)
+_PER_ACTIVE_ENERGY_BOTH_PATTERN = re.compile(
+    r"does (\d+) more damage for each energy attached to both active pokemon", re.IGNORECASE
+)
 
-def _estimate_variable_damage(attack: Attack, attacker_hand_size: int | None) -> int:
-    """attack.damage が 0 の可変ダメージ技を、attack.text から推定する（不明なら0）。"""
+
+def _normalize_for_match(text: str) -> str:
+    """カード原文の "Pokémon"(é) を "Pokemon" に正規化するだけの軽量ヘルパー。
+
+    ability テキスト側の _normalize_ability_text（小文字化・空白圧縮まで行う）とは別に、
+    こちらは大文字小文字は re.IGNORECASE に任せて é の置換だけを行う（呼び出し頻度が
+    高いため最小限の処理に留める）。
+    """
+    return text.replace("é", "e")
+
+
+def _bench_count(attacker_side_pokemon: list[Pokemon | None] | None) -> int:
+    """attacker_side_pokemon（先頭=バトル場、以降=ベンチという約束）からベンチ実数を数える。
+
+    先頭要素を除いた残りのうち None でないものの数。約束を守らない呼び出し（先頭がベンチの
+    要素になっている等）は上位のバグなのでここでは検出しない。
+    """
+    if not attacker_side_pokemon:
+        return 0
+    return sum(1 for mon in attacker_side_pokemon[1:] if mon is not None)
+
+
+def _count_energy_of_type(pokemon: Pokemon | None, energy_type: EnergyType | None) -> int:
+    """pokemon.energies から指定タイプ（Noneなら全タイプ）の本数を数える。
+
+    Pokemon.energies はエンジン側が計算済みの実効エネルギー本数であり、メガニウム
+    「おいしげる」のような倍化効果も既に反映されている（2026-08-12、自己対戦で実測して
+    確認済み: energyCards が5枚でも energies は10要素になっていた）。したがって、
+    energyCards を独自に数えて自前で2倍化するロジックは不要 —— energies をそのまま数えれば
+    正しい実効値になる。
+    """
+    if pokemon is None:
+        return 0
+    energies = pokemon.energies or []
+    if energy_type is None:
+        return len(energies)
+    return sum(1 for e in energies if e == energy_type)
+
+
+def _sum_grass_energy_on_side(attacker_side_pokemon: list[Pokemon | None] | None) -> int:
+    """attacker_side_pokemon 全員（バトル場+ベンチ）についている【草】エネルギーの合計本数。"""
+    if not attacker_side_pokemon:
+        return 0
+    return sum(_count_energy_of_type(mon, EnergyType.GRASS) for mon in attacker_side_pokemon)
+
+
+@lru_cache(maxsize=None)
+def _board_dependent_pattern(text: str) -> tuple[str, int] | None:
+    """盤面依存パターン3種のうち attack.text がどれに一致するかを判定する（純関数）。
+
+    特徴量ビルドで attacker_side_pokemon 付きの resolve_damage が約3,000万回呼ばれる想定
+    （このファイル冒頭の A10 メモ化と同じ事情）。3本の正規表現探索と正規化はどれも
+    attack.text の内容だけで決まる純粋な計算であり、カードプール中の技はごく少数の
+    ユニークテキストに収まるため、text 文字列そのものをキーに lru_cache する。
+    attackId から card_cache.get_attack で引き直す方式は damage_is_effect_based の
+    docstring にある理由（モックを壊す・呼び出し側のオブジェクトと食い違い得る）で避け、
+    渡された attack.text をそのままキーにする（引数を1つ増やすだけで、意味的な差し替えは
+    一切していない）。
+
+    戻り値は (種別, 抽出した数値) のタプル。該当なしは None。
+    種別は "bench"（ベンチ数比例）/ "grass_all"（自分の場の【草】エネ比例）/
+    "active_both"（両バトル場のエネ合計比例）。
+    """
+    text_norm = _normalize_for_match(text)
+
+    match = _PER_BENCHED_POKEMON_PATTERN.search(text_norm)
+    if match:
+        return ("bench", int(match.group(1)))
+
+    match = _PER_GRASS_ENERGY_ALL_POKEMON_PATTERN.search(text_norm)
+    if match:
+        return ("grass_all", int(match.group(1)))
+
+    match = _PER_ACTIVE_ENERGY_BOTH_PATTERN.search(text_norm)
+    if match:
+        return ("active_both", int(match.group(1)))
+
+    return None
+
+
+def _estimate_variable_damage(
+    attack: Attack,
+    attacker_hand_size: int | None,
+    attacker_side_pokemon: list[Pokemon | None] | None = None,
+    defender_active_pokemon: Pokemon | None = None,
+) -> int:
+    """attack.text の言い回しから、attack.damage を起点にした実際のダメージを推定する。
+
+    attacker_side_pokemon / defender_active_pokemon が両方 None の呼び出し（既存呼び出し）は
+    盤面依存パターンの判定を一切行わず、従来どおり「手札依存パターン→固定パターン→0」の順で
+    判定する（完全後方互換）。
+
+    attacker_side_pokemon: 攻撃側自身の場（先頭=バトル場、以降=ベンチ、None可）。
+        「for each of your Benched Pokémon」「for each {G} Energy attached to all of your
+        Pokémon」の判定に使う。
+    defender_active_pokemon: 防御側のバトル場ポケモン（board_features.is_likely_ko_next_turn
+        のように「攻守が入れ替わる」呼び出しでは、resolve_damage の defender 引数（評価対象、
+        ベンチの場合もある）とは別に明示的に渡す必要がある。resolve_damage 側で None なら
+        defender にフォールバックする）。
+        「for each Energy attached to both Active Pokémon」の判定に使う。
+    """
     text = attack.text or ""
+
+    # 盤面依存パターン（"N more damage for each ..." / "N damage for each of your Benched..."）。
+    # attack.damage が既に固定分を含む場合があるため、damage<=0 のガードより先に判定する。
+    if attacker_side_pokemon is not None or defender_active_pokemon is not None:
+        pattern = _board_dependent_pattern(text)
+        if pattern is not None:
+            kind, value = pattern
+            if kind == "bench":
+                return value * _bench_count(attacker_side_pokemon)
+            if kind == "grass_all":
+                # "N more damage" = カード原文の固定分（attack.damage）に上乗せする表記。
+                return attack.damage + value * _sum_grass_energy_on_side(attacker_side_pokemon)
+            # kind == "active_both"
+            attacker_active = attacker_side_pokemon[0] if attacker_side_pokemon else None
+            total_energy = _count_energy_of_type(attacker_active, None) + _count_energy_of_type(
+                defender_active_pokemon, None
+            )
+            return attack.damage + value * total_energy
+
+    if attack.damage > 0:
+        return attack.damage
 
     if attacker_hand_size is not None:
         match = _PER_HAND_CARD_PATTERN.search(text)
@@ -94,6 +232,8 @@ def resolve_damage(
     defender_side_pokemon: list[Pokemon | None] | None = None,
     defender_is_benched: bool = False,
     damage_is_effect: bool = False,
+    attacker_side_pokemon: list[Pokemon | None] | None = None,
+    defender_active_pokemon: Pokemon | None = None,
 ) -> int:
     """弱点・抵抗力を考慮した実際の与ダメージを計算する。
 
@@ -104,6 +244,18 @@ def resolve_damage(
 
     defender_side_pokemon / defender_is_benched / damage_is_effect は damage_prevented への
     素通し引数。既存の呼び出し（defender=None）では従来どおり特性を考慮しない。
+
+    attacker_side_pokemon（2026-08-12 追加）: 攻撃側自身の場（先頭=バトル場、以降=ベンチ）。
+    「for each of your Benched Pokémon」「for each {G} Energy attached to all of your
+    Pokémon」のような盤面依存の可変ダメージ技（カミツオロチexデッキの3ワザ）の推定に使う。
+    None（既定）の呼び出しはこれらのパターン判定を一切行わず、従来どおりの挙動になる。
+
+    defender_active_pokemon（同上）: 「for each Energy attached to both Active Pokémon」の
+    判定に使う、防御側のバトル場ポケモン。None なら defender にフォールバックする
+    （resolve_damage の呼び出しの大半で defender は実際に相手のバトル場ポケモンなので、
+    これで正しく動く）。board_features.is_likely_ko_next_turn のように defender が
+    「評価対象（ベンチのこともある）」を指す唯一の呼び出しだけは、明示的にバトル場の
+    ポケモンを渡す必要がある。
     """
     # 防御側の特性で完全に無効化されるなら 0（defender を渡された場合のみ判定する。
     # 既存の呼び出しは defender=None で従来どおりの挙動）。
@@ -112,9 +264,10 @@ def resolve_damage(
     ):
         return 0
 
-    damage = attack.damage
-    if damage <= 0:
-        damage = _estimate_variable_damage(attack, attacker_hand_size)
+    effective_defender_active = defender_active_pokemon if defender_active_pokemon is not None else defender
+    damage = _estimate_variable_damage(
+        attack, attacker_hand_size, attacker_side_pokemon, effective_defender_active
+    )
 
     attacker_type = card_cache.get_card(attacker.id).energyType
 
@@ -489,12 +642,25 @@ def damage_prevented(
     （74 Rabsca / 343 Shaymin）や「特性の持ち主自身がベンチにいる間だけ有効」型
     （28 / 362 / 1138）も判定できる。
 
+    テラスタル（cg/api.py の Pokemon.tera）は defender_is_benched=True かつ
+    damage_is_effect=False のとき常にワザのダメージを無効化する（ルールであって特性
+    ではないため、カード固有のテキストマッチとは独立に判定する。2026-08-12 追加）。
+    ワザの「効果」までは止めないので damage_is_effect=True では無効化しない。
+
     カードテキストの解釈は頻出パターンだけを保守的に扱う。未知の言い回しは何もしない
     （False）。PTCG_DISABLE_DEFENDER_ABILITY=1 が設定されている場合は常に False を返す
     （修正前の挙動に戻すA/B切り替え。実験用であり、本番では設定しない）。
     """
     if _defender_ability_disabled():
         return False
+
+    # テラスタルはルール（cg/api.py の Pokemon.tera）であって特性ではないので、特性判定より
+    # 前で判定する。「ベンチにいる限りワザのダメージを受けない」というルールテキストそのもの
+    # であり、"prevent all damage" 系の特性テキストとは異なる根拠なのでテキストマッチは介さない。
+    # ワザの「効果」は止めないため、damage_is_effect=True のときは無効化しない
+    # （damage_is_effect=True の呼び出しは False のまま素通しする）。
+    if defender_is_benched and not damage_is_effect and _is_tera(defender):
+        return True
 
     if _pokemon_ability_prevents(
         _skill_text(defender), True, attacker, defender, defender_is_benched, damage_is_effect
@@ -548,16 +714,27 @@ def can_ko(
     defender_side_pokemon: list[Pokemon | None] | None = None,
     defender_is_benched: bool = False,
     damage_is_effect: bool = False,
+    attacker_side_pokemon: list[Pokemon | None] | None = None,
 ) -> bool:
     """このワザで相手をきぜつさせられるか（残りHP <= 与ダメージ）を判定する。
 
     防御側の特性・特殊エネルギーによるダメージ無効化・きぜつ耐性を考慮する
     （2026-08-06 追加）。defender_side_pokemon / defender_is_benched / damage_is_effect は
     damage_prevented への素通し引数（既定値のままなら従来どおりの挙動）。
+
+    attacker_side_pokemon（2026-08-12 追加）: resolve_damage への素通し引数。盤面依存の
+    可変ダメージ技（カミツオロチexデッキの3ワザ）の推定に使う。None（既定）なら従来どおり
+    これらのパターンを判定しない。can_ko の呼び出し規約では defender は常に相手のバトル場
+    ポケモンなので、resolve_damage の defender_active_pokemon にもそのまま渡す
+    （damage_prevented は上で既に判定済みのため、resolve_damage 側の defender 引数は渡さず
+    二重判定を避ける。従来どおりの最適化を維持する）。
     """
     if damage_prevented(attacker, defender, defender_side_pokemon, defender_is_benched, damage_is_effect):
         return False
-    damage = resolve_damage(attack, attacker, defender_weakness, defender_resistance, attacker_hand_size)
+    damage = resolve_damage(
+        attack, attacker, defender_weakness, defender_resistance, attacker_hand_size,
+        attacker_side_pokemon=attacker_side_pokemon, defender_active_pokemon=defender,
+    )
     if survives_via_ability(defender, damage):
         return False
     return damage >= defender.hp

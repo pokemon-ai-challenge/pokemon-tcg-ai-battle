@@ -1,0 +1,63 @@
+features.npz を読み込み: features_marnie_grimmsnarl_ex_seq.npz
+  ablate: 状態側 0 次元 / 選択肢側 14 次元を 0 で潰した ['opt_role_draw', 'opt_role_search', 'opt_role_deck_look', 'opt_is_deterministic', 'opts_n_draw', 'opts_n_search', 'opts_n_deck_look', 'opts_n_deterministic', 'opts_same_opttype_count', 'opt_hand_copies', 'hand_n_draw', 'hand_n_search', 'hand_n_energy_accel', 'hand_n_hand_disrupt']
+card_id_max=1267  embedding table size=1268 x 8
+train=649343 val=83789 test=85218 (全818350件)
+option特徴の標準化元行列 shape=(3507301, 79)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.0878  val_nll=1.0649 (best=1.0649, no_improve=0)  val_top1=0.6008
+    [baseline] epoch   5  train_loss=1.0646  val_nll=1.0624 (best=1.0623, no_improve=1)  val_top1=0.6016
+    [baseline] epoch  10  train_loss=1.0646  val_nll=1.0622 (best=1.0622, no_improve=0)  val_top1=0.6005
+    [baseline] epoch  15  train_loss=1.0646  val_nll=1.0622 (best=1.0615, no_improve=2)  val_top1=0.6007
+    [baseline] epoch  20  train_loss=1.0647  val_nll=1.0618 (best=1.0615, no_improve=7)  val_top1=0.6011
+    [baseline] 早期終了: epoch 23(val_nll が 10 epoch 改善せず)
+  学習完了 (1262.0s)
+  val : top1=0.6000  nll=1.0615
+  test: top1=0.6041  nll=1.0563
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=0.8183  val_nll=0.7837 (best=0.7837, no_improve=0)  val_top1=0.7183
+    [main] epoch   5  train_loss=0.7410  val_nll=0.7516 (best=0.7516, no_improve=0)  val_top1=0.7266
+    [main] epoch  10  train_loss=0.7253  val_nll=0.7417 (best=0.7392, no_improve=1)  val_top1=0.7290
+    [main] epoch  15  train_loss=0.7177  val_nll=0.7355 (best=0.7355, no_improve=0)  val_top1=0.7313
+    [main] epoch  20  train_loss=0.7132  val_nll=0.7316 (best=0.7316, no_improve=0)  val_top1=0.7325
+    [main] epoch  25  train_loss=0.7098  val_nll=0.7326 (best=0.7302, no_improve=2)  val_top1=0.7319
+    [main] epoch  30  train_loss=0.7075  val_nll=0.7315 (best=0.7277, no_improve=2)  val_top1=0.7318
+    [main] epoch  35  train_loss=0.7054  val_nll=0.7324 (best=0.7275, no_improve=1)  val_top1=0.7348
+    [main] epoch  40  train_loss=0.7044  val_nll=0.7292 (best=0.7272, no_improve=1)  val_top1=0.7330
+    [main] epoch  45  train_loss=0.7033  val_nll=0.7277 (best=0.7250, no_improve=2)  val_top1=0.7348
+    [main] epoch  50  train_loss=0.7021  val_nll=0.7265 (best=0.7250, no_improve=7)  val_top1=0.7342
+    [main] 早期終了: epoch 53(val_nll が 10 epoch 改善せず)
+  学習完了 (3725.2s, 53 epochs)
+  train: top1=0.7442  nll=0.6977
+  val  : top1=0.7355  nll=0.7250
+  test : top1=0.7368  nll=0.7274
+  train-val gap: top1=+0.0086  nll=+0.0273(overfitting指標)
+  param_counts: {'fc1': 8128, 'fc2': 33, 'embedding': 10144, 'mlp': 8161, 'total': 18305}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.6000  nll=1.0615
+  本命(state ++ option ++ embed): top1=0.7355  nll=0.7250
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n= 38915  top1=0.6718  nll=0.8881
+  select_type= 1  n= 36309  top1=0.7413  nll=0.7281
+  select_type= 2  n=    64  top1=1.0000  nll=0.0000
+  select_type= 4  n=  1318  top1=0.8900  nll=0.3517
+  select_type= 7  n=   818  top1=0.9719  nll=0.1386
+  select_type= 8  n=  5278  top1=0.9898  nll=0.0672
+  select_type= 9  n=  2516  top1=0.9821  nll=0.0722
+
+重みを書き出しました: ..\..\sample_submission\ptcg_ai\learning\policy_weights_marnie_seqctl_s2.json (395.0 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=1.42108547e-14  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.6041 nll=1.0563
+  本命(state ++ option ++ embed) test: top1=0.7368 nll=0.7274
+  自己検証: 最大誤差=1.42108547e-14 -> PASS
+  出力: ..\..\sample_submission\ptcg_ai\learning\policy_weights_marnie_seqctl_s2.json

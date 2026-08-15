@@ -1,0 +1,24 @@
+{
+  "n_decisions": 2000,
+  "total_options": 11313,
+  "results": {
+    "M32": {
+      "hidden_size": 32,
+      "total_seconds": 7.694755500007886,
+      "per_decision_ms": 3.847377750003943,
+      "per_option_us": 680.1693184838581
+    },
+    "M64": {
+      "hidden_size": 64,
+      "total_seconds": 18.123892000003252,
+      "per_decision_ms": 9.061946000001626,
+      "per_option_us": 1602.0411915498323
+    },
+    "M128": {
+      "hidden_size": 128,
+      "total_seconds": 35.036921499995515,
+      "per_decision_ms": 17.518460749997757,
+      "per_option_us": 3097.0495447711055
+    }
+  }
+}

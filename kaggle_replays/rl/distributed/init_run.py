@@ -81,6 +81,26 @@ def main():
     (run_dir / "shards").mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, C.model_path(run_dir, 0))
 
+    # 相手の重みがローカルの実ファイルを指しているなら、model_v0.json と同じやり方で
+    # run_dir 配下(opponents/)にコピーし、run.json には run_dir からの相対パスを書く。
+    # 絶対パス(例: C:\Users\...\policy_weights_x.json)のまま run.json に残すと、
+    # worker 側(Kaggle では run_dir が /kaggle/temp/run になる)でファイルが存在せず
+    # 解決できない。未指定(None)や、実ファイルに解決できない指定(production の既定名など)
+    # はそのまま素通しする(後方互換)。
+    opponent_weights_rel = args.opponent_weights
+    if args.opponent_weights:
+        cand = Path(args.opponent_weights)
+        if not cand.is_file():
+            cand2 = C.LEARNING_DIR / cand.name
+            if cand2.is_file():
+                cand = cand2
+        if cand.is_file():
+            opp_dir = run_dir / "opponents"
+            opp_dir.mkdir(parents=True, exist_ok=True)
+            dest = opp_dir / cand.name
+            shutil.copyfile(cand, dest)
+            opponent_weights_rel = str(dest.relative_to(run_dir).as_posix())
+
     run = {
         "run_id": args.run_id,
         "shard_format": C.SHARD_FORMAT,
@@ -97,7 +117,7 @@ def main():
         # のように足すだけでよい(worker 側は share の比で試合数を分ける)。
         "opponents": [
             {"id": args.opponent_weights or "production_default",
-             "weights": args.opponent_weights,
+             "weights": opponent_weights_rel,
              "share": 1.0},
         ],
         "ppo": {

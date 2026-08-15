@@ -36,6 +36,9 @@ def _choose_best_attack(obs: Observation) -> list[int]:
     attacker = player.active[0]
     defender = opponent.active[0]
     defender_card = card_cache.get_card(defender.id)
+    # 盤面依存の可変ダメージ技（カミツオロチexデッキの3ワザ、2026-08-12）の推定に使う、
+    # 攻撃側自身の場（先頭=バトル場、以降=ベンチ）。
+    attacker_side_pokemon = [attacker] + list(player.bench or [])
 
     best_index = None
     best_score = float("-inf")
@@ -48,6 +51,7 @@ def _choose_best_attack(obs: Observation) -> list[int]:
             attack, attacker, defender, defender_card.weakness, defender_card.resistance,
             defender_is_benched=False,
             damage_is_effect=attack_features.damage_is_effect_based(attack),
+            attacker_side_pokemon=attacker_side_pokemon,
         ):
             score += _KO_BONUS
         if score > best_score:

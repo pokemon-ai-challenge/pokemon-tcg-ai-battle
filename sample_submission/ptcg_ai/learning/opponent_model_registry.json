@@ -1,0 +1,7 @@
+{
+  "crustle": "policy_weights_kamitsuorochi_ex_vs_crustle_rl.json",
+  "ogerpon_teal_ex": "policy_weights_kamitsuorochi_ex_vs_ogerpon_teal_ex_rl.json",
+  "mega_lucario_ex": "policy_weights_kamitsuorochi_ex_vs_mega_lucario_ex_rl.json",
+  "dragapult_ex": "policy_weights_kamitsuorochi_ex_vs_dragapult_ex_rl.json",
+  "mega_froslass_ex": "policy_weights_kamitsuorochi_ex_vs_mega_froslass_ex_rl.json"
+}

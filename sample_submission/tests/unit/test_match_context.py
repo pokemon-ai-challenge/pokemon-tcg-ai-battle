@@ -128,13 +128,35 @@ def test_deck_selection_turn_registers_own_deck(monkeypatch):
 
 
 def test_update_is_noop_safe_before_any_call():
-    # reset()すら呼ばれていない状態でも get_own_state()/get_opponent_state() は例外を出さない。
+    # reset()すら呼ばれていない状態でも get_own_state()/get_opponent_state()/get_knowledge() は
+    # 例外を出さない。
     match_context.reset()
     own = match_context.get_own_state(0)
     opponent = match_context.get_opponent_state(0)
+    knowledge = match_context.get_knowledge(0)
     assert own is not None
     assert opponent is not None
     assert opponent.sample() == ([], [], [])
+    assert knowledge is not None
+    assert knowledge.get_prediction_features()["observed_card_ids"] == {}
+
+
+def test_get_knowledge_reflects_accumulated_observations(monkeypatch):
+    _patch_deck_loader(monkeypatch)
+    match_context.reset()
+    match_context.update(_deck_select_obs())
+
+    opp_active = make_pokemon(SCRAFTY_A, serial=500)
+    my_player = make_player_state(deck_count=53, prize=[None] * 6)
+    opp_player = make_player_state(deck_count=53, prize=[None] * 6, hand_count=7, active=[opp_active])
+    state = make_state(my_player, opp_player, turn=1)
+    match_context.update(_obs(select=make_select(), current=state, logs=[]))
+
+    # update() が update_from_logs/update_from_state で積んだのと同じインスタンスが返る
+    # (predictへ渡すために毎回作り直していない)。
+    knowledge = match_context.get_knowledge(0)
+    observed = knowledge.get_prediction_features()["observed_card_ids"]
+    assert observed.get(SCRAFTY_A, 0) >= 1
 
 
 # ----------------------------------------------------------------------

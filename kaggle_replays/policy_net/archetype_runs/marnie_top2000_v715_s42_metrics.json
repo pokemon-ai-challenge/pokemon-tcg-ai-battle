@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_marnie_top2000_v715.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 147909,
+  "n_val": 19922,
+  "n_test": 19932,
+  "epochs_trained": 37,
+  "train": {
+    "top1_accuracy": 0.7237558228370147,
+    "mean_weighted_nll": 0.7276209575813815
+  },
+  "val": {
+    "top1_accuracy": 0.6943078004216444,
+    "mean_weighted_nll": 0.8116761283761591
+  },
+  "test": {
+    "top1_accuracy": 0.6900963275135461,
+    "mean_weighted_nll": 0.8282885506406702
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.029448022415370256,
+    "mean_weighted_nll": 0.08405517079477764
+  },
+  "self_check_max_abs_err": 6.217248937900877e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_marnie_top2000_v715_s42.json"
+}

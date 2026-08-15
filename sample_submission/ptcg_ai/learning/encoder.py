@@ -71,6 +71,11 @@ _POOL8_ARCHETYPES: list[str] = [
     "dragapult_ex",
 ]
 
+#: ``_POOL8_ARCHETYPES`` の公開エイリアス。学習側(kaggle_replays/policy_net/
+#: build_features.py)が opponent_card_vocab をこのアーキタイプ集合から構築するために
+#: 参照する(T1残り、design-transformer-representation-2026-08-08.md §9論点11)。
+POOL8_ARCHETYPES: list[str] = _POOL8_ARCHETYPES
+
 # predict() の status がこれらの場合は「判断できない」として9次元すべて0(安全側)。
 _ARCHETYPE_ZERO_STATUS: frozenset = frozenset({"no_candidate", "insufficient_evidence"})
 
@@ -102,6 +107,29 @@ _HAND_CARD_SLOTS = 56
 #: ``_HAND_CARD_SLOTS`` の公開エイリアス。学習側(kaggle_replays/policy_net/
 #: build_features.py)が語彙をこの長さに切り詰めるために参照する。
 HAND_CARD_SLOTS: int = _HAND_CARD_SLOTS
+
+# T1残り(design-transformer-representation-2026-08-08.md §9論点11、roadmap-2026-08-05.md C2):
+# 相手の場・トラッシュの card_id カウントに使う語彙のスロット数。
+#
+# 自分の手札語彙(_HAND_CARD_SLOTS)は「使用中の自分のデッキ」という試合開始前から既知の
+# 集合から作れるが、相手のデッキは試合開始時点で不明。ゲーム全体の全ポケモンカード
+# (実測1,056種)を語彙にすると次元が大きくなりすぎる(まずカウント特徴で軽く基準を取る、
+# という T1 の趣旨に反する)ため、代わりに「評価・学習で使っている POOL8(8アーキタイプ、
+# _POOL8_ARCHETYPES と同じ集合)の代表デッキに実際に入っているカードの和集合」を固定語彙に
+# する(kaggle_replays/meta_analysis/archetype_decks/ を実走査、2026-08-09実測)。
+#
+# 場(active+bench)にはポケモンしか出ない(ポケモンのみなら65種)が、トラッシュには
+# トレーナーズ・エネルギーも捨てられる。自分側(_HAND_CARD_SLOTS)が手札/場/トラッシュで
+# 同じ「デッキ全体の語彙」を共有しているのと同じ設計にするため、相手側もポケモンに絞らず
+# **全カード種類**の和集合(実測157種)を場・トラッシュ両方の共通語彙にする。
+#
+# POOL8 外の未知アーキタイプに遭遇した場合、語彙に無いカードは単に数えられないだけで
+# 壊れない(手札語彙と同じ安全側フォールバック)。49→56 の手札語彙と同じ考え方
+# (実測値+余裕、+12%程度)で、157 + 余裕として 176 に固定する。
+_OPP_CARD_SLOTS = 176
+
+#: ``_OPP_CARD_SLOTS`` の公開エイリアス。学習側が語彙をこの長さに切り詰めるために参照する。
+OPP_CARD_SLOTS: int = _OPP_CARD_SLOTS
 
 # ポケモン1体あたりの特徴名(present は存在フラグ)。
 _POKEMON_FEATURE_NAMES = [
@@ -155,6 +183,13 @@ def _build_feature_names() -> list[str]:
             for feat in _POKEMON_FEATURE_NAMES:
                 names.append(f"{side}_{slot}_{feat}")
 
+    # --- T1(roadmap-2026-08-05.md C2残り、design-transformer-representation-2026-08-08.md):
+    #     自分の場(active+bench、None除く)のポケモンを card_id ごとの枚数へ数える(固定長、
+    #     手札(_HAND_CARD_SLOTS)と同じ語彙を共有する。デッキ由来の語彙なので、盤面に
+    #     出うるポケモンは全てこの語彙でカバーされる)。相手の場は語彙(相手のデッキが試合
+    #     開始時点で不明)の構築方法が未確定のため、今回はスコープ外(設計書 §10.1 参照)。
+    names += [f"self_board_card_slot_{i}" for i in range(_HAND_CARD_SLOTS)]
+
     # --- カウント系: 自分(内訳あり) ---
     names += [
         "self_hand_count",
@@ -170,6 +205,8 @@ def _build_feature_names() -> list[str]:
         "self_discard_count",
         "self_bench_count",
     ]
+    # --- T1: 自分のトラッシュ(公開情報)を card_id ごとの枚数へ数える(固定長、同上語彙) ---
+    names += [f"self_discard_card_slot_{i}" for i in range(_HAND_CARD_SLOTS)]
     # --- カウント系: 相手(枚数のみ) ---
     names += [
         "opp_hand_count",
@@ -178,6 +215,11 @@ def _build_feature_names() -> list[str]:
         "opp_discard_count",
         "opp_bench_count",
     ]
+    # --- T1残り(design-transformer-representation-2026-08-08.md §9論点11):
+    #     相手の場(active+bench、None除く)を card_id ごとの枚数へ数える(POOL8和集合語彙) ---
+    names += [f"opp_board_card_slot_{i}" for i in range(_OPP_CARD_SLOTS)]
+    # --- T1残り: 相手のトラッシュ(公開情報)を card_id ごとの枚数へ数える(同上語彙) ---
+    names += [f"opp_discard_card_slot_{i}" for i in range(_OPP_CARD_SLOTS)]
 
     # --- 特殊状態(バトル場、公開情報) ---
     for side in ("self", "opp"):
@@ -282,6 +324,12 @@ def _pokemon_features(
             defender_weakness = def_card.weakness
             defender_resistance = def_card.resistance
 
+    # 盤面依存の可変ダメージ技(カミツオロチexデッキの3ワザ、2026-08-12)の推定に使う、
+    # pokemon の所有側の場(先頭=バトル場、以降=ベンチ)。attack_features.resolve_damage/
+    # can_ko の attacker_side_pokemon にそのまま渡す。
+    own_side = state.players[owner_index]
+    attacker_side_pokemon: list[Pokemon | None] = [_active_pokemon(own_side)] + list(own_side.bench or [])
+
     best_damage = 0.0
     can_ko = 0.0
     min_shortfall = _MAX_SHORTFALL
@@ -302,11 +350,13 @@ def _pokemon_features(
             damage = attack_features.resolve_damage(
                 attack, pokemon, defender_weakness, defender_resistance, attacker_hand_size,
                 defender=defender, defender_is_benched=False, damage_is_effect=damage_is_effect,
+                attacker_side_pokemon=attacker_side_pokemon,
             )
             best_damage = max(best_damage, float(damage))
             if defender is not None and attack_features.can_ko(
                 attack, pokemon, defender, defender_weakness, defender_resistance, attacker_hand_size,
                 defender_is_benched=False, damage_is_effect=damage_is_effect,
+                attacker_side_pokemon=attacker_side_pokemon,
             ):
                 can_ko = 1.0
 
@@ -373,38 +423,55 @@ def _hand_breakdown(hand) -> tuple[float, float, float]:
     return float(pokemon), float(trainer), float(energy)
 
 
-def _hand_card_counts(hand, vocab: list[int] | None) -> list[float]:
-    """自分の手札(list[Card])を ``vocab`` の card_id ごとの枚数へ数える(固定長)。
+def _zone_card_counts(cards, vocab: list[int] | None, slots: int = _HAND_CARD_SLOTS) -> list[float]:
+    """``cards``(``.id`` 属性を持つ要素の列。Card / Pokemon いずれも可)を ``vocab`` の
+    card_id ごとの枚数へ数える(固定長)。手札・場・トラッシュ(自分/相手とも)で共有する
+    ヘルパー(T1、design-transformer-representation-2026-08-08.md。旧 ``_hand_card_counts``)。
 
     C2 第一段階(roadmap-2026-08-05.md): 既存の3値の内訳(_hand_breakdown)では
     「手札に何のカードがあるか」を区別できないため、card_id ごとの枚数を追加する。
 
-    ``vocab`` はデッキに紐づく語彙(学習時に重みJSONの ``meta.hand_card_vocab`` へ
-    保存されたもの、または None)。呼び出し元(PolicyModel._load 等)が語彙を持たない
-    場合は None を渡し、その場合は全 0 を返す(次元は必ず ``_HAND_CARD_SLOTS`` 出す。
+    ``vocab`` はデッキ/メタに紐づく語彙(学習時に重みJSONの ``meta.hand_card_vocab`` /
+    ``meta.opponent_card_vocab`` へ保存されたもの、または None)。呼び出し元が語彙を
+    持たない場合は None を渡し、その場合は全 0 を返す(次元は必ず ``slots`` 出す。
     長さを一定に保つため)。
 
-    ``vocab`` が ``_HAND_CARD_SLOTS`` を超える場合は警告した上で先頭 ``_HAND_CARD_SLOTS``
-    種のみを使う(語彙は呼び出し側が昇順に並べている前提)。手札に vocab 外の card_id が
+    ``vocab`` が ``slots`` を超える場合は警告した上で先頭 ``slots`` 種のみを使う
+    (語彙は呼び出し側が昇順に並べている前提)。``cards`` に vocab 外の card_id が
     あっても無視する(埋め込みではなくカウントなので、未知カードは単に数えられないだけで
     壊れない)。
+
+    Args:
+        slots: 出力の固定長。既定は手札用の ``_HAND_CARD_SLOTS``(自分の手札/場/トラッシュ
+            はこの既定のまま使う)。相手の場/トラッシュは ``_OPP_CARD_SLOTS`` を渡す。
     """
-    counts = [0.0] * _HAND_CARD_SLOTS
+    counts = [0.0] * slots
     if not vocab:
         return counts
-    if len(vocab) > _HAND_CARD_SLOTS:
+    if len(vocab) > slots:
         print(
-            f"[encoder] hand_card_vocab が _HAND_CARD_SLOTS({_HAND_CARD_SLOTS})を超えています "
-            f"({len(vocab)} 種)。先頭 {_HAND_CARD_SLOTS} 種のみ使用します。",
+            f"[encoder] card_vocab が slots({slots})を超えています "
+            f"({len(vocab)} 種)。先頭 {slots} 種のみ使用します。",
             file=sys.stderr,
         )
-        vocab = vocab[:_HAND_CARD_SLOTS]
+        vocab = vocab[:slots]
     index_by_card_id = {card_id: i for i, card_id in enumerate(vocab)}
-    for card in hand or []:
+    for card in cards or []:
+        if card is None:
+            continue
         idx = index_by_card_id.get(card.id)
         if idx is not None:
             counts[idx] += 1.0
     return counts
+
+
+def _board_card_counts(player, vocab: list[int] | None, slots: int = _HAND_CARD_SLOTS) -> list[float]:
+    """T1: 1プレイヤー分の場(active + ベンチ、None除く)のポケモンを card_id ごとの
+    枚数へ数える(``_zone_card_counts`` を経由)。
+    """
+    active = _active_pokemon(player)
+    pokemons = ([active] if active is not None else []) + list(player.bench or [])
+    return _zone_card_counts(pokemons, vocab, slots=slots)
 
 
 def _energy_on_board(player) -> float:
@@ -525,6 +592,7 @@ def encode_state_from_state(
     state: State | None,
     extra_features: list[float] | None = None,
     hand_card_vocab: list[int] | None = None,
+    opponent_card_vocab: list[int] | None = None,
 ) -> list[float]:
     """``encode_state()`` の本体。State を直接受け取る版(Observation を作れない呼び出し元向け)。
 
@@ -534,9 +602,15 @@ def encode_state_from_state(
         state: エージェント/リプレイ由来の State(``obs.current`` 相当)。
         extra_features: 将来の hidden_information 由来特徴などの差し込み口。渡された場合は
             基本特徴ベクトルの末尾へそのまま連結する(FEATURE_NAMES には含まれない)。
-        hand_card_vocab: 自分の手札の card_id カウント特徴(C2 第一段階)に使う語彙
-            (昇順の card_id リスト、デッキに紐づく)。None なら追加24次元は全て0
-            (次元は必ず出す)。詳細は :func:`_hand_card_counts`。
+        hand_card_vocab: 自分の手札・場(active+bench)・トラッシュの card_id カウント
+            特徴(C2、roadmap-2026-08-05.md)に使う語彙(昇順の card_id リスト、デッキに
+            紐づく)。3ゾーンで同じ語彙を共有する(§5.3 design-transformer-representation-
+            2026-08-08.md の「同じ card_id は同じ位置」という方針)。None なら追加分は
+            全て0(次元は必ず出す)。詳細は :func:`_zone_card_counts`。
+        opponent_card_vocab: 相手の場・トラッシュの card_id カウント特徴(T1残り、
+            design-transformer-representation-2026-08-08.md §9論点11)に使う語彙。
+            自分のデッキとは無関係な別の語彙(既定は POOL8 全アーキタイプの代表デッキの
+            ポケモンカード和集合、``_OPP_CARD_SLOTS`` 種まで)。None なら追加分は全て0。
 
     Returns:
         list[float]: 長さ ``BASE_FEATURE_COUNT`` (+ len(extra_features)) の決定的ベクトル。
@@ -562,6 +636,9 @@ def encode_state_from_state(
     # --- ポケモン毎: 相手(自分のバトル場を defender として打点計算) ---
     feats += _side_pokemon_block(opp, my_active, opp.handCount, state, opp_index)
 
+    # --- T1: 自分の場の card_id カウント(手札と同じ語彙) ---
+    feats += _board_card_counts(me, hand_card_vocab)
+
     # --- カウント系: 自分(内訳あり) ---
     hand_pkmn, hand_trainer, hand_energy = _hand_breakdown(me.hand)
     feats += [
@@ -570,13 +647,15 @@ def encode_state_from_state(
         hand_trainer,
         hand_energy,
     ]
-    feats += _hand_card_counts(me.hand, hand_card_vocab)
+    feats += _zone_card_counts(me.hand, hand_card_vocab)
     feats += [
         float(me.deckCount),
         float(len(me.prize or [])),
         float(len(me.discard or [])),
         float(len(me.bench or [])),
     ]
+    # --- T1: 自分のトラッシュ(公開情報)の card_id カウント(同上語彙) ---
+    feats += _zone_card_counts(me.discard, hand_card_vocab)
     # --- カウント系: 相手(枚数のみ) ---
     feats += [
         float(opp.handCount),
@@ -585,6 +664,9 @@ def encode_state_from_state(
         float(len(opp.discard or [])),
         float(len(opp.bench or [])),
     ]
+    # --- T1残り: 相手の場・トラッシュの card_id カウント(POOL8和集合語彙) ---
+    feats += _board_card_counts(opp, opponent_card_vocab, slots=_OPP_CARD_SLOTS)
+    feats += _zone_card_counts(opp.discard, opponent_card_vocab, slots=_OPP_CARD_SLOTS)
 
     # --- 特殊状態(バトル場) ---
     feats += [
@@ -692,6 +774,7 @@ def encode_state(
     obs: Observation,
     extra_features: list[float] | None = None,
     hand_card_vocab: list[int] | None = None,
+    opponent_card_vocab: list[int] | None = None,
 ) -> list[float]:
     """Observation(現在盤面)を固定長の特徴ベクトルへ変換する。
 
@@ -705,17 +788,25 @@ def encode_state(
             基本特徴ベクトルの末尾へそのまま連結する(FEATURE_NAMES には含まれない)。
         hand_card_vocab: :func:`encode_state_from_state` と同じ(C2 第一段階の手札 card_id
             語彙)。
+        opponent_card_vocab: :func:`encode_state_from_state` と同じ(T1残りの相手 card_id
+            語彙)。
 
     Returns:
         list[float]: 長さ ``BASE_FEATURE_COUNT`` (+ len(extra_features)) の決定的ベクトル。
     """
-    return encode_state_from_state(obs.current, extra_features=extra_features, hand_card_vocab=hand_card_vocab)
+    return encode_state_from_state(
+        obs.current,
+        extra_features=extra_features,
+        hand_card_vocab=hand_card_vocab,
+        opponent_card_vocab=opponent_card_vocab,
+    )
 
 
 def encode_obs_dict(
     obs_dict: dict,
     extra_features: list[float] | None = None,
     hand_card_vocab: list[int] | None = None,
+    opponent_card_vocab: list[int] | None = None,
 ) -> list[float]:
     """学習側ヘルパー: リプレイ/ランタイムの obs_dict を Observation にしてエンコードする。
 
@@ -729,13 +820,20 @@ def encode_obs_dict(
     Args:
         hand_card_vocab: :func:`encode_state_from_state` と同じ(C2 第一段階の手札 card_id
             語彙)。
+        opponent_card_vocab: :func:`encode_state_from_state` と同じ(T1残りの相手 card_id
+            語彙)。
     """
     d = dict(obs_dict)
     d.setdefault("logs", [])
     d.setdefault("select", None)
     d.setdefault("current", None)
     obs = to_observation_class(d)
-    return encode_state(obs, extra_features=extra_features, hand_card_vocab=hand_card_vocab)
+    return encode_state(
+        obs,
+        extra_features=extra_features,
+        hand_card_vocab=hand_card_vocab,
+        opponent_card_vocab=opponent_card_vocab,
+    )
 
 
 #
@@ -840,21 +938,44 @@ OPTION_FEATURE_NAMES: list[str] = _build_option_feature_names()
 OPTION_FEATURE_COUNT: int = len(OPTION_FEATURE_NAMES)
 
 
-def _zone_entries_for_option(area: AreaType, player, state: State) -> list | None:
+def _zone_entries_for_option(
+    area: AreaType, player, state: State, select: SelectData | None = None,
+) -> list | None:
+    """area が指すカード/ポケモンのリストを返す(解決不能/非公開なら None)。
+
+    2026-08-12(requirements-kamitsuorochi-2026-08-12.md「Risk to check explicitly」):
+    従来 STADIUM 以外の特殊ゾーンを一切見ておらず、TO_HAND(ハイパーボール/むしとりセット等の
+    サーチ)選択肢の大半(area=LOOKING/DECK)で card_id が解決できず 0(識別なし)に落ちていた
+    ("DECK(非公開)" というコメントは通常の非公開山札には正しいが、サーチで一時的に公開された
+    山札(``select.deck``)/めくったカード(``state.looking``)には当てはまらない)。
+    ``ptcg_ai/rule_based/card_move/common.py::_zone_entries`` が LOOKING を既に
+    ``state.looking`` として扱っており、本関数もそれに揃える(rule_based 側は変更しない・
+    ロジックだけ踏襲)。DECK は rule_based 側にも解決経路が無い新規追加で、
+    ``select.deck``(自分の山札をサーチ中のみ非 None、cg/api.py の SelectData.deck docstring
+    参照)を ``option.index`` で引く。
+    """
+    if area == AreaType.LOOKING:
+        return state.looking
     if area == AreaType.STADIUM:
         return state.stadium
+    if area == AreaType.DECK:
+        return select.deck if select is not None else None
     attr = _AREA_TO_PLAYER_ZONE.get(area)
     if attr is None:
         return None
     return getattr(player, attr, None)
 
 
-def _resolve_card_id(option: Option, state: State) -> int | None:
+def _resolve_card_id(option: Option, state: State, select: SelectData | None = None) -> int | None:
     """Option が指すカード/ポケモンの card_id (CardData.id) を特定する。
 
     OptionType.SKILL 以外は option.cardId が None のことが多いため、area/index
     (PLAY は area 省略・index は hand 内インデックス)と、どうぐ/エネルギーの場合は
     toolIndex/energyIndex を辿って解決する。解決できない場合は None。
+
+    ``select``: area が LOOKING/DECK の場合の解決に使う(``_zone_entries_for_option`` 参照)。
+    省略時(None)は LOOKING/DECK が解決できないだけで、他の area の解決には影響しない
+    (既存呼び出し元との後方互換)。
     """
     if option.cardId is not None:
         return option.cardId
@@ -867,7 +988,7 @@ def _resolve_card_id(option: Option, state: State) -> int | None:
     if area is None or option.index is None or not (0 <= player_index < len(state.players)):
         return None
 
-    zone = _zone_entries_for_option(area, state.players[player_index], state)
+    zone = _zone_entries_for_option(area, state.players[player_index], state, select)
     if zone is None or not (0 <= option.index < len(zone)):
         return None
     target = zone[option.index]
@@ -971,7 +1092,7 @@ def _option_features(
         feats += list(_ZERO_POKEMON)
 
     # --- 対象カード(手札・トラッシュ・サイド等。場に出ているポケモンではない) ---
-    card_id = _resolve_card_id(option, state)
+    card_id = _resolve_card_id(option, state, select)
     card = _card_or_none(card_id) if card_id is not None else None
     if card is not None:
         feats.append(1.0)
@@ -1008,14 +1129,19 @@ def _option_features(
         shortfall_sum = min(float(sum(shortfall.values())), _MAX_SHORTFALL)
         has_ready = 1.0 if not shortfall else 0.0
         damage_is_effect = attack_features.damage_is_effect_based(attack)
+        # 盤面依存の可変ダメージ技(カミツオロチexデッキの3ワザ、2026-08-12)の推定に使う、
+        # 自分の場(先頭=バトル場、以降=ベンチ)。
+        my_side_pokemon: list[Pokemon | None] = [me_active] + list(state.players[your_index].bench or [])
         damage = attack_features.resolve_damage(
             attack, me_active, defender_weakness, defender_resistance, hand_size,
             defender=opp_active, defender_is_benched=False, damage_is_effect=damage_is_effect,
+            attacker_side_pokemon=my_side_pokemon,
         )
         can_ko = 0.0
         if opp_active is not None and attack_features.can_ko(
             attack, me_active, opp_active, defender_weakness, defender_resistance, hand_size,
             defender_is_benched=False, damage_is_effect=damage_is_effect,
+            attacker_side_pokemon=my_side_pokemon,
         ):
             can_ko = 1.0
         feats += [1.0, float(damage) / 200.0, can_ko, shortfall_sum, has_ready]
@@ -1085,7 +1211,7 @@ def encode_option_card_ids(state: State | None, select: SelectData | None) -> li
 
     card_ids: list[int] = []
     for option in select.option:
-        card_id = _resolve_card_id(option, state)
+        card_id = _resolve_card_id(option, state, select)
         if card_id is None:
             pokemon = _resolve_pokemon(option, state)
             if pokemon is None:
@@ -1093,6 +1219,47 @@ def encode_option_card_ids(state: State | None, select: SelectData | None) -> li
             card_id = pokemon.id if pokemon is not None else None
         card_ids.append(card_id if card_id is not None else 0)
     return card_ids
+
+
+#: 盤面12スロットの並び順(encode_board_card_ids と揃える。_side_pokemon_block と同じ
+#: self→opp、各 active→bench0..4 の順)。学習側が Set Encoder のゾーン境界を知るのに使う。
+BOARD_SLOT_NAMES: list[str] = [
+    f"{side}_{slot}"
+    for side in ("self", "opp")
+    for slot in (["active"] + [f"bench{i}" for i in range(BENCH_SLOTS)])
+]
+
+#: 盤面12スロットの固定長(自分6+相手6)。POKEMON_SLOTS(=6) の2倍。
+BOARD_SLOTS: int = 2 * POKEMON_SLOTS
+
+
+def encode_board_card_ids(state: State | None) -> list[int]:
+    """T2(design-transformer-representation-2026-08-08.md §5.2、Set Encoder の入力):
+    場の12スロット(自分 active+bench5 → 相手 active+bench5、``BOARD_SLOT_NAMES`` と同じ順序)
+    の card_id 列を返す(存在しないスロット/``state`` が None は0)。
+
+    ``encode_option_card_ids`` と同じ「埋め込み(embedding)用の生の整数キー列」契約
+    (標準化はしない、0 = 識別なし/範囲外の予約枠)。``_side_pokemon_block`` の数値特徴
+    (``_POKEMON_FEATURE_NAMES``)とスロット順序を揃えてあるので、同じインデックスの
+    数値特徴と card_id を1枚のカードの情報として組み合わせられる。
+    """
+    if state is None:
+        return [0] * BOARD_SLOTS
+
+    your_index = state.yourIndex
+    opp_index = 1 - your_index
+    me = state.players[your_index]
+    opp = state.players[opp_index]
+
+    ids: list[int] = []
+    for player in (me, opp):
+        active = _active_pokemon(player)
+        ids.append(active.id if active is not None else 0)
+        bench = player.bench or []
+        for i in range(BENCH_SLOTS):
+            pkmn = bench[i] if i < len(bench) else None
+            ids.append(pkmn.id if pkmn is not None else 0)
+    return ids
 
 
 # ---------------------------------------------------------------------------

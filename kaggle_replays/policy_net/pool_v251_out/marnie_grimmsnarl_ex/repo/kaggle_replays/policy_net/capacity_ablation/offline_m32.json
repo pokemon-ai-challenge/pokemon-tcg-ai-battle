@@ -1,0 +1,35 @@
+{
+  "hidden_size": 32,
+  "features": "features_configC.npz",
+  "consequence_fields": [],
+  "seed": 42,
+  "param_counts": {
+    "fc1": 7680,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 7713,
+    "total": 17857
+  },
+  "n_train": 147705,
+  "n_val": 17359,
+  "n_test": 22626,
+  "epochs_trained": 24,
+  "train": {
+    "top1_accuracy": 0.6121932229782336,
+    "mean_weighted_nll": 0.9677899977800826
+  },
+  "val": {
+    "top1_accuracy": 0.5994008871478772,
+    "mean_weighted_nll": 1.1041534563995847
+  },
+  "test": {
+    "top1_accuracy": 0.5806152214266773,
+    "mean_weighted_nll": 1.1148633452795846
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.012792335830356438,
+    "mean_weighted_nll": 0.13636345861950216
+  },
+  "self_check_max_abs_err": 2.6645352591003757e-15,
+  "out_weights": "..\\..\\sample_submission\\ptcg_ai\\learning\\policy_weights_m32.json"
+}

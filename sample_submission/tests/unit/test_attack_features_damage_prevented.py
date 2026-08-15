@@ -265,6 +265,48 @@ def test_shaymin_without_side_list_is_false():
 
 
 # ---------------------------------------------------------------------------
+# 96 Teal Mask Ogerpon ex (テラスタル): 「ベンチにいる限りワザのダメージを受けない」は
+# cg/api.py の Pokemon.tera が表すルールであって、カード固有の特性テキストではない。
+# 2026-08-12 追加 (kamitsuorochi_ex 要件書 §5-2)。
+# ---------------------------------------------------------------------------
+
+TERA_OGERPON = 96           # tera=True, basic=True, HP210 (Teal Mask Ogerpon ex)
+KAMITSUOROCHI_EX = 150      # tera=False (Hydrapple ex / カミツオロチex)
+MEGANIUM = 710              # tera=False
+
+
+def test_tera_pokemon_blocks_attack_damage_when_benched():
+    assert damage_prevented(HIPPO, mkmon(TERA_OGERPON), defender_is_benched=True) is True
+
+
+def test_tera_pokemon_does_not_block_damage_when_active():
+    """テラスタルの無敵は「ベンチにいる限り」なので、バトル場にいるときは無効化されない。"""
+    assert damage_prevented(HIPPO, mkmon(TERA_OGERPON), defender_is_benched=False) is False
+
+
+def test_tera_pokemon_does_not_block_effect_damage_even_when_benched():
+    """テラスタルは「ワザのダメージ」だけを止め、「ワザの効果によるダメージ」は止めない
+    (A10 で導入した damage_is_effect 軸に従う)。"""
+    assert (
+        damage_prevented(HIPPO, mkmon(TERA_OGERPON), defender_is_benched=True, damage_is_effect=True)
+        is False
+    )
+
+
+@pytest.mark.parametrize("defender_id", [KAMITSUOROCHI_EX, MEGANIUM])
+def test_non_tera_pokemon_not_blocked_when_benched(defender_id):
+    """テラスタルでないポケモンはベンチにいても通常どおりダメージを受ける。"""
+    assert damage_prevented(HIPPO, mkmon(defender_id), defender_is_benched=True) is False
+
+
+def test_tera_barrier_disabled_by_env_flag(monkeypatch):
+    """PTCG_DISABLE_DEFENDER_ABILITY=1 は既存の他の防壁と同様にテラスタルのベンチ無敵も無効化する
+    (A/Bロールバック経路を一貫させるため、このガードの内側に判定を置いている)。"""
+    monkeypatch.setenv("PTCG_DISABLE_DEFENDER_ABILITY", "1")
+    assert damage_prevented(HIPPO, mkmon(TERA_OGERPON), defender_is_benched=True) is False
+
+
+# ---------------------------------------------------------------------------
 # 11 Mist Energy / 20 Rock Fighting Energy: ポケモンの特性ではなく装着エネルギー自身が
 # 持つ「効果のみを防ぐ」(種別3)防壁。ability_text ではなく defender.energyCards を見る必要がある。
 # ---------------------------------------------------------------------------

@@ -21,6 +21,10 @@ numpy/torch 非依存)のフォワードパスだけで各選択肢のスコア�
     "hand_card_vocab": [104, 112, ...],  # 任意。C2 第一段階(roadmap-2026-08-05.md)。
         # 自分の手札 card_id カウント特徴(encoder._HAND_CARD_SLOTS=24次元)の語彙
         # (昇順 card_id、学習時のデッキに紐づく)。無ければ当該次元は全0で推論する。
+    "opponent_card_vocab": [104, 118, ...],  # 任意。T1残り(design-transformer-
+        # representation-2026-08-08.md §9論点11)。相手の場・トラッシュ card_id カウント
+        # 特徴(encoder._OPP_CARD_SLOTS 次元)の語彙(昇順 card_id、POOL8全体の和集合)。
+        # 無ければ当該次元は全0で推論する。
     ...
   },
   "standardization": {
@@ -107,6 +111,14 @@ class PolicyModel:
         # (学習時のデッキに紐づく、昇順 card_id リスト)。meta に無い/旧重みなら None
         # (encoder 側は None を渡すと該当次元を全0にするので後方互換)。
         self._hand_card_vocab: list[int] | None = None
+        # T1残り(design-transformer-representation-2026-08-08.md §9論点11): 相手の場・
+        # トラッシュ card_id カウント特徴の語彙(POOL8全体の和集合、昇順 card_id リスト)。
+        # meta に無い/旧重みなら None(hand_card_vocab と同じ後方互換)。
+        self._opponent_card_vocab: list[int] | None = None
+        # T2(design-transformer-representation-2026-08-08.md §5.4段階1、Deep Sets):
+        # この重みが盤面 Set Encoder(card_embedding + mean/max/sum pooling)を使うかどうか。
+        # meta に無い/旧重みなら False(既存の T1 相当の PolicyScorer として扱う)。
+        self._use_board_set: bool = False
 
         self._load()
 
@@ -137,6 +149,9 @@ class PolicyModel:
         self._consequence_fields = list(payload.get("meta", {}).get("consequence_fields") or [])
         hand_card_vocab = payload.get("meta", {}).get("hand_card_vocab")
         self._hand_card_vocab = [int(v) for v in hand_card_vocab] if hand_card_vocab else None
+        opponent_card_vocab = payload.get("meta", {}).get("opponent_card_vocab")
+        self._opponent_card_vocab = [int(v) for v in opponent_card_vocab] if opponent_card_vocab else None
+        self._use_board_set = bool(payload.get("meta", {}).get("use_board_set", False))
 
         # 特徴量の次元がエンコーダと食い違う重みは読まない（未ロード状態のまま返す）。
         # _forward は range(len(state_features)) で回して state_mean[i] を引くため、
@@ -189,13 +204,22 @@ class PolicyModel:
         """
         if not self.is_ready or obs.current is None or obs.select is None or not obs.select.option:
             return []
-        state_features = encoder.encode_state_from_state(obs.current, hand_card_vocab=self._hand_card_vocab)
+        state_features = encoder.encode_state_from_state(
+            obs.current,
+            hand_card_vocab=self._hand_card_vocab,
+            opponent_card_vocab=self._opponent_card_vocab,
+        )
+        # T2: 盤面 Set Encoder は選択肢に依らず1判断で共通なので、ここで1回だけ計算する
+        # (設計書 §6.3。選択肢ごとに繰り返し計算しない)。
+        board_pooled = (
+            self._board_pooled(encoder.encode_board_card_ids(obs.current)) if self._use_board_set else None
+        )
         option_rows = encoder.encode_options_from_state(obs.current, obs.select)
         card_ids = encoder.encode_option_card_ids(obs.current, obs.select)
         if self._consequence_fields:
             option_rows = self._append_consequence_features(obs, option_rows, hidden_state_factory, deadline)
         return [
-            self._forward(state_features, option_row, card_id)
+            self._forward(state_features, option_row, card_id, board_pooled)
             for option_row, card_id in zip(option_rows, card_ids)
         ]
 
@@ -216,11 +240,16 @@ class PolicyModel:
             )
         if not self.is_ready or state is None or select is None or not select.option:
             return []
-        state_features = encoder.encode_state_from_state(state, hand_card_vocab=self._hand_card_vocab)
+        state_features = encoder.encode_state_from_state(
+            state,
+            hand_card_vocab=self._hand_card_vocab,
+            opponent_card_vocab=self._opponent_card_vocab,
+        )
+        board_pooled = self._board_pooled(encoder.encode_board_card_ids(state)) if self._use_board_set else None
         option_rows = encoder.encode_options_from_state(state, select)
         card_ids = encoder.encode_option_card_ids(state, select)
         return [
-            self._forward(state_features, option_row, card_id)
+            self._forward(state_features, option_row, card_id, board_pooled)
             for option_row, card_id in zip(option_rows, card_ids)
         ]
 
@@ -279,8 +308,35 @@ class PolicyModel:
         index = card_id if 0 <= card_id <= self._card_id_max else _UNKNOWN_CARD_EMBEDDING_INDEX
         return table[index]
 
-    def _forward(self, state_features: list[float], option_features: list[float], card_id: int) -> float:
-        """標準化 → 状態/選択肢特徴+カード埋め込みを連結 → 各層フォワード(最終層は活性化なし)。"""
+    def _board_pooled(self, board_card_ids: list[int]) -> list[float]:
+        """T2(design-transformer-representation-2026-08-08.md §5.4段階1、Deep Sets):
+        盤面 card_id 列(``encoder.BOARD_SLOTS`` 個)を card_embedding で引き、
+        mean/max/sum pooling して連結する(この順序で train.py の
+        ``PolicyScorerBoardSet._board_pooled`` と数値的に一致させる。自己検証対象)。
+
+        **呼び出し側への注意(設計書 §6.3)**: 1回の判断につき盤面は選択肢に依らず不変なので、
+        ``score_options`` 側で1回だけ計算してキャッシュし、選択肢ごとの :meth:`_forward` には
+        計算済みの結果を渡すこと。選択肢ごとに呼び直すと無駄な計算になる。
+        """
+        vecs = [self._card_embedding(cid) for cid in board_card_ids]
+        embed_dim = len(vecs[0])
+        n = len(vecs)
+        mean_pool = [sum(v[d] for v in vecs) / n for d in range(embed_dim)]
+        max_pool = [max(v[d] for v in vecs) for d in range(embed_dim)]
+        sum_pool = [sum(v[d] for v in vecs) for d in range(embed_dim)]
+        return mean_pool + max_pool + sum_pool
+
+    def _forward(
+        self,
+        state_features: list[float],
+        option_features: list[float],
+        card_id: int,
+        board_pooled: list[float] | None = None,
+    ) -> float:
+        """標準化 → 状態/選択肢特徴+カード埋め込み[+T2: board pooled]を連結 → 各層フォワード
+        (最終層は活性化なし)。``board_pooled`` は :meth:`_board_pooled` の戻り値
+        (1判断につき1回計算してキャッシュしたもの)を渡す想定、None なら T1相当(未使用)。
+        """
         state_mean, state_std = self._state_mean, self._state_std
         option_mean, option_std = self._option_mean, self._option_std
 
@@ -293,6 +349,8 @@ class PolicyModel:
             for i in range(len(option_features))
         ]
         h += self._card_embedding(card_id)
+        if board_pooled is not None:
+            h += board_pooled
 
         n_layers = len(self._layers)
         for layer_idx, (W, b) in enumerate(self._layers):

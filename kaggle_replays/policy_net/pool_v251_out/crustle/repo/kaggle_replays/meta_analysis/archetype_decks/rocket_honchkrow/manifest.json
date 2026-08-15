@@ -1,0 +1,45 @@
+{
+  "archetype": "rocket_honchkrow",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "nasuo445",
+      "rank_at_fetch": 131,
+      "leaderboard_score": 970.9,
+      "episode_id": "86127560",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "Nekogami",
+      "rank_at_fetch": 350,
+      "leaderboard_score": 897.0,
+      "episode_id": "86809400",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "Wazowski",
+      "rank_at_fetch": 2443,
+      "leaderboard_score": 673.6,
+      "episode_id": "85201437",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "TechRegigigas",
+      "rank_at_fetch": 3340,
+      "leaderboard_score": 588.5,
+      "episode_id": "86441912",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "Thazzeus",
+      "rank_at_fetch": 3619,
+      "leaderboard_score": 556.7,
+      "episode_id": "85242868",
+      "player_index": 0
+    }
+  ]
+}

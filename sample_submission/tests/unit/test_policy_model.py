@@ -117,3 +117,55 @@ def test_select_option_none_when_no_select(policy_model):
     obs = to_observation_class({"current": None, "logs": [], "select": None})
     assert policy_model.select_option(obs) is None
     assert policy_model.score_options(obs) == []
+
+
+def test_use_board_set_defaults_to_false(policy_model):
+    """meta.use_board_set が無い(旧)重みでは False のまま(T1相当、後方互換)。"""
+    assert policy_model._use_board_set is False
+
+
+def test_board_pooled_mean_max_sum_order():
+    """T2(design-transformer-representation-2026-08-08.md §5.4段階1): _board_pooled が
+    mean→max→sum の順で正しく連結されること。既知の小さい埋め込みテーブルで手計算と照合する
+    (train.py の PolicyScorerBoardSet._board_pooled と同じ順序であること自体は、
+    train.py 側の自己検証・cross-check スモークテストで別途確認済み)。
+    """
+    from ptcg_ai.learning.policy_model import PolicyModel
+
+    model = PolicyModel.__new__(PolicyModel)  # __init__ を経由せず内部状態だけ手動セット
+    model._card_embedding_table = [
+        [0.0, 0.0],  # index 0: 未知/範囲外の予約枠
+        [1.0, 2.0],  # index 1
+        [3.0, 0.0],  # index 2
+    ]
+    model._card_id_max = 2
+
+    pooled = model._board_pooled([1, 2, 999])  # 999 は範囲外 -> index 0 にフォールバック
+    # vecs = [[1,2], [3,0], [0,0]]
+    # mean = [4/3, 2/3]  max = [3, 2]  sum = [4, 2]
+    expected = [4 / 3, 2 / 3, 3.0, 2.0, 4.0, 2.0]
+    assert pooled == pytest.approx(expected)
+
+
+def test_forward_uses_board_pooled_when_provided():
+    """_forward に board_pooled を渡すと、渡さない場合とスコアが変わること
+    (board_pooled が実際に計算へ反映されていることの確認。数値そのものではなく
+    "使われているか" を確認する軽量な回帰テスト)。
+    """
+    from ptcg_ai.learning.policy_model import PolicyModel
+
+    model = PolicyModel.__new__(PolicyModel)
+    model._card_embedding_table = [[0.0], [1.0]]
+    model._card_id_max = 1
+    model._state_mean = [0.0]
+    model._state_std = [1.0]
+    model._option_mean = [0.0]
+    model._option_std = [1.0]
+    # in_dim = state(1) + option(1) + card_embed(1) [+ board_pooled(3) if given]
+    # 最終層1つだけ: 全入力を単純に加算するだけの重み。
+    model._layers = [([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0]], [0.0])]
+
+    score_without_board = model._forward([1.0], [1.0], 1, board_pooled=None)
+    score_with_board = model._forward([1.0], [1.0], 1, board_pooled=[1.0, 1.0, 1.0])
+    assert score_without_board != score_with_board
+    assert score_with_board == pytest.approx(score_without_board + 3.0)

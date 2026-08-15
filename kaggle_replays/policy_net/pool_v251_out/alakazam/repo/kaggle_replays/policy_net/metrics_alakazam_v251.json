@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_alakazam_v251.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 10400,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 10433,
+    "total": 20577
+  },
+  "n_train": 89722,
+  "n_val": 9537,
+  "n_test": 11500,
+  "epochs_trained": 16,
+  "train": {
+    "top1_accuracy": 0.6948463030248991,
+    "mean_weighted_nll": 0.8492790259691442
+  },
+  "val": {
+    "top1_accuracy": 0.6597462514417531,
+    "mean_weighted_nll": 0.9686652812516331
+  },
+  "test": {
+    "top1_accuracy": 0.664608695652174,
+    "mean_weighted_nll": 0.9641341975223913
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.035100051583146,
+    "mean_weighted_nll": 0.11938625528248892
+  },
+  "self_check_max_abs_err": 3.552713678800501e-15,
+  "out_weights": "policy_weights_alakazam_v251.json"
+}

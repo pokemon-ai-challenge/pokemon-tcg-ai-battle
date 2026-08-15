@@ -240,6 +240,173 @@ def test_encode_option_card_ids_empty_when_select_missing(encoder, observations)
     assert encoder.encode_option_card_ids(None, None) == []
 
 
+def test_board_and_discard_card_slots_present_in_feature_names(encoder):
+    """T1(design-transformer-representation-2026-08-08.md): 自分の場・トラッシュの
+    card_id カウント特徴が FEATURE_NAMES に追加されていること(手札と同じスロット数)。
+    """
+    names = encoder.FEATURE_NAMES
+    board_slots = [n for n in names if n.startswith("self_board_card_slot_")]
+    discard_slots = [n for n in names if n.startswith("self_discard_card_slot_")]
+    hand_slots = [n for n in names if n.startswith("self_hand_card_slot_")]
+    assert len(board_slots) == encoder.HAND_CARD_SLOTS
+    assert len(discard_slots) == encoder.HAND_CARD_SLOTS
+    assert len(board_slots) == len(hand_slots) == len(discard_slots)
+
+
+def test_board_and_discard_card_counts_are_zero_without_vocab(encoder, observations):
+    """vocab を渡さない(None、既定)場合、新設した3ゾーンとも全て0であること
+    (既存呼び出し元との後方互換性: 語彙を渡さなければ挙動が変わらない)。
+    """
+    obs = observations["mid_game"]
+    vec = encoder.encode_obs_dict(obs)
+    names = encoder.FEATURE_NAMES
+    for prefix in ("self_board_card_slot_", "self_discard_card_slot_", "self_hand_card_slot_"):
+        idxs = [i for i, n in enumerate(names) if n.startswith(prefix)]
+        assert all(vec[i] == 0.0 for i in idxs), prefix
+
+
+def test_board_card_counts_match_active_and_bench(encoder, observations):
+    """mid_game フィクスチャ(自分 active=343, bench=[756])で、vocab に両方を含めると
+    それぞれ1.0がカウントされ、vocab に無いカードは0のままであること。
+    """
+    obs = observations["mid_game"]
+    vocab = [343, 756, 999999]  # 999999 は場に存在しないダミー
+    vec = encoder.encode_obs_dict(obs, hand_card_vocab=vocab)
+    names = encoder.FEATURE_NAMES
+
+    def slot_value(prefix: str, card_id: int) -> float:
+        idx = vocab.index(card_id)
+        return vec[names.index(f"{prefix}{idx}")]
+
+    assert slot_value("self_board_card_slot_", 343) == 1.0
+    assert slot_value("self_board_card_slot_", 756) == 1.0
+    assert slot_value("self_board_card_slot_", 999999) == 0.0
+
+
+def test_discard_card_counts_count_duplicates(encoder, observations):
+    """mid_game フィクスチャの自分トラッシュに 1122/1123/1227 がそれぞれ2枚ずつ
+    含まれる(フィクスチャの実データ)ため、vocab に含めるとカウントが2になること。
+    """
+    obs = observations["mid_game"]
+    vocab = [345, 1122, 1123, 1227]
+    vec = encoder.encode_obs_dict(obs, hand_card_vocab=vocab)
+    names = encoder.FEATURE_NAMES
+
+    def slot_value(card_id: int) -> float:
+        idx = vocab.index(card_id)
+        return vec[names.index(f"self_discard_card_slot_{idx}")]
+
+    assert slot_value(345) == 1.0
+    assert slot_value(1122) == 2.0
+    assert slot_value(1123) == 2.0
+    assert slot_value(1227) == 2.0
+
+
+def test_board_card_counts_ignore_empty_bench_slots(encoder, observations):
+    """early_active_none フィクスチャ(active が None)で、vocab を渡しても場の
+    card_id カウントが例外にならず、存在しないスロットは無視されること。
+    """
+    obs = observations["early_active_none"]
+    vec = encoder.encode_obs_dict(obs, hand_card_vocab=[1, 2, 3])
+    names = encoder.FEATURE_NAMES
+    idxs = [i for i, n in enumerate(names) if n.startswith("self_board_card_slot_")]
+    assert all(vec[i] >= 0.0 for i in idxs)  # 例外にならず、負値も出ない
+
+
+def test_opp_board_and_discard_card_slots_present_in_feature_names(encoder):
+    """T1残り(design-transformer-representation-2026-08-08.md §9論点11): 相手の場・
+    トラッシュの card_id カウント特徴が FEATURE_NAMES に追加されていること
+    (OPP_CARD_SLOTS 個ずつ、自分側の HAND_CARD_SLOTS とは独立)。
+    """
+    names = encoder.FEATURE_NAMES
+    opp_board_slots = [n for n in names if n.startswith("opp_board_card_slot_")]
+    opp_discard_slots = [n for n in names if n.startswith("opp_discard_card_slot_")]
+    assert len(opp_board_slots) == encoder.OPP_CARD_SLOTS
+    assert len(opp_discard_slots) == encoder.OPP_CARD_SLOTS
+
+
+def test_opp_card_counts_are_zero_without_vocab(encoder, observations):
+    """opponent_card_vocab を渡さない(None、既定)場合、相手側の新設2ゾーンとも
+    全て0であること(既存呼び出し元との後方互換性)。
+    """
+    obs = observations["mid_game"]
+    vec = encoder.encode_obs_dict(obs)
+    names = encoder.FEATURE_NAMES
+    for prefix in ("opp_board_card_slot_", "opp_discard_card_slot_"):
+        idxs = [i for i, n in enumerate(names) if n.startswith(prefix)]
+        assert all(vec[i] == 0.0 for i in idxs), prefix
+
+
+def test_opp_board_card_counts_match_active_and_bench(encoder, observations):
+    """mid_game フィクスチャ(相手 active=678, bench=[674, 677])で、
+    opponent_card_vocab に含めるとそれぞれ1.0がカウントされること。
+    """
+    obs = observations["mid_game"]
+    vocab = [674, 677, 678, 999999]
+    vec = encoder.encode_obs_dict(obs, opponent_card_vocab=vocab)
+    names = encoder.FEATURE_NAMES
+
+    def slot_value(card_id: int) -> float:
+        idx = vocab.index(card_id)
+        return vec[names.index(f"opp_board_card_slot_{idx}")]
+
+    assert slot_value(674) == 1.0
+    assert slot_value(677) == 1.0
+    assert slot_value(678) == 1.0
+    assert slot_value(999999) == 0.0
+
+
+def test_opp_discard_card_counts_match_fixture(encoder, observations):
+    """mid_game フィクスチャの相手トラッシュ [1141, 6, 1121, 1097] がそれぞれ
+    1枚ずつ数えられること。自分側の hand_card_vocab を渡しても相手側の
+    カウントに影響しないこと(語彙が独立していることの確認)。
+    """
+    obs = observations["mid_game"]
+    vocab = [6, 1097, 1121, 1141]
+    vec = encoder.encode_obs_dict(
+        obs, hand_card_vocab=[1, 2, 3], opponent_card_vocab=vocab,
+    )
+    names = encoder.FEATURE_NAMES
+
+    def slot_value(card_id: int) -> float:
+        idx = vocab.index(card_id)
+        return vec[names.index(f"opp_discard_card_slot_{idx}")]
+
+    assert slot_value(6) == 1.0
+    assert slot_value(1097) == 1.0
+    assert slot_value(1121) == 1.0
+    assert slot_value(1141) == 1.0
+    # 自分側の hand_card_slot は自分のフィクスチャ手札([1,1225,345,...])のうち
+    # vocab=[1,2,3] に含まれる card_id=1 のみ1.0になるはず(相手側とは無関係)。
+    assert vec[names.index("self_hand_card_slot_0")] == 1.0
+
+
+def test_encode_board_card_ids_matches_fixture(encoder, observations):
+    """T2(design-transformer-representation-2026-08-08.md §5.2): mid_game フィクスチャ
+    (自分 active=343 bench=[756]、相手 active=678 bench=[674,677])で、
+    encode_board_card_ids が BOARD_SLOT_NAMES と同じ順序(self_active, self_bench0-4,
+    opp_active, opp_bench0-4)で正しい card_id 列を返すこと。
+    """
+    obs = _obs_with_select(observations, "mid_game")
+    ids = encoder.encode_board_card_ids(obs.current)
+    assert ids == [343, 756, 0, 0, 0, 0, 678, 674, 677, 0, 0, 0]
+    assert len(ids) == encoder.BOARD_SLOTS == len(encoder.BOARD_SLOT_NAMES)
+
+
+def test_encode_board_card_ids_none_state_returns_zeros(encoder):
+    """state が None の場合、例外にならず全0の固定長を返すこと。"""
+    ids = encoder.encode_board_card_ids(None)
+    assert ids == [0] * encoder.BOARD_SLOTS
+
+
+def test_encode_board_card_ids_empty_active_and_bench(encoder, observations):
+    """early_active_none フィクスチャ(active が None)で例外にならないこと。"""
+    obs = _obs_with_select(observations, "early_active_none")
+    ids = encoder.encode_board_card_ids(obs.current)
+    assert len(ids) == encoder.BOARD_SLOTS
+    assert all(isinstance(i, int) for i in ids)
+
+
 def test_encode_options_count_select_number_values(encoder, observations):
     """early_active_none フィクスチャ(COUNT選択、number=0/1)で number_norm が反映されること。"""
     obs = _obs_with_select(observations, "early_active_none")

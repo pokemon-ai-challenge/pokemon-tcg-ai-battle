@@ -1,0 +1,45 @@
+{
+  "archetype": "omatsuri_ondo",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "aca-ta",
+      "rank_at_fetch": 936,
+      "leaderboard_score": 817.0,
+      "episode_id": "86821450",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "Ryan Offstein",
+      "rank_at_fetch": 1040,
+      "leaderboard_score": 808.8,
+      "episode_id": "86808638",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "pingtian",
+      "rank_at_fetch": 1071,
+      "leaderboard_score": 806.5,
+      "episode_id": "86818593",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "airMac 778",
+      "rank_at_fetch": 1358,
+      "leaderboard_score": 781.9,
+      "episode_id": "86822720",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "いせえび",
+      "rank_at_fetch": 1373,
+      "leaderboard_score": 780.6,
+      "episode_id": "86808635",
+      "player_index": 1
+    }
+  ]
+}

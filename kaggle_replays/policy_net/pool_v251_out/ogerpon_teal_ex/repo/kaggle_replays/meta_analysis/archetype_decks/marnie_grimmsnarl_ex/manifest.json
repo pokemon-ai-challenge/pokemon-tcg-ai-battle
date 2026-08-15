@@ -1,0 +1,45 @@
+{
+  "archetype": "marnie_grimmsnarl_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Luca",
+      "rank_at_fetch": 1,
+      "leaderboard_score": 1242.3,
+      "episode_id": "86805980",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "bono",
+      "rank_at_fetch": 7,
+      "leaderboard_score": 1150.8,
+      "episode_id": "86282601",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "bono",
+      "rank_at_fetch": 7,
+      "leaderboard_score": 1150.8,
+      "episode_id": "86782598",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "jiatu.l",
+      "rank_at_fetch": 14,
+      "leaderboard_score": 1116.5,
+      "episode_id": "86782100",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "monnosuke",
+      "rank_at_fetch": 18,
+      "leaderboard_score": 1102.6,
+      "episode_id": "86301709",
+      "player_index": 0
+    }
+  ]
+}
