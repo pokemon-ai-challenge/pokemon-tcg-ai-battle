@@ -4,7 +4,7 @@
     "enabled": true,
     "module": "lethal_phase1",
     "max_remaining_prizes": 2,
-    "phase12_ms": 500,
+    "phase12_ms": 400,
     "max_nodes": 10000,
     "max_depth": 8,
     "max_chance_depth": 1,

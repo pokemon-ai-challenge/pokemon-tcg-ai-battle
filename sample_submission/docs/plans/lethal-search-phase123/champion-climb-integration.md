@@ -14,7 +14,7 @@ BC→PPO ポリシー、Kaggle publicScore 823.5）を1つのブランチに載�
 | `ml_policy/ml_policy_agent.py` | `_SEARCH_MODULES` に `lethal_phase1`（= `search/lethal/entry`）を登録。`_try_lethal` の context に `full_deck` を追加（Phase 2 の outcome 列挙に必要。無いと必ず `UNKNOWN`） |
 | `action_selection/selector.py` | マージ解決。`lethal_simple` / `lethal_phase1` / `pimc` の3モジュールを登録し、gen2 側の `hidden_state_source`（dummy / estimated）切り替えを維持したまま `full_deck` を渡す |
 | `configs/abl_5_full_lethalphase2.json` | 新規。champion の `abl_5_full` の `pipeline` セクションはそのまま、`lethal_search` だけ Phase 1/2 に差し替えた opt-in config |
-| `ptcg_ai/learning/policy_weights.json` | champion の `policy_weights_alakazam_rl_climb.json` に差し替え（sha256 `395b0248…` = `models/climb_lb823/MANIFEST.json` の提出時パッケージと一致） |
+| `ptcg_ai/learning/policy_weights.json` | 当初は champion の `policy_weights_alakazam_rl_climb.json`（sha256 `395b0248…`）。**2026-08-14 に 2026-08-02 生成の再学習BC `policy_weights_alakazam_bc2.json`（sha256 `8f5b4bf6…`、RL なし、同一 test split の top1 0.5778→0.6643）へ差し替え。** climb 側の重みはファイルとして残してあるので復帰可能 |
 | `deck.csv` | 変更不要。マージ後の時点で既に Plan A アラカザム(フーディン)デッキ（`models/climb_lb823/deck.csv` と改行を除いて一致） |
 
 意思決定パイプラインは champion と同じ 3 段のままで、1段目だけが入れ替わる:
@@ -53,7 +53,7 @@ replay 検証 100% / 失敗時 fallback 100% / リソースリーク 0）は満�
 ### 時間予算
 
 Phase 1/2 が動くのは precheck を通った局面（残りサイド ≤ 2 など）だけで、その場合の
-1手あたり最悪時間は `phase12_ms=500` + pipeline（動的予算、`max_ms=2000`）。
+1手あたり最悪時間は `phase12_ms=400` + pipeline（動的予算、`max_ms=2000`）。
 疎通確認した2試合では 123 select 中 8 回の発火だった。
 
 ## 3. パラメータの根拠
@@ -63,10 +63,34 @@ Phase 1/2 が動くのは precheck を通った局面（残りサイド ≤ 2 �
 
 - `max_remaining_prizes: 2` — champion の `lethal_simple` は 3 だが、Phase 1/2 の
   能力コーパスは 2 で測っている。3 へ上げるのは再測定してから。
-- `phase12_ms: 500` — 付録 W の Phase 2 能力（Phase 1 に無い追加確定 9 件）を測った予算。
-  champion の lethal 段は 100ms だったので、1手あたりの最悪時間は +400ms 増える
-  （`pipeline.time_budget` の `max_ms: 2000` の範囲内）。
+- `phase12_ms: 400`（2026-08-14 に 500 から変更） — champion の lethal 段は 100ms
+  だったので、1手あたりの最悪時間は +300ms 増える（`pipeline.time_budget` の
+  `max_ms: 2000` の範囲内）。500 → 400 で確定数がどう変わるかは下記の実測どおり。
 - `max_depth: 8` / `max_chance_depth: 1` — 実測 baseline のまま。
+
+### `phase12_ms` 500 → 400 の実測（能力コーパス 205 局面 / valid 185）
+
+**本番と同じ予算配分**（Phase 1 が先に走り、Phase 2 は `phase12_ms - Phase1経過` で走る。
+`entry._run`）で比較した結果:
+
+| subset | 400ms 確定 | 500ms 確定 | 失った確定 |
+|---|---|---|---|
+| exact-positive (n=80) | 64 | 64 | **0** |
+| chance-positive (n=40) | 23 | 23 | **0** |
+| all-valid (n=185) | 86 | 88 | **2**（いずれも Phase 1 側） |
+
+主評価の exact-positive では損失なし。all-valid で減った 2 件は Phase 1 の深い証明が
+時間切れになったもので、Phase 2 の追加確定は 400/500 とも 1 件で変わらない。
+
+### 注意: 共有予算だと Phase 2 はほとんど時間をもらえない
+
+付録 W の「Phase 2 が Phase 1 に無い確定を +9 件」は、**各 phase に満額の予算を与えた**
+能力比較（`tools/compare_phases.py`）の値。本番の `entry._run` は `phase12_ms` を
+両者で分け合うため、Phase 1 が証明に失敗する局面ではほぼ全額を使い切り、Phase 2 に
+残るのは数 ms しかない。上表のとおり **本番配分での Phase 2 の追加確定は 1 件**に留まる。
+
+Phase 2 の能力を活かすなら Phase 1 の取り分に上限を設ける（例: `phase1_ms` を別キーで
+切る）改修が要る。現状はその改修を入れていないので、Phase 2 の寄与は限定的と見るべき。
 
 ## 4. 既知の未解決事項（コーパスとデッキの不一致）
 
