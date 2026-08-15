@@ -609,6 +609,218 @@ def test_returned_action_is_legal_for_current_select(install_engine):
 
 
 # ---------------------------------------------------------------------------
+# 優先展開 (config-gated: priority_play_card_ids / priority_play_max_remaining_prizes)
+#
+# G1調査: 「ボスの指令→入替→攻撃→勝ち」の列は現行順序だと PLAY が最後尾(rank 5)で
+# 予算内に到達できない。対象カードの手札PLAYだけを ATTACK の直後へ引き上げる。
+# キーが無ければ順序は一切変わらない(既存挙動バイト不変)ことも同値テストで固定する。
+# ---------------------------------------------------------------------------
+
+BOSS_ORDERS_ID = 1182   # ボスの指令(data/JP_Card_Data.csv)
+BRIAR_ID = 1201         # ブライア(同上)
+OTHER_CARD_ID = 999     # 優先対象でないカード
+
+
+def make_hand_state(*, my_prizes: int = 1, hand_ids: tuple[int, ...] = ()) -> State:
+    """自分の手札に指定IDのカードを持たせた State。"""
+    state = make_state(my_prizes=my_prizes)
+    state.players[state.yourIndex].hand = [
+        Card(id=card_id, serial=100 + i, playerIndex=state.yourIndex)
+        for i, card_id in enumerate(hand_ids)
+    ]
+    return state
+
+
+def make_option_select(options: list[Option], *, min_count: int = 1, max_count: int = 1) -> SelectData:
+    return SelectData(
+        type=SelectType.MAIN,
+        context=SelectContext.MAIN,
+        minCount=min_count,
+        maxCount=max_count,
+        remainDamageCounter=0,
+        remainEnergyCost=0,
+        option=options,
+        deck=None,
+        contextCard=None,
+        effect=None,
+    )
+
+
+def legacy_candidate_selections(select: SelectData, config: dict) -> list[list[int]]:
+    """変更前の `_candidate_selections` をそのまま写した参照実装(同値テスト用)。"""
+    import itertools
+
+    order = list(range(len(select.option)))
+    if select.type == SelectType.MAIN:
+        order = [i for i in order if select.option[i].type != OptionType.END]
+        order.sort(
+            key=lambda i: lethal_simple._MAIN_OPTION_PRIORITY.get(
+                select.option[i].type, lethal_simple._DEFAULT_PRIORITY
+            )
+        )
+    min_count = max(select.minCount, 0)
+    max_count = min(select.maxCount, len(order))
+    limit = int(config["max_combinations_per_select"])
+    out: list[list[int]] = []
+    for count in range(min_count, max_count + 1):
+        for combo in itertools.combinations(order, count):
+            out.append(list(combo))
+            if len(out) >= limit:
+                return out
+    return out
+
+
+# 「ATTACH / その他PLAY / ABILITY / ATTACK / 対象PLAY / RETREAT / EVOLVE / END」の混在盤面。
+# 手札は [0]=その他カード, [1]=ボスの指令, [2]=ブライア。
+def _mixed_select() -> SelectData:
+    return make_option_select([
+        Option(type=OptionType.ATTACH, index=0),        # 0
+        Option(type=OptionType.PLAY, index=0),          # 1: 手札0=対象外カード
+        Option(type=OptionType.ABILITY),                # 2
+        Option(type=OptionType.ATTACK),                 # 3
+        Option(type=OptionType.PLAY, index=1),          # 4: 手札1=ボスの指令
+        Option(type=OptionType.RETREAT),                # 5
+        Option(type=OptionType.EVOLVE),                 # 6
+        Option(type=OptionType.END),                    # 7
+    ])
+
+
+def test_priority_play_absent_keys_keep_existing_order():
+    """新キーが無い config では生成順が変更前と完全一致する(既存挙動バイト不変)。"""
+    select = _mixed_select()
+    state = make_hand_state(hand_ids=(OTHER_CARD_ID, BOSS_ORDERS_ID, BRIAR_ID))
+    config = {k: v for k, v in lethal_simple.DEFAULTS.items() if not k.startswith("priority_play")}
+
+    got = list(lethal_simple._candidate_selections(select, config, state))
+    assert got == legacy_candidate_selections(select, config)
+    # 参照実装と一致していることに加えて、期待順序そのものも明示しておく。
+    assert got == [[3], [2], [6], [0], [5], [1], [4]]
+
+
+def test_priority_play_empty_list_keeps_existing_order():
+    """既定(空リスト)でも順序は変わらない。state を渡す/渡さないでも同一。"""
+    select = _mixed_select()
+    state = make_hand_state(hand_ids=(OTHER_CARD_ID, BOSS_ORDERS_ID, BRIAR_ID))
+    config = dict(lethal_simple.DEFAULTS)
+
+    legacy = legacy_candidate_selections(select, config)
+    assert list(lethal_simple._candidate_selections(select, config, state)) == legacy
+    assert list(lethal_simple._candidate_selections(select, config, None)) == legacy
+    assert list(lethal_simple._candidate_selections(select, config)) == legacy
+
+
+def test_priority_play_promotes_target_play_right_after_attack():
+    """対象PLAYが ATTACK の直後に来る: ATTACK→対象PLAY→ABILITY→EVOLVE→ATTACH→RETREAT→その他PLAY。"""
+    select = _mixed_select()
+    state = make_hand_state(my_prizes=2, hand_ids=(OTHER_CARD_ID, BOSS_ORDERS_ID, BRIAR_ID))
+    config = {
+        **lethal_simple.DEFAULTS,
+        "priority_play_card_ids": [BOSS_ORDERS_ID, BRIAR_ID],
+        "priority_play_max_remaining_prizes": 2,
+    }
+
+    got = list(lethal_simple._candidate_selections(select, config, state))
+    assert got == [[3], [4], [2], [6], [0], [5], [1]]
+    # 枝刈りではなく並べ替えのみ: 集合は変わらない(END を除いた全選択肢が出る)。
+    assert sorted(got) == sorted(
+        legacy_candidate_selections(select, config)
+    )
+
+
+def test_priority_play_prize_threshold_boundary():
+    """自分の残りサイドが閾値以下でのみ発動する(境界: 2=発動 / 3=発動しない)。"""
+    select = _mixed_select()
+    config = {
+        **lethal_simple.DEFAULTS,
+        "priority_play_card_ids": [BOSS_ORDERS_ID],
+        "priority_play_max_remaining_prizes": 2,
+    }
+
+    on_state = make_hand_state(my_prizes=2, hand_ids=(OTHER_CARD_ID, BOSS_ORDERS_ID))
+    assert list(lethal_simple._candidate_selections(select, config, on_state))[1] == [4]
+
+    off_state = make_hand_state(my_prizes=3, hand_ids=(OTHER_CARD_ID, BOSS_ORDERS_ID))
+    assert list(lethal_simple._candidate_selections(select, config, off_state)) == (
+        legacy_candidate_selections(select, config)
+    )
+
+
+def test_priority_play_resolves_card_from_hand_when_cardid_is_none():
+    """MAIN の Option.cardId は実測で常に None。手札実体 hand[index].id で同定できること。"""
+    state = make_hand_state(hand_ids=(OTHER_CARD_ID, BOSS_ORDERS_ID))
+    play_boss = Option(type=OptionType.PLAY, index=1)
+    assert play_boss.cardId is None
+    assert lethal_simple._play_option_card_id(play_boss, state) == BOSS_ORDERS_ID
+    # cardId が入っている場合はそちらを優先(将来 API が埋めてきても壊れない)。
+    assert lethal_simple._play_option_card_id(
+        Option(type=OptionType.PLAY, index=1, cardId=OTHER_CARD_ID), state
+    ) == OTHER_CARD_ID
+    # 判定不能(index 範囲外 / index なし / state なし)は None。
+    assert lethal_simple._play_option_card_id(Option(type=OptionType.PLAY, index=9), state) is None
+    assert lethal_simple._play_option_card_id(Option(type=OptionType.PLAY), state) is None
+    assert lethal_simple._play_option_card_id(play_boss, None) is None
+
+
+def test_priority_play_only_applies_to_play_options():
+    """同じ手札インデックスでも PLAY 以外(ATTACH 等)は引き上げない。"""
+    select = make_option_select([
+        Option(type=OptionType.ATTACH, index=1),   # 0: 手札1(ボスの指令)を指すが ATTACH
+        Option(type=OptionType.ATTACK),            # 1
+        Option(type=OptionType.PLAY, index=0),     # 2: 対象外カード
+    ])
+    state = make_hand_state(my_prizes=1, hand_ids=(OTHER_CARD_ID, BOSS_ORDERS_ID))
+    config = {
+        **lethal_simple.DEFAULTS,
+        "priority_play_card_ids": [BOSS_ORDERS_ID],
+        "priority_play_max_remaining_prizes": 2,
+    }
+    assert list(lethal_simple._candidate_selections(select, config, state)) == (
+        legacy_candidate_selections(select, config)
+    )
+
+
+def test_priority_play_changes_search_expansion_order(install_engine):
+    """探索本体でも優先展開が効く: ATTACK の次に踏まれるのが対象PLAYになる。
+
+    盤面: ATTACK は turn が終わるだけ、ATTACH も無意味、ボスの指令 PLAY のあとの攻撃で勝ち。
+    現行順序では ATTACH(rank3) が PLAY(rank5) より先に踏まれる。
+    """
+    state = make_hand_state(my_prizes=2, hand_ids=(BOSS_ORDERS_ID,))
+    root_select = make_option_select([
+        Option(type=OptionType.ATTACK),          # 0
+        Option(type=OptionType.ATTACH, index=0), # 1
+        Option(type=OptionType.PLAY, index=0),   # 2: ボスの指令
+    ])
+    root_obs = make_obs(state, root_select)
+    mid_obs = make_obs(
+        make_hand_state(my_prizes=2, hand_ids=()),
+        make_select([OptionType.ATTACK, OptionType.END]),
+    )
+    nodes = {
+        "root": FakeNode(root_obs, {(0,): "opp", (1,): "opp", (2,): "mid"}),
+        "mid": FakeNode(mid_obs, {(0,): "win"}),
+        "win": WIN,
+        "opp": OPP_TURN,
+    }
+
+    engine = install_engine(FakeEngine(dict(nodes), default="opp"))
+    assert run_search(
+        root_obs,
+        max_remaining_prizes=2,
+        priority_play_card_ids=[BOSS_ORDERS_ID],
+        priority_play_max_remaining_prizes=2,
+    ) == [2]
+    assert engine.step_log[0] == ("root", (0,))
+    assert engine.step_log[1] == ("root", (2,))  # 対象PLAYが ATTACK の直後
+
+    # 同じ盤面を新キー無しで走らせると、現行どおり ATTACH が先に踏まれる。
+    engine2 = install_engine(FakeEngine(dict(nodes), default="opp"))
+    assert run_search(root_obs, max_remaining_prizes=2) == [2]
+    assert engine2.step_log[0] == ("root", (0,))
+    assert engine2.step_log[1] == ("root", (1,))
+
+
+# ---------------------------------------------------------------------------
 # Hidden-state stub (dummy data for search_begin)
 # ---------------------------------------------------------------------------
 

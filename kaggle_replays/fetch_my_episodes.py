@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import subprocess
 import sys
 import tempfile
@@ -86,6 +87,35 @@ def find_own_team(rows: list[dict], username: str) -> dict | None:
     return None
 
 
+def update_submission_episode_map(path: Path, new_entries: dict[str, list[str]]) -> int:
+    """提出(submission ref)→エピソードID一覧の対応表を追記更新する。
+
+    episodes_master.jsonl にはエピソード単位の情報しか残らず、どの提出に紐づくかは
+    (`fetch_episodes(submission_ref)` が提出スコープでエピソードを返す)この呼び出し
+    の時点でしか分からない。そのため、ここで別ファイルとして対応を残す。
+
+    - 既存キー(このrunで触れなかった提出)の値は変更しない。
+    - 同じ提出を複数回fetchした場合はエピソードIDの和集合を取る(提出は稼働中に
+      エピソードが増えていくため、和集合が正しい)。
+    - ファイルが存在しない場合は新規作成する。
+
+    戻り値: 新規に追加されたエピソードID件数(和集合で増えた分の合計、ログ表示用)。
+    """
+    existing: dict[str, list] = {}
+    if path.exists():
+        existing = json.loads(path.read_text(encoding="utf-8"))
+    added = 0
+    for ref, eids in new_entries.items():
+        before = set(str(e) for e in existing.get(ref, []))
+        merged = before | set(str(e) for e in eids)
+        added += len(merged) - len(before)
+        existing[ref] = sorted(merged, key=int)
+    path.write_text(
+        json.dumps(existing, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    return added
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--competition", default="pokemon-tcg-ai-battle")
@@ -105,6 +135,16 @@ def main() -> None:
         help="API呼び出し間隔(秒)。kaggle CLI自体の起動コストが1回あたり約1〜2秒あるため、"
         "この値を下げても速度への影響は限定的(体感を大きく変えたいなら --max-episodes を絞る方が効果的)",
     )
+    parser.add_argument(
+        "--episode-map-path",
+        default=str(Path(__file__).parent / "_submission_episode_map.json"),
+        help="提出ref→エピソードID一覧の対応表(追記更新、既存キーは変更しない)。"
+        "分析スクリプト(_archetype_winloss.py 等)が読む _submission_episode_map.json 形式",
+    )
+    parser.add_argument(
+        "--skip-episode-map-update", action="store_true",
+        help="提出→エピソード対応表の更新をスキップする(従来どおりepisodes_master.jsonlのみ更新)",
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -115,11 +155,11 @@ def main() -> None:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-self"
     fetched_at = datetime.now(timezone.utc).isoformat()
 
-    print("[1/5] 自分のユーザー名を確認")
+    print("[1/6] 自分のユーザー名を確認")
     username = get_own_username()
     print(f"  username={username}")
 
-    print(f"[2/5] 公開リーダーボード全体を取得し、自分のチームを特定 ({args.competition})")
+    print(f"[2/6] 公開リーダーボード全体を取得し、自分のチームを特定 ({args.competition})")
     all_rows, name_to_context = fetch_full_leaderboard_context(args.competition)
     self_row = find_own_team(all_rows, username)
     if self_row is None:
@@ -134,21 +174,26 @@ def main() -> None:
             f"(teamId={self_row['TeamId']}, rank={self_row['Rank']}, score={self_row['Score']})"
         )
 
-    print(f"[3/5] 自分の提出一覧を取得(新しい順に最大{args.submissions}件)")
+    print(f"[3/6] 自分の提出一覧を取得(新しい順に最大{args.submissions}件)")
     own_submissions = run_kaggle_json(["competitions", "submissions", args.competition])
     completed = [s for s in own_submissions if s.get("status") == "SubmissionStatus.COMPLETE"]
     target_submissions = completed[: args.submissions]
     for s in target_submissions:
         print(f"  submission {s['ref']} ({s['date']}, publicScore={s['publicScore']})")
 
-    print("[4/5] エピソード一覧を取得・リプレイをダウンロード")
+    print("[4/6] エピソード一覧を取得・リプレイをダウンロード")
     episode_meta: dict[str, dict] = {}
+    # fetch_episodes(ref) は提出スコープでエピソードを返すため、この時点でしか
+    # 「どの提出にどのエピソードが属するか」は分からない(下のepisode_metaは全提出を
+    # フラットにマージしてしまうため対応が失われる)。[6/6]の対応表更新用に別途残す。
+    submission_episode_ids: dict[str, list[str]] = {}
     for s in target_submissions:
         try:
             episodes = fetch_episodes(s["ref"])
         except subprocess.CalledProcessError as e:
             print(f"  警告: submission {s['ref']} のエピソード取得に失敗: {e.stderr}", file=sys.stderr)
             continue
+        submission_episode_ids[str(s["ref"])] = [str(ep["id"]) for ep in episodes]
         for ep in episodes:
             episode_meta[str(ep["id"])] = ep
         time.sleep(args.sleep)
@@ -172,7 +217,7 @@ def main() -> None:
             print(f"  警告: episode {eid} のリプレイ取得に失敗: {e.stderr}", file=sys.stderr)
         time.sleep(args.sleep)
 
-    print(f"[5/5] エピソードマスターインデックスを更新 -> {master_index_path}")
+    print(f"[5/6] エピソードマスターインデックスを更新 -> {master_index_path}")
     already_indexed = load_existing_episode_ids(master_index_path)
     new_rows = build_master_rows(
         run_id=run_id,
@@ -185,7 +230,18 @@ def main() -> None:
     )
     append_master_rows(master_index_path, new_rows)
 
-    print(f"完了: リプレイ{len(downloaded)}件を保存、マスターインデックスに{len(new_rows)}件を追記しました")
+    added_map_entries = 0
+    if args.skip_episode_map_update:
+        print("[6/6] 提出→エピソード対応表の更新はスキップ(--skip-episode-map-update)")
+    else:
+        episode_map_path = Path(args.episode_map_path)
+        print(f"[6/6] 提出→エピソード対応表を更新 -> {episode_map_path}")
+        added_map_entries = update_submission_episode_map(episode_map_path, submission_episode_ids)
+
+    print(
+        f"完了: リプレイ{len(downloaded)}件を保存、マスターインデックスに{len(new_rows)}件を追記、"
+        f"提出対応表に新規エピソードID{added_map_entries}件を追記しました"
+    )
 
 
 if __name__ == "__main__":

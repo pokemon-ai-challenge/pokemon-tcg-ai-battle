@@ -1,0 +1,32 @@
+{
+ "name": "og_v032",
+ "kaggle_submission": "55498225",
+ "submitted_at": "2026-08-14T04:58:07Z",
+ "tarball": {
+  "path": "build_ready/submission_og_v032.tar.gz",
+  "sha256": "10586dcfa34eb801aa5aa03d7a4f477d19c7bb274b0c58ad1be8c84935416160"
+ },
+ "deck": {
+  "path": "sample_submission/models/og_v032/deck_g2top2_v032.csv",
+  "sha256": "f91bdd62f95f0c5156e0f0ccfb81072724ef1e94cfa52c74b49483803fc1e39d",
+  "diff_vs_mixogerpon": "カプ・ブルル-1 / クラッシュハンマー+1(=4) / エネルギー転送+1(=3) / ポケギア3.0-1(=2)"
+ },
+ "weights": {
+  "path": "sample_submission/ptcg_ai/learning/policy_weights_ogerpon_teal_ex_rl_mixogerpon.json",
+  "sha256": "e9e348d80c8ec35cc56831028419ba908a9ea85b5b04af63c26c175cdca37437",
+  "note": "mixogerpon(55464390)と同一。デッキのみ差分のclean ablation"
+ },
+ "config": {
+  "name": "abl_5_full",
+  "sha256": "ca6c37af4b1a4149dcae9a3a7746d2566c2b672a8a2c7516c82668b059a480da"
+ },
+ "evidence": {
+  "stage1_200g": "0.776→7位/88(v0only構成)",
+  "stage2_994g": "+8.6pt vs current (abl_5_full, seed920000)",
+  "stage3_3996g": "+5.51pt CI[+3.57,+7.44] (seed940000)",
+  "holdout_9990g": "0.762 vs 0.701 = +6.11pt CI[+4.88,+7.33] (seed950000)",
+  "protocol": "多段選別+事前登録(project_beyond_imitation_codex_plan のE протокол)"
+ },
+ "lineage": "mixogerpon(55464390) -> deck swap only",
+ "frozen_at": "2026-08-15"
+}

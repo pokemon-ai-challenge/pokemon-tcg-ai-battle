@@ -44,7 +44,7 @@ import time
 from typing import Callable, Iterator
 
 from cg import api as cg_api
-from cg.api import Observation, OptionType, SelectData, SelectType, State
+from cg.api import AreaType, Observation, OptionType, SelectData, SelectType, State
 
 DEFAULTS: dict = {
     "enabled": True,
@@ -59,6 +59,13 @@ DEFAULTS: dict = {
     # Extra replays with reshuffled hidden info to confirm the line is
     # deterministic. 0 disables verification.
     "verify_shuffles": 1,
+    # 優先展開(config-gated)。ここに載せた CardData.id の「手札からの PLAY」を
+    # ATTACK の直後に試す。空リスト(既定)なら並べ替えは一切起きず、既存挙動と
+    # バイト単位で同一。詳細は `_candidate_selections` / `_priority_play_ids`。
+    "priority_play_card_ids": [],
+    # 上の優先展開を発動する条件: 自分の残りサイドがこの枚数以下のときだけ。
+    # `priority_play_card_ids` が空なら値によらず無効なので、既存configには影響しない。
+    "priority_play_max_remaining_prizes": 2,
 }
 
 # Option ordering for MAIN selections (#58 探索優先順位): attacks first
@@ -76,6 +83,10 @@ _MAIN_OPTION_PRIORITY = {
     OptionType.DISCARD: 6,
 }
 _DEFAULT_PRIORITY = 50
+
+# 優先展開する PLAY のランク。ATTACK(0)の直後・ABILITY(1)の手前に差し込む。
+# 「攻撃 → 対象PLAY → 特性 → 進化 → エネ → 逃げる → その他PLAY」の順になる。
+_PRIORITY_PLAY_RANK = 0.5
 
 
 class _SearchAbort(Exception):
@@ -278,7 +289,7 @@ def _dfs(
         return None
     visited[key] = depth_left
 
-    for selection in _candidate_selections(obs.select, config):
+    for selection in _candidate_selections(obs.select, config, obs.current):
         if time.perf_counter() > deadline:
             raise _SearchAbort("time")
         if budget["nodes"] >= int(config["max_nodes"]):
@@ -310,7 +321,65 @@ def _dfs(
     return None
 
 
-def _candidate_selections(select: SelectData, config: dict) -> Iterator[list[int]]:
+def _play_option_card_id(option, state: State | None) -> int | None:
+    """MAIN の PLAY 選択肢が指す「手札のカード」の CardData id を返す(不明なら None)。
+
+    実測(`kaggle_replays/_probe_missed_lethal.py` の G1 調査)では MAIN の
+    ``Option.cardId`` は常に None で来る。``OptionType.PLAY`` の ``index`` は
+    `cg/api.py` の定義どおり**手札インデックス**なので、手札の実体から id を引く
+    のが唯一の同定手段。手札が見えない(相手側の option)・index が範囲外などの
+    判定不能はすべて None を返し、呼び出し側は「優先対象ではない」として扱う。
+    """
+    card_id = getattr(option, "cardId", None)
+    if card_id is not None:
+        return card_id
+    if state is None or option.index is None:
+        return None
+    # PLAY は area 省略(None)で来る。念のため HAND 明示も許容し、それ以外は判定しない。
+    area = getattr(option, "area", None)
+    if area is not None and area != AreaType.HAND:
+        return None
+    player_index = option.playerIndex if option.playerIndex is not None else state.yourIndex
+    if not (0 <= player_index < len(state.players)):
+        return None
+    hand = state.players[player_index].hand or []
+    if not (0 <= option.index < len(hand)):
+        return None
+    card = hand[option.index]
+    return getattr(card, "id", None) if card is not None else None
+
+
+def _priority_play_ids(config: dict, state: State | None) -> frozenset[int] | None:
+    """優先展開の対象カードID集合を返す。発動条件を満たさなければ None。
+
+    条件は2つとも config 由来で、キーが無ければ ``DEFAULTS``(空リスト)により
+    必ず None になる = **既存configの探索順序は一切変わらない**:
+
+    - ``priority_play_card_ids`` が空でないこと
+    - 自分の残りサイドが ``priority_play_max_remaining_prizes`` 以下であること
+      (ノードごとに判定する。探索中にサイドを取れば枚数は減るので、根で条件を
+      満たさなくても KO 後の子ノードから優先展開が効く)
+    """
+    try:
+        ids = config.get("priority_play_card_ids") or ()
+        if not ids:
+            return None
+        if state is None:
+            return None
+        me = state.yourIndex
+        if not (0 <= me < len(state.players)):
+            return None
+        limit = int(config.get("priority_play_max_remaining_prizes", 2))
+        if len(state.players[me].prize) > limit:
+            return None
+        return frozenset(int(x) for x in ids)
+    except Exception:  # noqa: BLE001 - 順序付けの失敗が探索を止めてはならない
+        return None
+
+
+def _candidate_selections(
+    select: SelectData, config: dict, state: State | None = None
+) -> Iterator[list[int]]:
     """Generate index selections satisfying min/max count, no duplicates.
 
     MAIN options are reordered by ``_MAIN_OPTION_PRIORITY`` and END is
@@ -318,15 +387,28 @@ def _candidate_selections(select: SelectData, config: dict) -> Iterator[list[int
     ending the turn can never lead to a win). Other select types keep
     their natural order. Output is capped by
     ``max_combinations_per_select``.
+
+    ``priority_play_card_ids``(config-gated、既定は空=無効)が有効なときは、
+    対象カードの手札 PLAY だけを ATTACK の直後へ引き上げる。**枝刈りではなく
+    並べ替えのみ**なので網羅性は変わらない(同じ集合を別の順で出す)。
+    ボスの指令(1182)のように「相手を引きずり出してから攻撃」の列は現行順序だと
+    PLAY が最後尾で予算内に到達できないため(G1 調査)、この引き上げが効く。
     """
     order = list(range(len(select.option)))
     if select.type == SelectType.MAIN:
         order = [i for i in order if select.option[i].type != OptionType.END]
-        order.sort(
-            key=lambda i: _MAIN_OPTION_PRIORITY.get(
-                select.option[i].type, _DEFAULT_PRIORITY
-            )
-        )
+        priority_ids = _priority_play_ids(config, state)
+
+        def _rank(i: int) -> float:
+            option = select.option[i]
+            if priority_ids is not None and option.type == OptionType.PLAY:
+                card_id = _play_option_card_id(option, state)
+                if card_id is not None and card_id in priority_ids:
+                    return _PRIORITY_PLAY_RANK
+            return float(_MAIN_OPTION_PRIORITY.get(option.type, _DEFAULT_PRIORITY))
+
+        # sort は安定なので、同ランク内の並びは元の選択肢順のまま(既存挙動)。
+        order.sort(key=_rank)
 
     min_count = max(select.minCount, 0)
     max_count = min(select.maxCount, len(order))
