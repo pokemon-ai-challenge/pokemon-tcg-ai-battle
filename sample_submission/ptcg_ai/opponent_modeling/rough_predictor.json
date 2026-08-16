@@ -2539,6 +2539,43 @@
       "variants": {},
       "min_score": 6,
       "confident_score": 12
+    },
+    "lopunny_megafroslass": {
+      "display_name": "ミミロップ+メガユキメノコex",
+      "cards": [
+        {
+          "name": "メガミミロップex",
+          "card_id": [
+            849
+          ],
+          "role": "signature",
+          "reason": "メガユキメノコexとの併用が特徴の主軸カード。単体では中程度の根拠に留め、両方見えたときだけ強い根拠にする。進化元のミミロル/ミミロップ(758/848/759)や基本エネルギーは他デッキとの共有度が高く、単体シグネチャと組み合わさると誤判定(実測: 849のみ+基本【水】エネルギーだけで confident に達してしまう事故)を招くため、採点対象に含めない"
+        },
+        {
+          "name": "メガユキメノコex",
+          "card_id": [
+            861
+          ],
+          "role": "signature",
+          "reason": "メガミミロップexとの併用が特徴の主軸カード。単体では中程度の根拠に留め、両方見えたときだけ強い根拠にする。メガユキメノコex単独デッキ(mega_froslass_ex)とスコアリング対象がほぼ重複するため、進化元のユキワラシ/ユキメノコ(103/860/104)や水エネルギーは採点対象に含めず mega_froslass_ex 側に譲る"
+        }
+      ],
+      "role_cards": {},
+      "energy_types": [],
+      "combo_rules": [
+        {
+          "names": [
+            "メガミミロップex",
+            "メガユキメノコex"
+          ],
+          "bonus": 6,
+          "role": "combo",
+          "reason": "メガミミロップex + メガユキメノコex: 両方採用される特徴的な組み合わせ"
+        }
+      ],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 9
     }
   },
   "generic_cards": [

@@ -1,0 +1,42 @@
+{
+  "name": "abl_5_full_og_r7_isorng",
+  "_comment": "abl_5_full_og_r7 に lethal_search.isolated_rng=true だけを足した派生config。目的はA/Bのペア性確保: og_r7とog_r8を比較するとき、探索量の差(r7=Fixなし/r8=Fix-A/B/C)がグローバル乱数の消費量を変え、探索と無関係な後続の意思決定(pipelineの決定化サンプリング等)までずれてしまう問題を切り分けるため、両アームとも乱数分離した状態で比較できるようにする(rule_based_rng_isolation)。lethal_search以外のキーはog_r7と完全に同一。",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 3,
+    "time_limit_ms": 400,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1,
+    "priority_play_card_ids": [1182, 1201],
+    "priority_play_max_remaining_prizes": 2,
+    "isolated_rng": true
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {"kind": "handcrafted"},
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  },
+  "hammer_veto": {
+    "enabled": true,
+    "apply_veto": false,
+    "card_ids": [1120],
+    "redirect_target": true,
+    "time_limit_ms": 100
+  }
+}

@@ -40,6 +40,7 @@ which case the caller falls back to its normal policy.
 from __future__ import annotations
 
 import itertools
+import random
 import time
 from typing import Callable, Iterator
 
@@ -66,6 +67,16 @@ DEFAULTS: dict = {
     # 上の優先展開を発動する条件: 自分の残りサイドがこの枚数以下のときだけ。
     # `priority_play_card_ids` が空なら値によらず無効なので、既存configには影響しない。
     "priority_play_max_remaining_prizes": 2,
+    # 相手ポケモンを対象に取る非MAIN選択(ボスの指令直後の CARD/SWITCH 等)を
+    # 「残りHP昇順」に並べ替える(config-gated、既定 False=無効=現行の自然順)。
+    # 優先展開と同じ `priority_play_max_remaining_prizes` の条件下でだけ効く。
+    # 詳細は `_candidate_selections` / `_option_opponent_pokemon`。
+    "priority_sort_switch_targets": False,
+    # 終盤(自分の残りサイドが `endgame_max_remaining_prizes` 以下)のときだけ
+    # 予算を差し替える。どちらも None(既定)なら差し替えは起きず現行と同一。
+    "endgame_time_limit_ms": None,
+    "endgame_max_nodes": None,
+    "endgame_max_remaining_prizes": 2,
 }
 
 # Option ordering for MAIN selections (#58 探索優先順位): attacks first
@@ -104,6 +115,7 @@ _STATS_ZERO = {
     "timeouts": 0,        # aborted by time_limit_ms
     "node_limit_hits": 0, # aborted by max_nodes
     "verify_rejects": 0,  # lines rejected by the determinism replay
+    "endgame_escalations": 0,  # searches that used the endgame budget (Fix-A)
     "total_time_ms": 0.0,
     "max_time_ms": 0.0,
 }
@@ -120,6 +132,46 @@ def get_stats() -> dict:
 
 def reset_stats() -> None:
     _stats.update(_STATS_ZERO)
+
+
+# 専用RNG(config-gated `lethal_search.isolated_rng` 用、乱数消費の交絡除去)。
+#
+# 背景: 隠れ状態スタブ(`search_state_stub.build_dummy_search_state` /
+# `hidden_information.search_adapter.to_search_begin_kwargs`)は既定でグローバル
+# `random` モジュールを消費する。リーサル探索が発火するか・何回サンプリングするか
+# (初回 + `verify_shuffles` 回の再構築)は局面ごとに変わるため、グローバル `random`
+# を共有していると「探索の実行量が変わるだけで、探索と無関係な後続の乱数列
+# (pipeline の決定化サンプリング等)までずれる」= paired seed A/B のペア性が壊れる
+# (交絡)。この専用インスタンスに切り替えれば、リーサル探索が消費する乱数はここに
+# 閉じ込められ、グローバル `random` の消費量は探索の実行量に依存しなくなる。
+#
+# 実際にこのインスタンスへ切り替えるかどうかは呼び出し側
+# (`ml_policy_agent._try_lethal`)が `lethal_search.isolated_rng` を見て決める。
+# `search()` 自体は `hidden_state_factory` を呼ぶだけで乱数を直接消費しないため、
+# ここでは「専用インスタンスを1つ持たせて、試合開始時に決定論的にシードし直せる」
+# 器だけを提供する(ゲームロジックは一切変えない)。
+_rng: random.Random | None = None
+
+
+def reset_rng(seed: object = None) -> None:
+    """専用RNGを(再)初期化する。
+
+    呼び出し側(`ml_policy_agent.agent()` の試合開始パス)が1試合につき1回だけ呼ぶ想定。
+    `seed` 省略時は `random.Random()` の既定シード方法(OSのエントロピー等)を使い、
+    グローバル `random` モジュールの状態には一切触れない。
+    """
+    global _rng
+    _rng = random.Random(seed)
+
+
+def get_rng() -> random.Random:
+    """専用RNGを返す。`reset_rng()` が一度も呼ばれていなければここで自己初期化する
+    (この場合もグローバル `random` には触れない)。
+    """
+    global _rng
+    if _rng is None:
+        _rng = random.Random()
+    return _rng
 
 
 def search(state: State, legal_actions: list, context: dict) -> list[int] | None:
@@ -159,6 +211,10 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
         if hidden_state is None:
             return None
 
+        # 終盤だけ予算を引き上げる(config-gated。キーが無ければ config は不変)。
+        # `searches` を数える直前に置き、カウンタ同士の分母を揃える。
+        config = _apply_endgame_budget(config, state, me)
+
         start_time = time.perf_counter()
         _stats["searches"] += 1
         deadline = start_time + config["time_limit_ms"] / 1000.0
@@ -196,6 +252,38 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
                 pass
     except Exception:
         return None
+
+
+def _apply_endgame_budget(config: dict, state: State, me: int) -> dict:
+    """終盤(自サイド残 <= ``endgame_max_remaining_prizes``)のときだけ時間/ノード予算を
+    ``endgame_time_limit_ms`` / ``endgame_max_nodes`` に差し替えた config を返す。
+
+    どちらのキーも未指定(既定 None)なら **同じ dict をそのまま返す**ので、既存 config の
+    挙動はバイト単位で不変。差し替えは新しい dict を作って行い、呼び出し側の config は
+    変更しない(同一 config dict を使い回す `_try_lethal` を汚染しないため)。
+
+    背景(実ラダー 93335550 T15 の機械診断): 「ボスの指令 → 相手ベンチの弱いポケモンを
+    引きずり出す → エネ付与 → 攻撃で勝ち」の検証済みリーサルが実在したが、og_r7 予算
+    (400ms / 1万node)では時間切れで到達できなかった。必要実測は 1.2〜2.4秒 / 最大1.5万node。
+    サイド残 <= 2 の終盤の数決定でしか発火しないので、1試合の総時間への影響は小さい。
+    """
+    try:
+        time_limit = config.get("endgame_time_limit_ms")
+        max_nodes = config.get("endgame_max_nodes")
+        if time_limit is None and max_nodes is None:
+            return config
+        limit = int(config.get("endgame_max_remaining_prizes", 2))
+        if len(state.players[me].prize) > limit:
+            return config
+        escalated = dict(config)
+        if time_limit is not None:
+            escalated["time_limit_ms"] = time_limit
+        if max_nodes is not None:
+            escalated["max_nodes"] = max_nodes
+        _stats["endgame_escalations"] += 1
+        return escalated
+    except Exception:  # noqa: BLE001 - 予算差し替えの失敗が探索を止めてはならない
+        return config
 
 
 def _hidden_state_factory(context: dict) -> Callable[[], dict | None] | None:
@@ -349,6 +437,25 @@ def _play_option_card_id(option, state: State | None) -> int | None:
     return getattr(card, "id", None) if card is not None else None
 
 
+def _priority_prize_gate(config: dict, state: State | None) -> bool:
+    """優先順序付け(優先展開 / 相手対象ソート)の共通ゲート。
+
+    自分の残りサイドが ``priority_play_max_remaining_prizes`` 以下なら True。
+    **ノードごとに判定する**ので、探索中にサイドを取れば枚数は減り、根で条件を満たさ
+    なくても KO 後の子ノードから優先順序が効く。判定不能は False(=既存順序)。
+    """
+    try:
+        if state is None:
+            return False
+        me = state.yourIndex
+        if not (0 <= me < len(state.players)):
+            return False
+        limit = int(config.get("priority_play_max_remaining_prizes", 2))
+        return len(state.players[me].prize) <= limit
+    except Exception:  # noqa: BLE001 - 順序付けの失敗が探索を止めてはならない
+        return False
+
+
 def _priority_play_ids(config: dict, state: State | None) -> frozenset[int] | None:
     """優先展開の対象カードID集合を返す。発動条件を満たさなければ None。
 
@@ -356,25 +463,60 @@ def _priority_play_ids(config: dict, state: State | None) -> frozenset[int] | No
     必ず None になる = **既存configの探索順序は一切変わらない**:
 
     - ``priority_play_card_ids`` が空でないこと
-    - 自分の残りサイドが ``priority_play_max_remaining_prizes`` 以下であること
-      (ノードごとに判定する。探索中にサイドを取れば枚数は減るので、根で条件を
-      満たさなくても KO 後の子ノードから優先展開が効く)
+    - `_priority_prize_gate`(自分の残りサイドが上限以下)を満たすこと
     """
     try:
         ids = config.get("priority_play_card_ids") or ()
         if not ids:
             return None
-        if state is None:
-            return None
-        me = state.yourIndex
-        if not (0 <= me < len(state.players)):
-            return None
-        limit = int(config.get("priority_play_max_remaining_prizes", 2))
-        if len(state.players[me].prize) > limit:
+        if not _priority_prize_gate(config, state):
             return None
         return frozenset(int(x) for x in ids)
     except Exception:  # noqa: BLE001 - 順序付けの失敗が探索を止めてはならない
         return None
+
+
+def _option_opponent_pokemon(option, state: State | None):
+    """選択肢が指している「相手の場のポケモン」を返す(該当しなければ None)。
+
+    実測スキーマ(ボスの指令直後の select、`kaggle_replays/_probe_r7_misses.py` の
+    調査で確認)::
+
+        select.type    = SelectType.CARD / context = SelectContext.SWITCH
+        option[i]      = Option(type=CARD, area=BENCH, index=<ベンチ内index>,
+                                playerIndex=<相手>, cardId=None)
+
+    `cardId` は来ないので、``playerIndex`` + ``area`` + ``index`` から state の実体を引く
+    のが唯一の同定手段。自分側の選択肢・エリア不明・範囲外はすべて None(=判定不能)。
+    """
+    try:
+        if state is None or option.playerIndex is None:
+            return None
+        if not (0 <= option.playerIndex < len(state.players)):
+            return None
+        if option.playerIndex == state.yourIndex:
+            return None  # 自分のポケモン=引きずり出す対象ではない
+        player = state.players[option.playerIndex]
+        if option.area == AreaType.ACTIVE:
+            active = player.active or []
+            index = option.index if option.index is not None else 0
+            return active[index] if 0 <= index < len(active) else None
+        if option.area == AreaType.BENCH:
+            bench = player.bench or []
+            if option.index is not None and 0 <= option.index < len(bench):
+                return bench[option.index]
+        return None
+    except Exception:  # noqa: BLE001 - 順序付けの失敗が探索を止めてはならない
+        return None
+
+
+def _opponent_target_rank(option, state: State | None) -> tuple[int, int]:
+    """相手ポケモンを指す選択肢の並べ替えキー。残りHP昇順、判定不能は末尾。"""
+    mon = _option_opponent_pokemon(option, state)
+    hp = getattr(mon, "hp", None) if mon is not None else None
+    if isinstance(hp, int):
+        return (0, hp)
+    return (1, 0)
 
 
 def _candidate_selections(
@@ -393,6 +535,12 @@ def _candidate_selections(
     並べ替えのみ**なので網羅性は変わらない(同じ集合を別の順で出す)。
     ボスの指令(1182)のように「相手を引きずり出してから攻撃」の列は現行順序だと
     PLAY が最後尾で予算内に到達できないため(G1 調査)、この引き上げが効く。
+
+    ``priority_sort_switch_targets``(config-gated、既定 False=無効)が有効なときは、
+    MAIN 以外の select で「相手ポケモンを指す選択肢」を**残りHP昇順**に並べ替える。
+    ボスの指令の直後に来る CARD/SWITCH(どのベンチを引きずり出すか)は自然順のままだと
+    高HPの相手(メガ ex 等)から踏むため、確1圏の弱い対象に届く前に予算が尽きる
+    (実ラダー 93335550 T15 の機械診断)。ここも並べ替えのみで枝刈りはしない。
     """
     order = list(range(len(select.option)))
     if select.type == SelectType.MAIN:
@@ -409,6 +557,10 @@ def _candidate_selections(
 
         # sort は安定なので、同ランク内の並びは元の選択肢順のまま(既存挙動)。
         order.sort(key=_rank)
+    elif config.get("priority_sort_switch_targets") and _priority_prize_gate(config, state):
+        # 相手ポケモンを指す選択肢だけを残りHP昇順へ。指していない/判定不能な選択肢は
+        # 末尾に回るだけで消えない(安全側)。sort は安定なので同HP内は元の順のまま。
+        order.sort(key=lambda i: _opponent_target_rank(select.option[i], state))
 
     min_count = max(select.minCount, 0)
     max_count = min(select.maxCount, len(order))

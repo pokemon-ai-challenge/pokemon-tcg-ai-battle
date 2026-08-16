@@ -1,0 +1,80 @@
+{
+  "name": "abl_5_full_og_r9",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 3,
+    "time_limit_ms": 400,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1,
+    "priority_play_card_ids": [
+      1182,
+      1201
+    ],
+    "priority_play_max_remaining_prizes": 2,
+    "priority_sort_switch_targets": true,
+    "endgame_time_limit_ms": 2500,
+    "endgame_max_nodes": 30000,
+    "endgame_max_remaining_prizes": 2,
+    "isolated_rng": true
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {
+      "kind": "handcrafted"
+    },
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  },
+  "hammer_veto": {
+    "enabled": true,
+    "apply_veto": false,
+    "card_ids": [
+      1120
+    ],
+    "redirect_target": true,
+    "time_limit_ms": 100
+  },
+  "briar_gate": true,
+  "hand_damage_guard": {
+    "enabled": true,
+    "substitute_only": true,
+    "_comment": "I3: I1(presence-only)を維持しつつ substitute_only=true を追加。代替サポート(ジャッジマン1213、無ければボスの指令1182)が手札に無い場合は介入せずリーリエ/クラウンをそのまま許す(=代替が無いのに封じるだけ封じてドローエンジンを止める純損を回避)。I2で試した imminent=active_or_energized はスナップショットゲートG3(93335550 row168)を壊すため未適用(imminentキーは使わない)。",
+    "sources": [
+      {
+        "card_id": 861,
+        "per_card": 50,
+        "count": "own_hand"
+      },
+      {
+        "card_id": 743,
+        "per_card": 20,
+        "count": "opp_hand"
+      }
+    ]
+  },
+  "low_deck_draw_brake": {
+    "enabled": true,
+    "deck_threshold": 6,
+    "_comment": "Fix-D: 山札<=6 で「実際に山札を減らす」ドローサポート(リーリエ1227/クラウン1223)を、今ターンKOが取れないときだけvetoする。ジャッジマン1213は対象外(手札を山に戻して4枚引く=手札5枚以上なら山札が増えるため、山札切れ対策としてはむしろ有効)。require_net_deck_loss(既定true)で「手札>引く枚数=山札が増える使い方」は素通りさせる。"
+  },
+  "boss_lethal_gate": {
+    "enabled": true,
+    "allow_energy_denial": true,
+    "_comment": "Fix-E: ボスの指令(1182)を「引きずり出した相手を今ターンKOできる」対象がある場合だけ許可し、対象自体もKO可能な相手へ振り替える。allow_energy_denial=true のときは「相手ベンチで最多エネルギー(1個以上)」の対象も例外的に許可(エネ除去狙い)。KO判定は打点式ではなく search/boss_target_eval(ボスPLAY→対象→ko_search のDFS)。"
+  }
+}

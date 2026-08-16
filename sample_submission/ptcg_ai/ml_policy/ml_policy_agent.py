@@ -32,6 +32,7 @@ Step1)。`rule_based.main_turn_parts.proposals.collect_proposals(obs)` を呼び
 """
 
 import os
+import random
 import time
 
 from cg.api import AreaType, Observation, OptionType, SelectContext, SelectData, SelectType
@@ -120,6 +121,11 @@ _current_route_path: str | None = None
 # (league の worker はプロセスを跨いで再利用されるため必須)。redirect_target キーが無い
 # config では誰も読まないので本番挙動は不変。
 _hammer_ko_cache: dict | None = None
+# ボスの指令の対象ゲート(config-gated `boss_lethal_gate`)用。ハンマーと同じく「PLAY する
+# decision」と「引きずり出す相手を選ぶ decision」が分かれるため、PLAY 決定時に計算した
+# 対象別のKO可否を次の decision まで持ち越す。試合を跨いで残ると誤判定になるので
+# `agent()` の試合開始パスでクリアする。キーが無い config では誰も読まない。
+_boss_target_cache: dict | None = None
 
 
 def agent(obs: Observation, config: dict | None = None) -> list[int]:
@@ -162,7 +168,7 @@ def agent(obs: Observation, config: dict | None = None) -> list[int]:
         # (pipeline 無効時も無害なただの代入)。
         global _match_start_perf, _selects_seen
         global _expensive_roots_seen, _pipeline_breaker_tripped
-        global _hammer_ko_cache
+        global _hammer_ko_cache, _boss_target_cache
         _match_start_perf = time.perf_counter()
         _selects_seen = 0
         # 時間予算v2 のカウンタ/ブレーカも試合境界でリセット(mode 未指定なら未参照のまま)。
@@ -171,6 +177,22 @@ def agent(obs: Observation, config: dict | None = None) -> list[int]:
         # ハンマーのターゲット・リダイレクト用のKO判定キャッシュも試合境界で捨てる
         # (前の試合の判定が次の試合の最初のハンマーに漏れないようにする)。
         _hammer_ko_cache = None
+        # ボスの対象ゲート用の持ち越しキャッシュも同じ理由で試合境界で捨てる。
+        _boss_target_cache = None
+        # リーサル探索の専用RNG(config-gated `lethal_search.isolated_rng`)を試合開始時に
+        # 決定論的にシードし直す。目的は「探索の実行量(見つかった/見つからない、
+        # verify_shuffles の回数)が変わってもグローバル random の消費量が変わらない」こと
+        # (paired seed A/B の交絡除去、乱数消費テストは test_ml_policy_agent.py 参照)。
+        # キー無し(既定)では何もしない = グローバル random の消費量は完全に不変。
+        # `isolated_rng_seed` を明示すればグローバル random にも一切触れない(試合を跨いで
+        # 固定シード=再現性テスト用)。未指定ならグローバル random から1回だけ引く
+        # (=試合単位では再現的、グローバル列はこの1回だけ進む)。
+        lethal_cfg = (effective_config or {}).get("lethal_search") or {}
+        if lethal_cfg.get("isolated_rng"):
+            seed = lethal_cfg.get("isolated_rng_seed")
+            if seed is None:
+                seed = random.getrandbits(64)
+            lethal_simple.reset_rng(seed)
         return read_deck_csv()
     return _select_action(obs, config)
 
@@ -294,6 +316,62 @@ def _get_deck() -> list[int]:
     return _deck_cache
 
 
+# ローカル評価harness専用の「自分の60枚」上書き(player_index -> card_ids)。
+# `match_context._own_deck_override`(estimated 経路用)の dummy 経路版。
+#
+# 本番(Kaggle)は 1プロセス1エージェントで、自分のデッキは常に `deck.csv` なので
+# この dict は空のまま = `_get_deck_for()` は `_get_deck()` に等しく挙動は完全に不変。
+#
+# 一方ローカルの `run_match.play_match` / `measurement.runner.play_game` は
+# **1プロセスで両陣営の ml_policy を動かす**が、デッキは `battle_start(deck0, deck1)` で
+# エンジンへ直接渡されるため、`_get_deck()`(=CWD の deck.csv)と実盤面が食い違う。
+# その結果 `build_dummy_search_state` は「観測に見えるカードがデッキに無い」で **必ず None**
+# を返し、dummy 経路の隠れ状態が作れない = `_model_hidden_state_factory` に依存する
+# `ko_search` 系ガード(briar_gate / low_deck_draw_brake / boss_lethal_gate /
+# ability_draw_brake / terastal_rotation / hammer_veto)と `lethal_search`(既定 dummy)が
+# **その陣営で一度も発火しない**。`match_context.set_own_deck_override` は estimated 経路
+# しか救わないため、dummy 経路にも同じ宣言口を用意する。
+_own_deck_override: dict[int, list[int]] = {}
+
+
+def set_own_deck_override(player_index: int, card_ids: list[int] | None) -> None:
+    """``player_index`` の「自分の60枚」を明示する(ローカル評価harness用)。
+
+    ``None`` を渡すと解除。production からは呼ばれない(呼ばなければ従来どおり
+    ``_get_deck()`` = ``deck.csv`` を読む)。``match_context.set_own_deck_override`` と
+    対になる宣言口で、harness は両方を試合開始時に設定する。
+    """
+    if card_ids is None:
+        _own_deck_override.pop(player_index, None)
+    else:
+        _own_deck_override[player_index] = list(card_ids)
+
+
+def clear_own_deck_override() -> None:
+    """``set_own_deck_override`` の宣言を全て解除する(harness/テストの後始末用)。"""
+    _own_deck_override.clear()
+
+
+def _get_deck_for(obs: Observation | None) -> list[int]:
+    """この obs を受け取っている側の「自分の60枚」を返す。
+
+    harness が ``set_own_deck_override`` で宣言していればその陣営の60枚を、無ければ
+    従来どおり ``_get_deck()``(=``deck.csv``)を返す(本番はこちら)。
+    ``obs.current`` が無い/`yourIndex` が取れない場合も安全側で ``_get_deck()``。
+    戻り値は ``_get_deck()`` と同じく**共有リストのまま**返す(呼び出し側は読むだけ。
+    毎 decision で60要素のコピーを作らないため)。
+    """
+    if _own_deck_override:
+        try:
+            player_index = obs.current.yourIndex  # type: ignore[union-attr]
+        except AttributeError:
+            return _get_deck()
+        declared = _own_deck_override.get(player_index)
+        if declared is not None:
+            return declared
+    return _get_deck()
+
+
 def _is_valid_action(action, select: SelectData) -> bool:
     """コンペランナーが要求する contract を満たすかを検証する。
 
@@ -334,17 +412,24 @@ def _try_lethal(obs: Observation, config: dict | None = None) -> list[int] | Non
 
     try:
         hidden_state_source = lethal_config.get("hidden_state_source", "dummy")
+        # config-gated: `isolated_rng` が true なら、リーサル探索専用の random.Random
+        # (lethal_simple がインスタンスを保持。試合開始時に agent() がシード)を渡す。
+        # 既定(キー無し/false)は rng=None のままで、build_dummy_search_state /
+        # to_search_begin_kwargs はグローバル random にフォールバックするため既存挙動と
+        # バイト単位で同一(呼び出しモジュールが lethal_simple 以外でもこの隔離は有効)。
+        rng = lethal_simple.get_rng() if lethal_config.get("isolated_rng") else None
         if hidden_state_source == "estimated":
             # 実推定(hidden_information.match_context、agent()冒頭で毎ターン更新済み)。
             factory = lambda: search_adapter.to_search_begin_kwargs(
                 match_context.get_own_state(obs.current.yourIndex),
                 match_context.get_opponent_state(obs.current.yourIndex),
                 obs,
+                rng=rng,
             )
         else:
             # ダミースタブ(既定、既存configとの後方互換)。
-            full_deck = _get_deck()
-            factory = lambda: build_dummy_search_state(obs, full_deck)
+            full_deck = _get_deck_for(obs)
+            factory = lambda: build_dummy_search_state(obs, full_deck, rng=rng)
         context = {
             "observation": obs,
             "config": lethal_config,
@@ -429,7 +514,7 @@ def _try_attack_plan(
                 match_context.get_opponent_state(obs.current.yourIndex), obs,
             )
         else:
-            full_deck = _get_deck()
+            full_deck = _get_deck_for(obs)
             factory = lambda: build_dummy_search_state(obs, full_deck)
         action = attack_plan.search(obs.current, obs.select.option, {
             "observation": obs, "chosen_action": chosen_action,
@@ -965,16 +1050,1800 @@ def _try_survival(obs: Observation, chosen_action: list[int], config: dict | Non
     return action if _is_valid_action(action, select) else None
 
 
+# --------------------------------------------------------------------------------------
+# 手札連動ダメージへの生存ガード / ブライアの空撃ちゲート
+# (og_r7 の実ラダー負け分析 Fix-B / Fix-C。どちらも config-gated で既定OFF=本番不変)
+# --------------------------------------------------------------------------------------
+
+# 事後veto群の発火カウンタ(`search/lethal_simple.py` 等と同じ流儀のモジュールグローバル)。
+# 意思決定には使わない純粋な計測用で、ローカル計測スクリプトから読む。
+_GUARD_STATS_ZERO = {
+    "hand_damage_guard_fired": 0,      # ガードが「即死する」と判定した回数
+    "hand_damage_guard_to_judge": 0,   # うちジャッジマンへ差し替えた回数
+    "hand_damage_guard_to_other": 0,   # うち「手札を増やさない手」へ差し替えた回数
+    "hand_damage_guard_to_boss": 0,    # うち(to_other の内訳)ボスの指令へ差し替えた回数(I3計測用)
+    "hand_damage_guard_no_substitute": 0,  # I3: 代替(ジャッジ/ボス)不在で介入を見送った回数
+    "briar_gate_fired": 0,             # KO不能ターンのブライアを差し替えた回数
+    # r9 Fix-D: 山札僅少ブレーキ(`low_deck_draw_brake`)
+    "low_deck_draw_brake_fired": 0,        # 山札を減らすドローサポートを差し替えた回数
+    "low_deck_draw_brake_skipped_ko": 0,   # 今ターンKOできるので通した回数(=ドローして勝ちに行く)
+    "low_deck_draw_brake_inconclusive": 0,  # KO探索が完走せず介入を見送った回数
+    # r9 Fix-E: ボスのKOゲート(`boss_lethal_gate`)
+    "boss_lethal_gate_fired": 0,        # KO可能な対象が皆無でボスPLAYを差し替えた回数
+    "boss_lethal_gate_redirected": 0,   # 対象をKO可能な相手へ振り替えた回数
+    "boss_lethal_gate_denial_kept": 0,  # エネ除去例外(最多エネ)で許可した回数
+    "boss_lethal_gate_inconclusive": 0,  # 対象評価が完走せず介入を見送った回数
+}
+_GUARD_STATS = dict(_GUARD_STATS_ZERO)
+
+
+def get_guard_stats() -> dict:
+    return dict(_GUARD_STATS)
+
+
+def reset_guard_stats() -> None:
+    _GUARD_STATS.update(_GUARD_STATS_ZERO)
+
+
+_JUDGE_ID = 1213      # ジャッジマン(サポート): 両者が手札を山に戻して4枚引く
+_LILLIE_ID = 1227     # リーリエの決心(サポート): 手札を戻して6枚引く(自サイド6枚なら8枚)
+_HARLEQUIN_ID = 1223  # クラウン(サポート): 手札を戻してコイン次第で自分は5枚 or 3枚引く
+_BRIAR_ID = 1201      # ブライア(サポート): このターンKOしたとき、サイドをもう1枚多く取る
+_BOSS_ORDER_ID = 1182  # ボスの指令(サポート): 相手のベンチをアクティブへ引きずり出す。手札は
+                        # 増減しないので `hand_damage_guard` の「代替サポート」候補になる(I3)
+
+# ジャッジマン使用後の自分の手札枚数(カードテキストで確定)。
+_JUDGE_HAND_SIZE = 4
+
+# 「手札を増やすサポート」使用後の自分の手札枚数の見積り。
+# リーリエは自サイド6枚のとき8枚引くので `_refill_hand_size` で個別に補正する。
+# クラウンはコイン依存(5 or 3)なので**多い方**=安全側(=被弾が大きい側)を採る。
+_HAND_REFILL_SIZES = {_LILLIE_ID: 6, _HARLEQUIN_ID: 5}
+
+
+def _opponent_field_card_ids(state, me: int) -> set[int]:
+    """相手の場(アクティブ+ベンチ)に見えているポケモンの CardData id 集合。判定不能は空集合。"""
+    seen: set[int] = set()
+    try:
+        opp = state.players[1 - me]
+        for pk in (list(opp.active or []) + list(opp.bench or [])):
+            card_id = getattr(pk, "id", None) if pk is not None else None
+            if card_id is not None:
+                seen.add(int(card_id))
+    except Exception:  # noqa: BLE001 - 収集の失敗が意思決定を止めてはならない
+        return set()
+    return seen
+
+
+def _opponent_field_imminent(state, me: int, card_id: int) -> bool:
+    """`card_id` の相手ポケモンのうち、**アクティブに居る** か **エネルギーが1個以上付いている**
+    個体が1体でも居るか(``hand_damage_guard`` の ``imminent: "active_or_energized"`` 用、I2)。
+
+    Iteration 1 は「相手の場に見えている」だけで発火していたが、mega_froslass_ex 対面で
+    -6.2pt(n=400)の退行を出した(og_r7 の実ラダー分析)。ベンチ・エネ0の個体は
+    「前に出す→エネ付与→攻撃」を経てようやく打点が立つ=このターンではなく相手の**次の**手番の
+    さらに先まで猶予がある可能性がある一方、アクティブ or エネ付きの個体は最短1手番で
+    打点が立ちうる。判定不能(例外/フィールド欠損)は False(=発火させない側)。
+    """
+    try:
+        opp = state.players[1 - me]
+        for pk in (opp.active or []):
+            if pk is not None and getattr(pk, "id", None) == card_id:
+                return True
+        for pk in (opp.bench or []):
+            if pk is not None and getattr(pk, "id", None) == card_id \
+                    and len(getattr(pk, "energies", None) or []) > 0:
+                return True
+    except Exception:  # noqa: BLE001 - 収集の失敗が意思決定を止めてはならない
+        return False
+    return False
+
+
+def _effective_active_hp(state, me: int, guard_config: dict) -> int | None:
+    """自分のバトルポケモンの実効HP。読めなければ None。
+
+    実効HP = 残りHP + ``effective_hp_bonus``(config、既定0)。スタジアム/どうぐによる
+    ダメージ軽減はカード効果の一般解が無く、ここでは解かない。既定0は「素の残りHP」=
+    軽減を数えない側で、軽減がある盤面ではガードが**多めに**発火する(生存側に倒す)。
+    既知の対面で補正したい場合だけ config で注入する(ablation 用の逃がし口)。
+    """
+    try:
+        active = state.players[me].active or []
+        mon = active[0] if active else None
+        hp = getattr(mon, "hp", None) if mon is not None else None
+        if not isinstance(hp, int):
+            return None
+        return hp + int(guard_config.get("effective_hp_bonus", 0))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _refill_hand_size(card_id: int | None, state, me: int, guard_config: dict) -> int | None:
+    """そのカードを使った直後の「自分の手札枚数」の見積り。対象外カードなら None。
+
+    対象は `_HAND_REFILL_SIZES`(config ``refill_hand_sizes`` で上書き可)。ドロー効果の
+    精密なシミュレーションはしない: 手札連動打点の判定に必要なのは「手札を増やすサポートを
+    使うと何枚になるか」だけで、リーリエ/クラウンはどちらもカードテキストで枚数が決まる
+    (= 現在手札に依存しない)ため、この表引きで十分。
+    """
+    if card_id is None:
+        return None
+    sizes = guard_config.get("refill_hand_sizes") or _HAND_REFILL_SIZES
+    size = sizes.get(card_id) if isinstance(sizes, dict) else None
+    if size is None:
+        # JSON の dict はキーが文字列になりうるので文字列キーでも引く。
+        size = sizes.get(str(card_id)) if isinstance(sizes, dict) else None
+    if size is None:
+        return None
+    if card_id == _LILLIE_ID:
+        try:
+            # 「自分のサイドの残り枚数が6枚なら、引く枚数は8枚になる」。
+            if len(state.players[me].prize or []) == 6:
+                return 8
+        except Exception:  # noqa: BLE001
+            pass
+    return int(size)
+
+
+def _is_supporter(card_id: int | None) -> bool:
+    """card_id がサポートか。未知ID/例外は False(=介入しない、安全側)。"""
+    if card_id is None:
+        return False
+    try:
+        from cg.api import CardType
+        from ptcg_ai.shared import card_cache
+        return card_cache.get_card(int(card_id)).cardType == CardType.SUPPORTER
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _policy_scores(obs: Observation, select: SelectData, config: dict | None) -> list[float] | None:
+    """事後veto群で共通の「方策スコア」取得。長さが合わない/例外は None。"""
+    try:
+        model = _get_model(config)
+        scores = model.score_options(
+            obs, _model_hidden_state_factory(obs, config),
+            time.perf_counter() + _MODEL_TIME_BUDGET_MS / 1000,
+        )
+    except Exception:  # noqa: BLE001 - スコアリング失敗が意思決定を止めてはならない
+        return None
+    if not scores or len(scores) != len(select.option):
+        return None
+    return list(scores)
+
+
+def _try_hand_damage_guard(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """手札枚数に比例する相手ワザで即死する手を避ける。config-gated(``hand_damage_guard``)、
+    キーが無ければ常に None=本番不変。
+
+    実ラダーの負け分析(og_r7): 「リーリエの決心で手札を6枚に増やす → 相手メガユキメノコex
+    の うらみぶし(相手の手札の枚数×50)が300ダメージ → 240HPのオーガポンが即死」という
+    自滅が複数試合で起きていた。相手フーディンの ハンドパワー(自分の手札の枚数×2個のダメカン
+    = 手札×20)も同型で、こちらは**相手の**手札枚数が打点になる。
+
+    config 例(``imminent`` は I2、``substitute_only`` は I3。どちらも任意で、無ければ I1 と
+    同じ presence-only + 「代替が無くても封じる」挙動=既定挙動不変)::
+
+        "hand_damage_guard": {"enabled": true, "substitute_only": true, "sources": [
+          {"card_id": 861, "per_card": 50, "count": "own_hand", "imminent": "active_or_energized"},
+          {"card_id": 743, "per_card": 20, "count": "opp_hand", "imminent": "active_or_energized"}
+        ]}
+
+    発火条件:
+      - 相手の場(アクティブ+ベンチ)に ``card_id`` が見えている
+      - ``imminent: "active_or_energized"`` が指定された source は、さらに **その card_id の
+        個体がアクティブに居る、またはエネルギーが1個以上付いている** ことも要る
+        (`_opponent_field_imminent`)。I1(presence-only)は mega_froslass_ex 対面で -6.2pt
+        (n=400、境界有意)の退行を出した。ベンチ・エネ0の個体は「前に出す→エネ付与→攻撃」を
+        経てようやく打点が立つため、アクティブ/エネ付きの個体だけに絞って過剰発火を抑える(I2)
+      - 今ターンの確定勝ち(lethal)が無い。`_select_action` は `_try_lethal` が None を
+        返した decision でしか事後veto群に到達しないので、この条件は呼び出し位置で担保される
+        (ここで探索を張り直すと二重コストになるため張らない)
+      - 選んだ手が**サポートの PLAY**(ジャッジマン自身を除く)。エネ付与や攻撃を取り上げる
+        ことは無い(サポート枠は1ターン1枚なので、差し替えても失うのは「別のサポート」だけ)
+
+    判定:
+      - ``own_hand`` 型: 選んだサポートが手札を増やす札(リーリエ/クラウン)で、使用後の
+        手札見積り × ``per_card`` >= 自分アクティブの実効HP なら即死。
+      - ``opp_hand`` 型: 相手の handCount × ``per_card`` >= 実効HP なら即死。
+
+    差し替え:
+      1. ジャッジマン(1213)が選択肢にあり、かつジャッジ後(手札4枚)なら全ての発火 source で
+         即死しなくなるなら、ジャッジマンにする(リーリエより優先)。
+      2. ジャッジ不在/ジャッジでも助からない場合、``own_hand`` 型が発火していれば「手札を
+         増やす手」以外で方策スコア最大の手にする(サポート未使用=ENDも候補に含む)。
+         ``substitute_only: true`` (I3) のときは、この候補を **ジャッジマン(1213)/
+         ボスの指令(1182)の PLAY のみ** に絞る(優先順位はジャッジ > ボス)。どちらも
+         選択肢に無ければ **介入しない**(リーリエ/クラウンをそのまま許す)。
+      3. ``opp_hand`` 型だけが発火していてジャッジが無いなら、代替の当てが無いので介入しない
+         (``substitute_only`` の有無に関わらず、ボスの指令は相手の手札を減らさないので
+         opp_hand 型の脅威は解決しない=対象外のまま)。
+
+    Iteration 3 の背景: I1(presence-only)はフィールド計測で mega_froslass 対面 -6.2pt の
+    退行を出した。実敗着局面(93335550 row168 / 93324616 row132 / 93309236 row130)を
+    再監査すると、いずれも代替(ジャッジマンまたはボスの指令)が手札にあり差し替えで解決して
+    いた=退行の有害枝は「代替が無いのにリーリエ/クラウンを封じるだけ封じてドローエンジンを
+    止める」純損のケースだった。``substitute_only`` はこの純損ケースだけを介入対象から外す
+    (代替が実在する場合の挙動は従来どおり不変)。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    guard = (effective_config or {}).get("hand_damage_guard") or {}
+    if not guard.get("enabled", False):
+        return None
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+
+    state = obs.current
+    me = state.yourIndex
+    from ptcg_ai.learning import encoder as _enc
+    chosen_option = select.option[idx]
+    if chosen_option.type != OptionType.PLAY:
+        return None
+    chosen_card_id = _enc._resolve_card_id(chosen_option, state)
+    if chosen_card_id == _JUDGE_ID or not _is_supporter(chosen_card_id):
+        return None  # ジャッジ自身/非サポートには干渉しない
+
+    eff_hp = _effective_active_hp(state, me, guard)
+    if eff_hp is None or eff_hp <= 0:
+        return None
+    on_field = _opponent_field_card_ids(state, me)
+    if not on_field:
+        return None
+
+    predicted_own_hand = _refill_hand_size(chosen_card_id, state, me, guard)
+    try:
+        opp_hand_count = int(state.players[1 - me].handCount or 0)
+    except Exception:  # noqa: BLE001
+        return None
+
+    own_hand_threat = False
+    fired = False
+    judge_saves = True  # 発火した source すべてが「手札4枚なら死なない」なら True
+    for source in (guard.get("sources") or []):
+        try:
+            card_id = int(source["card_id"])
+            per_card = int(source["per_card"])
+            kind = source.get("count", "own_hand")
+        except Exception:  # noqa: BLE001 - 壊れた source は無視(安全側)
+            continue
+        if card_id not in on_field or per_card <= 0:
+            continue
+        if source.get("imminent") == "active_or_energized" \
+                and not _opponent_field_imminent(state, me, card_id):
+            continue  # I2: アクティブでもエネ付きでもない=切迫していない個体は見逃す
+        if kind == "own_hand":
+            if predicted_own_hand is None:
+                continue  # 選んだ手は手札を増やさない=この source では死なない
+            count = predicted_own_hand
+        elif kind == "opp_hand":
+            count = opp_hand_count
+        else:
+            continue
+        if count * per_card < eff_hp:
+            continue
+        fired = True
+        if kind == "own_hand":
+            own_hand_threat = True
+        if _JUDGE_HAND_SIZE * per_card >= eff_hp:
+            # ジャッジ後(手札4枚)でも死ぬ=ジャッジへの差し替えは救いにならない。
+            judge_saves = False
+    if not fired:
+        return None
+
+    _GUARD_STATS["hand_damage_guard_fired"] += 1
+    scores = _policy_scores(obs, select, config)
+
+    # 1) ジャッジマンへの差し替え(手札を4枚に落として被弾を下げる)。
+    if judge_saves:
+        judge_idxs = [
+            i for i, opt in enumerate(select.option)
+            if opt.type == OptionType.PLAY and _enc._resolve_card_id(opt, state) == _JUDGE_ID
+        ]
+        if judge_idxs:
+            best_judge = (
+                max(judge_idxs, key=lambda i: scores[i]) if scores else judge_idxs[0]
+            )
+            action = [best_judge]
+            if _is_valid_action(action, select):
+                _GUARD_STATS["hand_damage_guard_to_judge"] += 1
+                return action
+
+    # 2) ジャッジが無い/救えない: 「手札を増やす手」だけを避ける(own_hand 型のときだけ)。
+    if not own_hand_threat or scores is None:
+        return None
+    substitute_only = bool(guard.get("substitute_only", False))
+    best_alt = best_score = None
+    for i, opt in enumerate(select.option):
+        if i == idx:
+            continue
+        if substitute_only:
+            # I3: 代替サポート(ジャッジマン優先、無ければボスの指令)以外への逃げは
+            # 「封じるだけ封じてドローエンジンを止める」純損になるため候補から外す。
+            if opt.type != OptionType.PLAY:
+                continue
+            if _enc._resolve_card_id(opt, state) not in (_JUDGE_ID, _BOSS_ORDER_ID):
+                continue
+        elif opt.type == OptionType.PLAY and _refill_hand_size(
+            _enc._resolve_card_id(opt, state), state, me, guard
+        ) is not None:
+            continue  # 手札を増やす手は全部除外
+        if best_score is None or scores[i] > best_score:
+            best_score, best_alt = scores[i], i
+    if best_alt is None:
+        if substitute_only:
+            # 代替(ジャッジ/ボス)が手札に無い=差し替えても純損なので介入しない
+            # (リーリエ/クラウンをそのまま許す。I3 が避けたい退行パターン)。
+            _GUARD_STATS["hand_damage_guard_no_substitute"] += 1
+        return None
+    action = [best_alt]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["hand_damage_guard_to_other"] += 1
+    if select.option[best_alt].type == OptionType.PLAY \
+            and _enc._resolve_card_id(select.option[best_alt], state) == _BOSS_ORDER_ID:
+        _GUARD_STATS["hand_damage_guard_to_boss"] += 1
+    return action
+
+
+def _try_briar_gate(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """ブライア(1201)の空撃ちを止める。config-gated(``briar_gate``)、キーが無ければ常に
+    None=本番不変。
+
+    ブライアは「このターン相手のポケモンをきぜつさせたとき、サイドをもう1枚多く取る」札で、
+    **KOできないターンに撃つと完全に無駄**(サポート枠も1枚失う)。
+
+    実測メモ: og_r7 の負け分析で挙がった 93309236 T9 / 93326434 T8 のブライアは、どちらも
+    `ko_search` 基準では KO 可能=このゲートでは**発火しない**(93309236 の敗因は「ブライアが
+    無駄」ではなく「サポート枠をジャッジマンに使えば生き残れた」で、そちらは
+    `_try_hand_damage_guard` が拾う)。このゲートが直すのは純粋な空撃ちだけ。
+
+    判定は `_try_hammer_veto` と同じ流儀の `ko_search.can_ko_this_turn`(瞬間打点ではなく
+    エネ装着→攻撃まで含めたターン先読み)。KO可能なら正当な使用なので干渉しない。KO不能なら
+    ブライア以外で方策スコア最大の手に差し替える。
+
+    **重要**: `can_ko_this_turn` の False は「KOできない」と「判定不能(隠れ状態を組めない/
+    予算切れ)」を区別しない。ハンマーvetoでは False 側が安全側だったが、ブライアでは逆で、
+    予算切れをKO不能と誤読すると**正当なブライアまで潰す**(実測: 93326434 T8 は 300ms なら
+    can_ko=True だが 100ms では時間切れ)。そこで `report` を受け取り、探索が実際に完走した
+    (`searched and not aborted`)ときだけ介入する。既定予算もハンマー(100ms)より厚い 300ms。
+    判定不能/例外はすべて None(=介入しない、安全側)。
+
+    ``briar_gate`` は bool(``true`` で有効)。dict を渡すと ``{"enabled": true,
+    "time_limit_ms": 300, "ko_search": {...}}`` として ko_search の予算も指定できる
+    (ablation 用。bool のときは既定 300ms)。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    gate = (effective_config or {}).get("briar_gate")
+    if isinstance(gate, dict):
+        if not gate.get("enabled", True):
+            return None
+    elif gate:
+        gate = {}   # bool の true = 既定パラメータで有効
+    else:
+        return None  # キー無し / false / None = 無効(本番不変)
+
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+    from ptcg_ai.learning import encoder as _enc
+    briar_ids = set(gate.get("card_ids") or (_BRIAR_ID,))
+    if _enc._resolve_card_id(select.option[idx], obs.current) not in briar_ids:
+        return None  # ブライア以外は無関係
+
+    try:
+        from ptcg_ai.search import ko_search
+        ko_cfg = gate.get("ko_search") or {}
+        limit_ms = float(ko_cfg.get("time_limit_ms", gate.get("time_limit_ms", 300)))
+        deadline = time.perf_counter() + limit_ms / 1000.0
+        report: dict = {}
+        can_ko = bool(ko_search.can_ko_this_turn(
+            obs, _model_hidden_state_factory(obs, config), ko_cfg, deadline, report=report))
+    except Exception:  # noqa: BLE001 - 探索失敗が意思決定を止めてはならない
+        return None
+    if can_ko:
+        return None  # KOできる=サイド追加が実現する=正当な使用
+    if not report.get("searched") or report.get("aborted"):
+        return None  # 判定不能(隠れ状態を組めない/予算切れ)=介入しない
+
+    scores = _policy_scores(obs, select, config)
+    if scores is None:
+        return None
+    best_alt = best_score = None
+    for i, opt in enumerate(select.option):
+        if _enc._resolve_card_id(opt, obs.current) in briar_ids:
+            continue
+        if best_score is None or scores[i] > best_score:
+            best_score, best_alt = scores[i], i
+    if best_alt is None:
+        return None
+    action = [best_alt]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["briar_gate_fired"] += 1
+    return action
+
+
+# --------------------------------------------------------------------------------------
+# r9 Fix-D: 山札僅少ブレーキ / Fix-E: ボスのKOゲート
+# (実ラダー68試合・32敗の全数調査に基づく。どちらも独立の config キーで既定OFF=本番不変)
+# --------------------------------------------------------------------------------------
+
+# ブレーキ対象=「自分の手札を山に戻して引き直す」ドローサポートと、その**引く枚数**。
+# 山札の増減はこの引く枚数と手札枚数の差で決まる(実測で検証、`_draw_supporter_deck_delta`)。
+# ジャッジマン(1213)は意図的にこの表に入れない(下記 `_try_low_deck_draw_brake` 参照)。
+_DEFAULT_DRAW_SUPPORTER_DRAWS = {_LILLIE_ID: 6, _HARLEQUIN_ID: 5}
+
+
+def _draw_supporter_deck_delta(card_id: int | None, state, me: int, brake: dict) -> int | None:
+    """そのドローサポートを使ったときの**自分の山札の増減**。対象外カード/判定不能は None。
+
+    実測(93517227 row104→105 / 93526443 row147→149 / 93517227 row124→125)で確認した式::
+
+        山札の増減 = (手札枚数 - 1) - 引く枚数
+
+    「-1」は使ったサポート自身がトラッシュへ行く分(山に戻るのは残りの手札)。リーリエは
+    自サイド6枚なら8枚引く補正があるので、枚数の解決は `_refill_hand_size` に委ねる
+    (`hand_damage_guard` と同じ表・同じ補正を使う=引く枚数の定義をリポジトリ内で一本化する)。
+    """
+    draws = brake.get("draw_counts") or _DEFAULT_DRAW_SUPPORTER_DRAWS
+    draw = _refill_hand_size(card_id, state, me, {"refill_hand_sizes": draws})
+    if draw is None:
+        return None
+    try:
+        hand = len(state.players[me].hand or [])
+    except Exception:  # noqa: BLE001
+        return None
+    return (hand - 1) - int(draw)
+
+
+def _try_low_deck_draw_brake(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """山札が僅少なときの「山札を減らすドロー」を止める。config-gated
+    (``low_deck_draw_brake``)、キーが無ければ常に None=本番不変。
+
+    実ラダー68試合・32敗の全数調査: **32敗中5敗(15.6%)が自分の山札0による敗北**で、相手の
+    山札は14〜29枚残っていた。うち3敗はサイドを3〜4枚先取した優勢形での自滅
+    (93526443: T21 山5・手札3 でリーリエの決心 → 山2 → T23 山0)。一方 T10 時点の山札中央値は
+    勝ち13.5 / 負け19.5 で、**速く回すこと自体は勝ちと正相関**。したがって抑制は
+    「本当に山を減らす1手」だけに絞る必要がある。
+
+    config 例::
+
+        "low_deck_draw_brake": {"enabled": true, "deck_threshold": 6}
+
+    発火条件(すべてAND):
+      - 自分の ``deckCount`` <= ``deck_threshold``(既定6)
+      - 選んだ手が **山札を減らすドローサポートの PLAY**。既定の対象はリーリエの決心(1227)と
+        クラウン(1223)(``card_ids`` で上書き可)。さらに ``require_net_deck_loss``(既定 true)
+        のときは `_draw_supporter_deck_delta` < 0、すなわち**実際に山札が減る**ことも要る
+      - このターン確定KOが取れない(`ko_search.can_ko_this_turn`)。KOが取れるなら引いて
+        勝ちに行ってよい(ブレーキは負け筋の回避であって、勝ち筋を止める道具ではない)
+
+    **ジャッジマン(1213)は対象外**(明示的に弾く)。ジャッジは互いの手札を山に戻して4枚引く
+    ので、手札5枚以上なら**山札はむしろ増える**=山札切れ対策としては有効な札。同じ理由で
+    リーリエ/クラウンも「手札が引く枚数より多い」局面では山札が増える(93517227 row104 は
+    山10・手札9 でリーリエ=山13 に**増えている**)。この「増える/減らない使い方」まで潰すと
+    ドローエンジンを止めるだけの純損になるため、既定では実増減を見る(``require_net_deck_loss``)。
+    literal な「リーリエ/クラウンなら常に」挙動を測りたい場合だけ false にする(ablation 用)。
+
+    KO探索の False は「KOできない」と「判定不能」を区別しないため、`_try_briar_gate` と同じく
+    **探索が完走したときだけ**介入する(``require_conclusive_ko_search``、既定 true)。
+    判定不能でブレーキを掛けると、ユーザー指摘の「過度な抑制」側に倒れるため。
+
+    r13(``use_closed_form_ko``、既定なし=OFF): 上記のKO判定を**閉形式ファストパス →
+    従来の探索 → それも判定不能なら不介入**の3段にする(`_ko_verdict_for_brake`)。
+    実対戦ではオーガポンが複数体並ぶ盤面で探索が予算内に完走せず、このガードは
+    120試合で発火0回だった。閉形式(`search/closed_form_ko.py`)は探索なしで
+    「今すぐ攻撃すればKO」/「攻撃でKOする手は存在しない」を O(1) で判定する。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    brake = (effective_config or {}).get("low_deck_draw_brake") or {}
+    if not brake.get("enabled", False):
+        return None
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+    option = select.option[idx]
+    if option.type != OptionType.PLAY:
+        return None
+
+    state = obs.current
+    me = state.yourIndex
+    from ptcg_ai.learning import encoder as _enc
+    card_id = _enc._resolve_card_id(option, state)
+    if card_id == _JUDGE_ID:
+        return None  # ジャッジは山札を増やす側=山札切れ対策としてはむしろ有効
+    brake_ids = set(brake.get("card_ids") or _DEFAULT_DRAW_SUPPORTER_DRAWS.keys())
+    brake_ids.discard(_JUDGE_ID)  # config で誤って入れられてもジャッジは止めない
+    if card_id not in brake_ids:
+        return None
+
+    try:
+        deck_count = int(state.players[me].deckCount)
+    except Exception:  # noqa: BLE001
+        return None
+    if deck_count > int(brake.get("deck_threshold", 6)):
+        return None
+    if brake.get("require_net_deck_loss", True):
+        delta = _draw_supporter_deck_delta(card_id, state, me, brake)
+        if delta is None or delta >= 0:
+            return None  # 山札が減らない使い方=止める理由がない
+
+    # このターンKOできるなら引いて勝ちに行ってよい(ブレーキは掛けない)。
+    # r13: 「閉形式ファストパス → 従来の探索 → それも判定不能なら不介入」の3段判定
+    # (`_ko_verdict_for_brake`)。``use_closed_form_ko`` が無ければ1段目は素通りするので、
+    # キーの無い config では r9〜r12 と完全に同一の探索だけが走る。
+    if _ko_verdict_for_brake(obs, brake, config, "low_deck_draw_brake") is not False:
+        return None  # True=KOできるので通す / None=判定不能=安全側で介入しない
+
+    scores = _policy_scores(obs, select, config)
+    if scores is None:
+        return None
+    best_alt = best_score = None
+    for i, opt in enumerate(select.option):
+        # 対象のドローサポートは全部除外(別の1枚に差し替えても山札は同じだけ減る)。
+        if opt.type == OptionType.PLAY and _enc._resolve_card_id(opt, state) in brake_ids:
+            continue
+        if best_score is None or scores[i] > best_score:
+            best_score, best_alt = scores[i], i
+    if best_alt is None:
+        return None
+    action = [best_alt]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["low_deck_draw_brake_fired"] += 1
+    return action
+
+
+def _opponent_bench_energy_counts(state, me: int) -> dict[int, int]:
+    """相手ベンチの index -> エネルギー個数。判定不能は空 dict。"""
+    out: dict[int, int] = {}
+    try:
+        for i, pk in enumerate(state.players[1 - me].bench or []):
+            if pk is None:
+                continue
+            out[i] = len(getattr(pk, "energies", None) or [])
+    except Exception:  # noqa: BLE001
+        return {}
+    return out
+
+
+def _boss_target_key(entry_or_option) -> tuple | None:
+    """対象の照合キー (area, index, playerIndex)。選択肢の並び順に依存しない同一性判定用。"""
+    try:
+        if isinstance(entry_or_option, dict):
+            return (entry_or_option["area"], entry_or_option["index"], entry_or_option["player_index"])
+        return (
+            getattr(entry_or_option, "area", None),
+            getattr(entry_or_option, "index", None),
+            getattr(entry_or_option, "playerIndex", None),
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _boss_allowed_targets(state, me: int, targets: list[dict], gate: dict) -> tuple[set, set]:
+    """(許可する対象キーの集合, そのうちエネ除去例外で許可した対象キーの集合)。
+
+    許可 = 「このターンKOできる」対象。``allow_energy_denial``(既定 true)のときは例外として
+    「相手ベンチで**最多のエネルギー**を持つ(かつ1個以上)」対象も許可する。KO できなくても、
+    育ったアタッカーを前に出して倒す/エネを盤面から抜くのは正当な使い方(実ラダー 93528233 T6
+    の成功例=8エネのオーガポンを引きずり出し、草8個を盤面から永久に除去した)。
+    """
+    allowed: set = set()
+    denial: set = set()
+    for t in targets:
+        key = _boss_target_key(t)
+        if key is not None and t.get("can_ko"):
+            allowed.add(key)
+    if not gate.get("allow_energy_denial", True):
+        return allowed, denial
+    energies = _opponent_bench_energy_counts(state, me)
+    if not energies:
+        return allowed, denial
+    max_energy = max(energies.values())
+    if max_energy < max(1, int(gate.get("min_denial_energy", 1))):
+        return allowed, denial
+    for t in targets:
+        key = _boss_target_key(t)
+        if key is None or t.get("area") != AreaType.BENCH:
+            continue
+        if energies.get(t.get("index"), -1) == max_energy:
+            allowed.add(key)
+            denial.add(key)
+    return allowed, denial
+
+
+def _try_boss_lethal_gate(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """ボスの指令(1182)を「今ターン倒せる相手がいるとき」だけ許可する。config-gated
+    (``boss_lethal_gate``)、キーが無ければ常に None=本番不変。
+
+    実ラダー 93503044 T13: メガガルーラex(HP330)に対し自分は8エネ=270ダメージで**KO不可**
+    なのに ボスの指令で引きずり出し、60HP残しで逃げられ、以降12ターン3サイド分をベンチに
+    放置した。逆に成功例(93528233 T6 ほか)は「引きずり出した相手を倒せる」か
+    「相手の最大エネ源を引き剥がす」ときだけだった。
+
+    config 例::
+
+        "boss_lethal_gate": {"enabled": true, "allow_energy_denial": true}
+
+    この関数(PLAY 決定側)は **「許可できる対象が1体も居ない」ときだけ**ボスを次善手へ
+    差し替える。対象が居るなら差し替えず、**どの相手を出すか**は直後の対象選択で
+    `_try_boss_target_redirect` が直す(ボスの PLAY と対象選択は別 decision なので、
+    ハンマーの redirect と同じ持ち越しキャッシュ方式を使う)。
+
+    KO判定は打点式を手書きせず `search.boss_target_eval`(ボスPLAY→対象→`ko_search` のDFS)
+    に委ねる。弱点・特性・「エネ加速してから攻撃」まで**エンジンの真実**で解くので、
+    オーガポン専用式ではない。評価が完走しなかった/判定不能のときは介入しない(安全側)。
+    """
+    global _boss_target_cache
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    gate = (effective_config or {}).get("boss_lethal_gate") or {}
+    if not gate.get("enabled", False):
+        return None
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+    option = select.option[idx]
+    if option.type != OptionType.PLAY:
+        return None
+    from ptcg_ai.learning import encoder as _enc
+    boss_ids = set(gate.get("card_ids") or (_BOSS_ORDER_ID,))
+    if _enc._resolve_card_id(option, obs.current) not in boss_ids:
+        return None  # ボス以外は無関係(コストゼロ)
+
+    state = obs.current
+    me = state.yourIndex
+    # このボスPLAYについての判定をこれから作り直すので、古い持ち越しは先に捨てる
+    # (判定不能で早期 return したときに前の decision のキャッシュが残らないようにする)。
+    _boss_target_cache = None
+    try:
+        from ptcg_ai.search import boss_target_eval
+        eval_cfg = gate.get("target_eval") or {}
+        limit_ms = float(eval_cfg.get("time_limit_ms", gate.get("time_limit_ms", 400)))
+        result = boss_target_eval.evaluate_targets(
+            obs, _model_hidden_state_factory(obs, config), idx, eval_cfg,
+            time.perf_counter() + limit_ms / 1000.0)
+    except Exception:  # noqa: BLE001 - 評価失敗が意思決定を止めてはならない
+        return None
+    if result is None or result.get("any_aborted"):
+        _GUARD_STATS["boss_lethal_gate_inconclusive"] += 1
+        return None  # 判定不能=介入しない(安全側)
+
+    targets = result.get("targets") or []
+    allowed, denial = _boss_allowed_targets(state, me, targets, gate)
+    if allowed:
+        # 許可できる相手が居る=ボス自体は正当。どれを出すかは対象選択で直す。
+        _boss_target_cache = {
+            "your_index": me,
+            "turn": getattr(state, "turn", None),
+            "select_seq": _selects_seen,
+            "allowed": allowed,
+            "denial": denial,
+        }
+        return None
+
+    # 倒せる相手も剥がす価値のある相手も居ない=ボスは盤面を悪化させるだけ。次善手へ。
+    _boss_target_cache = None
+    scores = _policy_scores(obs, select, config)
+    if scores is None:
+        return None
+    best_alt = best_score = None
+    for i, opt in enumerate(select.option):
+        if opt.type == OptionType.PLAY and _enc._resolve_card_id(opt, state) in boss_ids:
+            continue
+        if best_score is None or scores[i] > best_score:
+            best_score, best_alt = scores[i], i
+    if best_alt is None:
+        return None
+    action = [best_alt]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["boss_lethal_gate_fired"] += 1
+    return action
+
+
+def _is_boss_target_select(select: SelectData, boss_ids) -> bool:
+    """この select がボスの「引きずり出す相手を選ぶ」select か(実測: CARD / SWITCH / effect=ボス)。"""
+    try:
+        if select.type != SelectType.CARD or select.context != SelectContext.SWITCH:
+            return False
+        effect = getattr(select, "effect", None)
+        effect_id = getattr(effect, "id", None) if effect is not None else None
+        return effect_id is not None and effect_id in boss_ids
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _try_boss_target_redirect(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """ボスの**対象**を「今ターン倒せる相手」へ振り替える。config-gated(``boss_lethal_gate``)。
+
+    直前の PLAY 決定で `_try_boss_lethal_gate` が作ったキャッシュ(同じ試合・同じターン・
+    **1つ前の decision**)だけを信用する。ハンマーの redirect と同じ理由で、対象選択の時点では
+    効果解決中のボスがどのゾーンにも見えず `build_dummy_search_state` の整合チェックが1枚ずれる
+    ため、ここで評価を張り直すことはできない(`_hammer_redirect_can_ko` の実測メモ参照)。
+    キャッシュが無い/古い/対象が判別できない場合は介入しない(安全側=従来挙動)。
+    """
+    global _boss_target_cache
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    gate = (effective_config or {}).get("boss_lethal_gate") or {}
+    if not gate.get("enabled", False):
+        return None
+    select = obs.select
+    boss_ids = set(gate.get("card_ids") or (_BOSS_ORDER_ID,))
+    if not _is_boss_target_select(select, boss_ids):
+        return None
+    if len(chosen_action) != 1 or select.maxCount != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+
+    cache = _boss_target_cache
+    _boss_target_cache = None  # 1回きり(次の decision へは持ち越さない)
+    try:
+        if (
+            cache is None
+            or cache.get("your_index") != obs.current.yourIndex
+            or cache.get("turn") != getattr(obs.current, "turn", None)
+            or _selects_seen - int(cache.get("select_seq", -99)) != 1
+        ):
+            return None
+    except Exception:  # noqa: BLE001
+        return None
+    allowed = cache.get("allowed") or set()
+    if not allowed:
+        return None
+    if _boss_target_key(select.option[idx]) in allowed:
+        if _boss_target_key(select.option[idx]) in (cache.get("denial") or set()):
+            _GUARD_STATS["boss_lethal_gate_denial_kept"] += 1
+        return None  # 既に許可対象を選んでいる=介入不要
+
+    candidates = [i for i, opt in enumerate(select.option) if _boss_target_key(opt) in allowed]
+    if not candidates:
+        return None
+    best = candidates[0]
+    scores = _policy_scores(obs, select, config)
+    if scores is not None:
+        best = max(candidates, key=lambda i: scores[i])
+    action = [best]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["boss_lethal_gate_redirected"] += 1
+    return action
+
+
+# --------------------------------------------------------------------------------------
+# r10: 実ラダーのリプレイ分析で確定した「誤爆余地のほぼ無い無料改善」3種。
+#   Fix-F `tool_stadium_guard`        どうぐ無効スタジアム下でのどうぐ装着を止める
+#   Fix-G `energy_to_active_first`    攻撃不能なアクティブを差し置いてベンチにエネを付けない
+#   Fix-H `search_pick_pokemon_first` 「山札の上からN枚見て手札に加える」でポケモンを拾う
+# いずれも**独立の config キー**で、キーが無ければ即 None=本番挙動不変(config-gated)。
+#
+# 採用判定の方法論について: どれも実ラダー31敗中1〜3件の頻度で、勝率A/B(ローカルの
+# ノイズ床 ±7pt)では原理的に判定できない。よって判定は (1) 実局面スナップショットで
+# 正しい手を選ぶこと、(2) 発火率・誤爆率メトリクス(`kaggle_replays/_metrics_gate.py`)で
+# 行う。勝率A/Bは「-3pt級の退行が無いこと」の確認にだけ使う。
+# --------------------------------------------------------------------------------------
+
+# ジャミングタワー(data/JP_Card_Data.csv で実ID確認済み: 1246 / スタジアム /
+# 「おたがいのポケモン全員についている『ポケモンのどうぐ』の効果は、すべてなくなる。」)。
+# config `tool_stadium_guard.nullifying_stadium_ids` で上書き可能(将来の同型スタジアム用)。
+_JAMMING_TOWER_ID = 1246
+_DEFAULT_NULLIFYING_STADIUM_IDS = (_JAMMING_TOWER_ID,)
+
+# 「みどりのまい」型の**自分自身にエネを付ける特性**を持つポケモン。オーガポン みどりのめん ex
+# (96)の みどりのまい =「自分の手札から基本【草】エネルギーを1枚選び、このポケモンにつける。
+# その後、山札を1枚引く」。特性テキストの汎用パースは誤爆の温床なので、対象は明示リストで
+# 持つ(config `energy_to_active_first.energy_ability_card_ids` で上書き可能)。
+_TEAL_DANCE_CARD_IDS = (96,)
+
+_R10_GUARD_STATS_ZERO = {
+    # Fix-F: どうぐ無効スタジアム下のどうぐ装着veto
+    "tool_stadium_guard_fired": 0,             # 無効スタジアム下のどうぐ装着を差し替えた回数
+    "tool_stadium_guard_no_alternative": 0,    # 代替手が無く介入を見送った回数
+    "tool_stadium_guard_misfire_no_stadium": 0,  # 番人: 無効スタジアムでないのに発火した回数(=0のはず)
+    # Fix-G: 攻撃不能時のアクティブ優先エネ付け
+    "energy_to_active_first_fired": 0,           # ベンチ→アクティブへ付け先を振り替えた回数
+    "energy_to_active_first_no_active_option": 0,  # アクティブへ付けられず見送った回数
+    "energy_to_active_first_misfire_can_attack": 0,  # 番人: 既に攻撃可能なのに発火した回数(=0のはず)
+    # Fix-H: サーチ(looking)でポケモンを優先
+    "search_pick_pokemon_first_fired": 0,       # ポケモンを拾うよう差し替えた回数
+    "search_pick_pokemon_first_appended": 0,    # うち枠が余っていて「足した」回数
+    "search_pick_pokemon_first_replaced": 0,    # うち別の候補と「入れ替えた」回数
+    "search_pick_pokemon_first_misfire_bench_full": 0,  # 番人: ベンチ満杯なのに発火した回数(=0のはず)
+}
+# 既存の `_GUARD_STATS_ZERO` リテラルには触れず、追加登録だけする(同ファイルを同時に触る
+# 他の作業とのコンフリクトを避けるため)。`get_guard_stats`/`reset_guard_stats` はそのまま動く。
+_GUARD_STATS_ZERO.update(_R10_GUARD_STATS_ZERO)
+_GUARD_STATS.update(_R10_GUARD_STATS_ZERO)
+
+
+def _current_stadium_card_id(state) -> int | None:
+    """今 場に出ているスタジアムの CardData id。無い/読めないなら None。"""
+    try:
+        stadium = state.stadium or []
+        if not stadium:
+            return None
+        card = stadium[0]
+        return int(card.id) if card is not None else None
+    except Exception:  # noqa: BLE001 - 読み取り失敗が意思決定を止めてはならない
+        return None
+
+
+def _card_type_of(card_id: int | None):
+    """card_id の CardType。未知ID/例外は None(=判定不能、呼び出し側は介入しない)。"""
+    if card_id is None:
+        return None
+    try:
+        from ptcg_ai.shared import card_cache
+        return card_cache.get_card(int(card_id)).cardType
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _is_pokemon_tool(card_id: int | None) -> bool:
+    """「ポケモンのどうぐ」か。カードIDのハードコードではなく分類(CardType.TOOL)で判定する
+    (data/JP_Card_Data.csv の『ポケモンのどうぐ』28枚に対応する engine 側の分類)。"""
+    from cg.api import CardType
+    return _card_type_of(card_id) == CardType.TOOL
+
+
+def _is_energy_card(card_id: int | None) -> bool:
+    """基本/特殊エネルギーか。未知ID/例外は False(=介入しない、安全側)。"""
+    from cg.api import CardType
+    return _card_type_of(card_id) in (CardType.BASIC_ENERGY, CardType.SPECIAL_ENERGY)
+
+
+def _is_basic_pokemon(card_id: int | None) -> bool:
+    """たねポケモン(=引いてすぐベンチに出せる)か。未知ID/例外は False。"""
+    if card_id is None:
+        return False
+    try:
+        from cg.api import CardType
+        from ptcg_ai.shared import card_cache
+        card = card_cache.get_card(int(card_id))
+        return card.cardType == CardType.POKEMON and bool(card.basic)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _try_tool_stadium_guard(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """どうぐの効果が無効化されるスタジアムの下で「ポケモンのどうぐ」を付ける手を却下する。
+    config-gated(``tool_stadium_guard``)、キーが無ければ常に None=本番不変。
+
+    実ラダーの実例(episode 93408551 T10 row129): 場が **ジャミングタワー**(1246、
+    「おたがいのポケモン全員についている『ポケモンのどうぐ』の効果は、すべてなくなる」)なのに
+    **ヒーローマント**(1159、最大HP+100)をHP10のオーガポンに装着した。効果は最初から
+    無効なので完全な無駄撃ちで、そのターンHP10のまま気絶しマントもトラッシュへ流れた。
+
+    config 例::
+
+        "tool_stadium_guard": {"enabled": true, "nullifying_stadium_ids": [1246]}
+
+    発火条件(すべて満たすときだけ):
+      - 場のスタジアムが ``nullifying_stadium_ids``(既定 [1246])に含まれる
+      - 選んだ手が **ポケモンのどうぐの ATTACH / PLAY**(判定は cardId のハードコードでは
+        なく `CardType.TOOL` = カード分類。将来どうぐが増えても効く)
+      - 単一選択の MAIN(どうぐを付ける decision の形)
+
+    差し替え先はどうぐ以外で方策スコア最大の手。代替が無い/スコアが取れない場合は介入しない
+    (安全側)。「先にスタジアムを張り替えてからどうぐを付ける」判断は方策/探索の領分なので
+    ここではやらない(このガードは無駄撃ちを止めるだけ)。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    guard = (effective_config or {}).get("tool_stadium_guard") or {}
+    if not guard.get("enabled", False):
+        return None
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+
+    state = obs.current
+    nullifying = set(guard.get("nullifying_stadium_ids") or _DEFAULT_NULLIFYING_STADIUM_IDS)
+    stadium_id = _current_stadium_card_id(state)
+    if stadium_id is None or stadium_id not in nullifying:
+        return None  # どうぐが有効な盤面=干渉しない
+
+    from ptcg_ai.learning import encoder as _enc
+    chosen = select.option[idx]
+    if chosen.type not in (OptionType.ATTACH, OptionType.PLAY):
+        return None
+    if not _is_pokemon_tool(_enc._resolve_card_id(chosen, state)):
+        return None  # どうぐ以外(エネ付け等)には干渉しない
+
+    scores = _policy_scores(obs, select, config)
+    if scores is None:
+        return None
+    best_alt = best_score = None
+    for i, opt in enumerate(select.option):
+        if opt.type in (OptionType.ATTACH, OptionType.PLAY) \
+                and _is_pokemon_tool(_enc._resolve_card_id(opt, state)):
+            continue  # 他のどうぐ装着も同じ理由で無駄=候補から外す
+        if best_score is None or scores[i] > best_score:
+            best_score, best_alt = scores[i], i
+    if best_alt is None:
+        _GUARD_STATS["tool_stadium_guard_no_alternative"] += 1
+        return None
+    action = [best_alt]
+    if not _is_valid_action(action, select):
+        return None
+    if _current_stadium_card_id(state) not in nullifying:  # 番人(到達しないはず)
+        _GUARD_STATS["tool_stadium_guard_misfire_no_stadium"] += 1
+    _GUARD_STATS["tool_stadium_guard_fired"] += 1
+    return action
+
+
+def _energy_attach_target_area(option, state, ability_ids: set[int]):
+    """この選択肢が「エネルギーを自分の場のポケモンに付ける手」なら、その**付け先の AreaType**
+    (ACTIVE / BENCH)を返す。そうでなければ None。
+
+    2系統ある(実データ episode 93408551 T6 で確認):
+      - 手貼り/道具的なエネ付け = ``OptionType.ATTACH``。``area``/``index`` が手札のエネを、
+        ``inPlayArea``/``inPlayIndex`` が付け先の場のポケモンを指す(cg/api.py の
+        OptionType.ATTACH コメント参照)。同じ手札 index の ATTACH が付け先の数だけ並ぶ。
+      - 「みどりのまい」型の特性 = ``OptionType.ABILITY``。``area``/``index`` が特性を使う
+        ポケモン自身を指し、エネはそのポケモン自身に付く(=付け先 == そのポケモン)。
+    """
+    try:
+        from ptcg_ai.learning import encoder as _enc
+        if option.type == OptionType.ATTACH:
+            if not _is_energy_card(_enc._resolve_card_id(option, state)):
+                return None
+            return getattr(option, "inPlayArea", None)
+        if option.type == OptionType.ABILITY:
+            card_id = _enc._resolve_card_id(option, state)
+            if card_id is None or int(card_id) not in ability_ids:
+                return None
+            return getattr(option, "area", None)
+    except Exception:  # noqa: BLE001 - 判定不能は None(=介入しない、安全側)
+        return None
+    return None
+
+
+def _try_energy_to_active_first(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """アクティブが攻撃コストを満たしていないのにベンチへエネを付ける手を、アクティブへの
+    エネ付けに振り替える。config-gated(``energy_to_active_first``)、キーが無ければ常に
+    None=本番不変。
+
+    実ラダーの実例(episode 93408551 T6 rows84/86/88): アクティブのオーガポン(草2、
+    まんようしぐれ=草3が必要なので **ATTACK 選択肢が出ていない**)を差し置いて、
+    みどりのまい(特性)3回をすべて**ベンチ**個体に使い、手貼り権も未使用のままターン終了。
+    そのターンの攻撃を丸ごと損した(相手はその間に自由に殴れる)。
+
+    config 例(``energy_ability_card_ids`` は任意。既定は [96]=オーガポン みどりのめん ex)::
+
+        "energy_to_active_first": {"enabled": true}
+
+    発火条件(すべて満たすときだけ):
+      - 単一選択の MAIN で、自分のアクティブが場に居る
+      - **選択肢に ATTACK が1件も無い** = 今のアクティブは攻撃コストを満たしていない
+        (engine が出す選択肢が唯一の正確な根拠。自前のコスト計算はしない)
+      - 選んだ手が「エネルギーをベンチに付ける手」(`_energy_attach_target_area` == BENCH)
+      - 同じ select に「エネルギーをアクティブに付ける手」がある
+
+    振替先は、まず**同じ種類**(特性なら特性、手貼りなら手貼り)のアクティブ向け選択肢から
+    方策スコア最大を選ぶ。同種が無ければ種類を問わずアクティブ向けから選ぶ。アクティブへ
+    付けられる選択肢が1つも無ければ介入しない(=ベンチ育成が唯一の選択肢の局面は尊重する)。
+
+    **既知の適用範囲(要判断)**: 「ワザを持たない補助ポケモン(キチキギスex 等)がアクティブに
+    居座り、本命のアタッカーはベンチ」という盤面では、アクティブへ寄せるのは損になりうる。
+    og_v032(ポケモンはオーガポン96のみ=常にワザを持つ)では起こり得ないため、現状は
+    「アクティブにワザがあるか」の条件を**入れていない**。他デッキでこのキーを有効にする場合は
+    設計側で要判断(入れるなら `card_cache.get_card(active.id).attacks` の空判定を足すだけ)。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    guard = (effective_config or {}).get("energy_to_active_first") or {}
+    if not guard.get("enabled", False):
+        return None
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+
+    state = obs.current
+    me = state.yourIndex
+    try:
+        active = state.players[me].active or []
+        if not active or active[0] is None:
+            return None  # アクティブが居ない/伏せ中=対象外
+    except Exception:  # noqa: BLE001
+        return None
+
+    if any(opt.type == OptionType.ATTACK for opt in select.option):
+        return None  # 既に攻撃できる=このガードの出番ではない
+
+    ability_ids = {int(x) for x in (guard.get("energy_ability_card_ids") or _TEAL_DANCE_CARD_IDS)}
+    if _energy_attach_target_area(select.option[idx], state, ability_ids) != AreaType.BENCH:
+        return None  # ベンチへのエネ付け以外(ドロー/進化/攻撃準備等)には干渉しない
+
+    candidates = [
+        i for i, opt in enumerate(select.option)
+        if _energy_attach_target_area(opt, state, ability_ids) == AreaType.ACTIVE
+    ]
+    if not candidates:
+        _GUARD_STATS["energy_to_active_first_no_active_option"] += 1
+        return None
+
+    same_kind = [i for i in candidates if select.option[i].type == select.option[idx].type]
+    pool = same_kind or candidates
+    best = pool[0]
+    scores = _policy_scores(obs, select, config)
+    if scores is not None:
+        best = max(pool, key=lambda i: scores[i])
+    action = [best]
+    if not _is_valid_action(action, select):
+        return None
+    if any(opt.type == OptionType.ATTACK for opt in select.option):  # 番人(到達しないはず)
+        _GUARD_STATS["energy_to_active_first_misfire_can_attack"] += 1
+    _GUARD_STATS["energy_to_active_first_fired"] += 1
+    return action
+
+
+def _looking_card_id(option, state) -> int | None:
+    """``area == LOOKING`` の選択肢が指す実カードの id。判定不能なら None。
+
+    実データ(episode 93473767 T3 row37 / 93408551 T10 row131)で確認したスキーマ:
+
+        state.looking          = [1, 1, 1251, 1, 1120, 96, 1]   ← 見えている7枚の実体
+        select.option[i]       = Option(type=CARD, area=LOOKING, index=<looking内index>)
+        select.option[i].cardId = None                          ← option 単体では盲目
+
+    つまり **option には cardId が入らないが、`state.looking` を引けば実体が分かる**。
+    `encoder._resolve_card_id` は LOOKING を解決しない(`_AREA_TO_PLAYER_ZONE` に無い)ため、
+    方策から見ると候補は識別不能=このガードが供給する追加情報になる。
+    """
+    try:
+        if getattr(option, "area", None) != AreaType.LOOKING:
+            return None
+        looking = getattr(state, "looking", None)
+        index = getattr(option, "index", None)
+        if not looking or index is None or not (0 <= index < len(looking)):
+            return None
+        card = looking[index]
+        return int(card.id) if card is not None else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _try_search_pick_pokemon_first(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """「山札の上からN枚を見て手札に加える」サーチで、たねポケモンを1枚は拾うようにする。
+    config-gated(``search_pick_pokemon_first``)、キーが無ければ常に None=本番不変。
+
+    実ラダーの実例(episode 93473767 T3 row37): むしとりセット(1094、「山札を上から7枚見て、
+    その中から【草】ポケモンと基本【草】エネルギーを合計2枚まで手札に加える」)で、候補に
+    オーガポン ex(96)が出ていたのに基本草エネルギー2枚を選んだ。ベンチには空きがあり、
+    ベンチ要員を1体増やせる場面だった。
+
+    観測可能性の結論(実データで確認済み): 選択肢の ``cardId`` は None だが
+    ``state.looking[option.index]`` に実体が入っており、**エージェントは実行時に候補の中身を
+    見られる**(`_looking_card_id` の docstring 参照)。方策側は LOOKING を解決しないので、
+    この情報を使えるのはこのガードだけ。
+
+    config 例::
+
+        "search_pick_pokemon_first": {"enabled": true}
+
+    発火条件:
+      - ``SelectType.CARD`` かつ context が ``contexts``(既定 ["TO_HAND"])
+      - **全ての選択肢が LOOKING 由来で実体を解決できる**(1つでも解決できなければ介入しない)
+      - ベンチに空きがある(``require_bench_space`` 既定 true)
+      - 現在の選択にたねポケモンが1枚も入っていない
+      - 未選択の候補にたねポケモンがある
+
+    差し替えは「枠が余っていれば足す」、埋まっていれば「方策スコア最小の選択を1つだけ
+    入れ替える」。**入れる/入れ替えるのは1枚だけ**なので、たねポケモンを2枚以上取りに行って
+    カードテキスト上不正な選択になることは無い。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    guard = (effective_config or {}).get("search_pick_pokemon_first") or {}
+    if not guard.get("enabled", False):
+        return None
+    select = obs.select
+    if select.type != SelectType.CARD or not select.option:
+        return None
+
+    from cg.api import SelectContext as _SC
+    contexts = set()
+    for name in (guard.get("contexts") or ("TO_HAND",)):
+        try:
+            contexts.add(int(_SC[name]) if isinstance(name, str) else int(name))
+        except Exception:  # noqa: BLE001 - 未知の context 名は無視(安全側)
+            continue
+    if int(getattr(select, "context", -1)) not in contexts:
+        return None
+
+    state = obs.current
+    card_ids = [_looking_card_id(opt, state) for opt in select.option]
+    if any(cid is None for cid in card_ids):
+        return None  # LOOKING 以外/実体不明が混ざる select = 介入しない(安全側)
+
+    chosen = [i for i in chosen_action if 0 <= i < len(select.option)]
+    if len(chosen) != len(chosen_action):
+        return None
+    if any(_is_basic_pokemon(card_ids[i]) for i in chosen):
+        return None  # 既にポケモンを取っている=介入不要
+
+    me = state.yourIndex
+    bench_free = True
+    try:
+        player = state.players[me]
+        bench_free = len(player.bench or []) < int(player.benchMax or 0)
+    except Exception:  # noqa: BLE001
+        bench_free = False
+    if guard.get("require_bench_space", True) and not bench_free:
+        return None  # ベンチ満杯=拾っても出せない
+
+    candidates = [
+        i for i in range(len(select.option))
+        if i not in chosen and _is_basic_pokemon(card_ids[i])
+    ]
+    if not candidates:
+        return None
+    pick = candidates[0]  # 方策は LOOKING を識別できないのでスコアで選べない=先頭を決定的に取る
+
+    scores = _policy_scores(obs, select, config)
+    if len(chosen) < select.maxCount:
+        action = sorted([*chosen, pick])
+        appended = True
+    else:
+        if not chosen:
+            return None
+        drop = chosen[-1] if scores is None else min(chosen, key=lambda i: scores[i])
+        action = sorted([i for i in chosen if i != drop] + [pick])
+        appended = False
+    if not _is_valid_action(action, select) or action == sorted(chosen):
+        return None
+    if guard.get("require_bench_space", True) and not bench_free:  # 番人(到達しないはず)
+        _GUARD_STATS["search_pick_pokemon_first_misfire_bench_full"] += 1
+    _GUARD_STATS["search_pick_pokemon_first_fired"] += 1
+    _GUARD_STATS[
+        "search_pick_pokemon_first_appended" if appended else "search_pick_pokemon_first_replaced"
+    ] += 1
+    return action
+
+
+# --------------------------------------------------------------------------------------
+# r11 Fix-I: 特性ドロー(みどりのまい型)の垂れ流し抑制(`ability_draw_brake`)
+# (実ラダー32敗中3敗(9.4%)が自分の山札0による敗北。真犯人はリーリエ/クラウン(型は既に
+# `low_deck_draw_brake` で対処済み)ではなく、オーガポン みどりのめん ex(96)の特性
+# 「みどりのまい」(自分自身にエネ装着+1ドロー、各個体1回/ターン)。盤面に複数体並ぶと
+# 毎ターン最大N ドロー=デッキの加速エンジンがそのまま山札消費エンジンになる。episode
+# 93517227(壁無し・サイド2-6でリード・毎ターン1サイド獲得中)は T9〜T11 でこの特性を
+# 連打し、山札 5→2→0 で敗北した。独立configキーで既定OFF=本番不変。)
+# --------------------------------------------------------------------------------------
+
+_R11_GUARD_STATS_ZERO = {
+    "ability_draw_brake_fired": 0,               # みどりのまい型の特性ドローを差し替えた回数
+    "ability_draw_brake_fired_already_lethal": 0,  # うち「足す前から既にKO可能」で発火した内訳
+    "ability_draw_brake_fired_futile": 0,          # うち「最大まで足してもKO不可」で発火した内訳
+    "ability_draw_brake_skipped_pivotal": 0,     # このエネ加速がKO成否に寄与しうるので通した回数
+    "ability_draw_brake_inconclusive": 0,        # KO探索が完走せず介入を見送った回数
+    "ability_draw_brake_no_alternative": 0,      # 代替手が無く介入を見送った回数
+    "ability_draw_brake_misfire_no_attack": 0,   # 番人: 攻撃不能なのに発火した回数(=0のはず)
+}
+_GUARD_STATS_ZERO.update(_R11_GUARD_STATS_ZERO)
+_GUARD_STATS.update(_R11_GUARD_STATS_ZERO)
+
+
+def _try_ability_draw_brake(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """山札が僅少なときの「みどりのまい」型(自分自身にエネ装着+1ドロー)特性連打を、
+    今ターンのKO成否に影響しないときだけ止める。config-gated(``ability_draw_brake``)、
+    キーが無ければ常に None=本番不変。
+
+    実ラダーの実例(episode 93517227、壁無し・サイド2-6でリードし毎ターン1サイド獲得中):
+    T9 row122(山5、アクティブのオーガポンは8エネで相手アクティブ(HP70)へ攻撃すれば
+    確実にKOできる=足す必要が無い)/ T11 row146(山5、アクティブ4エネで相手アクティブ
+    (HP100)へ攻撃すれば足りる)のどちらも、攻撃せず**別個体**のみどりのまいを選び続け、
+    山札は T9末〜T11 で 5→2→0 まで落ちて敗北した。「エネ加速をやめれば勝っていた試合」。
+
+    config 例::
+
+        "ability_draw_brake": {"enabled": true, "deck_threshold": 8, "time_limit_ms": 300}
+
+    発火条件(すべてAND):
+      - **絶対例外(最優先)**: 選択肢に ``OptionType.ATTACK`` が1件も無い(=アクティブが
+        攻撃コストを満たしていない)なら**何があってもveto しない**。攻撃可能にするための
+        エネ加速は最優先(実例: 同episode T13 row158、山0でも攻撃不能な局面では素通しする)。
+      - 自分の ``deckCount`` <= ``deck_threshold``(既定8)
+      - 選んだ手が **みどりのまい型の ABILITY**(既定対象はオーガポン みどりのめん ex(96)、
+        ``card_ids`` で上書き可。``energy_to_active_first`` の ``_TEAL_DANCE_CARD_IDS`` と
+        同じ既定値を共有する)
+      - そのエネ追加で**今ターンのKO成否が変わらない**。以下のどちらかが成立すること:
+          (a) 既に現在の打点でKO可能 = 今の select にある ATTACK 選択肢のどれかを今すぐ
+              実行すれば今ターンKOできる(`ability_draw_eval.already_ko_without_more_energy`。
+              `search_step` してからの `ko_search.can_ko_from_node`、`boss_target_eval` と
+              同じ「search_step→KO判定」の流儀)。足す必要が無いので veto してよい。
+          (b) 最大まで足してもKO不可 = このターンの理論上最善手順(エネ加速の連打を含む)
+              でも `ko_search.can_ko_this_turn` が KO を発見できない(判定不能ではなく
+              完走した上での False)。足しても無駄なので veto してよい。
+        どちらも成立しない(=このエネ加速がKO達成に寄与しうる)なら veto しない。
+
+    KO探索の False は「KOできない」と「判定不能」を区別しないため、``low_deck_draw_brake``/
+    ``briar_gate`` と同じく**両方の探索が完走したときだけ**その結果を根拠にする。(a) が
+    判定不能でも (b) が完走して False を返せば veto してよい((b) 単独で十分条件)。
+    両方とも判定不能なら介入しない(安全側)。
+
+    差し替え先は、同型の ABILITY 選択肢(みどりのまい型全個体)を除いた中で方策スコア最大の手。
+    代替が無ければ介入しない。
+
+    r13(``use_closed_form_ko``、既定なし=OFF): (a)(b) の判定を**閉形式ファストパス →
+    従来の探索 → それも判定不能なら不介入**の3段にする(`_ability_draw_ko_verdict`)。
+    実対戦ではオーガポンが複数体並ぶ盤面で (a)(b) の探索が 300ms 予算内に完走せず、
+    このガードは120試合で発火0回だった(=実質的に死んでいた)。閉形式
+    (`search/closed_form_ko.py`)は「まんようしぐれ = 30+30×両バトル場のエネ数」を
+    既知パターンとして持ち、探索なしで (a)=`can_ko_now` / (b)=`is_ko_impossible_this_turn`
+    を O(1) で判定する。弱点・抵抗・軽減が結論を変えうる局面では None を返して黙るので、
+    段を足しても誤爆側には倒れない。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    brake = (effective_config or {}).get("ability_draw_brake") or {}
+    if not brake.get("enabled", False):
+        return None
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+
+    # 絶対例外: アクティブが攻撃コストを満たしていない(=ATTACK選択肢が無い)なら、
+    # 攻撃可能にするためのエネ加速が最優先。何があってもvetoしない(最優先で判定)。
+    if not any(opt.type == OptionType.ATTACK for opt in select.option):
+        return None
+
+    option = select.option[idx]
+    if option.type != OptionType.ABILITY:
+        return None
+
+    state = obs.current
+    me = state.yourIndex
+    from ptcg_ai.learning import encoder as _enc
+    card_id = _enc._resolve_card_id(option, state)
+    ability_ids = {int(x) for x in (brake.get("card_ids") or _TEAL_DANCE_CARD_IDS)}
+    if card_id is None or int(card_id) not in ability_ids:
+        return None  # みどりのまい型対象外のABILITYには干渉しない
+
+    try:
+        deck_count = int(state.players[me].deckCount)
+    except Exception:  # noqa: BLE001
+        return None
+    if deck_count > int(brake.get("deck_threshold", 8)):
+        return None
+
+    # r13: 「閉形式ファストパス → 従来の探索 → それも判定不能なら不介入」の3段判定
+    # (`_ability_draw_ko_verdict`)。閉形式は ``use_closed_form_ko`` が無ければ素通りするので、
+    # キーの無い config では r11 と完全に同一の探索だけが走る。
+    veto_reason = _ability_draw_ko_verdict(obs, brake, config)
+    if veto_reason is None:
+        return None
+
+    scores = _policy_scores(obs, select, config)
+    if scores is None:
+        return None
+    best_alt = best_score = None
+    for i, opt in enumerate(select.option):
+        if opt.type == OptionType.ABILITY:
+            other_id = _enc._resolve_card_id(opt, state)
+            if other_id is not None and int(other_id) in ability_ids:
+                continue  # 同型の特性はどれも同じ理由(KO成否に無関係)で除外
+        if best_score is None or scores[i] > best_score:
+            best_score, best_alt = scores[i], i
+    if best_alt is None:
+        _GUARD_STATS["ability_draw_brake_no_alternative"] += 1
+        return None
+    action = [best_alt]
+    if not _is_valid_action(action, select):
+        return None
+    if not any(opt.type == OptionType.ATTACK for opt in select.option):  # 番人(到達しないはず)
+        _GUARD_STATS["ability_draw_brake_misfire_no_attack"] += 1
+    if veto_reason == "already_lethal":
+        _GUARD_STATS["ability_draw_brake_fired_already_lethal"] += 1
+    else:
+        _GUARD_STATS["ability_draw_brake_fired_futile"] += 1
+    _GUARD_STATS["ability_draw_brake_fired"] += 1
+    return action
+
+
+# --------------------------------------------------------------------------------------
+# r13: KO判定の「閉形式ファストパス」(``use_closed_form_ko``、各ブレーキの中の独立キー)
+#
+# 問題(実測): `ability_draw_brake`(r11 Fix-I)と `low_deck_draw_brake`(r9 Fix-D)は
+# スナップショットの単純局面では正しく発火するが、**実対戦120試合で発火0回**だった。
+# 原因は KO 可否の判定に使っているエンジン探索(`ko_search.can_ko_this_turn` /
+# `ability_draw_eval.already_ko_without_more_energy`)が、みどりのまいを持つオーガポンが
+# 複数体並ぶ分岐の大きい盤面では 300ms 予算内に完走せず、すべて「判定不能」→安全側で
+# 介入見送りになっていたこと。= ガードが実質的に死んでいた。
+#
+# 対策: 本デッキのアタッカーはオーガポン みどりのめん ex(96)のみで、そのワザ
+# 「まんようしぐれ」(attackId 120)は 30 + 30×(両バトルポケモンのエネ数)という閉形式。
+# 相手アクティブの残HPは観測できるので、KO可否は探索なしで O(1) 判定できる
+# (`search/closed_form_ko.py`。実リプレイ250件突合は `kaggle_replays/_probe_closed_form_ko.py`)。
+#
+# 判定は3段: **閉形式ファストパス → 従来の探索 → それも判定不能なら介入しない**。
+# 閉形式は「弱点・抵抗・軽減が結論を変えうる局面では None(判定不能)を返す」保守設計なので、
+# 段を足しても誤爆側には倒れない。``use_closed_form_ko`` が無ければ1段目は素通り=r12以前と
+# 完全に同一挙動(本番 config は無キー=不変)。
+# --------------------------------------------------------------------------------------
+
+# 閉形式が判定不能を返した理由の内訳(「発火が増えないときに原因を特定する」ための計測)。
+# `closed_form_ko._Reason` の値と 1:1 で、キーは事前に固定登録する
+# (`reset_guard_stats` が `_GUARD_STATS_ZERO` の update なので動的キーは残ってしまうため)。
+#
+# ``ko_possible_with_prep`` だけは「閉形式が両方の問いに**確定**で答えたが、ガードが要る粒度に
+# 届かなかった」ケース(=今すぐ攻撃してもKOできない、しかし準備込みならKOできるかもしれない、
+# の中間帯)。これは閉形式の欠陥ではなく、この帯だけは探索でしか詰められないことを意味する。
+_CLOSED_FORM_KO_REASONS = (
+    "no_state", "no_active", "no_opponent_active", "unknown_attack", "no_payable_attack",
+    "opponent_resistance", "damage_modifier_in_play", "unknown_hp", "within_margin", "error",
+    "no_attack_option", "ko_possible_with_prep", "unknown",
+)
+
+_R13_GUARD_STATS_ZERO = {
+    # 閉形式ファストパスの解決内訳(ガード横断の合計)
+    "closed_form_ko_true": 0,        # 「今すぐ攻撃すればKOできる」と即断した回数
+    "closed_form_ko_false": 0,       # 「攻撃でKOする手は存在しない」と即断した回数
+    "closed_form_ko_unresolved": 0,  # 判定不能で従来の探索へフォールバックした回数
+    # ガード別(どちらのブレーキがファストパスで解決したか)
+    "ability_draw_brake_closed_form_ko": 0,
+    "ability_draw_brake_closed_form_no_ko": 0,
+    "ability_draw_brake_closed_form_unresolved": 0,
+    "low_deck_draw_brake_closed_form_ko": 0,
+    "low_deck_draw_brake_closed_form_no_ko": 0,
+    "low_deck_draw_brake_closed_form_unresolved": 0,
+}
+_R13_GUARD_STATS_ZERO.update(
+    {f"closed_form_ko_reason_{r}": 0 for r in _CLOSED_FORM_KO_REASONS}
+)
+_GUARD_STATS_ZERO.update(_R13_GUARD_STATS_ZERO)
+_GUARD_STATS.update(_R13_GUARD_STATS_ZERO)
+
+
+def _closed_form_ko_fastpath(obs: Observation, brake: dict, guard: str) -> bool | None:
+    """閉形式によるKO可否のファストパス。``use_closed_form_ko`` が無ければ常に None。
+
+    Returns:
+        ``True``  = 今すぐ攻撃すれば相手のバトルポケモンをKOできる(下界で確定)
+        ``False`` = このターン攻撃でKOする手は**そもそも存在しない**(上界で確定)
+        ``None``  = 判定不能。呼び出し側は従来のエンジン探索へフォールバックする。
+
+    ``True`` を返すには**エンジンが実際に ATTACK 選択肢を出していること**も要求する。
+    盤面のスカラーだけでは見えない一時効果(実例: カブルモ 506「スノットアップ」=
+    「次の相手の番、ワザが使えない」。episode 93517227 row158 で、こちらの草4エネの
+    オーガポンに ATTACK 選択肢が1つも出ていなかった)で攻撃自体が封じられていることが
+    あるため。閉形式は静的HP・エネ数しか見ないので、この一点だけはエンジンに聞く。
+    """
+    if not brake.get("use_closed_form_ko", False):
+        return None
+    try:
+        from ptcg_ai.search import closed_form_ko
+        state = obs.current
+        me = state.yourIndex
+        cf_cfg = {"ko_margin": int(brake.get("ko_margin", 0))}
+        report: dict = {}
+        blocked = None
+        now = closed_form_ko.can_ko_now(state, me, cf_cfg, report)
+        if now is True:
+            if any(o.type == OptionType.ATTACK for o in obs.select.option):
+                _GUARD_STATS["closed_form_ko_true"] += 1
+                _GUARD_STATS[f"{guard}_closed_form_ko"] += 1
+                return True
+            # 攻撃が封じられている(ATTACK選択肢が出ていない)ので True にはできない。
+            # この理由は他の判定不能理由より優先して記録する(原因追跡のため)。
+            blocked = "no_attack_option"
+        report2: dict = {}
+        impossible = closed_form_ko.is_ko_impossible_this_turn(state, me, cf_cfg, report2)
+        if impossible is True:
+            _GUARD_STATS["closed_form_ko_false"] += 1
+            _GUARD_STATS[f"{guard}_closed_form_no_ko"] += 1
+            return False
+        if blocked is None and now is False and impossible is False:
+            # 閉形式は両方に確定で答えたが、ガードが要る粒度に届かない中間帯
+            # (今すぐではKOできない / しかし準備込みならKOできるかもしれない)。
+            # ここだけは探索でしか詰められない=閉形式の欠陥ではないので別ラベルにする。
+            blocked = "ko_possible_with_prep"
+        reason = str(blocked or report2.get("reason") or report.get("reason") or "unknown")
+        if reason not in _CLOSED_FORM_KO_REASONS:
+            reason = "unknown"
+        _GUARD_STATS[f"closed_form_ko_reason_{reason}"] += 1
+        _GUARD_STATS["closed_form_ko_unresolved"] += 1
+        _GUARD_STATS[f"{guard}_closed_form_unresolved"] += 1
+        return None
+    except Exception:  # noqa: BLE001 - ファストパスの失敗が意思決定を止めてはならない
+        return None
+
+
+def _search_ko_verdict(
+    obs: Observation, brake: dict, config: dict | None, guard: str
+) -> bool | None:
+    """従来のエンジン探索(`ko_search.can_ko_this_turn`)によるKO可否。r9/r11 と同一挙動。
+
+    ``True``=KOできる / ``False``=完走した上でKOできない / ``None``=判定不能。
+    カウンタ(``{guard}_skipped_ko`` / ``{guard}_inconclusive``)の増やし方も従来と同じで、
+    例外時だけは(従来どおり)どのカウンタも動かさずに ``None`` を返す。
+    """
+    try:
+        from ptcg_ai.search import ko_search
+        ko_cfg = brake.get("ko_search") or {}
+        limit_ms = float(ko_cfg.get("time_limit_ms", brake.get("time_limit_ms", 300)))
+        report: dict = {}
+        can_ko = bool(ko_search.can_ko_this_turn(
+            obs, _model_hidden_state_factory(obs, config), ko_cfg,
+            time.perf_counter() + limit_ms / 1000.0, report=report))
+    except Exception:  # noqa: BLE001 - 探索失敗が意思決定を止めてはならない
+        return None
+    if can_ko:
+        _GUARD_STATS[f"{guard}_skipped_ko"] += 1
+        return True
+    if brake.get("require_conclusive_ko_search", True) and (
+            not report.get("searched") or report.get("aborted")):
+        _GUARD_STATS[f"{guard}_inconclusive"] += 1
+        return None
+    return False
+
+
+def _ko_verdict_for_brake(
+    obs: Observation, brake: dict, config: dict | None, guard: str
+) -> bool | None:
+    """「閉形式ファストパス → 従来の探索 → それも不能なら None」の3段判定。"""
+    verdict = _closed_form_ko_fastpath(obs, brake, guard)
+    if verdict is True:
+        _GUARD_STATS[f"{guard}_skipped_ko"] += 1  # 従来の探索が True を出したときと同じ扱い
+        return True
+    if verdict is False:
+        return False
+    return _search_ko_verdict(obs, brake, config, guard)
+
+
+def _ability_draw_ko_verdict(
+    obs: Observation, brake: dict, config: dict | None
+) -> str | None:
+    """`_try_ability_draw_brake` の (a)/(b) 判定。veto理由か、vetoしないなら None。
+
+    (a) ``"already_lethal"``: 足す前から既にKO可能=足す必要が無い。
+    (b) ``"futile"``: 最大まで足してもKO不可=足しても無駄。
+
+    1段目は閉形式(`closed_form_ko`)。(a) は `can_ko_now`、(b) は
+    `is_ko_impossible_this_turn`(攻撃でKOする手がそもそも存在しないことの健全な上界判定)。
+    閉形式が判定不能なら2段目として r11 と同じ探索
+    (`ability_draw_eval.already_ko_without_more_energy` → `ko_search.can_ko_this_turn`)に落ち、
+    それも判定不能なら None(=介入しない、安全側)。
+    """
+    guard = "ability_draw_brake"
+    fast = _closed_form_ko_fastpath(obs, brake, guard)
+    if fast is True:
+        return "already_lethal"
+    if fast is False:
+        return "futile"
+
+    from ptcg_ai.search import ability_draw_eval, ko_search
+    ko_cfg = brake.get("ko_search") or {}
+    limit_ms = float(ko_cfg.get("time_limit_ms", brake.get("time_limit_ms", 300)))
+    deadline = time.perf_counter() + limit_ms / 1000.0
+    hidden_factory = _model_hidden_state_factory(obs, config)
+
+    # (a) 既に現在の打点でKO可能なら足す必要が無い=veto可。
+    try:
+        already_ko, _aborted_a = ability_draw_eval.already_ko_without_more_energy(
+            obs, hidden_factory, ko_cfg, deadline)
+    except Exception:  # noqa: BLE001
+        already_ko = False
+    if already_ko:
+        return "already_lethal"
+
+    # (b) 最大まで足してもKO不可なら足しても無駄=veto可(判定不能なら介入しない)。
+    report: dict = {}
+    try:
+        can_ko_overall = bool(ko_search.can_ko_this_turn(
+            obs, hidden_factory, ko_cfg, deadline, report=report))
+    except Exception:  # noqa: BLE001
+        can_ko_overall, report = False, {"searched": False}
+    if can_ko_overall:
+        _GUARD_STATS["ability_draw_brake_skipped_pivotal"] += 1
+        return None  # このエネ加速がKOに寄与しうる=温存せず使わせる
+    if not report.get("searched") or report.get("aborted"):
+        _GUARD_STATS["ability_draw_brake_inconclusive"] += 1
+        return None  # (a)(b)とも判定不能=安全側で介入しない
+    return "futile"
+
+
+# --------------------------------------------------------------------------------------
+# r12: 「テラスタル退避」ゲート(``terastal_rotation``)。
+#
+# オーガポンex系の特性「テラスタル」=「このポケモンは、ベンチにいるかぎり、ワザのダメージを
+# 受けない」(``CardData.tera``)。傷ついたアクティブをベンチに逃がすのは、にげるコストが軽い
+# 限り原則ノーリスク。実ラダーの実例:
+#   - episode 93408551 T10(決定的): アクティブ HP10/エネ4、ベンチに HP150/エネ4 の健康な
+#     個体。ブライア+KOで3サイド取ったのは正しいが、「にげる(コスト1)→HP150の個体で攻撃」
+#     でも同じKO・同じ3サイドが取れた上に、HP10の個体をベンチ(ワザダメ無効)へ退避できた。
+#     実際はHP10のまま残し、次ターンに70ダメージで落とされて敗北した。
+#   - episode 93473767 T11: アクティブHP60/260、ベンチHP240/240・エネ3。KOは元々不可能
+#     なので、傷んだ個体をベンチに逃がすのが明確に上。
+#   - 反例(発火してはいけない): 相手がドラパルトex(121)の場合、ファントムダイブ
+#     (「ダメカン6個を、相手のベンチポケモンに好きなようにのせる」)はダメージ**カウンタを
+#     置く**効果であり「ワザのダメージ」ではないため、テラスタルを貫通する(実測: episode
+#     93408551 T10 でベンチのオーガポン(HP150→150、maxHp210)が6個=60ダメージ分の
+#     ダメカンを受けている)。よって相手の場にこのアーキタイプが居るときは退避の価値が下がる
+#     ため発火しない。
+# 独立configキー、既定OFF=本番不変。
+# --------------------------------------------------------------------------------------
+
+# ドラパルトex(data/JP_Card_Data.csv で実ID確認済み: 121。ワザ「ファントムダイブ」が
+# ダメージカウンタをベンチへ直接置く=テラスタルを貫通する)。config
+# `terastal_rotation.skip_vs_bench_damage_archetypes` で上書き可能。
+_DEFAULT_SKIP_BENCH_DAMAGE_IDS = (121,)
+
+_R12_GUARD_STATS_ZERO = {
+    "terastal_rotation_fired": 0,                       # にげるへ差し替えた回数
+    "terastal_rotation_skipped_bench_damage_archetype": 0,  # 相手にドラパルトex等が居て見送った回数
+    "terastal_rotation_skipped_ko_mismatch": 0,          # にげるとKO成否が変わるため見送った回数
+    "terastal_rotation_inconclusive": 0,                 # KO整合性の探索が完走せず見送った回数
+    "terastal_rotation_misfire_not_tera": 0,             # 番人: テラスタルでないのに発火した回数(=0のはず)
+}
+_GUARD_STATS_ZERO.update(_R12_GUARD_STATS_ZERO)
+_GUARD_STATS.update(_R12_GUARD_STATS_ZERO)
+
+
+def _card_is_tera(card_id: int | None) -> bool:
+    """テラスタル(ベンチにいる限りワザのダメージを受けない)を持つ種族か。``CardData.tera``
+    を使う(ハードコードIDではなく分類。将来オーガポン以外のテラポケモンが増えても効く)。
+    未知ID/例外は False(安全側=対象外扱い)。
+    """
+    if card_id is None:
+        return False
+    try:
+        from ptcg_ai.shared import card_cache
+        return bool(card_cache.get_card(int(card_id)).tera)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _opponent_max_attack_damage(state, me: int) -> int | None:
+    """相手アクティブの「想定1発打点」の保守的近似(探索しない)。
+
+    相手アクティブが持つ技のうち ``CardData``/``Attack`` の静的 ``damage`` フィールドの
+    最大値を返す。**探索(search_step)は一切しない**。実データでの検証(episode 93408551
+    T10: ドラパルトexのファントムダイブ=静的damage 200、実際にアクティブへ与えた直接ダメージも
+    200で一致)では妥当な近似になったが、「エネルギー数に応じて追加ダメージ」等のテキスト
+    効果(例: オーガポン自身の まんようしぐれ=静的30だが実際は30+30×エネ数)や「手札枚数に
+    応じて追加ダメージ」等は静的フィールドに反映されないため、**過小評価になりうる**
+    (episode 93473767 T11: Mega Froslass exのResentful Refrainは静的damage 0だが実際は
+    200。この局面はもう一方の技Absolute Snowの静的150が閾値を満たしたため判定は変わらな
+    かったが、一般には安全側/過小評価の近似であることに注意)。相手アクティブが伏せ中/不明
+    なら None(判定不能)。
+    """
+    try:
+        opp = 1 - me
+        opp_active = state.players[opp].active or []
+        if not opp_active or opp_active[0] is None:
+            return None
+        card_id = int(opp_active[0].id)
+        from ptcg_ai.shared import card_cache
+        card = card_cache.get_card(card_id)
+        if not card.attacks:
+            return 0
+        return max(card_cache.get_attack(int(aid)).damage for aid in card.attacks)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _try_terastal_rotation(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """傷ついたテラスタル持ちのアクティブを、より健康な同族のベンチ個体と入れ替える
+    (にげるコストが安く、ベンチにいる間はワザのダメージを受けないため)。
+    config-gated(``terastal_rotation``)、キーが無ければ常に None=本番不変。
+
+    実ラダーの実例・反例はモジュール冒頭のコメント参照(episode 93408551 T10 / 93473767 T11 /
+    ドラパルトexの反例)。
+
+    config 例::
+
+        "terastal_rotation": {
+            "enabled": true, "damage_margin": 0,
+            "skip_vs_bench_damage_archetypes": [121]
+        }
+
+    発火条件(すべてAND):
+      - 選んだ手が ``ATTACK`` または ``END``(このターンの主要な行動を差し置いてまで
+        にげるを割り込ませるのはこの2択のときだけ。PLAY/ATTACH/ABILITY/EVOLVE等の他の
+        展開が残っている局面には干渉しない)。
+      - 自分のアクティブが居て、テラスタル持ち(``_card_is_tera``)。
+      - ``RETREAT`` が合法選択肢にある(にげるコストを払えない/エネが足りない局面には
+        干渉しない)。
+      - 相手の場(アクティブ/ベンチ)に ``skip_vs_bench_damage_archetypes``(既定
+        [121]=ドラパルトex)のカードが**いない**(反例ガード。先にチェックすることで
+        不要な探索を避ける)。
+      - ベンチに、自分のアクティブより**残HPが多い**テラスタル持ちの個体がいる(条件2)。
+        複数いれば最もHPが高い個体を退避先候補にする。
+      - 自分のアクティブの残HPが「相手アクティブの想定1発打点」(``_opponent_max_attack_damage``
+        + ``damage_margin``、既定0)以下(条件1、次ターン落ちる見込み)。
+      - にげても**今ターンのKO成否が変わらない**(条件3、``retreat_safety_eval.evaluate``。
+        現アクティブでKOが元々無ければ自動的に満たす)。探索が完走しない(``None``)場合は
+        介入しない(既存ガードと同じ安全側)。
+
+    差し替え先は退避先の個体を選ぶ処理そのものではなく、この decision を ``RETREAT`` に
+    置き換えるだけ(退避後、どのベンチ個体へ交代するか/その後の攻撃は既存の意思決定に委ねる。
+    1手で「にげる+攻撃」まで組む必要はない、という仕様)。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    guard = (effective_config or {}).get("terastal_rotation") or {}
+    if not guard.get("enabled", False):
+        return None
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+    if select.option[idx].type not in (OptionType.ATTACK, OptionType.END):
+        return None
+
+    state = obs.current
+    me = state.yourIndex
+    try:
+        active_list = state.players[me].active or []
+        if not active_list or active_list[0] is None:
+            return None
+        active = active_list[0]
+    except Exception:  # noqa: BLE001
+        return None
+    if not _card_is_tera(active.id):
+        return None  # テラスタルでない個体には退避のノーリスク性が成立しない
+
+    retreat_idx = next((i for i, o in enumerate(select.option) if o.type == OptionType.RETREAT), None)
+    if retreat_idx is None:
+        return None  # にげるコストを払えない/合法手が無い
+
+    skip_ids = {int(x) for x in (guard.get("skip_vs_bench_damage_archetypes")
+                                  or _DEFAULT_SKIP_BENCH_DAMAGE_IDS)}
+    if skip_ids:
+        opp = 1 - me
+        try:
+            opp_player = state.players[opp]
+            opp_ids = {int(p.id) for p in (opp_player.active or []) if p is not None}
+            opp_ids |= {int(p.id) for p in (opp_player.bench or []) if p is not None}
+        except Exception:  # noqa: BLE001
+            opp_ids = set()
+        if opp_ids & skip_ids:
+            _GUARD_STATS["terastal_rotation_skipped_bench_damage_archetype"] += 1
+            return None
+
+    try:
+        bench = state.players[me].bench or []
+    except Exception:  # noqa: BLE001
+        return None
+    candidates = [
+        (i, mon) for i, mon in enumerate(bench)
+        if mon is not None and _card_is_tera(mon.id) and mon.hp > active.hp
+    ]
+    if not candidates:
+        return None  # 条件2: より健康な退避先が無い
+    target_index, _target_mon = max(candidates, key=lambda pair: pair[1].hp)
+
+    margin = int(guard.get("damage_margin", 0))
+    expected_hit = _opponent_max_attack_damage(state, me)
+    if expected_hit is None:
+        return None  # 条件1判定不能(相手アクティブが伏せ中等)=安全側で不介入
+    if active.hp > expected_hit + margin:
+        return None  # 条件1: まだ危険域ではない
+
+    from ptcg_ai.search import retreat_safety_eval
+    ko_cfg = guard.get("ko_search") or {}
+    limit_ms = float(ko_cfg.get("time_limit_ms", guard.get("time_limit_ms", 400)))
+    deadline = time.perf_counter() + limit_ms / 1000.0
+    hidden_factory = _model_hidden_state_factory(obs, config)
+    result = retreat_safety_eval.evaluate(
+        obs, hidden_factory, retreat_idx, target_index, ko_cfg, deadline)
+    if result is None:
+        _GUARD_STATS["terastal_rotation_inconclusive"] += 1
+        return None
+    if not result.get("parity", False):
+        _GUARD_STATS["terastal_rotation_skipped_ko_mismatch"] += 1
+        return None
+
+    action = [retreat_idx]
+    if not _is_valid_action(action, select):
+        return None
+    if not _card_is_tera(active.id):  # 番人(到達しないはず)
+        _GUARD_STATS["terastal_rotation_misfire_not_tera"] += 1
+    _GUARD_STATS["terastal_rotation_fired"] += 1
+    return action
+
+
 def _apply_action_vetoes(obs: Observation, action: list[int], config: dict | None = None) -> list[int]:
-    """事後veto(改造ハンマー浪費→ターゲット振替→自滅deckout)を順に適用。すべて config-gated
-    で既定OFF=本番不変。
+    """事後veto(改造ハンマー浪費→ターゲット振替→自滅deckout→ブライア空撃ち→手札連動打点の
+    生存ガード)を順に適用。すべて config-gated で既定OFF=本番不変。
 
     差替が起きたら次のvetoも差替後の手に適用する。abl_5_full ではキーが無く各vetoは即Noneを
     返すので action は不変(本番挙動は変わらない)。`_try_hammer_veto`(MAIN の PLAY 選択)と
     `_try_hammer_redirect`(ENERGY/DISCARD_ENERGY のターゲット選択)は対象 select が排他なので、
-    同じ decision で両方が発火することはない。
+    同じ decision で両方が発火することはない(`_try_boss_lethal_gate` と
+    `_try_boss_target_redirect` も同様に MAIN / CARD-SWITCH で排他)。
+
+    `_try_briar_gate` を `_try_hand_damage_guard` より前に置くのは、ブライアを弾いた結果
+    選ばれた次善手が「手札を増やすサポート」だった場合に、生存ガードがそれも見られるように
+    するため(実ラダー 93309236 T9 がまさにこの形)。r9 の2ゲートも同じ理由で
+    `_try_hand_damage_guard` の前に置く(ブレーキ/ボスゲートが選び直した手を生存ガードが
+    最後に検分する)。**既知の順序制約**: 逆に `_try_hand_damage_guard` がボスの指令へ
+    差し替えた場合、その decision ではボスゲートは既に通過済みなので対象評価は走らない
+    (=その回は r8 と同じ挙動になる。安全側の素通り)。
     """
-    for _veto in (_try_hammer_veto, _try_hammer_redirect, _try_survival):
+    for _veto in (_try_hammer_veto, _try_hammer_redirect, _try_survival,
+                  _try_briar_gate, _try_low_deck_draw_brake,
+                  _try_boss_lethal_gate, _try_boss_target_redirect,
+                  # r10(Fix-F/G/H)。いずれも対象 select が上記と排他か、対象カード種が
+                  # 異なるため同じ decision で二重発火しない。生存ガードが最後に検分できる
+                  # よう `_try_hand_damage_guard` の前に置く(r9の2ゲートと同じ理由)。
+                  _try_tool_stadium_guard, _try_energy_to_active_first,
+                  _try_search_pick_pokemon_first,
+                  # r11 Fix-I。対象 select は ABILITY(みどりのまい型)の PLAY 決定で、
+                  # `_try_energy_to_active_first`(ATTACK選択肢が無い decision だけに反応)とは
+                  # 発火条件がATTACK有無で排他。低山札ドローの兄弟ガードとして
+                  # `_try_low_deck_draw_brake` の並びに置きたいところだが、後段の
+                  # `_try_hand_damage_guard` が差し替え後の手も検分できるよう最後手前に置く。
+                  _try_ability_draw_brake,
+                  # r12。対象 select は ATTACK/END を選んだ MAIN 決定で、`_try_ability_draw_brake`
+                  # (ABILITY選択のみ対象)や `_try_energy_to_active_first`(ATTACK選択肢が無い
+                  # decisionのみ対象)とは対象手の種類で排他。差し替え後の手(RETREAT)を
+                  # `_try_hand_damage_guard` が最後に検分できるよう同じ理由でその直前に置く。
+                  _try_terastal_rotation,
+                  _try_hand_damage_guard):
         alt = _veto(obs, action, config=config)
         if alt is not None:
             action = alt
@@ -1001,7 +2870,7 @@ def _model_hidden_state_factory(obs: Observation, config: dict | None):
             match_context.get_own_state(obs.current.yourIndex),
             match_context.get_opponent_state(obs.current.yourIndex), obs,
         )
-    full_deck = _get_deck()
+    full_deck = _get_deck_for(obs)
     return lambda: build_dummy_search_state(obs, full_deck)
 
 
@@ -1089,7 +2958,7 @@ def _try_pipeline(obs: Observation, config: dict | None = None) -> list[int] | N
 
     try:
         if pipeline_config.get("hidden_state_source", "estimated") == "dummy":
-            full_deck = _get_deck()
+            full_deck = _get_deck_for(obs)
             factory = lambda: build_dummy_search_state(obs, full_deck)
         else:
             factory = lambda: search_adapter.to_search_begin_kwargs(
