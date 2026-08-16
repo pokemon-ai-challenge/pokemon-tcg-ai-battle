@@ -68,6 +68,52 @@ _BOTH_ACTIVE_ENERGY_ATTACKS: dict[int, tuple[int, int]] = {
     MYRIAD_LEAF_SHOWER_ID: (MYRIAD_LEAF_SHOWER_BASE, MYRIAD_LEAF_SHOWER_PER_ENERGY),
 }
 
+TAPU_BULU_ID = 920            # カプ・ブルル(たね/非ex/特性なし/HP140/にげ3)
+WOOD_HAMMER_ID = 1326         # ウッドハンマー(固定220、自分に30)
+WOOD_HAMMER_DAMAGE = 220
+WOOD_HAMMER_SELF_DAMAGE = 30
+
+# 「固定打点型」= 盤面に依存しない定数ダメージ。値は (打点, 自傷ダメージ)。
+#
+# なぜ追加が必要か(壁デッキ対策 `wall_attacker_route` の前提):
+# オーガポン みどりのめん ex(96)は **ex かつ 特性持ち** なので、イワパレス(345、
+# 「相手のポケモンexのワザのダメージを完全に無効」)と いしずえのめんex(117、
+# 「特性を持つ相手のポケモンのワザのダメージを完全に無効」)の**両方**に対して打点0になる。
+# その回答として入れる非exアタッカー=カプ・ブルル(920)のワザ「ウッドハンマー」
+# (attackId 1326。`all_attack()` の実データで damage=220 /
+# text="This Pokémon also does 30 damage to itself." を確認済み)は、この表に無いと
+# **未知のワザ**として扱われ、`estimate_current_damage` / `is_ko_impossible_this_turn` が
+# 「自分の場に1体でもブルルが居るだけで常に判定不能(None)」になる。つまりブルルを1枚
+# 挿すと r13 の閉形式ファストパス(`ability_draw_brake` / `low_deck_draw_brake`)が
+# デッキ全体で死ぬ。ここに登録することでそれを防ぎ、同時にブルルがバトル場に居る間の
+# KO判定も O(1) で効くようになる。
+#
+# 自傷ダメージは「相手をKOできるか」には影響しない(この表の第2要素は
+# `self_damage_of` 経由で、自滅を避ける側の判定にだけ使う)。
+_FIXED_DAMAGE_ATTACKS: dict[int, tuple[int, int]] = {
+    WOOD_HAMMER_ID: (WOOD_HAMMER_DAMAGE, WOOD_HAMMER_SELF_DAMAGE),
+}
+
+
+def is_known_attack(attack_id) -> bool:
+    """このモジュールが打点を閉形式で計算できるワザか。"""
+    try:
+        aid = int(attack_id)
+    except Exception:  # noqa: BLE001
+        return False
+    return aid in _BOTH_ACTIVE_ENERGY_ATTACKS or aid in _FIXED_DAMAGE_ATTACKS
+
+
+def self_damage_of(attack_id) -> int:
+    """既知の固定打点ワザの**自傷ダメージ**。未知/自傷なしは 0。
+
+    「自分のアタッカーが自滅する撃ち方を避ける」用途にだけ使う(相手のKO可否には無関係)。
+    """
+    try:
+        return int(_FIXED_DAMAGE_ATTACKS.get(int(attack_id), (0, 0))[1])
+    except Exception:  # noqa: BLE001
+        return 0
+
 # スタジアムによるワザコスト増(`_metrics_gate._STADIUM_COST_SURCHARGE` と同じ事実)。
 # 夜の鉱山(1266)=「場のテラスタルのポケモンのワザは【無】1個ぶん多くかかる」。
 _TERA_COST_SURCHARGE_STADIUM_IDS = frozenset({1266})
@@ -257,10 +303,13 @@ def estimate_attack_damage(
 ) -> int | None:
     """``attack_id`` のワザを今使ったときの打点(弱点・抵抗・軽減を**含まない**素の値)。
 
-    既知パターン(まんようしぐれ型)以外、または必要な盤面情報が読めない場合は None。
-    ``extra_energy`` は「自分のバトルポケモンにこれから追加するエネルギーの個数」。
+    既知パターン(まんようしぐれ型 / 固定打点型)以外、または必要な盤面情報が読めない場合は
+    None。``extra_energy`` は「自分のバトルポケモンにこれから追加するエネルギーの個数」。
     """
     try:
+        fixed = _FIXED_DAMAGE_ATTACKS.get(int(attack_id))
+        if fixed is not None:
+            return int(fixed[0])  # 盤面非依存の定数打点(エネを足しても変わらない)
         entry = _BOTH_ACTIVE_ENERGY_ATTACKS.get(int(attack_id))
         if entry is None:
             _note(report, "reason", _Reason.UNKNOWN_ATTACK)
@@ -306,7 +355,7 @@ def estimate_current_damage(
         surcharge = [int(EnergyType.COLORLESS)] * _cost_surcharge(state, mon)
         best: int | None = None
         for attack_id in card.attacks:
-            if int(attack_id) not in _BOTH_ACTIVE_ENERGY_ATTACKS:
+            if not is_known_attack(attack_id):
                 _note(report, "reason", _Reason.UNKNOWN_ATTACK)
                 return None  # 未知のワザが混ざる=最大打点が確定しない
             try:
@@ -526,6 +575,13 @@ def is_ko_impossible_this_turn(
             return None
 
         # 自分の場のポケモンが全部「既知パターンのワザだけ」でないと最大打点が確定しない。
+        #
+        # 混在(まんようしぐれ型 + 固定打点型)は base / per_energy をそれぞれ**最大値**で
+        # 束ねる。得られる上界 base + per_energy×E は、
+        #   まんようしぐれ  30 + 30×E   ≤ max(30,220) + max(30,0)×E
+        #   ウッドハンマー  220         ≤ max(30,220) + max(30,0)×E
+        # のどちらも必ず覆う(=健全な上界のまま)。上界が緩む方向にしか動かないので、
+        # 「KOは不可能(True)」を返す条件は厳しくなる=安全側。
         per_energy = 0
         base = 0
         for mon in my_mons:
@@ -535,11 +591,15 @@ def is_ko_impossible_this_turn(
                 return None
             for attack_id in card.attacks:
                 entry = _BOTH_ACTIVE_ENERGY_ATTACKS.get(int(attack_id))
-                if entry is None:
+                fixed = _FIXED_DAMAGE_ATTACKS.get(int(attack_id))
+                if entry is None and fixed is None:
                     _note(report, "reason", _Reason.UNKNOWN_ATTACK)
                     return None
-                base = max(base, entry[0])
-                per_energy = max(per_energy, entry[1])
+                if entry is not None:
+                    base = max(base, entry[0])
+                    per_energy = max(per_energy, entry[1])
+                else:
+                    base = max(base, fixed[0])
 
         payable = _any_attack_payable_at_best(state, me)
         if payable is None:
@@ -611,4 +671,22 @@ def verify_known_attacks() -> list[str]:
         if "both Active" not in (attack.text or ""):
             problems.append(
                 f"attackId={attack_id} のテキストが両バトル場参照でない: {attack.text!r}")
+    for attack_id, (damage, self_damage) in _FIXED_DAMAGE_ATTACKS.items():
+        try:
+            attack = card_cache.get_attack(attack_id)
+        except Exception as exc:  # noqa: BLE001
+            problems.append(f"attackId={attack_id} をカードデータから引けない: {exc!r}")
+            continue
+        if int(attack.damage) != int(damage):
+            problems.append(
+                f"attackId={attack_id} の打点が {attack.damage} で定数 {damage} と不一致")
+        text = attack.text or ""
+        # 固定打点型は「盤面に応じて打点が変わる」記述が無いことが前提。追加ダメージ系の
+        # 文言が付いたら(データ更新等)定数が嘘になるので検出する。
+        if "more damage" in text:
+            problems.append(
+                f"attackId={attack_id} は固定打点のはずだが追加ダメージ記述がある: {text!r}")
+        if self_damage and f"{self_damage} damage to itself" not in text:
+            problems.append(
+                f"attackId={attack_id} のテキストに自傷 {self_damage} の記述が無い: {text!r}")
     return problems

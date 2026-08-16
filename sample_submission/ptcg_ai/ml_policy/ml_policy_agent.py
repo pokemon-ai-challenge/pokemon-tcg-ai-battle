@@ -2806,6 +2806,398 @@ def _try_terastal_rotation(
     return action
 
 
+# --------------------------------------------------------------------------------------
+# r14: 壁デッキ検知 → 非exアタッカー(カプ・ブルル)を起用して育てる操縦ルート
+#      (``wall_attacker_route``。独立configキー、キー無し=完全不変)
+#
+# 因果(実測):
+#   crustle 系の壁(イワパレス345 / いしずえのめんex117)は、それぞれ「相手がex」
+#   「相手が特性持ち」ならワザのダメージを**完全に無効化**する。og_v032 唯一のアタッカー
+#   オーガポン みどりのめん ex(96)は **ex かつ 特性持ち**なので両方に打点0。
+#   1枚を カプ・ブルル(920、非ex・特性なし・ウッドハンマー固定220)に替えると crustle
+#   17.75%→22.75%(n=400、+5.0pt)だが、稼働診断60試合では
+#     場出し率 88.3% / **4エネ到達率 6.7%** / エネ0のまま終了 72%
+#   = **ブルルは置かれているだけでエネルギーが供給されていない**(+5.0ptはポケモンが5枚に
+#   なった副次効果)。既存 `energy_to_active_first` は「アクティブが攻撃不能ならアクティブに
+#   寄せる」ガードなので、ブルルがアクティブに出てこない限り発火しない。
+#   (注: 同じ診断の「ウッドハンマー0.0回/試合」は `Log` に text フィールドが存在しないため
+#    構造的に常に0だった計測バグで、行動の事実ではない。`_diag_bulu_usage.py` で
+#    LogType.ATTACK の attackId を数えるよう修正済み。)
+#
+# 3つの差し替え(すべて veto 連鎖の中で「選ばれた手の差し替え」として実装):
+#   (a) `_try_wall_attacker_energy`  エネの行き先をブルルへ / ブルルがバトル場ならNの筋書き優先
+#   (b) `_try_wall_attacker_retreat` ブルルが撃てるようになったら にげる
+#       `_try_wall_attacker_switch`  交代先の選択でブルルを選ぶ
+#   (c) `_try_wall_attacker_attack`  ブルルがバトル場で撃てるのに撃たない手を ATTACK に戻す
+#
+# 判定部は `search/wall_attacker_route.py`(壁の無効化はカードIDではなくテキストで判定)。
+# --------------------------------------------------------------------------------------
+
+# (c)/(a2) で「差し替えてよい」とみなす手の種類。
+#
+# **仕様(「ATTACK 以外が選ばれていたら ATTACK に差し替える」)からの意図的な絞り込み**:
+# このエンジンでは ATTACK を選ぶとその時点でターンが終わる。PLAY/ATTACH/ABILITY/EVOLVE を
+# ATTACK で潰すと、そのターンの展開(エネ加速・ドロー・ベンチ展開)を丸ごと捨てることになり、
+# 「攻撃を増やす」ために「攻撃以外の価値」を確実に失う。END と RETREAT は
+#   END    = このターンもう何もしない(攻撃を撃たないなら純損)
+#   RETREAT= せっかく前に出したアタッカーを下げる(このルートの目的そのものを打ち消す)
+# のどちらも「差し替えて失うものが無い」ので、既定はこの2種類に限定する。
+# 仕様どおり全種類にしたい場合は config の ``attack_override_types`` で明示指定する。
+_WALL_ROUTE_DEFAULT_OVERRIDE_TYPES = ("END", "RETREAT")
+
+# (b1) が差し替えを見送る PLAY のカードID。
+#
+# RETREAT は ATTACK と違い**ターンを終わらせない**(にげた後もう一度 MAIN の選択が来る)ので、
+# 差し替えても元の手を失わない=次の decision でそのまま選び直せる。よって (b1) は手の種類を
+# 絞らないのが既定。唯一の例外は ボスの指令(1182): 相手のベンチを引きずり出して
+# 「壁でない相手」を作る手であり、そのターンのKO計画そのものになりうるため潰さない。
+#
+# ここを ATTACK/END だけに絞っていた初版は、実対戦10試合の稼働診断で
+# 「ブルルが4エネ到達 かつ にげるが合法」な decision が7回あり、そこで選ばれていた手は
+# ABILITY 3 / PLAY 2 / RETREAT 2 で **ATTACK と END は0回**、つまり (b1) がほぼ発火しなかった。
+_WALL_ROUTE_DEFAULT_RETREAT_SKIP_PLAY_IDS = (_BOSS_ORDER_ID,)
+
+_R14_GUARD_STATS_ZERO = {
+    "wall_attacker_energy_fired": 0,            # (a1) エネの付け先をアタッカーへ振り替えた
+    "wall_attacker_energy_no_option": 0,        # (a1) アタッカーに付けられる選択肢が無かった
+    "wall_attacker_energy_skipped_ko": 0,       # (a1) 現アクティブで+1エネKOが確定=譲った
+    "wall_attacker_energy_move_fired": 0,       # (a2) Nの筋書き(ベンチ→バトル場)を優先した
+    "wall_attacker_retreat_fired": 0,           # (b1) にげるへ差し替えた
+    "wall_attacker_retreat_skipped_ko": 0,      # (b1) 現アクティブでKOが取れる=譲った(番人)
+    "wall_attacker_switch_fired": 0,            # (b2) 交代先をアタッカーへ差し替えた
+    "wall_attacker_attack_fired": 0,            # (c)  ATTACK へ差し替えた
+    "wall_attacker_attack_skipped_self_ko": 0,  # (c)  自傷で自滅するだけなので見送った
+    "wall_attacker_misfire_no_wall": 0,         # 番人: 壁が居ないのに発火した(=0のはず)
+}
+_GUARD_STATS_ZERO.update(_R14_GUARD_STATS_ZERO)
+_GUARD_STATS.update(_R14_GUARD_STATS_ZERO)
+
+
+def _wall_route_gate(obs: Observation, config: dict | None):
+    """``wall_attacker_route`` の共通ゲート。``(guard_config, ctx)`` か None を返す。
+
+    キーが無い/``enabled`` でない/相手の場に壁が見えない/自分の場に指定アタッカーが
+    居ない、のいずれでも None(=本番configでは常に None で完全不変)。
+    """
+    if obs.current is None or obs.select is None:
+        return None
+    effective_config = config if config is not None else _get_config()
+    guard = (effective_config or {}).get("wall_attacker_route") or {}
+    if not guard.get("enabled", False):
+        return None
+    from ptcg_ai.search import wall_attacker_route
+    ctx = wall_attacker_route.evaluate(obs.current, obs.current.yourIndex, guard)
+    if ctx is None:
+        return None
+    if not ctx.get("wall_ids"):  # 番人(到達しないはず)
+        _GUARD_STATS["wall_attacker_misfire_no_wall"] += 1
+        return None
+    return guard, ctx
+
+
+def _wall_route_override_types(guard: dict) -> set:
+    """``attack_override_types``(既定 END/RETREAT)を OptionType の集合に解決する。"""
+    names = guard.get("attack_override_types") or _WALL_ROUTE_DEFAULT_OVERRIDE_TYPES
+    out = set()
+    for name in names:
+        try:
+            out.add(OptionType[name] if isinstance(name, str) else OptionType(int(name)))
+        except Exception:  # noqa: BLE001 - 未知の名前は無視(安全側=差し替え対象を増やさない)
+            continue
+    return out
+
+
+def _wall_route_retreat_may_override(option, state, guard: dict) -> bool:
+    """(b1) がこの手を ``RETREAT`` に差し替えてよいか(既定はボスの指令の PLAY 以外すべて)。
+
+    ``retreat_override_types`` を config で明示した場合はその集合だけを対象にする
+    (ablation 用。初版の ATTACK/END 限定に戻したいときはこれを使う)。
+    """
+    types = guard.get("retreat_override_types")
+    if types:
+        allowed = set()
+        for name in types:
+            try:
+                allowed.add(OptionType[name] if isinstance(name, str) else OptionType(int(name)))
+            except Exception:  # noqa: BLE001
+                continue
+        return option.type in allowed
+    if option.type != OptionType.PLAY:
+        return True
+    skip = {int(x) for x in (guard.get("retreat_skip_play_card_ids")
+                             or _WALL_ROUTE_DEFAULT_RETREAT_SKIP_PLAY_IDS)}
+    try:
+        from ptcg_ai.learning import encoder as _enc
+        card_id = _enc._resolve_card_id(option, state)
+    except Exception:  # noqa: BLE001
+        return False  # 判定不能な PLAY は潰さない(安全側)
+    return card_id is None or int(card_id) not in skip
+
+
+def _try_wall_attacker_energy(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """(a) エネルギーの行き先を、壁に通る非exアタッカー(ブルル)へ寄せる。
+
+    (a1) エネ装着(手貼り/みどりのまい型の特性)の選択で、付け先がアタッカー以外なら
+         **アタッカーに付ける選択肢に差し替える**(アタッカーのエネが必要数未満のときだけ)。
+         みどりのまいは自分自身にしか付かない仕様なので、実際に振り替わるのは主に手貼り。
+    (a2) アタッカーが既にバトル場に居てエネが足りず、END/RETREAT を選ぼうとしていて、
+         Nの筋書き(1221、ベンチのエネを最大2個バトル場へ移す)で必要数に届くなら、
+         そのサポートの PLAY に差し替える。
+
+    config-gated(``wall_attacker_route``)。キーが無ければ常に None=本番不変。
+    """
+    resolved = _wall_route_gate(obs, config)
+    if resolved is None:
+        return None
+    guard, ctx = resolved
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+    if not ctx["zero_damage_vs_any"]:
+        return None  # 現アタッカーで殴れる=このルートの出番ではない
+    if ctx["attacker_energy"] >= ctx["attack_cost"]:
+        return None  # 既に必要数に到達=これ以上寄せる理由が無い
+
+    from ptcg_ai.search import wall_attacker_route
+    state = obs.current
+    me = state.yourIndex
+    ability_ids = {int(x) for x in (guard.get("energy_ability_card_ids") or _TEAL_DANCE_CARD_IDS)}
+    chosen = select.option[idx]
+
+    # --- (a1) エネ装着の付け先を振り替える ---------------------------------------------
+    chosen_target = wall_attacker_route.energy_attach_target(chosen, state, ability_ids)
+    if chosen_target is not None:
+        if wall_attacker_route.option_targets_attacker(chosen, state, ctx, ability_ids):
+            return None  # 既にアタッカーへ付けている
+        if chosen_target[0] == AreaType.ACTIVE:
+            # 付け先が現アクティブの場合だけ、「あと1エネでKOが取れる」なら譲る
+            # (閉形式が True を返したときだけ。壁が場に居ると壁自身の無効化テキストが
+            # `_damage_modifier_risk` に引っかかって常に判定不能になるため、これは
+            # 実質「壁がベンチに居るだけで相手アクティブは殴れる」局面向けの保険)。
+            try:
+                from ptcg_ai.search import closed_form_ko
+                if closed_form_ko.can_ko_with_more_energy(state, me, 1) is True:
+                    _GUARD_STATS["wall_attacker_energy_skipped_ko"] += 1
+                    return None
+            except Exception:  # noqa: BLE001
+                pass
+        candidates = [
+            i for i, opt in enumerate(select.option)
+            if wall_attacker_route.option_targets_attacker(opt, state, ctx, ability_ids)
+        ]
+        if not candidates:
+            _GUARD_STATS["wall_attacker_energy_no_option"] += 1
+            return None
+        best = candidates[0]
+        scores = _policy_scores(obs, select, config)
+        if scores is not None:
+            best = max(candidates, key=lambda i: scores[i])
+        action = [best]
+        if not _is_valid_action(action, select):
+            return None
+        _GUARD_STATS["wall_attacker_energy_fired"] += 1
+        return action
+
+    # --- (a2) Nの筋書き(ベンチ→バトル場)を優先する -------------------------------------
+    if not ctx["active_is_attacker"] or not ctx["attacker_ready_with_move"]:
+        return None
+    if chosen.type not in _wall_route_override_types(guard):
+        return None
+    move_ids = {int(x) for x in (guard.get("energy_move_card_ids")
+                                 or wall_attacker_route.DEFAULTS["energy_move_card_ids"])}
+    from ptcg_ai.learning import encoder as _enc
+    candidates = [
+        i for i, opt in enumerate(select.option)
+        if opt.type == OptionType.PLAY and (_enc._resolve_card_id(opt, state) in move_ids)
+    ]
+    if not candidates:
+        return None
+    action = [candidates[0]]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["wall_attacker_energy_move_fired"] += 1
+    return action
+
+
+def _try_wall_attacker_retreat(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """(b1) 壁がバトル場に居て現アクティブの打点が0のとき、撃てるようになったアタッカーへ
+    交代するため ``RETREAT`` へ差し替える。config-gated(``wall_attacker_route``)。
+
+    **「今ターンKOが取れるならそちらを優先」の扱い(仕様からの明示的な逸脱)**:
+    仕様は「ko_search / closed_form_ko で判定、判定不能なら安全側で介入しない」だが、
+    それを字義どおりに実装するとこのルートは**永久に発火しない**。壁のカードテキスト
+    ("Prevent all damage ...")が `closed_form_ko._damage_modifier_risk` に必ず引っかかり、
+    壁が場に居る局面では `can_ko_now` が常に ``None`` を返すためである。
+    そもそもこのルートの発火条件は「相手のバトルポケモンが**自分の現アクティブのワザの
+    ダメージを完全に無効化する**ことがテキストで確定している」ことなので、
+    **攻撃でKOを取る手は定義上存在しない**(ワザは相手のバトルポケモンにしか当たらない)。
+    つまり KO 判定は不要で、無効化の証明の方が強い。それでも取りこぼしが無いことを
+    番人として確かめるため `can_ko_now` が ``True`` を返した場合だけ譲る。
+
+    **差し替え対象の手を絞らない理由**: RETREAT は ATTACK と違いターンを終わらせないので、
+    どの手を差し替えても次の decision で同じ手を選び直せる(唯一の例外=ボスの指令は
+    `_wall_route_retreat_may_override` で除外)。初版は `terastal_rotation` に倣って
+    ATTACK/END に限定していたが、実対戦の稼働診断で「ブルルが4エネかつ にげるが合法」な
+    decision の選択手は ABILITY/PLAY/RETREAT ばかりで ATTACK・END が0回=ほぼ発火しない
+    ことが分かったため、実測に基づいて外した。
+    """
+    resolved = _wall_route_gate(obs, config)
+    if resolved is None:
+        return None
+    guard, ctx = resolved
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+    if not _wall_route_retreat_may_override(select.option[idx], obs.current, guard):
+        return None  # ボスの指令(そのターンのKO計画)は潰さない
+    if not ctx["zero_damage_vs_active"]:
+        return None  # 相手のバトルポケモンが「打点0が確定する壁」でなければ出番なし
+    if ctx["active_is_attacker"] or ctx["attacker_bench_index"] is None:
+        return None  # 既にアタッカーがバトル場に居る
+    if not (ctx["attacker_ready"] or ctx["attacker_ready_with_move"]):
+        return None  # 出しても撃てない=ただの的になる
+
+    retreat_idx = next(
+        (i for i, o in enumerate(select.option) if o.type == OptionType.RETREAT), None)
+    if retreat_idx is None:
+        return None  # にげるコストを払えない
+
+    try:
+        from ptcg_ai.search import closed_form_ko
+        if closed_form_ko.can_ko_now(obs.current, obs.current.yourIndex) is True:
+            _GUARD_STATS["wall_attacker_retreat_skipped_ko"] += 1
+            return None
+    except Exception:  # noqa: BLE001
+        pass
+
+    action = [retreat_idx]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["wall_attacker_retreat_fired"] += 1
+    return action
+
+
+def _try_wall_attacker_switch(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """(b2) 「交代先を選ぶ」select(にげた直後 / バトル場がKOされた後)でアタッカーを選ぶ。
+
+    (b1) が ``RETREAT`` に差し替えても、続く交代先の選択で別個体を選んでしまうと意味が無い
+    (実測スキーマ: RETREAT → ENERGY(にげるコスト破棄) → CARD/SWITCH の順。
+    `retreat_safety_eval.evaluate` が実エンジンで辿っているのと同じ流れ)。
+
+    ボスの指令の対象選択も CARD/SWITCH だが、そちらの選択肢は**相手**のベンチを指す
+    (``playerIndex`` が異なる)ので巻き込まない。二重の安全のため
+    `_is_boss_target_select` でも除外する。
+    """
+    resolved = _wall_route_gate(obs, config)
+    if resolved is None:
+        return None
+    guard, ctx = resolved
+    select = obs.select
+    if select.type != SelectType.CARD or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    if select.context not in (SelectContext.SWITCH, SelectContext.TO_ACTIVE):
+        return None
+    if _is_boss_target_select(select, {_BOSS_ORDER_ID}):
+        return None
+    if ctx["opp_active_wall_id"] is None:
+        return None  # 壁がバトル場に居ないなら交代先を強制する理由が無い
+    if ctx["active_is_attacker"] or ctx["attacker_bench_index"] is None:
+        return None
+    if not (ctx["attacker_ready"] or ctx["attacker_ready_with_move"]):
+        return None
+
+    from ptcg_ai.search import wall_attacker_route
+    target = wall_attacker_route.switch_option_index_for_attacker(
+        select, obs.current.yourIndex, ctx)
+    if target is None or target == chosen_action[0]:
+        return None
+    action = [target]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["wall_attacker_switch_fired"] += 1
+    return action
+
+
+def _try_wall_attacker_attack(
+    obs: Observation, chosen_action: list[int], config: dict | None = None
+) -> list[int] | None:
+    """(c) アタッカーがバトル場で撃てるのに撃たない手(既定 END/RETREAT)を ATTACK に戻す。
+
+    自傷で**自分だけが落ちる**撃ち方は避ける: ウッドハンマーの自傷30(閉形式の既知値)で
+    アタッカーが気絶し、かつ相手のバトルポケモンをKOできない見込みなら発火しない。
+    """
+    resolved = _wall_route_gate(obs, config)
+    if resolved is None:
+        return None
+    guard, ctx = resolved
+    select = obs.select
+    if select.type != SelectType.MAIN or select.maxCount != 1 or len(chosen_action) != 1:
+        return None
+    idx = chosen_action[0]
+    if not (0 <= idx < len(select.option)):
+        return None
+    if not ctx["active_is_attacker"]:
+        return None
+    if select.option[idx].type not in _wall_route_override_types(guard):
+        return None
+
+    attack_indices = [i for i, o in enumerate(select.option) if o.type == OptionType.ATTACK]
+    if not attack_indices:
+        return None  # まだ撃てない(エネ不足等)
+    best = attack_indices[0]
+    scores = _policy_scores(obs, select, config)
+    if scores is not None:
+        best = max(attack_indices, key=lambda i: scores[i])
+
+    if not _wall_route_attack_is_worth_it(obs.current, obs.current.yourIndex,
+                                          select.option[best]):
+        _GUARD_STATS["wall_attacker_attack_skipped_self_ko"] += 1
+        return None
+
+    action = [best]
+    if not _is_valid_action(action, select):
+        return None
+    _GUARD_STATS["wall_attacker_attack_fired"] += 1
+    return action
+
+
+def _wall_route_attack_is_worth_it(state, me: int, attack_option) -> bool:
+    """自傷で自分だけが落ちる撃ち方でないか。判定不能は True(=撃つ、従来どおり)。
+
+    自傷ダメージは `closed_form_ko.self_damage_of`(ウッドハンマー=30)。自傷で自分の
+    バトルポケモンが気絶する場合に限り、「相手のバトルポケモンをKOできる見込み」があるかを
+    素の打点(弱点・抵抗・軽減を含まない)で確かめ、届かないなら見送る。
+    """
+    try:
+        from ptcg_ai.search import closed_form_ko
+        self_damage = closed_form_ko.self_damage_of(getattr(attack_option, "attackId", None))
+        if self_damage <= 0:
+            return True
+        my_active = (state.players[me].active or [None])[0]
+        if my_active is None or int(my_active.hp) > self_damage:
+            return True  # 自傷では落ちない
+        damage = closed_form_ko.estimate_attack_damage(
+            state, me, getattr(attack_option, "attackId", None))
+        opp_active = (state.players[1 - me].active or [None])[0]
+        if damage is None or opp_active is None:
+            return True  # 判定不能=従来どおり撃つ
+        return int(damage) >= int(opp_active.hp)
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def _apply_action_vetoes(obs: Observation, action: list[int], config: dict | None = None) -> list[int]:
     """事後veto(改造ハンマー浪費→ターゲット振替→自滅deckout→ブライア空撃ち→手札連動打点の
     生存ガード)を順に適用。すべて config-gated で既定OFF=本番不変。
@@ -2843,6 +3235,18 @@ def _apply_action_vetoes(obs: Observation, action: list[int], config: dict | Non
                   # decisionのみ対象)とは対象手の種類で排他。差し替え後の手(RETREAT)を
                   # `_try_hand_damage_guard` が最後に検分できるよう同じ理由でその直前に置く。
                   _try_terastal_rotation,
+                  # r14 `wall_attacker_route`。ボス系ゲートより**後**に置くのが重要:
+                  # ボスゲートが「ボスを出してKOを取る」手に差し替えた decision では
+                  # 選ばれた手が PLAY になるため、(b1) の ATTACK/END 条件で自動的に
+                  # 素通りする(= KOのチャンスをこのルートが潰さない)。
+                  # 4関数は対象 select と対象手で相互排他:
+                  #   (a) MAIN でエネ装着を選んだ decision / (b1) MAIN で ATTACK・END かつ
+                  #   アクティブが壁に無効化されている / (b2) CARD の SWITCH・TO_ACTIVE /
+                  #   (c) MAIN で END・RETREAT かつアクティブがアタッカー本人。
+                  # (b1) と (c) は「アクティブがアタッカーか否か」で背反、
+                  # (a2) と (c) は「エネが必要数に届いているか否か」で背反。
+                  _try_wall_attacker_energy, _try_wall_attacker_retreat,
+                  _try_wall_attacker_switch, _try_wall_attacker_attack,
                   _try_hand_damage_guard):
         alt = _veto(obs, action, config=config)
         if alt is not None:
