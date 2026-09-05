@@ -1,9 +1,9 @@
 """Board-reach / win-rate measurement harness for the kamitsuorochi_ex multi-select BC change
 (requirements-kamitsuorochi-2026-08-12.md "Then measure").
 
-Reconstructed in this session: the original `scratchpad/diag_crustle_shard.py` no longer exists
-on disk (scratchpad/ is not committed to git). This version is adapted from
-`scratchpad/diag_wallguard_shard.py` (same pattern: replicates `league/run_league.py`'s
+Reconstructed in this session: the original `kaggle_replays/diagnostics/diag_crustle_shard.py` no longer exists
+on disk (kaggle_replays/diagnostics/ is not committed to git). This version is adapted from
+`kaggle_replays/diagnostics/diag_wallguard_shard.py` (same pattern: replicates `league/run_league.py`'s
 `build_agent` / deck loading / turn-order alternation by importing them, not copy-pasting; drives
 the match with a custom loop that also inspects the terminal `obs.current`/`obs.logs`, which
 `run_match.play_match` swallows internally, to recover the RESULT log's `reason` field).

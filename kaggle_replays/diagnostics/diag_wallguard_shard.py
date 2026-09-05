@@ -1,7 +1,7 @@
 """Instrumented re-measurement harness for the wall_guard fix (Guard A reachability).
 
-Rebuilt from scratch in this session: the original `scratchpad/diag_crustle_shard.py` from a
-prior (crashed) session no longer exists on disk (scratchpad/ is not committed to git and this
+Rebuilt from scratch in this session: the original `kaggle_replays/diagnostics/diag_crustle_shard.py` from a
+prior (crashed) session no longer exists on disk (kaggle_replays/diagnostics/ is not committed to git and this
 is a fresh session). This script is a from-scratch reconstruction that follows the same
 documented pattern (`kaggle_replays/docs/requirements-kamitsuorochi-2026-08-12.md` SS5-4):
 replicates `league/run_league.py`'s `build_agent` / deck loading / turn-order alternation

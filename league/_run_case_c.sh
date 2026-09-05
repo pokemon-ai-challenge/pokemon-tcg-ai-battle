@@ -2,8 +2,8 @@
 set -u
 # cwd = league/ で実行する(python run_league.py 解決のため)。
 # run_league の --deck/--weights/--out 相対パスは _ROOT_DIR(repoルート)基準で解決されるので
-# repoルート相対で渡す。ログ/サマリは repoルート/results/archetype_rulebased/(= ../results/...)へ。
-OUTDIR=../results/archetype_rulebased
+# repoルート相対で渡す。ログ/サマリは repoルート/league/results/archetype_rulebased/(= ../results/...)へ。
+OUTDIR=../league/results/archetype_rulebased
 mkdir -p "$OUTDIR"
 ARCHES="marnie_grimmsnarl_ex mega_lucario_ex archaludon_ex dragapult_ex rocket_mewtwo_ex shirona_garchomp_ex crustle"
 GAMES=300
@@ -12,7 +12,7 @@ SUMMARY="$OUTDIR/_summary.txt"
 for A in $ARCHES; do
   DECK="kaggle_replays/meta_analysis/archetype_decks/${A}/01.csv"
   W="sample_submission/ptcg_ai/learning/policy_weights_${A}.json"
-  OUT="results/archetype_rulebased/${A}_vs_rule_${GAMES}.json"
+  OUT="league/results/archetype_rulebased/${A}_vs_rule_${GAMES}.json"
   echo "########## $(date +%H:%M:%S) START $A ##########"
   if python run_league.py \
        --agent-a ml_policy --weights-a "$W" --deck-a "$DECK" \

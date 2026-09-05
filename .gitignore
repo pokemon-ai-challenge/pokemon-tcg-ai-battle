@@ -196,3 +196,9 @@ sample_submission/ptcg_ai/learning/bc_backup_*/
 # Kaggle Notebook の回収物に含まれる作業ツリーの複製（1本あたり95MB）。
 # ログ・重み・指標だけ追跡し、repo/ の丸ごとの複製は追跡しない。
 kaggle_replays/policy_net/*_eval/*/repo/
+
+# 診断・実験の作業ディレクトリ(実行結果は成果物なので追跡しない)
+scratchpad/
+
+# 提出tarballのビルド出力(成果物。文書は docs/ に置く)
+build_ready/

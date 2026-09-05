@@ -263,7 +263,7 @@ L3 で特性を持つのは **カミツオロチex / カミッチュ / メガニ
 
 ### 5-4. 【2026-08-12 実測・最大の欠陥】crustle 対面で攻撃の6割が打点0
 
-> **状態: 確定**。100試合を本番エージェント経路で計測（`scratchpad/diag_crustle_shard.py`、
+> **状態: 確定**。100試合を本番エージェント経路で計測（`kaggle_replays/diagnostics/diag_crustle_shard.py`、
 > `run_league.py` の `build_agent` / デッキ読み込み / 手番割当を複製、`config_base=abl_5_full`、エラー0）。
 > **これは「打点評価のバグ」ではない。評価器は正しい。行動選択とプランの問題。**
 
