@@ -1,0 +1,5 @@
+{
+  "name": "ml_lethal_attackplan_v0only",
+  "lethal_search": {"enabled": true, "module": "lethal_simple", "max_remaining_prizes": 3, "time_limit_ms": 100, "max_depth": 20, "max_nodes": 10000, "max_combinations_per_select": 128, "verify_shuffles": 1},
+  "attack_plan": {"enabled": true, "shadow_only": false, "time_limit_ms": 100, "max_root_actions": 0, "max_combinations_per_select": 32}
+}

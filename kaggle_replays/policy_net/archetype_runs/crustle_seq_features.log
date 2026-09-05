@@ -1,0 +1,21 @@
+card_id_max = 1267(all_card_data() から動的に計算)
+読み込み開始: ..\training_data\policy_positions_crustle.jsonl.gz
+weight スキーム: concentrated
+  5000 件処理済み(経過 1.8s、2791.9 rows/sec)
+  10000 件処理済み(経過 3.6s、2756.8 rows/sec)
+  15000 件処理済み(経過 5.5s、2730.9 rows/sec)
+  20000 件処理済み(経過 7.6s、2619.7 rows/sec)
+  25000 件処理済み(経過 9.8s、2557.6 rows/sec)
+  30000 件処理済み(経過 11.8s、2538.3 rows/sec)
+  35000 件処理済み(経過 13.9s、2511.5 rows/sec)
+  40000 件処理済み(経過 15.8s、2533.6 rows/sec)
+  45000 件処理済み(経過 17.7s、2548.6 rows/sec)
+  50000 件処理済み(経過 19.4s、2573.4 rows/sec)
+  55000 件処理済み(経過 21.3s、2582.2 rows/sec)
+  60000 件処理済み(経過 23.2s、2585.4 rows/sec)
+  65000 件処理済み(経過 25.0s、2603.3 rows/sec)
+完了: 採用 69782 件(経過 26.7s)
+state_features shape=(69782, 166) dtype=float32
+split 内訳: train=55730 val=7199 test=6853
+書き出し完了: features_crustle_seq.npz (10.8 MB)
+注意: option_features/option_card_ids は object 配列(ragged)。読み込みは np.load(path, allow_pickle=True) を使うこと。card_id_max はスカラー(data['card_id_max'].item() で取り出す)。

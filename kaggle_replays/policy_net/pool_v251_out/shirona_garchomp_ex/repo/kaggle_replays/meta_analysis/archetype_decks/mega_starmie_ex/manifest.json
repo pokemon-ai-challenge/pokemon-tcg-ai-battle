@@ -1,0 +1,45 @@
+{
+  "archetype": "mega_starmie_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Oshbocker",
+      "rank_at_fetch": 8,
+      "leaderboard_score": 1150.2,
+      "episode_id": "86289305",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "taksai",
+      "rank_at_fetch": 15,
+      "leaderboard_score": 1106.2,
+      "episode_id": "86351611",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "taksai",
+      "rank_at_fetch": 15,
+      "leaderboard_score": 1106.2,
+      "episode_id": "86782293",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "Mibbles' Lab",
+      "rank_at_fetch": 120,
+      "leaderboard_score": 977.5,
+      "episode_id": "85332877",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "Flying Banana",
+      "rank_at_fetch": 205,
+      "leaderboard_score": 937.0,
+      "episode_id": "86799853",
+      "player_index": 1
+    }
+  ]
+}

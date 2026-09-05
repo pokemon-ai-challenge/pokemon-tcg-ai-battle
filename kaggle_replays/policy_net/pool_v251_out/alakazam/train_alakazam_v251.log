@@ -1,0 +1,56 @@
+features.npz を読み込み: features_alakazam_v251.npz
+hand_card_vocab: 23種 [5, 13, 19, 65, 66, 140, 305, 343, 741, 742, 743, 1079, 1081, 1086, 1097, 1129, 1152, 1182, 1184, 1197, 1225, 1231, 1266]
+card_id_max=1267  embedding table size=1268 x 8
+train=89722 val=9537 test=11500 (全110759件)
+option特徴の標準化元行列 shape=(762128, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.4232  val_nll=1.3928 (best=1.3928, no_improve=0)  val_top1=0.5235
+    [baseline] epoch   5  train_loss=1.3845  val_nll=1.3778 (best=1.3778, no_improve=0)  val_top1=0.5332
+    [baseline] epoch  10  train_loss=1.3796  val_nll=1.3721 (best=1.3721, no_improve=0)  val_top1=0.5326
+    [baseline] epoch  15  train_loss=1.3791  val_nll=1.3748 (best=1.3721, no_improve=5)  val_top1=0.5327
+    [baseline] epoch  20  train_loss=1.3780  val_nll=1.3744 (best=1.3721, no_improve=10)  val_top1=0.5326
+    [baseline] 早期終了: epoch 20(val_nll が 10 epoch 改善せず)
+  学習完了 (199.1s)
+  val : top1=0.5326  nll=1.3721
+  test: top1=0.5467  nll=1.3461
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.1481  val_nll=1.0649 (best=1.0649, no_improve=0)  val_top1=0.6272
+    [main] epoch   5  train_loss=0.8981  val_nll=0.9809 (best=0.9809, no_improve=0)  val_top1=0.6510
+    [main] epoch  10  train_loss=0.8438  val_nll=0.9807 (best=0.9687, no_improve=4)  val_top1=0.6615
+    [main] epoch  15  train_loss=0.8206  val_nll=0.9833 (best=0.9687, no_improve=9)  val_top1=0.6643
+    [main] 早期終了: epoch 16(val_nll が 10 epoch 改善せず)
+  学習完了 (239.3s, 16 epochs)
+  train: top1=0.6948  nll=0.8493
+  val  : top1=0.6597  nll=0.9687
+  test : top1=0.6646  nll=0.9641
+  train-val gap: top1=+0.0351  nll=+0.1194(overfitting指標)
+  param_counts: {'fc1': 10400, 'fc2': 33, 'embedding': 10144, 'mlp': 10433, 'total': 20577}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5326  nll=1.3721
+  本命(state ++ option ++ embed): top1=0.6597  nll=0.9687
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  7035  top1=0.5868  nll=1.2037
+  select_type= 1  n=  2987  top1=0.7064  nll=0.8101
+  select_type= 4  n=   186  top1=0.9570  nll=0.1496
+  select_type= 7  n=   173  top1=0.8960  nll=0.2940
+  select_type= 8  n=    33  top1=0.8788  nll=0.1358
+  select_type= 9  n=  1086  top1=0.9604  nll=0.1162
+
+重みを書き出しました: policy_weights_alakazam_v251.json (451.7 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=3.55271368e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.5467 nll=1.3461
+  本命(state ++ option ++ embed) test: top1=0.6646 nll=0.9641
+  自己検証: 最大誤差=3.55271368e-15 -> PASS
+  出力: policy_weights_alakazam_v251.json
+  offline指標を書き出しました: metrics_alakazam_v251.json

@@ -1,0 +1,793 @@
+{
+  "args": {
+    "learner": "alakazam",
+    "learner_weights": null,
+    "train_opponents": "alakazam",
+    "eval_opponents": "alakazam,crustle,marnie_grimmsnarl_ex,archaludon_ex",
+    "eval_fixed": "alakazam",
+    "iters": 20,
+    "games_per_iter": 512,
+    "eval_games": 200,
+    "eval_every": 3,
+    "final_eval_games": 1200,
+    "workers": 8,
+    "epochs": 4,
+    "clip": 0.2,
+    "lr_policy": 0.0003,
+    "lr_value": 0.001,
+    "entropy": 0.005,
+    "gamma": 0.999,
+    "lam": 0.95,
+    "temperature": 1.0,
+    "device": "cpu",
+    "tag": "armA_fixed",
+    "force": false
+  },
+  "train_opponents": [
+    "alakazam"
+  ],
+  "eval_opponents": [
+    "alakazam",
+    "crustle",
+    "marnie_grimmsnarl_ex",
+    "archaludon_ex"
+  ],
+  "eval_fixed": [
+    "alakazam"
+  ],
+  "history": [
+    {
+      "eval_winrate": 0.46,
+      "eval_wins": 92,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "alakazam": {
+          "games": 50,
+          "valid": 50,
+          "wins": 27,
+          "errors": 0,
+          "winrate": 0.54
+        },
+        "crustle": {
+          "games": 50,
+          "valid": 50,
+          "wins": 16,
+          "errors": 0,
+          "winrate": 0.32
+        },
+        "marnie_grimmsnarl_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 16,
+          "errors": 0,
+          "winrate": 0.32
+        },
+        "archaludon_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 33,
+          "errors": 0,
+          "winrate": 0.66
+        }
+      },
+      "eval_fixed_winrate": 0.48,
+      "eval_fixed_wins": 96,
+      "eval_fixed_valid": 200,
+      "eval_fixed_per_opponent": {
+        "alakazam": {
+          "games": 200,
+          "valid": 200,
+          "wins": 96,
+          "errors": 0,
+          "winrate": 0.48
+        }
+      },
+      "iter": 0
+    },
+    {
+      "iter": 1,
+      "train_winrate": 0.265625,
+      "steps": 41625,
+      "pol_loss": -0.007684880401939154,
+      "val_loss": 0.022529812529683113,
+      "entropy": 1.0502933263778687,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 136,
+          "errors": 0,
+          "winrate": 0.265625
+        }
+      }
+    },
+    {
+      "iter": 2,
+      "train_winrate": 0.294921875,
+      "steps": 42423,
+      "pol_loss": -0.006798571906983852,
+      "val_loss": 0.022332118824124336,
+      "entropy": 1.0637946128845215,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 151,
+          "errors": 0,
+          "winrate": 0.294921875
+        }
+      }
+    },
+    {
+      "iter": 3,
+      "train_winrate": 0.322265625,
+      "steps": 40566,
+      "pol_loss": -0.006740576587617397,
+      "val_loss": 0.02408025413751602,
+      "entropy": 1.0438923835754395,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 165,
+          "errors": 0,
+          "winrate": 0.322265625
+        }
+      },
+      "eval_winrate": 0.495,
+      "eval_wins": 99,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "alakazam": {
+          "games": 50,
+          "valid": 50,
+          "wins": 29,
+          "errors": 0,
+          "winrate": 0.58
+        },
+        "crustle": {
+          "games": 50,
+          "valid": 50,
+          "wins": 18,
+          "errors": 0,
+          "winrate": 0.36
+        },
+        "marnie_grimmsnarl_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 19,
+          "errors": 0,
+          "winrate": 0.38
+        },
+        "archaludon_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 33,
+          "errors": 0,
+          "winrate": 0.66
+        }
+      },
+      "eval_fixed_winrate": 0.485,
+      "eval_fixed_wins": 97,
+      "eval_fixed_valid": 200,
+      "eval_fixed_per_opponent": {
+        "alakazam": {
+          "games": 200,
+          "valid": 200,
+          "wins": 97,
+          "errors": 0,
+          "winrate": 0.485
+        }
+      }
+    },
+    {
+      "iter": 4,
+      "train_winrate": 0.34375,
+      "steps": 40433,
+      "pol_loss": -0.006649517919868231,
+      "val_loss": 0.02484072931110859,
+      "entropy": 1.0410003662109375,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 176,
+          "errors": 0,
+          "winrate": 0.34375
+        }
+      }
+    },
+    {
+      "iter": 5,
+      "train_winrate": 0.3671875,
+      "steps": 41018,
+      "pol_loss": -0.006414341274648905,
+      "val_loss": 0.02635781653225422,
+      "entropy": 1.0253373384475708,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 188,
+          "errors": 0,
+          "winrate": 0.3671875
+        }
+      }
+    },
+    {
+      "iter": 6,
+      "train_winrate": 0.375,
+      "steps": 40150,
+      "pol_loss": -0.006355463061481714,
+      "val_loss": 0.026230553165078163,
+      "entropy": 1.03187096118927,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 192,
+          "errors": 0,
+          "winrate": 0.375
+        }
+      },
+      "eval_winrate": 0.515,
+      "eval_wins": 103,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "alakazam": {
+          "games": 50,
+          "valid": 50,
+          "wins": 26,
+          "errors": 0,
+          "winrate": 0.52
+        },
+        "crustle": {
+          "games": 50,
+          "valid": 50,
+          "wins": 21,
+          "errors": 0,
+          "winrate": 0.42
+        },
+        "marnie_grimmsnarl_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 22,
+          "errors": 0,
+          "winrate": 0.44
+        },
+        "archaludon_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 34,
+          "errors": 0,
+          "winrate": 0.68
+        }
+      },
+      "eval_fixed_winrate": 0.565,
+      "eval_fixed_wins": 113,
+      "eval_fixed_valid": 200,
+      "eval_fixed_per_opponent": {
+        "alakazam": {
+          "games": 200,
+          "valid": 200,
+          "wins": 113,
+          "errors": 0,
+          "winrate": 0.565
+        }
+      }
+    },
+    {
+      "iter": 7,
+      "train_winrate": 0.427734375,
+      "steps": 39670,
+      "pol_loss": -0.006244951859116554,
+      "val_loss": 0.028703847900032997,
+      "entropy": 1.010626196861267,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 219,
+          "errors": 0,
+          "winrate": 0.427734375
+        }
+      }
+    },
+    {
+      "iter": 8,
+      "train_winrate": 0.421875,
+      "steps": 40418,
+      "pol_loss": -0.006210485007613897,
+      "val_loss": 0.02718975581228733,
+      "entropy": 1.0040559768676758,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 216,
+          "errors": 0,
+          "winrate": 0.421875
+        }
+      }
+    },
+    {
+      "iter": 9,
+      "train_winrate": 0.42578125,
+      "steps": 38189,
+      "pol_loss": -0.0063156080432236195,
+      "val_loss": 0.0294051431119442,
+      "entropy": 0.9923563003540039,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 218,
+          "errors": 0,
+          "winrate": 0.42578125
+        }
+      },
+      "eval_winrate": 0.445,
+      "eval_wins": 89,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "alakazam": {
+          "games": 50,
+          "valid": 50,
+          "wins": 28,
+          "errors": 0,
+          "winrate": 0.56
+        },
+        "crustle": {
+          "games": 50,
+          "valid": 50,
+          "wins": 13,
+          "errors": 0,
+          "winrate": 0.26
+        },
+        "marnie_grimmsnarl_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 15,
+          "errors": 0,
+          "winrate": 0.3
+        },
+        "archaludon_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 33,
+          "errors": 0,
+          "winrate": 0.66
+        }
+      },
+      "eval_fixed_winrate": 0.62,
+      "eval_fixed_wins": 124,
+      "eval_fixed_valid": 200,
+      "eval_fixed_per_opponent": {
+        "alakazam": {
+          "games": 200,
+          "valid": 200,
+          "wins": 124,
+          "errors": 0,
+          "winrate": 0.62
+        }
+      }
+    },
+    {
+      "iter": 10,
+      "train_winrate": 0.4609375,
+      "steps": 38855,
+      "pol_loss": -0.006314047146588564,
+      "val_loss": 0.028303522616624832,
+      "entropy": 0.9736742377281189,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 236,
+          "errors": 0,
+          "winrate": 0.4609375
+        }
+      }
+    },
+    {
+      "iter": 11,
+      "train_winrate": 0.41796875,
+      "steps": 39845,
+      "pol_loss": -0.006125818472355604,
+      "val_loss": 0.02802080661058426,
+      "entropy": 0.9588614702224731,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 214,
+          "errors": 0,
+          "winrate": 0.41796875
+        }
+      }
+    },
+    {
+      "iter": 12,
+      "train_winrate": 0.45703125,
+      "steps": 39645,
+      "pol_loss": -0.006196809932589531,
+      "val_loss": 0.029167789965867996,
+      "entropy": 0.946855902671814,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 234,
+          "errors": 0,
+          "winrate": 0.45703125
+        }
+      },
+      "eval_winrate": 0.5,
+      "eval_wins": 100,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "alakazam": {
+          "games": 50,
+          "valid": 50,
+          "wins": 26,
+          "errors": 0,
+          "winrate": 0.52
+        },
+        "crustle": {
+          "games": 50,
+          "valid": 50,
+          "wins": 19,
+          "errors": 0,
+          "winrate": 0.38
+        },
+        "marnie_grimmsnarl_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 17,
+          "errors": 0,
+          "winrate": 0.34
+        },
+        "archaludon_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 38,
+          "errors": 0,
+          "winrate": 0.76
+        }
+      },
+      "eval_fixed_winrate": 0.62,
+      "eval_fixed_wins": 124,
+      "eval_fixed_valid": 200,
+      "eval_fixed_per_opponent": {
+        "alakazam": {
+          "games": 200,
+          "valid": 200,
+          "wins": 124,
+          "errors": 0,
+          "winrate": 0.62
+        }
+      }
+    },
+    {
+      "iter": 13,
+      "train_winrate": 0.466796875,
+      "steps": 40151,
+      "pol_loss": -0.0056707295589149,
+      "val_loss": 0.02812926657497883,
+      "entropy": 0.9301785230636597,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 239,
+          "errors": 0,
+          "winrate": 0.466796875
+        }
+      }
+    },
+    {
+      "iter": 14,
+      "train_winrate": 0.466796875,
+      "steps": 39263,
+      "pol_loss": -0.005812811199575663,
+      "val_loss": 0.02684050239622593,
+      "entropy": 0.9255684614181519,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 239,
+          "errors": 0,
+          "winrate": 0.466796875
+        }
+      }
+    },
+    {
+      "iter": 15,
+      "train_winrate": 0.548828125,
+      "steps": 39450,
+      "pol_loss": -0.005540541373193264,
+      "val_loss": 0.029166914522647858,
+      "entropy": 0.9304046034812927,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 281,
+          "errors": 0,
+          "winrate": 0.548828125
+        }
+      },
+      "eval_winrate": 0.495,
+      "eval_wins": 99,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "alakazam": {
+          "games": 50,
+          "valid": 50,
+          "wins": 34,
+          "errors": 0,
+          "winrate": 0.68
+        },
+        "crustle": {
+          "games": 50,
+          "valid": 50,
+          "wins": 14,
+          "errors": 0,
+          "winrate": 0.28
+        },
+        "marnie_grimmsnarl_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 16,
+          "errors": 0,
+          "winrate": 0.32
+        },
+        "archaludon_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 35,
+          "errors": 0,
+          "winrate": 0.7
+        }
+      },
+      "eval_fixed_winrate": 0.655,
+      "eval_fixed_wins": 131,
+      "eval_fixed_valid": 200,
+      "eval_fixed_per_opponent": {
+        "alakazam": {
+          "games": 200,
+          "valid": 200,
+          "wins": 131,
+          "errors": 0,
+          "winrate": 0.655
+        }
+      }
+    },
+    {
+      "iter": 16,
+      "train_winrate": 0.533203125,
+      "steps": 39373,
+      "pol_loss": -0.005617337767034769,
+      "val_loss": 0.028757451102137566,
+      "entropy": 0.9130418300628662,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 273,
+          "errors": 0,
+          "winrate": 0.533203125
+        }
+      }
+    },
+    {
+      "iter": 17,
+      "train_winrate": 0.5390625,
+      "steps": 38521,
+      "pol_loss": -0.005529602523893118,
+      "val_loss": 0.029605116695165634,
+      "entropy": 0.9044021964073181,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 276,
+          "errors": 0,
+          "winrate": 0.5390625
+        }
+      }
+    },
+    {
+      "iter": 18,
+      "train_winrate": 0.552734375,
+      "steps": 39649,
+      "pol_loss": -0.0055149756371974945,
+      "val_loss": 0.029084667563438416,
+      "entropy": 0.8992209434509277,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 283,
+          "errors": 0,
+          "winrate": 0.552734375
+        }
+      },
+      "eval_winrate": 0.58,
+      "eval_wins": 116,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "alakazam": {
+          "games": 50,
+          "valid": 50,
+          "wins": 30,
+          "errors": 0,
+          "winrate": 0.6
+        },
+        "crustle": {
+          "games": 50,
+          "valid": 50,
+          "wins": 22,
+          "errors": 0,
+          "winrate": 0.44
+        },
+        "marnie_grimmsnarl_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 29,
+          "errors": 0,
+          "winrate": 0.58
+        },
+        "archaludon_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 35,
+          "errors": 0,
+          "winrate": 0.7
+        }
+      },
+      "eval_fixed_winrate": 0.715,
+      "eval_fixed_wins": 143,
+      "eval_fixed_valid": 200,
+      "eval_fixed_per_opponent": {
+        "alakazam": {
+          "games": 200,
+          "valid": 200,
+          "wins": 143,
+          "errors": 0,
+          "winrate": 0.715
+        }
+      }
+    },
+    {
+      "iter": 19,
+      "train_winrate": 0.53125,
+      "steps": 38864,
+      "pol_loss": -0.00553780235350132,
+      "val_loss": 0.03001234121620655,
+      "entropy": 0.8930159211158752,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 272,
+          "errors": 0,
+          "winrate": 0.53125
+        }
+      }
+    },
+    {
+      "iter": 20,
+      "train_winrate": 0.599609375,
+      "steps": 39585,
+      "pol_loss": -0.005533323157578707,
+      "val_loss": 0.02869481034576893,
+      "entropy": 0.8904144167900085,
+      "per_opponent_train": {
+        "alakazam": {
+          "games": 512,
+          "valid": 512,
+          "wins": 307,
+          "errors": 0,
+          "winrate": 0.599609375
+        }
+      },
+      "eval_winrate": 0.505,
+      "eval_wins": 101,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "alakazam": {
+          "games": 50,
+          "valid": 50,
+          "wins": 34,
+          "errors": 0,
+          "winrate": 0.68
+        },
+        "crustle": {
+          "games": 50,
+          "valid": 50,
+          "wins": 11,
+          "errors": 0,
+          "winrate": 0.22
+        },
+        "marnie_grimmsnarl_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 18,
+          "errors": 0,
+          "winrate": 0.36
+        },
+        "archaludon_ex": {
+          "games": 50,
+          "valid": 50,
+          "wins": 38,
+          "errors": 0,
+          "winrate": 0.76
+        }
+      },
+      "eval_fixed_winrate": 0.73,
+      "eval_fixed_wins": 146,
+      "eval_fixed_valid": 200,
+      "eval_fixed_per_opponent": {
+        "alakazam": {
+          "games": 200,
+          "valid": 200,
+          "wins": 146,
+          "errors": 0,
+          "winrate": 0.73
+        }
+      }
+    },
+    {
+      "iter": "final",
+      "final_eval": {
+        "eval_opponents_winrate": 0.5266666666666666,
+        "eval_opponents_wins": 632,
+        "eval_opponents_valid": 1200,
+        "eval_opponents_per_opponent": {
+          "alakazam": {
+            "games": 300,
+            "valid": 300,
+            "wins": 203,
+            "errors": 0,
+            "winrate": 0.6766666666666666
+          },
+          "crustle": {
+            "games": 300,
+            "valid": 300,
+            "wins": 77,
+            "errors": 0,
+            "winrate": 0.25666666666666665
+          },
+          "marnie_grimmsnarl_ex": {
+            "games": 300,
+            "valid": 300,
+            "wins": 123,
+            "errors": 0,
+            "winrate": 0.41
+          },
+          "archaludon_ex": {
+            "games": 300,
+            "valid": 300,
+            "wins": 229,
+            "errors": 0,
+            "winrate": 0.7633333333333333
+          }
+        },
+        "eval_fixed_winrate": 0.6725,
+        "eval_fixed_wins": 807,
+        "eval_fixed_valid": 1200,
+        "eval_fixed_per_opponent": {
+          "alakazam": {
+            "games": 1200,
+            "valid": 1200,
+            "wins": 807,
+            "errors": 0,
+            "winrate": 0.6725
+          }
+        }
+      }
+    }
+  ]
+}

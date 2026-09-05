@@ -1,0 +1,5 @@
+{
+  "alakazam_bc2": ["policy_weights_alakazam.json", "alakazam"],
+  "marnie_grimmsnarl_ex_bc2": ["policy_weights_marnie_grimmsnarl_ex_bc2.json", "marnie_grimmsnarl_ex"],
+  "crustle_bc2": ["policy_weights_crustle_bc2.json", "crustle"]
+}

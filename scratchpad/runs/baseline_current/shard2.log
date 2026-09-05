@@ -1,0 +1,134 @@
+
+written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\scratchpad\runs\baseline_current\shard2.json
+{
+  "games_run": 20,
+  "valid_games": 20,
+  "errors": 0,
+  "error_details": [],
+  "wins": 1,
+  "losses": 19,
+  "draws": 0,
+  "win_rate": 0.05,
+  "wilson_95ci": [
+    0.008881448800795402,
+    0.23613119344674208
+  ],
+  "avg_turns": 22.45,
+  "our_attacks_total": 118,
+  "zero_damage_attacks": 88,
+  "zero_damage_rate": 0.7457627118644068,
+  "ex_vs_wall_zero_damage": 82,
+  "mean_prizes_taken": 1.1,
+  "kangaskhan_ko_distribution": {
+    "0": 14,
+    "1": 6
+  },
+  "loss_reason_breakdown": {
+    "deckout": 8,
+    "prizes_taken": 11
+  },
+  "board_dev": {
+    "150": {
+      "name": "hydrapple_ex",
+      "n_reached": 11,
+      "n_games": 20,
+      "reach_rate": 0.55,
+      "median_turn": 5,
+      "turns": [
+        3,
+        10,
+        23,
+        5,
+        4,
+        5,
+        4,
+        17,
+        3,
+        6,
+        17
+      ]
+    },
+    "710": {
+      "name": "meganium",
+      "n_reached": 13,
+      "n_games": 20,
+      "reach_rate": 0.65,
+      "median_turn": 8,
+      "turns": [
+        5,
+        21,
+        4,
+        17,
+        3,
+        12,
+        19,
+        14,
+        8,
+        8,
+        3,
+        5,
+        18
+      ]
+    },
+    "93": {
+      "name": "dipplin",
+      "n_reached": 16,
+      "n_games": 20,
+      "reach_rate": 0.8,
+      "median_turn": 4.0,
+      "turns": [
+        3,
+        11,
+        4,
+        23,
+        3,
+        4,
+        6,
+        4,
+        3,
+        4,
+        15,
+        4,
+        3,
+        4,
+        13,
+        16
+      ]
+    },
+    "96": {
+      "name": "ogerpon_ex",
+      "n_reached": 20,
+      "n_games": 20,
+      "reach_rate": 1.0,
+      "median_turn": 1.5,
+      "turns": [
+        1,
+        2,
+        5,
+        1,
+        9,
+        6,
+        3,
+        1,
+        1,
+        1,
+        1,
+        2,
+        1,
+        2,
+        9,
+        4,
+        1,
+        2,
+        1,
+        1
+      ]
+    }
+  },
+  "elapsed_seconds": 468.3568389415741,
+  "config_base": "abl_5_full",
+  "deck_opp": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\meta_analysis\\archetype_decks\\crustle\\06.csv",
+  "deck_ours": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\meta_analysis\\archetype_decks\\kamitsuorochi_ex\\06.csv",
+  "weights_ours": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights.json",
+  "weights_opp": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_crustle_v715b_s42.json"
+}

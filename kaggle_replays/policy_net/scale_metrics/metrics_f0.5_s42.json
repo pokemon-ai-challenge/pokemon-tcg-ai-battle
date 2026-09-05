@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "scale_features\\features_scale_f0.5_s42.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 7680,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 7713,
+    "total": 17857
+  },
+  "n_train": 325540,
+  "n_val": 41994,
+  "n_test": 85218,
+  "epochs_trained": 57,
+  "train": {
+    "top1_accuracy": 0.744621244701112,
+    "mean_weighted_nll": 0.6887054113371351
+  },
+  "val": {
+    "top1_accuracy": 0.7310568176406154,
+    "mean_weighted_nll": 0.7350982854466036
+  },
+  "test": {
+    "top1_accuracy": 0.7322631368959609,
+    "mean_weighted_nll": 0.740300358222159
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.013564427060496653,
+    "mean_weighted_nll": 0.04639287410946846
+  },
+  "self_check_max_abs_err": 8.881784197001252e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_scale_f0.5_s42.json"
+}

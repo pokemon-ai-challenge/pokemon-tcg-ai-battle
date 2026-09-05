@@ -1,0 +1,148 @@
+{
+  "competition": "pokemon-tcg-ai-battle",
+  "run_id": "20260731T040335Z-fast",
+  "fetched_at": "2026-07-31T04:03:35.707558+00:00",
+  "top_n": 20,
+  "leaderboard": [
+    {
+      "rank": 1,
+      "teamId": 16440585,
+      "teamName": "Brahim",
+      "submissionDate": "2026-07-30T09:21:00.760000",
+      "score": "1156.4"
+    },
+    {
+      "rank": 2,
+      "teamId": 16375647,
+      "teamName": "James Cox & Henry Chao",
+      "submissionDate": "2026-07-30T13:56:57.906000",
+      "score": "1155.3"
+    },
+    {
+      "rank": 3,
+      "teamId": 16452116,
+      "teamName": "Raja Biswas",
+      "submissionDate": "2026-07-30T17:42:26.036000",
+      "score": "1146.7"
+    },
+    {
+      "rank": 4,
+      "teamId": 16372380,
+      "teamName": "THIRD PTCG Club",
+      "submissionDate": "2026-07-30T23:58:19.293000",
+      "score": "1137.0"
+    },
+    {
+      "rank": 5,
+      "teamId": 16448747,
+      "teamName": "Luca",
+      "submissionDate": "2026-07-28T15:29:52.756000",
+      "score": "1136.2"
+    },
+    {
+      "rank": 6,
+      "teamId": 16514272,
+      "teamName": "Dominic Peel",
+      "submissionDate": "2026-07-30T01:08:46.393000",
+      "score": "1136.0"
+    },
+    {
+      "rank": 7,
+      "teamId": 16375320,
+      "teamName": "カントー地方マスター(KantoRegionMaster)",
+      "submissionDate": "2026-07-30T18:42:53.903000",
+      "score": "1135.3"
+    },
+    {
+      "rank": 8,
+      "teamId": 16536318,
+      "teamName": "李秉叡（ntumlnoob）",
+      "submissionDate": "2026-07-29T08:38:58.616000",
+      "score": "1134.7"
+    },
+    {
+      "rank": 9,
+      "teamId": 16391190,
+      "teamName": "keidroid",
+      "submissionDate": "2026-07-30T11:39:05.730000",
+      "score": "1133.9"
+    },
+    {
+      "rank": 10,
+      "teamId": 16463316,
+      "teamName": "LiamK",
+      "submissionDate": "2026-07-29T19:15:43.346000",
+      "score": "1130.3"
+    },
+    {
+      "rank": 11,
+      "teamId": 16411511,
+      "teamName": "hyonu0620",
+      "submissionDate": "2026-07-31T03:02:29.880000",
+      "score": "1129.0"
+    },
+    {
+      "rank": 12,
+      "teamId": 16561259,
+      "teamName": "@kdcyberdude",
+      "submissionDate": "2026-07-30T13:12:28.660000",
+      "score": "1128.8"
+    },
+    {
+      "rank": 13,
+      "teamId": 16441077,
+      "teamName": "haggle",
+      "submissionDate": "2026-07-30T08:43:37.713000",
+      "score": "1125.3"
+    },
+    {
+      "rank": 14,
+      "teamId": 16381624,
+      "teamName": "LumenLiquidity",
+      "submissionDate": "2026-07-30T12:13:40.253000",
+      "score": "1125.1"
+    },
+    {
+      "rank": 15,
+      "teamId": 16380946,
+      "teamName": "flg",
+      "submissionDate": "2026-07-27T16:13:32.776000",
+      "score": "1123.7"
+    },
+    {
+      "rank": 16,
+      "teamId": 16371280,
+      "teamName": "lolzpo + emonga",
+      "submissionDate": "2026-07-31T00:01:36.500000",
+      "score": "1121.7"
+    },
+    {
+      "rank": 17,
+      "teamId": 16408505,
+      "teamName": "JZ",
+      "submissionDate": "2026-07-29T23:45:08.200000",
+      "score": "1117.6"
+    },
+    {
+      "rank": 18,
+      "teamId": 16411029,
+      "teamName": "ANDPAD kaggler team",
+      "submissionDate": "2026-07-30T14:12:11.270000",
+      "score": "1112.4"
+    },
+    {
+      "rank": 19,
+      "teamId": 16376653,
+      "teamName": "szlachetny snieg",
+      "submissionDate": "2026-07-28T00:24:20.946000",
+      "score": "1109.1"
+    },
+    {
+      "rank": 20,
+      "teamId": 16374395,
+      "teamName": "Majkel1337",
+      "submissionDate": "2026-07-31T01:00:57.366000",
+      "score": "1108.9"
+    }
+  ]
+}

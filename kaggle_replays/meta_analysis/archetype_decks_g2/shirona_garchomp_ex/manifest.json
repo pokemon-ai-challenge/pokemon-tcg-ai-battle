@@ -1,0 +1,45 @@
+{
+  "archetype": "shirona_garchomp_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "flg",
+      "rank_at_fetch": 6,
+      "leaderboard_score": 1163.5,
+      "episode_id": "91932088",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "Octavi Grau",
+      "rank_at_fetch": 21,
+      "leaderboard_score": 1088.3,
+      "episode_id": "91924638",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "IPL",
+      "rank_at_fetch": 290,
+      "leaderboard_score": 916.9,
+      "episode_id": "91972108",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "Orin",
+      "rank_at_fetch": 380,
+      "leaderboard_score": 893.5,
+      "episode_id": "91976691",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "NuuNohjo",
+      "rank_at_fetch": 1873,
+      "leaderboard_score": 722.9,
+      "episode_id": "91955101",
+      "player_index": 0
+    }
+  ]
+}

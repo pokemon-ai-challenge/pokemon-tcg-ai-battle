@@ -1,0 +1,45 @@
+{
+  "archetype": "n_zoroark_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "S4nkurero",
+      "rank_at_fetch": 58,
+      "leaderboard_score": 1021.1,
+      "episode_id": "86288513",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "yuki0202",
+      "rank_at_fetch": 247,
+      "leaderboard_score": 923.5,
+      "episode_id": "86808502",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "Moricha27",
+      "rank_at_fetch": 837,
+      "leaderboard_score": 826.5,
+      "episode_id": "86694983",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "GreatestCutie",
+      "rank_at_fetch": 868,
+      "leaderboard_score": 823.9,
+      "episode_id": "85705720",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "NiniSan",
+      "rank_at_fetch": 3990,
+      "leaderboard_score": 512.2,
+      "episode_id": "86065426",
+      "player_index": 1
+    }
+  ]
+}

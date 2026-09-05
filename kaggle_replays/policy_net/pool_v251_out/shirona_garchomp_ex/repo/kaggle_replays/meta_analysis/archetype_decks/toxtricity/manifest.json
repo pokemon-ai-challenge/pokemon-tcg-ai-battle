@@ -1,0 +1,37 @@
+{
+  "archetype": "toxtricity",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Banjo",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86361610",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "くりたんとたけちゃん",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86629635",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "K.Hirotsune",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86665827",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "Needleham",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86861129",
+      "player_index": 0
+    }
+  ]
+}

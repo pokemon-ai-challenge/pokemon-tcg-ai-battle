@@ -1,0 +1,75 @@
+{
+  "version": "crustle_opponent_gate_v1",
+  "created_at": "2026-07-26",
+  "status": "FROZEN (pre-registration)。online 結果を見る前に固定。閾値は Lucario/Archaludon/Marnie Gate v1 と同一標準。",
+  "archetype": "crustle",
+  "purpose": "Crustle 専用 BC が generic policy-only opponent より明確に強い Crustle 操縦者かを判定。Crustle は control/壁の難操縦アーキ(過去 BC が rule_based を上回れず、offline BC top1 0.5723 と候補中最低)=難しいデッキでも Strong Opponent を作れるかの検証ケース。Reference Pool v1 / Gate2 Contract v1 は変更しない。",
+
+  "scope_guard": {
+    "reference_pool_v1_frozen_hash": "96868ca9ee34ea4f",
+    "gate2_contract_v1_frozen_hash": "ea496e9a23839c39",
+    "alakazam_vs_generic_crustle_baseline": 0.664,
+    "baseline_source": "champion_field_baseline_v1 (Reference Pool v1, champion side crustle 0.664 CI[0.603,0.720])"
+  },
+
+  "candidate": {"agent": "ml_policy", "config": "abl_2_policy_only", "config_hash": "bd89340c3bd5da8c",
+                "weights_path": "sample_submission/ptcg_ai/learning/policy_weights_crustle.json",
+                "weights_hash": "fdde6585666ec091",
+                "own_deck_safe": true, "own_deck_safe_reason": "meta.consequence_fields=[] → own-deck identity 不使用(Open #9)"},
+  "control": {"agent": "ml_policy", "config": "abl_2_policy_only", "config_hash": "bd89340c3bd5da8c",
+              "weights_path": "sample_submission/ptcg_ai/learning/policy_weights.json",
+              "weights_hash": "735dd38a1b33a052", "own_deck_safe": true},
+  "explicit_own_deck_injection": false,
+  "run_type": "crustle_opponent_promotion",
+  "gate2_contract_used": false,
+
+  "recipes": {
+    "source": "kaggle_replays/meta_analysis/archetype_decks/crustle/",
+    "allocation": "fixed per-recipe(独立 mirror stratum)。開始後変更しない。",
+    "list": [
+      {"recipe_id": "01", "path": "kaggle_replays/meta_analysis/archetype_decks/crustle/01.csv", "deck_hash": "9781a695dc36f238"},
+      {"recipe_id": "02", "path": "kaggle_replays/meta_analysis/archetype_decks/crustle/02.csv", "deck_hash": "a9c45d4f2a23ac8d"},
+      {"recipe_id": "03", "path": "kaggle_replays/meta_analysis/archetype_decks/crustle/03.csv", "deck_hash": "ab5a478c1ed76099"},
+      {"recipe_id": "04", "path": "kaggle_replays/meta_analysis/archetype_decks/crustle/04.csv", "deck_hash": "1b398af0ce8fc693"},
+      {"recipe_id": "05", "path": "kaggle_replays/meta_analysis/archetype_decks/crustle/05.csv", "deck_hash": "5d40a8182cc66613"}
+    ]
+  },
+
+  "sprt": {"delta_min": 0.03, "alpha": 0.05, "beta": 0.10, "n_max": 600, "per_recipe": true},
+
+  "aggregate": {
+    "weighting": "recipe_uniform", "point_metric": "(1/k)Σ p_r",
+    "ci_method": "stratified_wald_one_sided_95 (Var=Σ(1/k)² p_r(1−p_r)/n_r, z=1.6449)",
+    "practical_threshold": 0.53, "statistical_threshold": "one_sided_95_lower > 0.50"
+  },
+
+  "recipe_requirement": {"promote_count_min": 4, "total": 5},
+
+  "collapse_guard": {"point_winrate_lt": 0.45, "wilson95_upper_lt": 0.50},
+
+  "decision": {
+    "offline_precondition": {"metric": "Crustle held-out test top1", "generic": 0.4258, "bc": 0.5723,
+                             "delta": 0.1465, "status": "MET(+14.65pt)"},
+    "PROMOTE": "offline MET ∧ (≥4/5 recipe SPRT=PROMOTE) ∧ (aggregate point ≥ 0.53 ∧ 片側95%下限 > 0.50) ∧ collapse なし ∧ integrity OK(error≤1%)。",
+    "FAIL": "過半 recipe が FUTILITY ∨ collapse ∨ integrity failure。",
+    "REVIEW": "上記いずれでもない。"
+  },
+
+  "strong_opponent_diagnostic": {
+    "run_when": "PROMOTE 時のみ",
+    "matchup": {"alakazam": {"agent": "ml_policy", "config": "abl_5_full", "weights": "production"},
+                "crustle": {"agent": "ml_policy", "config": "abl_2_policy_only",
+                            "weights_path": "sample_submission/ptcg_ai/learning/policy_weights_crustle.json"}},
+    "allocation": "各 recipe fixed-N 200 = 1000 games、手番交互。fixed-N diagnostic(Lucario/Archaludon/Marnie と同一 N)。",
+    "run_type": "strong_opponent_diagnostic",
+    "baseline_vs_generic": 0.664
+  },
+
+  "training_origin": {"dataset": "kaggle_replays/training_data/policy_positions_crustle.jsonl.gz",
+                      "dataset_hash": "28215d8c17179c2d", "replays": 4975, "episode_players": 737,
+                      "samples": 34322, "split": {"train": 26909, "val": 3207, "test": 4206},
+                      "rank_dist_test": {"<=20": 113, "51-200": 0, "201-1000": 1082, "1000+": 1528, "unknown": 1483},
+                      "elite_share_test": 0.027, "weight_scheme": "concentrated"},
+
+  "freeze_hash": "TBD"
+}

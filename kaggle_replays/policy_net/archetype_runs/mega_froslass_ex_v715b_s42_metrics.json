@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_mega_froslass_ex_v715b.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 49365,
+  "n_val": 6727,
+  "n_test": 6944,
+  "epochs_trained": 16,
+  "train": {
+    "top1_accuracy": 0.6265572774232756,
+    "mean_weighted_nll": 1.0125587902958089
+  },
+  "val": {
+    "top1_accuracy": 0.5983350676378772,
+    "mean_weighted_nll": 1.2004114988751275
+  },
+  "test": {
+    "top1_accuracy": 0.6051267281105991,
+    "mean_weighted_nll": 1.181157783657749
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.028222209785398356,
+    "mean_weighted_nll": 0.18785270857931868
+  },
+  "self_check_max_abs_err": 3.552713678800501e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_mega_froslass_ex_v715b_s42.json"
+}

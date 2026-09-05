@@ -1,0 +1,69 @@
+{
+  "archetype": "mega_lucario_ex",
+  "version": "v1",
+  "status": "CHAMPION",
+  "promoted_at": "2026-07-26",
+  "algorithm_type": "archetype_specific_bc_policy_only",
+  "note": "Strong Opponent Initiative Phase 1 第1号。generic policy-only Lucario opponent を online mirror で明確に上回り昇格。Reference Pool v1 は変更せず、将来の Reference Pool v2 用 strong opponent 候補として登録。絶対強度は中位 pilot 相当(training data は elite rank<=20 が 0% の低位偏重)。",
+
+  "model": {
+    "policy_weights": "sample_submission/ptcg_ai/learning/policy_weights_mega_lucario_ex.json",
+    "policy_weights_hash": "c4ca3599ec89a520",
+    "value_weights": null,
+    "config": "abl_2_policy_only",
+    "config_hash": "bd89340c3bd5da8c",
+    "own_deck_safe": true
+  },
+
+  "deck_recipes": [
+    {"recipe_id": "01", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/01.csv", "deck_hash": "fa5a4930844f6440"},
+    {"recipe_id": "02", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/02.csv", "deck_hash": "b9e592461cc3aa19"},
+    {"recipe_id": "03", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/03.csv", "deck_hash": "199b7489f984ec61"},
+    {"recipe_id": "04", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/04.csv", "deck_hash": "548ab92430293fb3"},
+    {"recipe_id": "05", "path": "kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/05.csv", "deck_hash": "406e2e9bd6ae82b8"}
+  ],
+
+  "training_origin": {
+    "pipeline": "run_archetype_pipeline.py --archetype mega_lucario_ex (extract -> build_features concentrated -> train)",
+    "dataset": "kaggle_replays/training_data/policy_positions_mega_lucario_ex.jsonl.gz",
+    "dataset_hash": "cd4d645cee1e64c3",
+    "replays": 4975, "episode_players": 1257, "samples": 77956,
+    "split": {"train": 62744, "val": 8472, "test": 6740, "method": "episode-level md5 (no game leakage)"},
+    "weight_scheme": "concentrated (skill-weighted; ただし Lucario は rank<=20 が 0% で実質 no-op=中位 pilot 模倣)",
+    "architecture": "MLP embedding(card_id) ++ Linear(in,32)->ReLU->Linear(32,1), 17857 params (production と同一)"
+  },
+
+  "predecessor": {"id": "generic_policy_only", "policy_weights": "policy_weights.json", "policy_weights_hash": "735dd38a1b33a052"},
+
+  "promotion_contract": {"file": "lucario_opponent_gate_v1.json", "hash": "a058f5a05e9fb0ce"},
+
+  "evaluation_reports": {
+    "offline": {"metric": "Lucario held-out test top1", "generic": 0.4393, "candidate": 0.7037, "delta": 0.2644,
+                "main_select": {"generic": 0.32, "candidate": 0.67}},
+    "online_mirror": {
+      "report": "results/lucario_mirror_v1/lucario_mirror_report.json", "report_hash": "b812e2d8ecf34078",
+      "sprt": {"delta_min": 0.03, "alpha": 0.05, "beta": 0.10, "n_max": 600},
+      "per_recipe": {"01": {"winrate": 0.849, "sprt": "PROMOTE"}, "02": {"winrate": 0.823, "sprt": "PROMOTE"},
+                     "03": {"winrate": 0.859, "sprt": "PROMOTE"}, "04": {"winrate": 0.840, "sprt": "PROMOTE"},
+                     "05": {"winrate": 0.717, "sprt": "PROMOTE"}},
+      "aggregate": {"point": 0.8176, "one_sided_95_lower": 0.7867, "promote_recipes": "5/5", "collapse": [], "errors": 0},
+      "decision": "PROMOTE"
+    },
+    "strong_opponent_diagnostic": {
+      "report": "results/lucario_strong_diagnostic_v1/strong_diagnostic_report.json", "report_hash": "6859d4e888c73a91",
+      "matchup": "abl_5_full(Alakazam Champion) vs Lucario Champion v1",
+      "games_per_recipe": 200, "total_games": 1000, "errors": 0,
+      "per_recipe_alakazam_winrate": {"01": 0.590, "02": 0.290, "03": 0.535, "04": 0.360, "05": 0.615},
+      "aggregate_alakazam_winrate": 0.4780,
+      "baseline_vs_generic_lucario_frozen": 0.820,
+      "delta_vs_baseline": -0.342,
+      "interpretation": "強い Lucario opponent により Alakazam の対 Lucario 勝率が 0.820→0.478(−34.2pt)。opponent 強化の証拠であり Alakazam の弱化ではない。Reference Pool v1 の 0.820 は不変。"
+    }
+  },
+
+  "scope_guard": {
+    "reference_pool_v1_unchanged_hash": "96868ca9ee34ea4f",
+    "gate2_contract_v1_unchanged_hash": "ea496e9a23839c39",
+    "note": "本 Champion は Reference Pool v1 の Lucario opponent を差し替えない。Reference Pool v2 設計時に採用検討。"
+  }
+}

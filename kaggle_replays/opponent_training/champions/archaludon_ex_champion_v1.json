@@ -1,0 +1,62 @@
+{
+  "archetype": "archaludon_ex",
+  "version": "v1",
+  "status": "CHAMPION",
+  "promoted_at": "2026-07-26",
+  "algorithm_type": "archetype_specific_bc_policy_only",
+  "note": "Strong Opponent Initiative Phase 2 第2号。generic policy-only Archaludon opponent を online mirror(5/5 PROMOTE, aggregate 0.7754)で明確に上回り昇格。Reference Pool v1 は変更せず、strong opponent pool として別管理。elite rank<=20 が 0% の中位 pilot 模倣=絶対強度は中程度。",
+
+  "model": {
+    "policy_weights": "sample_submission/ptcg_ai/learning/policy_weights_archaludon_ex.json",
+    "policy_weights_hash": "5da2fdd32c7082a5",
+    "value_weights": null,
+    "config": "abl_2_policy_only", "config_hash": "bd89340c3bd5da8c", "own_deck_safe": true
+  },
+
+  "deck_recipes": [
+    {"recipe_id": "01", "deck_hash": "cf51584af4051aff"}, {"recipe_id": "02", "deck_hash": "5e6b89a3106fc4d1"},
+    {"recipe_id": "03", "deck_hash": "9d4dd72aeca26ea7"}, {"recipe_id": "04", "deck_hash": "156b077ceca1c632"},
+    {"recipe_id": "05", "deck_hash": "6a892f1990e1df48"}
+  ],
+
+  "training_origin": {
+    "pipeline": "run_archetype_pipeline.py --archetype archaludon_ex",
+    "dataset": "kaggle_replays/training_data/policy_positions_archaludon_ex.jsonl.gz",
+    "dataset_hash": "298467b4bf506322",
+    "replays": 4975, "episode_players": 1078, "samples": 52810,
+    "split": {"train": 41654, "val": 5252, "test": 5904, "method": "episode-level md5 (no leakage)"},
+    "rank_dist_test": {"<=20": 0, "21-50": 0, "51-200": 46, "201-1000": 2931, "1000+": 2238, "unknown": 689},
+    "elite_share_test": 0.0, "weight_scheme": "concentrated (elite 0% で実質 no-op=中位 pilot 模倣)"
+  },
+
+  "predecessor": {"id": "generic_policy_only", "policy_weights_hash": "735dd38a1b33a052"},
+  "promotion_contract": {"file": "contracts/archaludon_ex_opponent_gate_v1.json", "hash": "2d087f8f074e9c96"},
+
+  "evaluation_reports": {
+    "offline": {"metric": "Archaludon held-out test top1", "generic": 0.4795, "candidate": 0.7380, "delta": 0.2585,
+                "main_select": {"generic": 0.3454, "candidate": 0.6658}},
+    "online_mirror": {
+      "report": "results/archaludon_ex/mirror_v1/archaludon_ex_mirror_report.json", "report_hash": "efd02eb5f2bf6809",
+      "sprt": {"delta_min": 0.03, "alpha": 0.05, "beta": 0.10, "n_max": 600},
+      "per_recipe": {"01": {"winrate": 0.724, "sprt": "PROMOTE"}, "02": {"winrate": 0.807, "sprt": "PROMOTE"},
+                     "03": {"winrate": 0.931, "sprt": "PROMOTE"}, "04": {"winrate": 0.724, "sprt": "PROMOTE"},
+                     "05": {"winrate": 0.691, "sprt": "PROMOTE"}},
+      "aggregate": {"point": 0.7754, "one_sided_95_lower": 0.7461, "promote_recipes": "5/5", "collapse": [], "errors": 0},
+      "decision": "PROMOTE"
+    },
+    "strong_opponent_diagnostic": {
+      "report": "results/archaludon_ex/strong_diagnostic_v1/archaludon_ex_strong_diagnostic_report.json",
+      "report_hash": "4bf07ab180682bfc",
+      "matchup": "abl_5_full(Alakazam Champion) vs Archaludon Champion v1",
+      "games_per_recipe": 200, "total_games": 1000, "errors": 0,
+      "per_recipe_alakazam_winrate": {"01": 0.645, "02": 0.485, "03": 0.395, "04": 0.585, "05": 0.640},
+      "aggregate_alakazam_winrate": 0.5500,
+      "baseline_vs_generic_archaludon_frozen": 0.940,
+      "delta_vs_baseline": -0.390,
+      "interpretation": "強い Archaludon opponent により Alakazam の対 Archaludon 勝率が 0.940→0.550(−39.0pt)。opponent 強化の証拠で Alakazam の弱化ではない。Reference Pool v1 の 0.940 は不変。"
+    }
+  },
+
+  "scope_guard": {"reference_pool_v1_unchanged_hash": "96868ca9ee34ea4f",
+                  "gate2_contract_v1_unchanged_hash": "ea496e9a23839c39"}
+}

@@ -1,0 +1,54 @@
+{
+  "archetype": "kamitsuorochi_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "yayoi111",
+      "rank_at_fetch": 483,
+      "leaderboard_score": 871.5,
+      "episode_id": "85931630",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "Metamor",
+      "rank_at_fetch": 831,
+      "leaderboard_score": 826.9,
+      "episode_id": "86797967",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "Jose Coronel",
+      "rank_at_fetch": 875,
+      "leaderboard_score": 823.6,
+      "episode_id": "86811426",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "Oniku",
+      "rank_at_fetch": 1204,
+      "leaderboard_score": 795.7,
+      "episode_id": "86814098",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "jazivxt",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86820450",
+      "player_index": 0
+    },
+    {
+      "file": "06.csv",
+      "team": "palsystem",
+      "rank_at_fetch": null,
+      "leaderboard_score": 1189.1,
+      "episode_id": "91802249",
+      "player_index": 0,
+      "note": "2026-08-12 にメインデッキとして採用。sample_submission/deck.csv と同一。新ログ(2026-08-10)のリスト L3（採用 n=116・勝率 69.0%・使用者平均スコア 1077、最頻リスト L1 とは3枚差）。hand_card_vocab を通すために追加している"
+    }
+  ]
+}

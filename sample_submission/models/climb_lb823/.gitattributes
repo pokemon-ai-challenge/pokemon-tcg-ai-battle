@@ -1,0 +1,3 @@
+# 凍結アーティファクト。MANIFEST.json / README.md が sha256 を明示しているため、
+# checkout 時の改行変換（core.autocrlf=true）でバイト列が変わらないようにする。
+* -text

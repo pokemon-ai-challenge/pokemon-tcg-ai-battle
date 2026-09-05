@@ -1,0 +1,16 @@
+{"name": "g2top4_v017", "kind": "swap1", "base": "g2top4", "diff": [{"out": 1221, "out_name": "Nの筋書き", "in": 1227, "in_name": "リーリエの決心"}]}
+{"name": "g2top2_v053", "kind": "swap1", "base": "g2top2", "diff": [{"out": 1227, "out_name": "リーリエの決心", "in": 1122, "in_name": "ポケギア3.0"}]}
+{"name": "g2top5_v072", "kind": "swap1", "base": "g2top5", "diff": [{"out": 1122, "out_name": "ポケギア3.0", "in": 1152, "in_name": "ポケパッド"}]}
+{"name": "g2top5_v033", "kind": "swap2", "base": "g2top5", "diff": [{"out": 1223, "out_name": "クラウン", "in": 1122, "in_name": "ポケギア3.0"}, {"out": 1227, "out_name": "リーリエの決心", "in": 1119, "in_name": "エネルギー転送"}]}
+{"name": "g2top5_v046", "kind": "swap1", "base": "g2top5", "diff": [{"out": 1182, "out_name": "ボスの指令", "in": 1147, "in_name": "ジャンボアイス"}]}
+{"name": "g2top3_to_g2top5_v082", "kind": "interp3", "base": "g2top3", "target": "g2top5", "diff": [{"out": 1, "out_name": "基本【草】エネルギー", "in": 18, "in_name": "グロウ【草】エネルギー"}, {"out": 1118, "out_name": "エネルギー回収", "in": 1147, "in_name": "ジャンボアイス"}, {"out": 1182, "out_name": "ボスの指令", "in": 18, "in_name": "グロウ【草】エネルギー"}]}
+{"name": "seed_g2top1", "kind": "seed", "base": "g2top1", "diff": []}
+{"name": "g2top5_v084", "kind": "swap2", "base": "g2top5", "diff": [{"out": 1127, "out_name": "テラスタルオーブ", "in": 1, "in_name": "基本【草】エネルギー"}, {"out": 1147, "out_name": "ジャンボアイス", "in": 1119, "in_name": "エネルギー転送"}]}
+{"name": "g2top3_v081", "kind": "swap1", "base": "g2top3", "diff": [{"out": 18, "out_name": "グロウ【草】エネルギー", "in": 1251, "in_name": "エキサイトスタジアム"}]}
+{"name": "g2top2_v071", "kind": "swap1", "base": "g2top2", "diff": [{"out": 1119, "out_name": "エネルギー転送", "in": 1137, "in_name": "ツールスクラッパー"}]}
+{"name": "g2top2_v057", "kind": "swap2", "base": "g2top2", "diff": [{"out": 1223, "out_name": "クラウン", "in": 1, "in_name": "基本【草】エネルギー"}, {"out": 1221, "out_name": "Nの筋書き", "in": 18, "in_name": "グロウ【草】エネルギー"}]}
+{"name": "g2top2_v068", "kind": "swap1", "base": "g2top2", "diff": [{"out": 1213, "out_name": "ジャッジマン", "in": 1223, "in_name": "クラウン"}]}
+{"name": "g2top2_v032", "kind": "swap1", "base": "g2top2", "diff": [{"out": 1122, "out_name": "ポケギア3.0", "in": 1119, "in_name": "エネルギー転送"}]}
+{"name": "g2top4_v013", "kind": "swap1", "base": "g2top4", "diff": [{"out": 18, "out_name": "グロウ【草】エネルギー", "in": 1119, "in_name": "エネルギー転送"}]}
+{"name": "g2top4_v007", "kind": "swap1", "base": "g2top4", "diff": [{"out": 1, "out_name": "基本【草】エネルギー", "in": 1137, "in_name": "ツールスクラッパー"}]}
+{"name": "g2top3_v069", "kind": "swap2", "base": "g2top3", "diff": [{"out": 1094, "out_name": "むしとりセット", "in": 1147, "in_name": "ジャンボアイス"}, {"out": 1201, "out_name": "ブライア", "in": 1251, "in_name": "エキサイトスタジアム"}]}

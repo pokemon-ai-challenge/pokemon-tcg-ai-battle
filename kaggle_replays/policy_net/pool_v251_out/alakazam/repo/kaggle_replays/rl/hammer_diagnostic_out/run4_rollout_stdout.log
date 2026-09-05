@@ -1,0 +1,45 @@
+[info] running 120 games across 7 worker processes
+[progress] 10/120 games done (43.5s)
+[progress] 20/120 games done (71.0s)
+[progress] 30/120 games done (103.8s)
+[progress] 40/120 games done (126.9s)
+[progress] 50/120 games done (157.6s)
+[progress] 60/120 games done (183.5s)
+[progress] 70/120 games done (210.8s)
+[progress] 80/120 games done (242.3s)
+[progress] 90/120 games done (270.5s)
+[progress] 100/120 games done (298.3s)
+[progress] 110/120 games done (326.6s)
+[progress] 120/120 games done (359.6s)
+=== hammer rollout diagnostic (run4): alakazam(ml_policy/abl_5_full) vs crustle, shirona_garchomp_ex ===
+games: 120/120 valid (0 errors), elapsed 359.7s, workers=7
+
+qualifying = 81 件  used_hammer = 32 件  missed_hammer = 49 件  (rollout観測不能 3 件を除外)
+
+=== 問い3(run4): ロールアウトの中身を観測する(逃した局面 46 件) ===
+  (a) ハンマーを first move にしたロールアウト
+    観測できた決定点            46 件 (のべ世界数 368)
+    ロールアウトで攻撃した世界の割合    決定点平均 87.8%
+                                     (プール平均 87.8%、n=368)
+    攻撃してKOまで至った世界の割合      決定点平均 75.3%
+                                     (プール平均 75.3%)
+    攻撃した世界のうち、攻撃時点で既に非lethalだった      42/323 件（13.0%）  (手札枚数依存ダメージの再計算。cond4予測=ハンマー着手前の手札枚数)
+    攻撃しなかった世界で最初に選ばれた手の内訳(全 45 世界):
+      PLAY           27 件（60.0%）
+      EVOLVE          9 件（20.0%）
+      ABILITY         9 件（20.0%）
+
+  (b) 実際に選んだ手を first move にしたロールアウト(比較)
+    観測できた決定点            46 件 (のべ世界数 368)
+    ロールアウトで攻撃した世界の割合    決定点平均 91.6%
+                                     (プール平均 91.6%、n=368)
+    攻撃してKOまで至った世界の割合      決定点平均 78.8%
+                                     (プール平均 78.8%)
+    攻撃した世界のうち、攻撃時点で既に非lethalだった      40/337 件（11.9%）  (手札枚数依存ダメージの再計算。cond4予測=ハンマー着手前の手札枚数)
+    攻撃しなかった世界で最初に選ばれた手の内訳(全 31 世界):
+      PLAY           13 件（41.9%）
+      ABILITY        10 件（32.3%）
+      EVOLVE          8 件（25.8%）
+
+
+result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\rl\hammer_diagnostic_out\run4_rollout.json

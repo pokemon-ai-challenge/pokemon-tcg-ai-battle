@@ -1,0 +1,45 @@
+{
+  "archetype": "crustle",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "@kdcyberdude",
+      "rank_at_fetch": 8,
+      "leaderboard_score": 1154.0,
+      "episode_id": "91909402",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "sadwat",
+      "rank_at_fetch": 12,
+      "leaderboard_score": 1137.0,
+      "episode_id": "91906696",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "da da",
+      "rank_at_fetch": 49,
+      "leaderboard_score": 1047.1,
+      "episode_id": "91914178",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "sobameshi",
+      "rank_at_fetch": 61,
+      "leaderboard_score": 1026.3,
+      "episode_id": "91949841",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "MarineYY",
+      "rank_at_fetch": 83,
+      "leaderboard_score": 1005.9,
+      "episode_id": "91922735",
+      "player_index": 1
+    }
+  ]
+}

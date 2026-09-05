@@ -1,0 +1,22 @@
+{
+  "competition": "pokemon-tcg-ai-battle",
+  "run_id": "20260718T235334Z",
+  "fetched_at": "2026-07-18T23:53:34.519394+00:00",
+  "top_n": 2,
+  "leaderboard": [
+    {
+      "rank": 1,
+      "teamId": 16448747,
+      "teamName": "Luca",
+      "submissionDate": "2026-07-16T21:33:37.590000",
+      "score": "1227.8"
+    },
+    {
+      "rank": 2,
+      "teamId": 16381823,
+      "teamName": "Yushin Ito",
+      "submissionDate": "2026-07-17T02:27:09.746000",
+      "score": "1190.6"
+    }
+  ]
+}

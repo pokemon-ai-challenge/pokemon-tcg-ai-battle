@@ -1,0 +1,45 @@
+{
+  "archetype": "shirona_garchomp_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "junlee789",
+      "rank_at_fetch": 6,
+      "leaderboard_score": 1153.3,
+      "episode_id": "86782455",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "MTL Agent",
+      "rank_at_fetch": 239,
+      "leaderboard_score": 927.1,
+      "episode_id": "86798976",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "Yam",
+      "rank_at_fetch": 254,
+      "leaderboard_score": 921.2,
+      "episode_id": "86802065",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "ひろたこう",
+      "rank_at_fetch": 300,
+      "leaderboard_score": 908.8,
+      "episode_id": "86808509",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "NuuNohjo",
+      "rank_at_fetch": 313,
+      "leaderboard_score": 905.1,
+      "episode_id": "86808405",
+      "player_index": 0
+    }
+  ]
+}

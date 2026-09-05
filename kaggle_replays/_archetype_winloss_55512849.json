@@ -1,0 +1,231 @@
+{
+  "ref": "55512849",
+  "games": 34,
+  "missing": 0,
+  "total": [
+    14,
+    20
+  ],
+  "by_archetype": {
+    "omatsuri_ondo": {
+      "win": 1,
+      "loss": 0
+    },
+    "unknown": {
+      "win": 4,
+      "loss": 1
+    },
+    "alakazam": {
+      "win": 0,
+      "loss": 4
+    },
+    "crustle": {
+      "win": 2,
+      "loss": 2
+    },
+    "ogerpon_teal_ex": {
+      "win": 1,
+      "loss": 1
+    },
+    "archaludon_ex": {
+      "win": 0,
+      "loss": 2
+    },
+    "mega_starmie_ex": {
+      "win": 1,
+      "loss": 2
+    },
+    "mega_lucario_ex": {
+      "win": 1,
+      "loss": 4
+    },
+    "dragapult_ex": {
+      "win": 4,
+      "loss": 1
+    },
+    "rocket_honchkrow": {
+      "win": 0,
+      "loss": 1
+    },
+    "rocket_mewtwo_ex": {
+      "win": 0,
+      "loss": 1
+    },
+    "shirona_garchomp_ex": {
+      "win": 0,
+      "loss": 1
+    }
+  },
+  "per_game": [
+    {
+      "episode": "93263979",
+      "opponent": "omatsuri_ondo",
+      "won": true
+    },
+    {
+      "episode": "93211029",
+      "opponent": "unknown",
+      "won": false
+    },
+    {
+      "episode": "93172888",
+      "opponent": "alakazam",
+      "won": false
+    },
+    {
+      "episode": "93167493",
+      "opponent": "crustle",
+      "won": false
+    },
+    {
+      "episode": "93121444",
+      "opponent": "ogerpon_teal_ex",
+      "won": false
+    },
+    {
+      "episode": "93112226",
+      "opponent": "archaludon_ex",
+      "won": false
+    },
+    {
+      "episode": "93110212",
+      "opponent": "mega_starmie_ex",
+      "won": false
+    },
+    {
+      "episode": "93109283",
+      "opponent": "mega_lucario_ex",
+      "won": false
+    },
+    {
+      "episode": "93108317",
+      "opponent": "mega_lucario_ex",
+      "won": false
+    },
+    {
+      "episode": "93107412",
+      "opponent": "archaludon_ex",
+      "won": false
+    },
+    {
+      "episode": "93106473",
+      "opponent": "alakazam",
+      "won": false
+    },
+    {
+      "episode": "93105530",
+      "opponent": "mega_starmie_ex",
+      "won": false
+    },
+    {
+      "episode": "93104605",
+      "opponent": "mega_lucario_ex",
+      "won": true
+    },
+    {
+      "episode": "93103695",
+      "opponent": "dragapult_ex",
+      "won": true
+    },
+    {
+      "episode": "93102753",
+      "opponent": "alakazam",
+      "won": false
+    },
+    {
+      "episode": "93101823",
+      "opponent": "unknown",
+      "won": true
+    },
+    {
+      "episode": "93100897",
+      "opponent": "mega_starmie_ex",
+      "won": true
+    },
+    {
+      "episode": "93099963",
+      "opponent": "dragapult_ex",
+      "won": true
+    },
+    {
+      "episode": "93099029",
+      "opponent": "crustle",
+      "won": false
+    },
+    {
+      "episode": "93098081",
+      "opponent": "unknown",
+      "won": true
+    },
+    {
+      "episode": "93097152",
+      "opponent": "rocket_honchkrow",
+      "won": false
+    },
+    {
+      "episode": "93096224",
+      "opponent": "crustle",
+      "won": true
+    },
+    {
+      "episode": "93095299",
+      "opponent": "rocket_mewtwo_ex",
+      "won": false
+    },
+    {
+      "episode": "93094347",
+      "opponent": "dragapult_ex",
+      "won": false
+    },
+    {
+      "episode": "93093437",
+      "opponent": "dragapult_ex",
+      "won": true
+    },
+    {
+      "episode": "93092509",
+      "opponent": "unknown",
+      "won": true
+    },
+    {
+      "episode": "93091572",
+      "opponent": "alakazam",
+      "won": false
+    },
+    {
+      "episode": "93090654",
+      "opponent": "crustle",
+      "won": true
+    },
+    {
+      "episode": "93089718",
+      "opponent": "shirona_garchomp_ex",
+      "won": false
+    },
+    {
+      "episode": "93088790",
+      "opponent": "dragapult_ex",
+      "won": true
+    },
+    {
+      "episode": "93087859",
+      "opponent": "mega_lucario_ex",
+      "won": false
+    },
+    {
+      "episode": "93086943",
+      "opponent": "unknown",
+      "won": true
+    },
+    {
+      "episode": "93086004",
+      "opponent": "mega_lucario_ex",
+      "won": false
+    },
+    {
+      "episode": "93085876",
+      "opponent": "ogerpon_teal_ex",
+      "won": true
+    }
+  ]
+}

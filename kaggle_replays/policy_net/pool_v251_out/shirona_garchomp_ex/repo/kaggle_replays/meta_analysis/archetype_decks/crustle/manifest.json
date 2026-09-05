@@ -1,0 +1,45 @@
+{
+  "archetype": "crustle",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Oshbocker",
+      "rank_at_fetch": 8,
+      "leaderboard_score": 1150.2,
+      "episode_id": "86775210",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "懒惰的金枪鱼",
+      "rank_at_fetch": 12,
+      "leaderboard_score": 1124.2,
+      "episode_id": "86281555",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "jaehwan02",
+      "rank_at_fetch": 146,
+      "leaderboard_score": 962.1,
+      "episode_id": "85785925",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "MTL Agent",
+      "rank_at_fetch": 217,
+      "leaderboard_score": 935.1,
+      "episode_id": "85478395",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "Hishi057",
+      "rank_at_fetch": 259,
+      "leaderboard_score": 919.4,
+      "episode_id": "86811718",
+      "player_index": 1
+    }
+  ]
+}

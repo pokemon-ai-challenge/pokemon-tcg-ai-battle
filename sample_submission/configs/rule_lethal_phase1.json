@@ -1,0 +1,15 @@
+{
+  "name": "rule_lethal_phase1",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_phase1",
+    "max_remaining_prizes": 2,
+    "phase12_ms": 100,
+    "max_nodes": 10000,
+    "max_depth": 8,
+    "max_chance_depth": 1,
+    "phase1_enabled": true,
+    "phase2_enabled": false,
+    "phase3_enabled": false
+  }
+}

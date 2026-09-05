@@ -1,0 +1,626 @@
+"""Deterministic lethal search (issues #57 / #58).
+
+Searches, within the current own turn only, for an action sequence that
+ends the game in our victory, using the competition search API
+(``cg.api.search_begin`` / ``search_step``). Only "certain" lethals are
+targeted: a found line is re-verified against reshuffled hidden
+information, so lines that depend on unknown card order (or coin luck)
+are rejected.
+
+Phase 1 (#57) covered the last-prize case; Phase 2 (#58) triggers at
+<= 2 remaining prizes (lethal via KOing a Pokemon ex / Mega ex,
+multi-KO effects, or non-attack card effects — all detected uniformly
+through ``State.result``) and adds pruning and instrumentation
+(``get_stats()`` / ``reset_stats()``).
+
+Entry point (team common interface)::
+
+    def search(state, legal_actions, context) -> list[int] | None
+
+``context`` keys:
+
+- ``observation`` (required): the original ``Observation`` given to the agent.
+- ``config``: the ``lethal_search`` section of the agent config
+  (missing keys fall back to ``DEFAULTS``).
+- ``hidden_state`` / ``hidden_state_factory`` (one required): pre-built
+  hidden-information dict for ``search_begin()`` (keys ``your_deck``,
+  ``your_prize``, ``opponent_deck``, ``opponent_prize``,
+  ``opponent_hand``, ``opponent_active``), or a zero-argument callable
+  returning one (or None). The search never estimates hidden
+  information itself; the caller decides how to build it (currently
+  ``ptcg_ai.hidden_information.search_state_stub.build_dummy_search_state``).
+  The factory is called once per verification replay, so a factory that
+  reshuffles lets the determinism check reject shuffle-dependent lines.
+
+Returns the first selection (option index list) of a winning line, or
+None when there is no certain lethal / on timeout / on any error, in
+which case the caller falls back to its normal policy.
+"""
+
+from __future__ import annotations
+
+import itertools
+import random
+import time
+from typing import Callable, Iterator
+
+from cg import api as cg_api
+from cg.api import AreaType, Observation, OptionType, SelectData, SelectType, State
+
+DEFAULTS: dict = {
+    "enabled": True,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 2,
+    "time_limit_ms": 100,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    # Cap on selection combinations generated per node (multi-select
+    # prompts can explode combinatorially).
+    "max_combinations_per_select": 128,
+    # Extra replays with reshuffled hidden info to confirm the line is
+    # deterministic. 0 disables verification.
+    "verify_shuffles": 1,
+    # 優先展開(config-gated)。ここに載せた CardData.id の「手札からの PLAY」を
+    # ATTACK の直後に試す。空リスト(既定)なら並べ替えは一切起きず、既存挙動と
+    # バイト単位で同一。詳細は `_candidate_selections` / `_priority_play_ids`。
+    "priority_play_card_ids": [],
+    # 上の優先展開を発動する条件: 自分の残りサイドがこの枚数以下のときだけ。
+    # `priority_play_card_ids` が空なら値によらず無効なので、既存configには影響しない。
+    "priority_play_max_remaining_prizes": 2,
+    # 相手ポケモンを対象に取る非MAIN選択(ボスの指令直後の CARD/SWITCH 等)を
+    # 「残りHP昇順」に並べ替える(config-gated、既定 False=無効=現行の自然順)。
+    # 優先展開と同じ `priority_play_max_remaining_prizes` の条件下でだけ効く。
+    # 詳細は `_candidate_selections` / `_option_opponent_pokemon`。
+    "priority_sort_switch_targets": False,
+    # 終盤(自分の残りサイドが `endgame_max_remaining_prizes` 以下)のときだけ
+    # 予算を差し替える。どちらも None(既定)なら差し替えは起きず現行と同一。
+    "endgame_time_limit_ms": None,
+    "endgame_max_nodes": None,
+    "endgame_max_remaining_prizes": 2,
+}
+
+# Option ordering for MAIN selections (#58 探索優先順位): attacks first
+# (multi-prize KOs and win-now lines), then damage raisers
+# (ability/evolve), energy acceleration, retreat/switch, other card use.
+# END is excluded from MAIN candidates entirely: the search only covers
+# the current own turn, so ending the turn can never reach a win.
+_MAIN_OPTION_PRIORITY = {
+    OptionType.ATTACK: 0,
+    OptionType.ABILITY: 1,
+    OptionType.EVOLVE: 2,
+    OptionType.ATTACH: 3,
+    OptionType.RETREAT: 4,
+    OptionType.PLAY: 5,
+    OptionType.DISCARD: 6,
+}
+_DEFAULT_PRIORITY = 50
+
+# 優先展開する PLAY のランク。ATTACK(0)の直後・ABILITY(1)の手前に差し込む。
+# 「攻撃 → 対象PLAY → 特性 → 進化 → エネ → 逃げる → その他PLAY」の順になる。
+_PRIORITY_PLAY_RANK = 0.5
+
+
+class _SearchAbort(Exception):
+    """Raised internally when a time/node budget is exhausted."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+# Instrumentation (#58): cumulative counters for local measurement.
+_STATS_ZERO = {
+    "searches": 0,        # searches actually started (gates passed)
+    "found": 0,           # searches that returned a lethal action
+    "timeouts": 0,        # aborted by time_limit_ms
+    "node_limit_hits": 0, # aborted by max_nodes
+    "verify_rejects": 0,  # lines rejected by the determinism replay
+    "endgame_escalations": 0,  # searches that used the endgame budget (Fix-A)
+    "total_time_ms": 0.0,
+    "max_time_ms": 0.0,
+}
+_stats = dict(_STATS_ZERO)
+
+
+def get_stats() -> dict:
+    """Return cumulative search statistics (see ``_STATS_ZERO``)."""
+    stats = dict(_stats)
+    searches = stats["searches"]
+    stats["avg_time_ms"] = stats["total_time_ms"] / searches if searches else 0.0
+    return stats
+
+
+def reset_stats() -> None:
+    _stats.update(_STATS_ZERO)
+
+
+# 専用RNG(config-gated `lethal_search.isolated_rng` 用、乱数消費の交絡除去)。
+#
+# 背景: 隠れ状態スタブ(`search_state_stub.build_dummy_search_state` /
+# `hidden_information.search_adapter.to_search_begin_kwargs`)は既定でグローバル
+# `random` モジュールを消費する。リーサル探索が発火するか・何回サンプリングするか
+# (初回 + `verify_shuffles` 回の再構築)は局面ごとに変わるため、グローバル `random`
+# を共有していると「探索の実行量が変わるだけで、探索と無関係な後続の乱数列
+# (pipeline の決定化サンプリング等)までずれる」= paired seed A/B のペア性が壊れる
+# (交絡)。この専用インスタンスに切り替えれば、リーサル探索が消費する乱数はここに
+# 閉じ込められ、グローバル `random` の消費量は探索の実行量に依存しなくなる。
+#
+# 実際にこのインスタンスへ切り替えるかどうかは呼び出し側
+# (`ml_policy_agent._try_lethal`)が `lethal_search.isolated_rng` を見て決める。
+# `search()` 自体は `hidden_state_factory` を呼ぶだけで乱数を直接消費しないため、
+# ここでは「専用インスタンスを1つ持たせて、試合開始時に決定論的にシードし直せる」
+# 器だけを提供する(ゲームロジックは一切変えない)。
+_rng: random.Random | None = None
+
+
+def reset_rng(seed: object = None) -> None:
+    """専用RNGを(再)初期化する。
+
+    呼び出し側(`ml_policy_agent.agent()` の試合開始パス)が1試合につき1回だけ呼ぶ想定。
+    `seed` 省略時は `random.Random()` の既定シード方法(OSのエントロピー等)を使い、
+    グローバル `random` モジュールの状態には一切触れない。
+    """
+    global _rng
+    _rng = random.Random(seed)
+
+
+def get_rng() -> random.Random:
+    """専用RNGを返す。`reset_rng()` が一度も呼ばれていなければここで自己初期化する
+    (この場合もグローバル `random` には触れない)。
+    """
+    global _rng
+    if _rng is None:
+        _rng = random.Random()
+    return _rng
+
+
+def search(state: State, legal_actions: list, context: dict) -> list[int] | None:
+    """Search for an action winning within the current own turn.
+
+    Args:
+        state: Current ``State``.
+        legal_actions: Current ``obs.select.option``.
+        context: See module docstring.
+
+    Returns:
+        list[int] | None: First selection of a winning line, else None.
+    """
+    try:
+        config = {**DEFAULTS, **(context.get("config") or {})}
+        if not config["enabled"]:
+            return None
+
+        obs: Observation | None = context.get("observation")
+        if obs is None or obs.select is None or obs.current is None:
+            return None
+        if state is None:
+            state = obs.current
+
+        me = state.yourIndex
+        if state.result != -1:
+            return None
+        if not _is_my_turn(state, me):
+            return None
+        if len(state.players[me].prize) > config["max_remaining_prizes"]:
+            return None
+
+        hidden_state_factory = _hidden_state_factory(context)
+        if hidden_state_factory is None:
+            return None
+        hidden_state = hidden_state_factory()
+        if hidden_state is None:
+            return None
+
+        # 終盤だけ予算を引き上げる(config-gated。キーが無ければ config は不変)。
+        # `searches` を数える直前に置き、カウンタ同士の分母を揃える。
+        config = _apply_endgame_budget(config, state, me)
+
+        start_time = time.perf_counter()
+        _stats["searches"] += 1
+        deadline = start_time + config["time_limit_ms"] / 1000.0
+        try:
+            path = _find_winning_path(obs, me, hidden_state, config, deadline)
+            if path is None:
+                return None
+
+            first = path[0]
+            if not _is_legal_selection(first, obs.select):
+                return None
+
+            # Verification gets its own small budget: the DFS may have
+            # consumed the whole deadline, and a replay is only
+            # len(path) engine steps.
+            verify_deadline = (
+                time.perf_counter() + config["time_limit_ms"] / 1000.0
+            )
+            for _ in range(int(config["verify_shuffles"])):
+                verify_hidden_state = hidden_state_factory()
+                if verify_hidden_state is None:
+                    return None
+                if not _replay_wins(obs, me, verify_hidden_state, path, verify_deadline):
+                    _stats["verify_rejects"] += 1
+                    return None
+            _stats["found"] += 1
+            return first
+        finally:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+            _stats["total_time_ms"] += elapsed_ms
+            _stats["max_time_ms"] = max(_stats["max_time_ms"], elapsed_ms)
+            try:
+                cg_api.search_end()
+            except Exception:
+                pass
+    except Exception:
+        return None
+
+
+def _apply_endgame_budget(config: dict, state: State, me: int) -> dict:
+    """終盤(自サイド残 <= ``endgame_max_remaining_prizes``)のときだけ時間/ノード予算を
+    ``endgame_time_limit_ms`` / ``endgame_max_nodes`` に差し替えた config を返す。
+
+    どちらのキーも未指定(既定 None)なら **同じ dict をそのまま返す**ので、既存 config の
+    挙動はバイト単位で不変。差し替えは新しい dict を作って行い、呼び出し側の config は
+    変更しない(同一 config dict を使い回す `_try_lethal` を汚染しないため)。
+
+    背景(実ラダー 93335550 T15 の機械診断): 「ボスの指令 → 相手ベンチの弱いポケモンを
+    引きずり出す → エネ付与 → 攻撃で勝ち」の検証済みリーサルが実在したが、og_r7 予算
+    (400ms / 1万node)では時間切れで到達できなかった。必要実測は 1.2〜2.4秒 / 最大1.5万node。
+    サイド残 <= 2 の終盤の数決定でしか発火しないので、1試合の総時間への影響は小さい。
+    """
+    try:
+        time_limit = config.get("endgame_time_limit_ms")
+        max_nodes = config.get("endgame_max_nodes")
+        if time_limit is None and max_nodes is None:
+            return config
+        limit = int(config.get("endgame_max_remaining_prizes", 2))
+        if len(state.players[me].prize) > limit:
+            return config
+        escalated = dict(config)
+        if time_limit is not None:
+            escalated["time_limit_ms"] = time_limit
+        if max_nodes is not None:
+            escalated["max_nodes"] = max_nodes
+        _stats["endgame_escalations"] += 1
+        return escalated
+    except Exception:  # noqa: BLE001 - 予算差し替えの失敗が探索を止めてはならない
+        return config
+
+
+def _hidden_state_factory(context: dict) -> Callable[[], dict | None] | None:
+    """Resolve the caller-provided hidden state; None if none was given."""
+    factory = context.get("hidden_state_factory")
+    if factory is not None:
+        return factory
+    hidden_state = context.get("hidden_state")
+    if hidden_state is not None:
+        return lambda: hidden_state
+    return None
+
+
+def _is_my_turn(state: State, me: int) -> bool:
+    if state.turn < 1 or state.firstPlayer < 0:
+        return False
+    starter_turn = state.turn % 2 == 1
+    return starter_turn == (state.firstPlayer == me)
+
+
+def _is_legal_selection(selection: list[int], select: SelectData) -> bool:
+    if not isinstance(selection, list):
+        return False
+    if not (select.minCount <= len(selection) <= select.maxCount):
+        return False
+    if len(selection) != len(set(selection)):
+        return False
+    return all(
+        isinstance(index, int) and 0 <= index < len(select.option)
+        for index in selection
+    )
+
+
+def _find_winning_path(
+    obs: Observation,
+    me: int,
+    hidden_state: dict,
+    config: dict,
+    deadline: float,
+) -> list[list[int]] | None:
+    """Iterative-deepening DFS from the current observation.
+
+    Returns the list of selections leading to our victory, or None.
+    Raises nothing: budget exhaustion is converted to None.
+    """
+    root = _begin(obs, hidden_state)
+    budget = {"nodes": 0, "depth_cutoff": False}
+    try:
+        for depth_limit in range(1, int(config["max_depth"]) + 1):
+            visited: dict[str, int] = {}
+            budget["depth_cutoff"] = False
+            path = _dfs(root, me, depth_limit, config, deadline, budget, visited)
+            if path is not None:
+                return path
+            if not budget["depth_cutoff"]:
+                # The whole reachable tree fits within this depth limit
+                # and holds no win; deeper iterations cannot find one.
+                return None
+        return None
+    except _SearchAbort as abort:
+        if abort.reason == "time":
+            _stats["timeouts"] += 1
+        else:
+            _stats["node_limit_hits"] += 1
+        return None
+    finally:
+        try:
+            cg_api.search_release(root.searchId)
+        except Exception:
+            pass
+
+
+def _dfs(
+    node,
+    me: int,
+    depth_left: int,
+    config: dict,
+    deadline: float,
+    budget: dict,
+    visited: dict[str, int],
+) -> list[list[int]] | None:
+    obs = node.observation
+    if obs.select is None or not obs.select.option:
+        return None
+    if depth_left <= 0:
+        budget["depth_cutoff"] = True
+        return None
+
+    key = _state_key(obs)
+    if visited.get(key, -1) >= depth_left:
+        return None
+    visited[key] = depth_left
+
+    for selection in _candidate_selections(obs.select, config, obs.current):
+        if time.perf_counter() > deadline:
+            raise _SearchAbort("time")
+        if budget["nodes"] >= int(config["max_nodes"]):
+            raise _SearchAbort("nodes")
+        budget["nodes"] += 1
+
+        try:
+            child = cg_api.search_step(node.searchId, selection)
+        except ValueError:
+            continue
+        try:
+            child_state = child.observation.current
+            if child_state.result == me:
+                return [selection]
+            if child_state.result != -1:
+                continue  # opponent won
+            if child_state.yourIndex != me:
+                continue  # turn ended or control moved to the opponent
+            sub_path = _dfs(
+                child, me, depth_left - 1, config, deadline, budget, visited
+            )
+            if sub_path is not None:
+                return [selection] + sub_path
+        finally:
+            try:
+                cg_api.search_release(child.searchId)
+            except Exception:
+                pass
+    return None
+
+
+def _play_option_card_id(option, state: State | None) -> int | None:
+    """MAIN の PLAY 選択肢が指す「手札のカード」の CardData id を返す(不明なら None)。
+
+    実測(`kaggle_replays/_probe_missed_lethal.py` の G1 調査)では MAIN の
+    ``Option.cardId`` は常に None で来る。``OptionType.PLAY`` の ``index`` は
+    `cg/api.py` の定義どおり**手札インデックス**なので、手札の実体から id を引く
+    のが唯一の同定手段。手札が見えない(相手側の option)・index が範囲外などの
+    判定不能はすべて None を返し、呼び出し側は「優先対象ではない」として扱う。
+    """
+    card_id = getattr(option, "cardId", None)
+    if card_id is not None:
+        return card_id
+    if state is None or option.index is None:
+        return None
+    # PLAY は area 省略(None)で来る。念のため HAND 明示も許容し、それ以外は判定しない。
+    area = getattr(option, "area", None)
+    if area is not None and area != AreaType.HAND:
+        return None
+    player_index = option.playerIndex if option.playerIndex is not None else state.yourIndex
+    if not (0 <= player_index < len(state.players)):
+        return None
+    hand = state.players[player_index].hand or []
+    if not (0 <= option.index < len(hand)):
+        return None
+    card = hand[option.index]
+    return getattr(card, "id", None) if card is not None else None
+
+
+def _priority_prize_gate(config: dict, state: State | None) -> bool:
+    """優先順序付け(優先展開 / 相手対象ソート)の共通ゲート。
+
+    自分の残りサイドが ``priority_play_max_remaining_prizes`` 以下なら True。
+    **ノードごとに判定する**ので、探索中にサイドを取れば枚数は減り、根で条件を満たさ
+    なくても KO 後の子ノードから優先順序が効く。判定不能は False(=既存順序)。
+    """
+    try:
+        if state is None:
+            return False
+        me = state.yourIndex
+        if not (0 <= me < len(state.players)):
+            return False
+        limit = int(config.get("priority_play_max_remaining_prizes", 2))
+        return len(state.players[me].prize) <= limit
+    except Exception:  # noqa: BLE001 - 順序付けの失敗が探索を止めてはならない
+        return False
+
+
+def _priority_play_ids(config: dict, state: State | None) -> frozenset[int] | None:
+    """優先展開の対象カードID集合を返す。発動条件を満たさなければ None。
+
+    条件は2つとも config 由来で、キーが無ければ ``DEFAULTS``(空リスト)により
+    必ず None になる = **既存configの探索順序は一切変わらない**:
+
+    - ``priority_play_card_ids`` が空でないこと
+    - `_priority_prize_gate`(自分の残りサイドが上限以下)を満たすこと
+    """
+    try:
+        ids = config.get("priority_play_card_ids") or ()
+        if not ids:
+            return None
+        if not _priority_prize_gate(config, state):
+            return None
+        return frozenset(int(x) for x in ids)
+    except Exception:  # noqa: BLE001 - 順序付けの失敗が探索を止めてはならない
+        return None
+
+
+def _option_opponent_pokemon(option, state: State | None):
+    """選択肢が指している「相手の場のポケモン」を返す(該当しなければ None)。
+
+    実測スキーマ(ボスの指令直後の select、`kaggle_replays/_probe_r7_misses.py` の
+    調査で確認)::
+
+        select.type    = SelectType.CARD / context = SelectContext.SWITCH
+        option[i]      = Option(type=CARD, area=BENCH, index=<ベンチ内index>,
+                                playerIndex=<相手>, cardId=None)
+
+    `cardId` は来ないので、``playerIndex`` + ``area`` + ``index`` から state の実体を引く
+    のが唯一の同定手段。自分側の選択肢・エリア不明・範囲外はすべて None(=判定不能)。
+    """
+    try:
+        if state is None or option.playerIndex is None:
+            return None
+        if not (0 <= option.playerIndex < len(state.players)):
+            return None
+        if option.playerIndex == state.yourIndex:
+            return None  # 自分のポケモン=引きずり出す対象ではない
+        player = state.players[option.playerIndex]
+        if option.area == AreaType.ACTIVE:
+            active = player.active or []
+            index = option.index if option.index is not None else 0
+            return active[index] if 0 <= index < len(active) else None
+        if option.area == AreaType.BENCH:
+            bench = player.bench or []
+            if option.index is not None and 0 <= option.index < len(bench):
+                return bench[option.index]
+        return None
+    except Exception:  # noqa: BLE001 - 順序付けの失敗が探索を止めてはならない
+        return None
+
+
+def _opponent_target_rank(option, state: State | None) -> tuple[int, int]:
+    """相手ポケモンを指す選択肢の並べ替えキー。残りHP昇順、判定不能は末尾。"""
+    mon = _option_opponent_pokemon(option, state)
+    hp = getattr(mon, "hp", None) if mon is not None else None
+    if isinstance(hp, int):
+        return (0, hp)
+    return (1, 0)
+
+
+def _candidate_selections(
+    select: SelectData, config: dict, state: State | None = None
+) -> Iterator[list[int]]:
+    """Generate index selections satisfying min/max count, no duplicates.
+
+    MAIN options are reordered by ``_MAIN_OPTION_PRIORITY`` and END is
+    pruned (sound: the search only covers the current own turn, so
+    ending the turn can never lead to a win). Other select types keep
+    their natural order. Output is capped by
+    ``max_combinations_per_select``.
+
+    ``priority_play_card_ids``(config-gated、既定は空=無効)が有効なときは、
+    対象カードの手札 PLAY だけを ATTACK の直後へ引き上げる。**枝刈りではなく
+    並べ替えのみ**なので網羅性は変わらない(同じ集合を別の順で出す)。
+    ボスの指令(1182)のように「相手を引きずり出してから攻撃」の列は現行順序だと
+    PLAY が最後尾で予算内に到達できないため(G1 調査)、この引き上げが効く。
+
+    ``priority_sort_switch_targets``(config-gated、既定 False=無効)が有効なときは、
+    MAIN 以外の select で「相手ポケモンを指す選択肢」を**残りHP昇順**に並べ替える。
+    ボスの指令の直後に来る CARD/SWITCH(どのベンチを引きずり出すか)は自然順のままだと
+    高HPの相手(メガ ex 等)から踏むため、確1圏の弱い対象に届く前に予算が尽きる
+    (実ラダー 93335550 T15 の機械診断)。ここも並べ替えのみで枝刈りはしない。
+    """
+    order = list(range(len(select.option)))
+    if select.type == SelectType.MAIN:
+        order = [i for i in order if select.option[i].type != OptionType.END]
+        priority_ids = _priority_play_ids(config, state)
+
+        def _rank(i: int) -> float:
+            option = select.option[i]
+            if priority_ids is not None and option.type == OptionType.PLAY:
+                card_id = _play_option_card_id(option, state)
+                if card_id is not None and card_id in priority_ids:
+                    return _PRIORITY_PLAY_RANK
+            return float(_MAIN_OPTION_PRIORITY.get(option.type, _DEFAULT_PRIORITY))
+
+        # sort は安定なので、同ランク内の並びは元の選択肢順のまま(既存挙動)。
+        order.sort(key=_rank)
+    elif config.get("priority_sort_switch_targets") and _priority_prize_gate(config, state):
+        # 相手ポケモンを指す選択肢だけを残りHP昇順へ。指していない/判定不能な選択肢は
+        # 末尾に回るだけで消えない(安全側)。sort は安定なので同HP内は元の順のまま。
+        order.sort(key=lambda i: _opponent_target_rank(select.option[i], state))
+
+    min_count = max(select.minCount, 0)
+    max_count = min(select.maxCount, len(order))
+    limit = int(config["max_combinations_per_select"])
+    produced = 0
+    for count in range(min_count, max_count + 1):
+        for combo in itertools.combinations(order, count):
+            yield list(combo)
+            produced += 1
+            if produced >= limit:
+                return
+
+
+def _replay_wins(
+    obs: Observation,
+    me: int,
+    hidden_state: dict,
+    path: list[list[int]],
+    deadline: float,
+) -> bool:
+    """Replay ``path`` under different hidden info; True if we still win."""
+    try:
+        node = _begin(obs, hidden_state)
+    except Exception:
+        return False
+    search_ids = [node.searchId]
+    try:
+        for selection in path:
+            if time.perf_counter() > deadline:
+                return False
+            try:
+                node = cg_api.search_step(node.searchId, selection)
+            except ValueError:
+                return False  # line is not legal under this shuffle
+            search_ids.append(node.searchId)
+            result = node.observation.current.result
+            if result != -1:
+                return result == me
+        return node.observation.current.result == me
+    finally:
+        for search_id in search_ids:
+            try:
+                cg_api.search_release(search_id)
+            except Exception:
+                pass
+
+
+def _begin(obs: Observation, hidden_state: dict):
+    return cg_api.search_begin(
+        obs,
+        hidden_state["your_deck"],
+        hidden_state["your_prize"],
+        hidden_state["opponent_deck"],
+        hidden_state["opponent_prize"],
+        hidden_state["opponent_hand"],
+        hidden_state["opponent_active"],
+    )
+
+
+def _state_key(obs: Observation) -> str:
+    # Dataclass repr is deterministic for identical states; good enough
+    # to suppress re-exploring transpositions within one search.
+    return f"{obs.current!r}|{obs.select!r}"

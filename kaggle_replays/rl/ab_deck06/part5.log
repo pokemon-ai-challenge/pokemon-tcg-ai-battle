@@ -1,0 +1,8 @@
+model_a=C:/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/sample_submission/ptcg_ai/learning/policy_weights_alakazam_t1_deck06_s42.json
+model_b=C:/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/sample_submission/ptcg_ai/learning/policy_weights_alakazam_ctl_deck06_s42.json
+archetype=alakazam deck_csv=C:/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/meta_analysis/archetype_decks/alakazam/06.csv games=200 workers=1
+
+有効試合 200/200
+
+A勝率 0.4250 (85/200)
+  A先攻 0.4500 (n=100)  A後攻 0.4000 (n=100)

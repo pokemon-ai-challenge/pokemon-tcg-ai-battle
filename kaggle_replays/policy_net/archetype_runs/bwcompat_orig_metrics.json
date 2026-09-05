@@ -1,0 +1,45 @@
+{
+  "hidden_size": 32,
+  "features": "features_kamitsuorochi_ex_bwcompat_orig.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 27347,
+  "n_val": 3544,
+  "n_test": 4456,
+  "epochs_trained": 16,
+  "train": {
+    "top1_accuracy": 0.6900208432369181,
+    "n_single": 27347,
+    "multi_select_precision_at_k": null,
+    "n_multi": 0,
+    "mean_weighted_nll": 0.8211161999012293
+  },
+  "val": {
+    "top1_accuracy": 0.6585778781038375,
+    "n_single": 3544,
+    "multi_select_precision_at_k": null,
+    "n_multi": 0,
+    "mean_weighted_nll": 0.9567820486606918
+  },
+  "test": {
+    "top1_accuracy": 0.65754039497307,
+    "n_single": 4456,
+    "multi_select_precision_at_k": null,
+    "n_multi": 0,
+    "mean_weighted_nll": 0.9875202487105975
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.03144296513308065,
+    "mean_weighted_nll": 0.13566584875946253
+  },
+  "self_check_max_abs_err": 1.7763568394002505e-15,
+  "out_weights": "C:\\Users\\rinnz\\AppData\\Local\\Temp\\claude\\C--Users-rinnz-Documents-pokemon\\d4776136-323b-4ef2-8d96-015e7d0e8f7d\\scratchpad\\policy_weights_bwcompat_orig.json"
+}

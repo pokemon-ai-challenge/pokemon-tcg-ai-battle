@@ -1,0 +1,15 @@
+[progress] 50/100 games done (A win rate so far: 0.660 over 50 valid games, errors: 0, elapsed: 973.0s)
+[progress] 100/100 games done (A win rate so far: 0.640 over 100 valid games, errors: 0, elapsed: 1862.9s)
+=== league result: ml_policy (A) vs ml_policy (B) ===
+games requested/run: 100/100
+elapsed: 1862.9s (workers: 1)
+
+overall: A 64/100 = 0.640 (95% CI [0.542, 0.727])
+avg turns: 13.4, avg steps: 133.6
+
+A as player0 (êÊéË): 32/50 = 0.640 (95% CI [0.501, 0.759])
+A as player1 (å„éË): 32/50 = 0.640 (95% CI [0.501, 0.759])
+
+errors: 0 (0.0%)
+
+result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\league\results\matchup\vs_froslass.json

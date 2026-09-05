@@ -1,0 +1,16 @@
+[info] running 100 games across 5 worker processes
+[progress] 50/100 games done (A win rate so far: 0.320 over 50 valid games, errors: 0, elapsed: 142.7s)
+[progress] 100/100 games done (A win rate so far: 0.320 over 100 valid games, errors: 0, elapsed: 262.1s)
+=== league result: ml_policy (A) vs dragapult_rule (B) ===
+games requested/run: 100/100
+elapsed: 262.2s (workers: 5)
+
+overall: A 32/100 = 0.320 (95% CI [0.237, 0.417])
+avg turns: 11.4, avg steps: 138.6
+
+A as player0 (êÊéË): 11/50 = 0.220 (95% CI [0.128, 0.352])
+A as player1 (å„éË): 21/50 = 0.420 (95% CI [0.294, 0.558])
+
+errors: 0 (0.0%)
+
+result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\league\results\dragapult_wallguard_fixed.json

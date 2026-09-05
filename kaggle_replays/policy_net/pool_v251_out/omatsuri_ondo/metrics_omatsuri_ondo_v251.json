@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_omatsuri_ondo_v251.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 10400,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 10433,
+    "total": 20577
+  },
+  "n_train": 22751,
+  "n_val": 2820,
+  "n_test": 3447,
+  "epochs_trained": 15,
+  "train": {
+    "top1_accuracy": 0.6769372774823085,
+    "mean_weighted_nll": 0.9804194756897809
+  },
+  "val": {
+    "top1_accuracy": 0.6368794326241135,
+    "mean_weighted_nll": 1.0919215647843972
+  },
+  "test": {
+    "top1_accuracy": 0.6408471134319699,
+    "mean_weighted_nll": 1.1029774840734992
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.04005784485819497,
+    "mean_weighted_nll": 0.11150208909461623
+  },
+  "self_check_max_abs_err": 3.552713678800501e-15,
+  "out_weights": "policy_weights_omatsuri_ondo_v251.json"
+}

@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_alakazam_t1_deck06.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 89722,
+  "n_val": 9537,
+  "n_test": 11500,
+  "epochs_trained": 18,
+  "train": {
+    "top1_accuracy": 0.7040970999308976,
+    "mean_weighted_nll": 0.8318486939493565
+  },
+  "val": {
+    "top1_accuracy": 0.6585928489042676,
+    "mean_weighted_nll": 0.9773405337127846
+  },
+  "test": {
+    "top1_accuracy": 0.6723478260869565,
+    "mean_weighted_nll": 0.9659191623016471
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.04550425102663003,
+    "mean_weighted_nll": 0.14549183976342817
+  },
+  "self_check_max_abs_err": 3.552713678800501e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_alakazam_ctl_deck06_s42.json"
+}

@@ -1,0 +1,59 @@
+features.npz を読み込み: scale_tmp\f0125_s42_features.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=84611 val=10920 test=85218 (全180749件)
+option特徴の標準化元行列 shape=(455729, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.1541  val_nll=1.0766 (best=1.0766, no_improve=0)  val_top1=0.5925
+    [baseline] epoch   5  train_loss=1.0755  val_nll=1.0475 (best=1.0475, no_improve=0)  val_top1=0.5962
+    [baseline] epoch  10  train_loss=1.0695  val_nll=1.0453 (best=1.0440, no_improve=1)  val_top1=0.6016
+    [baseline] epoch  15  train_loss=1.0689  val_nll=1.0430 (best=1.0428, no_improve=1)  val_top1=0.5995
+    [baseline] epoch  20  train_loss=1.0686  val_nll=1.0471 (best=1.0426, no_improve=3)  val_top1=0.6000
+    [baseline] epoch  25  train_loss=1.0669  val_nll=1.0434 (best=1.0425, no_improve=1)  val_top1=0.6029
+    [baseline] epoch  30  train_loss=1.0681  val_nll=1.0438 (best=1.0415, no_improve=3)  val_top1=0.6030
+    [baseline] epoch  35  train_loss=1.0682  val_nll=1.0443 (best=1.0415, no_improve=8)  val_top1=0.6020
+    [baseline] 早期終了: epoch 37(val_nll が 10 epoch 改善せず)
+  学習完了 (320.7s)
+  val : top1=0.6035  nll=1.0415
+  test: top1=0.6067  nll=1.0578
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=0.9344  val_nll=0.8203 (best=0.8203, no_improve=0)  val_top1=0.6998
+    [main] epoch   5  train_loss=0.7622  val_nll=0.7801 (best=0.7793, no_improve=1)  val_top1=0.7208
+    [main] epoch  10  train_loss=0.7307  val_nll=0.7763 (best=0.7741, no_improve=1)  val_top1=0.7228
+    [main] epoch  15  train_loss=0.7122  val_nll=0.7831 (best=0.7738, no_improve=2)  val_top1=0.7157
+    [main] epoch  20  train_loss=0.6999  val_nll=0.7837 (best=0.7738, no_improve=7)  val_top1=0.7193
+    [main] 早期終了: epoch 23(val_nll が 10 epoch 改善せず)
+  学習完了 (253.6s, 23 epochs)
+  train: top1=0.7383  nll=0.6964
+  val  : top1=0.7202  nll=0.7738
+  test : top1=0.7129  nll=0.8094
+  train-val gap: top1=+0.0181  nll=+0.0774(overfitting指標)
+  param_counts: {'fc1': 7680, 'fc2': 33, 'embedding': 10144, 'mlp': 7713, 'total': 17857}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.6035  nll=1.0415
+  本命(state ++ option ++ embed): top1=0.7202  nll=0.7738
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n= 38915  top1=0.6416  nll=1.0056
+  select_type= 1  n= 36309  top1=0.7177  nll=0.7868
+  select_type= 2  n=    64  top1=1.0000  nll=0.0000
+  select_type= 4  n=  1318  top1=0.8892  nll=0.5028
+  select_type= 7  n=   818  top1=0.9694  nll=0.1478
+  select_type= 8  n=  5278  top1=0.9898  nll=0.0790
+  select_type= 9  n=  2516  top1=0.9805  nll=0.0826
+
+重みを書き出しました: scale_tmp\f0125_s42_weights.json (388.2 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=3.10862447e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.6067 nll=1.0578
+  本命(state ++ option ++ embed) test: top1=0.7129 nll=0.8094
+  自己検証: 最大誤差=3.10862447e-15 -> PASS
+  出力: scale_tmp\f0125_s42_weights.json

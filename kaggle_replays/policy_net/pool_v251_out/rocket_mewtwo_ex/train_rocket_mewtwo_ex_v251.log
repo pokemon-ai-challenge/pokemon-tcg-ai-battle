@@ -1,0 +1,63 @@
+features.npz を読み込み: features_rocket_mewtwo_ex_v251.npz
+hand_card_vocab: 27種 [1, 5, 15, 400, 401, 414, 431, 432, 434, 463, 1086, 1094, 1097, 1119, 1121, 1134, 1152, 1159, 1175, 1186, 1216, 1217, 1218, 1219, 1220, 1227, 1257]
+card_id_max=1267  embedding table size=1268 x 8
+train=44673 val=6265 test=4823 (全55761件)
+option特徴の標準化元行列 shape=(322997, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.4465  val_nll=1.3142 (best=1.3142, no_improve=0)  val_top1=0.5339
+    [baseline] epoch   5  train_loss=1.3527  val_nll=1.2914 (best=1.2914, no_improve=0)  val_top1=0.5317
+    [baseline] epoch  10  train_loss=1.3470  val_nll=1.2838 (best=1.2838, no_improve=0)  val_top1=0.5344
+    [baseline] epoch  15  train_loss=1.3453  val_nll=1.2817 (best=1.2817, no_improve=0)  val_top1=0.5333
+    [baseline] epoch  20  train_loss=1.3410  val_nll=1.2793 (best=1.2793, no_improve=0)  val_top1=0.5366
+    [baseline] epoch  25  train_loss=1.3406  val_nll=1.2788 (best=1.2777, no_improve=1)  val_top1=0.5352
+    [baseline] epoch  30  train_loss=1.3418  val_nll=1.2787 (best=1.2777, no_improve=6)  val_top1=0.5331
+    [baseline] epoch  35  train_loss=1.3398  val_nll=1.2802 (best=1.2764, no_improve=4)  val_top1=0.5326
+    [baseline] epoch  40  train_loss=1.3396  val_nll=1.2780 (best=1.2759, no_improve=2)  val_top1=0.5347
+    [baseline] epoch  45  train_loss=1.3413  val_nll=1.2788 (best=1.2759, no_improve=7)  val_top1=0.5336
+    [baseline] epoch  50  train_loss=1.3415  val_nll=1.2777 (best=1.2751, no_improve=4)  val_top1=0.5355
+    [baseline] epoch  55  train_loss=1.3394  val_nll=1.2766 (best=1.2751, no_improve=9)  val_top1=0.5360
+    [baseline] 早期終了: epoch 56(val_nll が 10 epoch 改善せず)
+  学習完了 (255.9s)
+  val : top1=0.5350  nll=1.2751
+  test: top1=0.5198  nll=1.3548
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.2480  val_nll=1.1075 (best=1.1075, no_improve=0)  val_top1=0.6018
+    [main] epoch   5  train_loss=0.9656  val_nll=1.0176 (best=1.0176, no_improve=0)  val_top1=0.6187
+    [main] epoch  10  train_loss=0.8887  val_nll=1.0332 (best=1.0118, no_improve=3)  val_top1=0.6056
+    [main] epoch  15  train_loss=0.8513  val_nll=1.0378 (best=1.0118, no_improve=8)  val_top1=0.6062
+    [main] 早期終了: epoch 17(val_nll が 10 epoch 改善せず)
+  学習完了 (107.2s, 17 epochs)
+  train: top1=0.6493  nll=0.8909
+  val  : top1=0.6188  nll=1.0118
+  test : top1=0.5930  nll=1.0782
+  train-val gap: top1=+0.0305  nll=+0.1209(overfitting指標)
+  param_counts: {'fc1': 10400, 'fc2': 33, 'embedding': 10144, 'mlp': 10433, 'total': 20577}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5350  nll=1.2751
+  本命(state ++ option ++ embed): top1=0.6188  nll=1.0118
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  3321  top1=0.5477  nll=1.1973
+  select_type= 1  n=  1400  top1=0.6750  nll=0.8627
+  select_type= 2  n=    15  top1=0.9333  nll=0.2454
+  select_type= 4  n=    38  top1=0.9211  nll=0.1645
+  select_type= 8  n=    16  top1=0.8750  nll=0.6455
+  select_type= 9  n=    33  top1=1.0000  nll=0.0003
+
+重みを書き出しました: policy_weights_rocket_mewtwo_ex_v251.json (452.1 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=1.77635684e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.5198 nll=1.3548
+  本命(state ++ option ++ embed) test: top1=0.5930 nll=1.0782
+  自己検証: 最大誤差=1.77635684e-15 -> PASS
+  出力: policy_weights_rocket_mewtwo_ex_v251.json
+  offline指標を書き出しました: metrics_rocket_mewtwo_ex_v251.json

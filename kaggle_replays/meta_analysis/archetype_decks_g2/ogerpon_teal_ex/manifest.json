@@ -1,0 +1,45 @@
+{
+  "archetype": "ogerpon_teal_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Dries @ Tufa Labs",
+      "rank_at_fetch": 42,
+      "leaderboard_score": 1055.2,
+      "episode_id": "91902939",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "sobameshi",
+      "rank_at_fetch": 61,
+      "leaderboard_score": 1026.3,
+      "episode_id": "91921838",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "takayosi",
+      "rank_at_fetch": 62,
+      "leaderboard_score": 1025.6,
+      "episode_id": "91931850",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "Confusion",
+      "rank_at_fetch": 74,
+      "leaderboard_score": 1013.4,
+      "episode_id": "91927390",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "Confusion",
+      "rank_at_fetch": 74,
+      "leaderboard_score": 1013.4,
+      "episode_id": "91936796",
+      "player_index": 1
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+features.npz を読み込み: features_crustle_enc2.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=55730 val=7199 test=6853 (全69782件)
+option特徴の標準化元行列 shape=(360915, 67)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.4721  val_nll=1.4422 (best=1.4422, no_improve=0)  val_top1=0.4578
+    [baseline] epoch   5  train_loss=1.4225  val_nll=1.4226 (best=1.4226, no_improve=0)  val_top1=0.4728
+    [baseline] epoch  10  train_loss=1.4185  val_nll=1.4157 (best=1.4157, no_improve=0)  val_top1=0.4755
+    [baseline] epoch  15  train_loss=1.4176  val_nll=1.4136 (best=1.4136, no_improve=0)  val_top1=0.4762
+    [baseline] epoch  20  train_loss=1.4168  val_nll=1.4131 (best=1.4130, no_improve=1)  val_top1=0.4762
+    [baseline] epoch  25  train_loss=1.4162  val_nll=1.4129 (best=1.4129, no_improve=0)  val_top1=0.4774
+    [baseline] epoch  30  train_loss=1.4164  val_nll=1.4117 (best=1.4117, no_improve=0)  val_top1=0.4784
+    [baseline] epoch  35  train_loss=1.4165  val_nll=1.4115 (best=1.4115, no_improve=0)  val_top1=0.4756
+    [baseline] epoch  40  train_loss=1.4164  val_nll=1.4131 (best=1.4115, no_improve=5)  val_top1=0.4753
+    [baseline] epoch  45  train_loss=1.4173  val_nll=1.4123 (best=1.4115, no_improve=10)  val_top1=0.4798
+    [baseline] 早期終了: epoch 45(val_nll が 10 epoch 改善せず)
+  学習完了 (404.9s)
+  val : top1=0.4756  nll=1.4115
+  test: top1=0.4551  nll=1.4444
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.2430  val_nll=1.1664 (best=1.1664, no_improve=0)  val_top1=0.5616
+    [main] epoch   5  train_loss=1.0169  val_nll=1.0735 (best=1.0735, no_improve=0)  val_top1=0.5901
+    [main] epoch  10  train_loss=0.9600  val_nll=1.0647 (best=1.0634, no_improve=2)  val_top1=0.5947
+    [main] epoch  15  train_loss=0.9306  val_nll=1.0779 (best=1.0619, no_improve=4)  val_top1=0.5949
+    [main] epoch  20  train_loss=0.9123  val_nll=1.0792 (best=1.0619, no_improve=9)  val_top1=0.5962
+    [main] 早期終了: epoch 21(val_nll が 10 epoch 改善せず)
+  学習完了 (227.0s, 21 epochs)
+  train: top1=0.6329  nll=0.9288
+  val  : top1=0.5969  nll=1.0619
+  test : top1=0.5805  nll=1.1091
+  train-val gap: top1=+0.0360  nll=+0.1331(overfitting指標)
+  param_counts: {'fc1': 8512, 'fc2': 33, 'embedding': 10144, 'mlp': 8545, 'total': 18689}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.4756  nll=1.4115
+  本命(state ++ option ++ embed): top1=0.5969  nll=1.0619
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  5037  top1=0.5362  nll=1.1875
+  select_type= 1  n=  1645  top1=0.6809  nll=0.9614
+  select_type= 4  n=    66  top1=0.7879  nll=0.5785
+  select_type= 8  n=    35  top1=1.0000  nll=0.0375
+  select_type= 9  n=    70  top1=1.0000  nll=0.0000
+
+重みを書き出しました: ..\..\sample_submission\ptcg_ai\learning\policy_weights_crustle_enc2.json (407.8 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=3.55271368e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.4551 nll=1.4444
+  本命(state ++ option ++ embed) test: top1=0.5805 nll=1.1091
+  自己検証: 最大誤差=3.55271368e-15 -> PASS
+  出力: ..\..\sample_submission\ptcg_ai\learning\policy_weights_crustle_enc2.json

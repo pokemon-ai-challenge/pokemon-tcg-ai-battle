@@ -13,9 +13,54 @@ pokemon-tcg-ai-battle/
 ├── sample_submission/         # 提出コードのベース
 │   ├── main.py                # ← エージェント実装（ここを編集）
 │   ├── deck.csv               # ← 使用デッキ（ここを編集）
+│   ├── models/climb_lb823/    # ← LB 823.5 を出したモデルの凍結一式（下記）
 │   └── cg/                    # ← ゲームエンジン（変更禁止）
 └── cardlist_referenced/       # カードリスト参照ツール（提出と無関係）
 ```
+
+---
+
+## 最高スコアモデル = **climb**（Kaggle publicScore **823.5** / 提出 55186283）
+
+現時点の自己ベスト構成。**「一番良かったモデル」を探しているならこれ。**
+
+| 何を | どこに |
+|---|---|
+| 同定情報・構成・使用デッキ・実行方法 | [sample_submission/models/climb_lb823/README.md](sample_submission/models/climb_lb823/README.md) |
+| 機械可読メタ（sha256・ハイパラ・提出時コードの全ハッシュ） | [sample_submission/models/climb_lb823/MANIFEST.json](sample_submission/models/climb_lb823/MANIFEST.json) |
+| 方策の重み本体 | `sample_submission/ptcg_ai/learning/policy_weights_alakazam_rl_climb.json`（sha256 `395b0248…`） |
+| アルゴリズム詳細 | [sample_submission/docs/models/climb-823-model.md](sample_submission/docs/models/climb-823-model.md) |
+
+- 構成: **Plan A アラカザム(フーディン)デッキ × `abl_5_full`（確定リーサル探索 → PIMC 前読み → Policy fallback）× climb 方策（BC 模倣 → field self-play PPO）**。
+- **注意**: 既定の `ptcg_ai/learning/policy_weights.json` は **BC 模倣重みであって climb ではない**（sha256 `735dd38a…`）。ローカル評価で climb を測るときは重みパスを明示すること。
+
+### 挑戦中の候補（2026-08、LB未収束）
+
+**「オーガポンのやつ」「ハンマー4枚のやつ」を探しているならここ** →
+[sample_submission/models/gen2_candidates/README.md](sample_submission/models/gen2_candidates/README.md)
+（機械可読版 [MANIFEST.json](sample_submission/models/gen2_candidates/MANIFEST.json)）
+
+2026-08 取得データ(gen2)の模倣学習とアーキタイプ別上位デッキで climb の改善を試みた4候補。
+`mixogerpon`(オーガポン, LB最高874.1) / `mixhammer`(フーディン ハンマー4枚, 最高839.0) /
+`mixclimb` / `g2climb`。**どれも未収束のため champion は climb のまま**。
+
+判明した最重要事実: **効いているのはデッキであって RL ではない**（3候補ともデッキ変更は有意、
+リーグRLの上乗せは判定不能）。また **同一提出の LB スコアが1時間で30点以上動く**ので、
+1回の読みで優劣を判断してはいけない（実測記録 `kaggle_replays/_lb_history.tsv`）。
+
+## 作業中のドキュメント（ML/RL 開発）
+
+上位リプレイを使った模倣学習(BC)・強化学習(RL)の作業は、**着手前に次を読むこと**:
+
+- **`kaggle_replays/docs/roadmap-2026-08-05.md`** — 現在の作業方針。着手順・実測値・過去の失敗と訂正
+- `kaggle_replays/docs/README.md` — 作業ドキュメントの索引（各文書の鮮度つき）
+- `kaggle_replays/docs/measurement-plan-2026-08-04.md` — 実験の測定計画（対照群・シード数・踏んだ罠）
+
+**数値を引用するときは、それがどの時点のモデルのものかを必ず確認する。**
+BC 再学習の前後で勝率が 10pt 以上動いており、取り違え事故が実際に起きている。
+
+進捗報告は**リポジトリ外**の `C:\Users\rinnz\Documents\pokemon\進捗報告\` に置く
+（`YYYY-MM-DD_タイトル.md`、日付は作業開始日）。
 
 ---
 

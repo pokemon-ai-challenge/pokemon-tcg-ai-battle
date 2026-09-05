@@ -1,0 +1,467 @@
+{
+  "args": {
+    "learner": "alakazam",
+    "learner_weights": null,
+    "train_opponents": "archaludon_ex",
+    "eval_opponents": "archaludon_ex",
+    "eval_fixed": null,
+    "iters": 20,
+    "games_per_iter": 512,
+    "eval_games": 200,
+    "eval_every": 4,
+    "final_eval_games": 400,
+    "workers": 8,
+    "epochs": 4,
+    "clip": 0.2,
+    "lr_policy": 0.0003,
+    "lr_value": 0.001,
+    "entropy": 0.005,
+    "gamma": 0.999,
+    "lam": 0.95,
+    "temperature": 1.0,
+    "device": "cpu",
+    "tag": "spec_archaludon",
+    "force": false
+  },
+  "train_opponents": [
+    "archaludon_ex"
+  ],
+  "eval_opponents": [
+    "archaludon_ex"
+  ],
+  "eval_fixed": null,
+  "history": [
+    {
+      "eval_winrate": 0.69,
+      "eval_wins": 138,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "archaludon_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 138,
+          "errors": 0,
+          "winrate": 0.69
+        }
+      },
+      "iter": 0
+    },
+    {
+      "iter": 1,
+      "train_winrate": 0.431640625,
+      "steps": 32832,
+      "pol_loss": -0.008215544745326042,
+      "val_loss": 0.06190098449587822,
+      "entropy": 1.041101336479187,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 221,
+          "errors": 0,
+          "winrate": 0.431640625
+        }
+      }
+    },
+    {
+      "iter": 2,
+      "train_winrate": 0.447265625,
+      "steps": 32352,
+      "pol_loss": -0.006877878215163946,
+      "val_loss": 0.040466416627168655,
+      "entropy": 1.0372594594955444,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 229,
+          "errors": 0,
+          "winrate": 0.447265625
+        }
+      }
+    },
+    {
+      "iter": 3,
+      "train_winrate": 0.55859375,
+      "steps": 30926,
+      "pol_loss": -0.007506708148866892,
+      "val_loss": 0.04310666024684906,
+      "entropy": 1.018128752708435,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 286,
+          "errors": 0,
+          "winrate": 0.55859375
+        }
+      }
+    },
+    {
+      "iter": 4,
+      "train_winrate": 0.537109375,
+      "steps": 30190,
+      "pol_loss": -0.006833408027887344,
+      "val_loss": 0.044997237622737885,
+      "entropy": 1.0035227537155151,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 275,
+          "errors": 0,
+          "winrate": 0.537109375
+        }
+      },
+      "eval_winrate": 0.745,
+      "eval_wins": 149,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "archaludon_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 149,
+          "errors": 0,
+          "winrate": 0.745
+        }
+      }
+    },
+    {
+      "iter": 5,
+      "train_winrate": 0.576171875,
+      "steps": 28574,
+      "pol_loss": -0.007014632225036621,
+      "val_loss": 0.04588878154754639,
+      "entropy": 0.9828011393547058,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 295,
+          "errors": 0,
+          "winrate": 0.576171875
+        }
+      }
+    },
+    {
+      "iter": 6,
+      "train_winrate": 0.5078125,
+      "steps": 29905,
+      "pol_loss": -0.006861088331788778,
+      "val_loss": 0.04118204861879349,
+      "entropy": 0.9775421619415283,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 260,
+          "errors": 0,
+          "winrate": 0.5078125
+        }
+      }
+    },
+    {
+      "iter": 7,
+      "train_winrate": 0.62890625,
+      "steps": 29126,
+      "pol_loss": -0.006370955146849155,
+      "val_loss": 0.03924677520990372,
+      "entropy": 0.963368833065033,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 322,
+          "errors": 0,
+          "winrate": 0.62890625
+        }
+      }
+    },
+    {
+      "iter": 8,
+      "train_winrate": 0.63671875,
+      "steps": 27379,
+      "pol_loss": -0.006030473858118057,
+      "val_loss": 0.03744317963719368,
+      "entropy": 0.926661491394043,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 326,
+          "errors": 0,
+          "winrate": 0.63671875
+        }
+      },
+      "eval_winrate": 0.78,
+      "eval_wins": 156,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "archaludon_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 156,
+          "errors": 0,
+          "winrate": 0.78
+        }
+      }
+    },
+    {
+      "iter": 9,
+      "train_winrate": 0.63671875,
+      "steps": 27483,
+      "pol_loss": -0.005713188089430332,
+      "val_loss": 0.036076437681913376,
+      "entropy": 0.9207506775856018,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 326,
+          "errors": 0,
+          "winrate": 0.63671875
+        }
+      }
+    },
+    {
+      "iter": 10,
+      "train_winrate": 0.6640625,
+      "steps": 28110,
+      "pol_loss": -0.005829323548823595,
+      "val_loss": 0.03638565540313721,
+      "entropy": 0.9111301898956299,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 340,
+          "errors": 0,
+          "winrate": 0.6640625
+        }
+      }
+    },
+    {
+      "iter": 11,
+      "train_winrate": 0.689453125,
+      "steps": 27464,
+      "pol_loss": -0.0057275742292404175,
+      "val_loss": 0.034267935901880264,
+      "entropy": 0.9083245992660522,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 353,
+          "errors": 0,
+          "winrate": 0.689453125
+        }
+      }
+    },
+    {
+      "iter": 12,
+      "train_winrate": 0.65234375,
+      "steps": 28338,
+      "pol_loss": -0.005508802831172943,
+      "val_loss": 0.03266948461532593,
+      "entropy": 0.8982101678848267,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 334,
+          "errors": 0,
+          "winrate": 0.65234375
+        }
+      },
+      "eval_winrate": 0.75,
+      "eval_wins": 150,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "archaludon_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 150,
+          "errors": 0,
+          "winrate": 0.75
+        }
+      }
+    },
+    {
+      "iter": 13,
+      "train_winrate": 0.701171875,
+      "steps": 28631,
+      "pol_loss": -0.005636168178170919,
+      "val_loss": 0.032456476241350174,
+      "entropy": 0.8943700790405273,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 359,
+          "errors": 0,
+          "winrate": 0.701171875
+        }
+      }
+    },
+    {
+      "iter": 14,
+      "train_winrate": 0.685546875,
+      "steps": 27453,
+      "pol_loss": -0.005470504518598318,
+      "val_loss": 0.03201243281364441,
+      "entropy": 0.8857688903808594,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 351,
+          "errors": 0,
+          "winrate": 0.685546875
+        }
+      }
+    },
+    {
+      "iter": 15,
+      "train_winrate": 0.662109375,
+      "steps": 27405,
+      "pol_loss": -0.005281857214868069,
+      "val_loss": 0.03265080600976944,
+      "entropy": 0.8818284869194031,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 339,
+          "errors": 0,
+          "winrate": 0.662109375
+        }
+      }
+    },
+    {
+      "iter": 16,
+      "train_winrate": 0.67578125,
+      "steps": 27562,
+      "pol_loss": -0.005380658432841301,
+      "val_loss": 0.03150735795497894,
+      "entropy": 0.8739733099937439,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 346,
+          "errors": 0,
+          "winrate": 0.67578125
+        }
+      },
+      "eval_winrate": 0.765,
+      "eval_wins": 153,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "archaludon_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 153,
+          "errors": 0,
+          "winrate": 0.765
+        }
+      }
+    },
+    {
+      "iter": 17,
+      "train_winrate": 0.6953125,
+      "steps": 26827,
+      "pol_loss": -0.005396323744207621,
+      "val_loss": 0.029369492083787918,
+      "entropy": 0.8664898872375488,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 356,
+          "errors": 0,
+          "winrate": 0.6953125
+        }
+      }
+    },
+    {
+      "iter": 18,
+      "train_winrate": 0.6875,
+      "steps": 26727,
+      "pol_loss": -0.004983863327652216,
+      "val_loss": 0.03150516748428345,
+      "entropy": 0.8564373850822449,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 352,
+          "errors": 0,
+          "winrate": 0.6875
+        }
+      }
+    },
+    {
+      "iter": 19,
+      "train_winrate": 0.72265625,
+      "steps": 28242,
+      "pol_loss": -0.005124823190271854,
+      "val_loss": 0.03132890537381172,
+      "entropy": 0.8587090969085693,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 370,
+          "errors": 0,
+          "winrate": 0.72265625
+        }
+      }
+    },
+    {
+      "iter": 20,
+      "train_winrate": 0.720703125,
+      "steps": 26865,
+      "pol_loss": -0.005085847806185484,
+      "val_loss": 0.030518200248479843,
+      "entropy": 0.8475102186203003,
+      "per_opponent_train": {
+        "archaludon_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 369,
+          "errors": 0,
+          "winrate": 0.720703125
+        }
+      },
+      "eval_winrate": 0.745,
+      "eval_wins": 149,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "archaludon_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 149,
+          "errors": 0,
+          "winrate": 0.745
+        }
+      }
+    },
+    {
+      "iter": "final",
+      "final_eval": {
+        "eval_opponents_winrate": 0.725,
+        "eval_opponents_wins": 290,
+        "eval_opponents_valid": 400,
+        "eval_opponents_per_opponent": {
+          "archaludon_ex": {
+            "games": 400,
+            "valid": 400,
+            "wins": 290,
+            "errors": 0,
+            "winrate": 0.725
+          }
+        }
+      }
+    }
+  ]
+}

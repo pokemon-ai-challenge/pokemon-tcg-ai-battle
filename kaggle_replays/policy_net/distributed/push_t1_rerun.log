@@ -1,0 +1,50 @@
+tag: t1
+学習アーキタイプ: marnie_grimmsnarl_ex
+features(処置群): features_marnie_grimmsnarl_ex_t1.npz
+features(対照群): features_marnie_grimmsnarl_ex_t1.npz(処置群と共有)
+treatment_extra_args: []
+control_extra_args: ['--ablate-features', 'self_board_card_slot,self_discard_card_slot,opp_board_card_slot,opp_discard_card_slot']
+シード: [42, 1, 2]
+games: 3500
+
+コードバンドル: 2755 ファイル, 展開後 70.6 MB -> zip 18.7 MB (C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\code_data\ptcg_bc_ab_bundle.zip)
+code dataset-metadata: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\code_data\dataset-metadata.json
+
+特徴量:
+  OK  features_marnie_grimmsnarl_ex_t1.npz  (118.3 MB)
+features dataset-metadata: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\features_data\dataset-metadata.json
+
+seed=42  kernel=koshin953/ptcg-bc-ab-t1-s42
+  notebook: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s42\ptcg-bc-ab-t1-s42.ipynb
+
+seed=1  kernel=koshin953/ptcg-bc-ab-t1-s1
+  notebook: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s1\ptcg-bc-ab-t1-s1.ipynb
+
+seed=2  kernel=koshin953/ptcg-bc-ab-t1-s2
+  notebook: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s2\ptcg-bc-ab-t1-s2.ipynb
+
+コード Dataset を push: koshin953/ptcg-bc-ab-eval
+  [ptcg-bc-ab-eval] 更新前の Dataset バージョン: 1
+  [ptcg-bc-ab-eval] Dataset を更新(新バージョン)
+  [ptcg-bc-ab-eval] Dataset の処理完了を待つ(最大 600s)
+    ready だが版は 1 のまま(1 から未更新)。待機継続
+    ready だが版は 1 のまま(1 から未更新)。待機継続
+    ready / バージョン 1 -> 2 (25s)
+
+特徴量 Dataset を push: koshin953/ptcg-bc-ab-features
+  [ptcg-bc-ab-features] 更新前の Dataset バージョン: 1
+  [ptcg-bc-ab-features] Dataset を更新(新バージョン)
+  [ptcg-bc-ab-features] Dataset の処理完了を待つ(最大 600s)
+    ready だが版は 1 のまま(1 から未更新)。待機継続
+    ready / バージョン 1 -> 2 (14s)
+
+seed=42: Notebook koshin953/ptcg-bc-ab-t1-s42 を push して実行開始
+
+seed=1: Notebook koshin953/ptcg-bc-ab-t1-s1 を push して実行開始
+
+seed=2: Notebook koshin953/ptcg-bc-ab-t1-s2 を push して実行開始
+
+進行状況の確認:
+  seed=42: https://www.kaggle.com/code/koshin953/ptcg-bc-ab-t1-s42
+  seed=1: https://www.kaggle.com/code/koshin953/ptcg-bc-ab-t1-s1
+  seed=2: https://www.kaggle.com/code/koshin953/ptcg-bc-ab-t1-s2

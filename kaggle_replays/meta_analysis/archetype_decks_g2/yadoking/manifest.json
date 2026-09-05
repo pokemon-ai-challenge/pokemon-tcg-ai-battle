@@ -1,0 +1,29 @@
+{
+  "archetype": "yadoking",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Majkel1337",
+      "rank_at_fetch": 3,
+      "leaderboard_score": 1201.1,
+      "episode_id": "91922799",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "ShumpeiNomura",
+      "rank_at_fetch": 291,
+      "leaderboard_score": 916.9,
+      "episode_id": "91936787",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "ShumpeiNomura",
+      "rank_at_fetch": 291,
+      "leaderboard_score": 916.9,
+      "episode_id": "91957249",
+      "player_index": 0
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+features.npz を読み込み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_marnie_grimmsnarl_ex.npz
+card_id_max=1267  embedding table size=1268 x 8
+train=649343 val=83789 test=85218 (全818350件)
+option特徴の標準化元行列 shape=(3507301, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.0878  val_nll=1.0652 (best=1.0652, no_improve=0)  val_top1=0.6002
+    [baseline] epoch   5  train_loss=1.0647  val_nll=1.0618 (best=1.0618, no_improve=0)  val_top1=0.6007
+    [baseline] epoch  10  train_loss=1.0646  val_nll=1.0627 (best=1.0618, no_improve=1)  val_top1=0.6008
+    [baseline] epoch  15  train_loss=1.0646  val_nll=1.0628 (best=1.0617, no_improve=4)  val_top1=0.6011
+    [baseline] epoch  20  train_loss=1.0648  val_nll=1.0626 (best=1.0617, no_improve=9)  val_top1=0.6014
+    [baseline] 早期終了: epoch 21(val_nll が 10 epoch 改善せず)
+  学習完了 (1496.1s)
+  val : top1=0.5994  nll=1.0617
+  test: top1=0.6036  nll=1.0570
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=0.8137  val_nll=0.7804 (best=0.7804, no_improve=0)  val_top1=0.7200
+    [main] epoch   5  train_loss=0.7392  val_nll=0.7510 (best=0.7510, no_improve=0)  val_top1=0.7291
+    [main] epoch  10  train_loss=0.7245  val_nll=0.7439 (best=0.7429, no_improve=1)  val_top1=0.7303
+    [main] epoch  15  train_loss=0.7171  val_nll=0.7387 (best=0.7373, no_improve=3)  val_top1=0.7324
+    [main] epoch  20  train_loss=0.7124  val_nll=0.7375 (best=0.7352, no_improve=2)  val_top1=0.7326
+    [main] epoch  25  train_loss=0.7100  val_nll=0.7355 (best=0.7328, no_improve=4)  val_top1=0.7333
+    [main] epoch  30  train_loss=0.7076  val_nll=0.7348 (best=0.7302, no_improve=4)  val_top1=0.7298
+    [main] epoch  35  train_loss=0.7061  val_nll=0.7305 (best=0.7293, no_improve=2)  val_top1=0.7332
+    [main] epoch  40  train_loss=0.7045  val_nll=0.7314 (best=0.7288, no_improve=4)  val_top1=0.7357
+    [main] epoch  45  train_loss=0.7034  val_nll=0.7283 (best=0.7283, no_improve=0)  val_top1=0.7350
+    [main] epoch  50  train_loss=0.7021  val_nll=0.7289 (best=0.7283, no_improve=5)  val_top1=0.7352
+    [main] epoch  55  train_loss=0.7015  val_nll=0.7285 (best=0.7281, no_improve=2)  val_top1=0.7319
+    [main] epoch  60  train_loss=0.7003  val_nll=0.7285 (best=0.7263, no_improve=2)  val_top1=0.7310
+    [main] epoch  65  train_loss=0.6996  val_nll=0.7283 (best=0.7260, no_improve=1)  val_top1=0.7358
+    [main] epoch  70  train_loss=0.6985  val_nll=0.7280 (best=0.7260, no_improve=6)  val_top1=0.7342
+    [main] epoch  75  train_loss=0.6981  val_nll=0.7258 (best=0.7252, no_improve=2)  val_top1=0.7359
+    [main] epoch  80  train_loss=0.6975  val_nll=0.7268 (best=0.7252, no_improve=7)  val_top1=0.7348
+    [main] 早期終了: epoch 83(val_nll が 10 epoch 改善せず)
+  学習完了 (7692.9s, 83 epochs)
+  train: top1=0.7460  nll=0.6926
+  val  : top1=0.7352  nll=0.7252
+  test : top1=0.7388  nll=0.7255
+  train-val gap: top1=+0.0108  nll=+0.0326(overfitting指標)
+  param_counts: {'fc1': 7680, 'fc2': 33, 'embedding': 10144, 'mlp': 7713, 'total': 17857}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5994  nll=1.0617
+  本命(state ++ option ++ embed): top1=0.7352  nll=0.7252
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n= 38915  top1=0.6779  nll=0.8842
+  select_type= 1  n= 36309  top1=0.7394  nll=0.7291
+  select_type= 2  n=    64  top1=1.0000  nll=0.0000
+  select_type= 4  n=  1318  top1=0.8907  nll=0.3378
+  select_type= 7  n=   818  top1=0.9694  nll=0.1303
+  select_type= 8  n=  5278  top1=0.9898  nll=0.0663
+  select_type= 9  n=  2516  top1=0.9829  nll=0.0712
+
+重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_scale_f1.0_s42.json (383.6 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=1.42108547e-14  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.6036 nll=1.0570
+  本命(state ++ option ++ embed) test: top1=0.7388 nll=0.7255
+  自己検証: 最大誤差=1.42108547e-14 -> PASS
+  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_scale_f1.0_s42.json
+  offline指標を書き出しました: scale_metrics\metrics_f1.0_s42.json

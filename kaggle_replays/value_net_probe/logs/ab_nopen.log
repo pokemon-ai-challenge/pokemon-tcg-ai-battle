@@ -1,0 +1,27 @@
+device=cpu learner=alakazam weights=C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights.json train_opponents=['alakazam'] eval_opponents=['alakazam', 'crustle', 'marnie_grimmsnarl_ex', 'archaludon_ex'] eval_fixed=['alakazam'] workers=4 -> policy_weights_alakazam_pool_ab_nopen.json
+[iter 0] baseline greedy 74/200 = 0.370 (CI_lo 0.306)
+    [eval_fixed] 95/200 = 0.475
+[iter 1] train_wr 0.281 (144/512 err0) steps 41918 pol -0.0076 val 0.0362 ent 1.064 deckout 160/368=0.435 549s
+    per_opponent[alakazam] 144/512 = 0.281 err0
+[iter 2] train_wr 0.318 (163/512 err0) steps 40930 pol -0.0065 val 0.0302 ent 1.065 deckout 158/349=0.453 927s
+    per_opponent[alakazam] 163/512 = 0.318 err0
+[iter 3] train_wr 0.283 (145/512 err0) steps 39444 pol -0.0063 val 0.0298 ent 1.037 deckout 133/367=0.362 1301s
+    per_opponent[alakazam] 145/512 = 0.283 err0
+[iter 4] train_wr 0.270 (138/512 err0) steps 40085 pol -0.0063 val 0.0259 ent 1.050 deckout 131/374=0.350 1660s
+    per_opponent[alakazam] 138/512 = 0.270 err0
+[iter 5] train_wr 0.324 (166/512 err0) steps 39677 pol -0.0063 val 0.0259 ent 1.031 deckout 121/346=0.350 2052s
+    per_opponent[alakazam] 166/512 = 0.324 err0
+    [eval] 91/200 = 0.455 (CI_lo 0.387) best=0.455@5 *BEST*
+    [eval_fixed] 112/200 = 0.560
+[iter 6] train_wr 0.363 (186/512 err0) steps 40872 pol -0.0064 val 0.0284 ent 1.028 deckout 118/326=0.362 2763s
+    per_opponent[alakazam] 186/512 = 0.363 err0
+[iter 7] train_wr 0.379 (194/512 err0) steps 40317 pol -0.0062 val 0.0272 ent 1.022 deckout 110/318=0.346 3199s
+    per_opponent[alakazam] 194/512 = 0.379 err0
+[iter 8] train_wr 0.379 (194/512 err0) steps 38640 pol -0.0062 val 0.0281 ent 0.998 deckout 116/318=0.365 3606s
+    per_opponent[alakazam] 194/512 = 0.379 err0
+[iter 9] train_wr 0.428 (219/512 err0) steps 39398 pol -0.0060 val 0.0285 ent 0.996 deckout 110/293=0.375 3999s
+    per_opponent[alakazam] 219/512 = 0.428 err0
+[iter 10] train_wr 0.422 (216/512 err0) steps 40173 pol -0.0062 val 0.0290 ent 0.986 deckout 117/296=0.395 4440s
+    per_opponent[alakazam] 216/512 = 0.422 err0
+    [eval] 98/200 = 0.490 (CI_lo 0.422) best=0.490@10 *BEST*
+    [eval_fixed] 124/200 = 0.620

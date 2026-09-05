@@ -1,0 +1,8 @@
+model_a=C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_multisel_s42.json
+model_b=C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_tera_s42.json
+archetype=kamitsuorochi_ex deck_csv=C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\meta_analysis\archetype_decks\kamitsuorochi_ex\06.csv games=200 workers=1
+
+有効試合 200/200
+
+A勝率 0.5600 (112/200)
+  A先攻 0.6300 (n=100)  A後攻 0.4900 (n=100)

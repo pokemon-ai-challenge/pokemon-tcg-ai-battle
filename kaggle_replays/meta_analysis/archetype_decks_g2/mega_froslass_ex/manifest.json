@@ -1,0 +1,45 @@
+{
+  "archetype": "mega_froslass_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Dipam Chakraborty",
+      "rank_at_fetch": 8,
+      "leaderboard_score": 1150.9,
+      "episode_id": "91938198",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "sadwat",
+      "rank_at_fetch": 12,
+      "leaderboard_score": 1137.0,
+      "episode_id": "91910412",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "kwa",
+      "rank_at_fetch": 115,
+      "leaderboard_score": 986.7,
+      "episode_id": "91923428",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "Cycle",
+      "rank_at_fetch": 503,
+      "leaderboard_score": 869.5,
+      "episode_id": "91975721",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "てしごとや",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "91980370",
+      "player_index": 0
+    }
+  ]
+}

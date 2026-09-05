@@ -1,0 +1,67 @@
+features.npz を読み込み: features_marnie_grimmsnarl_ex_seq.npz
+  ablate: 状態側 0 次元 / 選択肢側 14 次元を 0 で潰した ['opt_role_draw', 'opt_role_search', 'opt_role_deck_look', 'opt_is_deterministic', 'opts_n_draw', 'opts_n_search', 'opts_n_deck_look', 'opts_n_deterministic', 'opts_same_opttype_count', 'opt_hand_copies', 'hand_n_draw', 'hand_n_search', 'hand_n_energy_accel', 'hand_n_hand_disrupt']
+card_id_max=1267  embedding table size=1268 x 8
+train=649343 val=83789 test=85218 (全818350件)
+option特徴の標準化元行列 shape=(3507301, 79)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.0858  val_nll=1.0651 (best=1.0651, no_improve=0)  val_top1=0.6004
+    [baseline] epoch   5  train_loss=1.0647  val_nll=1.0618 (best=1.0618, no_improve=0)  val_top1=0.6007
+    [baseline] epoch  10  train_loss=1.0646  val_nll=1.0627 (best=1.0618, no_improve=1)  val_top1=0.6008
+    [baseline] epoch  15  train_loss=1.0646  val_nll=1.0628 (best=1.0617, no_improve=4)  val_top1=0.6011
+    [baseline] epoch  20  train_loss=1.0648  val_nll=1.0626 (best=1.0617, no_improve=9)  val_top1=0.6014
+    [baseline] 早期終了: epoch 21(val_nll が 10 epoch 改善せず)
+  学習完了 (1496.0s)
+  val : top1=0.5994  nll=1.0617
+  test: top1=0.6036  nll=1.0570
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=0.8142  val_nll=0.7835 (best=0.7835, no_improve=0)  val_top1=0.7174
+    [main] epoch   5  train_loss=0.7379  val_nll=0.7499 (best=0.7499, no_improve=0)  val_top1=0.7292
+    [main] epoch  10  train_loss=0.7227  val_nll=0.7423 (best=0.7412, no_improve=1)  val_top1=0.7292
+    [main] epoch  15  train_loss=0.7157  val_nll=0.7357 (best=0.7348, no_improve=3)  val_top1=0.7292
+    [main] epoch  20  train_loss=0.7107  val_nll=0.7313 (best=0.7313, no_improve=0)  val_top1=0.7324
+    [main] epoch  25  train_loss=0.7076  val_nll=0.7323 (best=0.7283, no_improve=3)  val_top1=0.7335
+    [main] epoch  30  train_loss=0.7052  val_nll=0.7323 (best=0.7263, no_improve=1)  val_top1=0.7297
+    [main] epoch  35  train_loss=0.7031  val_nll=0.7243 (best=0.7242, no_improve=2)  val_top1=0.7342
+    [main] epoch  40  train_loss=0.7014  val_nll=0.7268 (best=0.7242, no_improve=7)  val_top1=0.7351
+    [main] epoch  45  train_loss=0.7003  val_nll=0.7254 (best=0.7242, no_improve=3)  val_top1=0.7342
+    [main] epoch  50  train_loss=0.6988  val_nll=0.7264 (best=0.7236, no_improve=4)  val_top1=0.7340
+    [main] epoch  55  train_loss=0.6982  val_nll=0.7238 (best=0.7228, no_improve=1)  val_top1=0.7330
+    [main] epoch  60  train_loss=0.6970  val_nll=0.7215 (best=0.7215, no_improve=0)  val_top1=0.7323
+    [main] epoch  65  train_loss=0.6964  val_nll=0.7233 (best=0.7215, no_improve=5)  val_top1=0.7361
+    [main] epoch  70  train_loss=0.6955  val_nll=0.7226 (best=0.7215, no_improve=10)  val_top1=0.7348
+    [main] 早期終了: epoch 70(val_nll が 10 epoch 改善せず)
+  学習完了 (6578.3s, 70 epochs)
+  train: top1=0.7436  nll=0.6910
+  val  : top1=0.7323  nll=0.7215
+  test : top1=0.7350  nll=0.7245
+  train-val gap: top1=+0.0114  nll=+0.0305(overfitting指標)
+  param_counts: {'fc1': 8128, 'fc2': 33, 'embedding': 10144, 'mlp': 8161, 'total': 18305}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5994  nll=1.0617
+  本命(state ++ option ++ embed): top1=0.7323  nll=0.7215
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n= 38915  top1=0.6715  nll=0.8823
+  select_type= 1  n= 36309  top1=0.7375  nll=0.7271
+  select_type= 2  n=    64  top1=1.0000  nll=0.0000
+  select_type= 4  n=  1318  top1=0.8900  nll=0.3424
+  select_type= 7  n=   818  top1=0.9707  nll=0.1308
+  select_type= 8  n=  5278  top1=0.9898  nll=0.0738
+  select_type= 9  n=  2516  top1=0.9801  nll=0.0728
+
+重みを書き出しました: ..\..\sample_submission\ptcg_ai\learning\policy_weights_marnie_seqctl_s42.json (394.3 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=2.84217094e-14  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.6036 nll=1.0570
+  本命(state ++ option ++ embed) test: top1=0.7350 nll=0.7245
+  自己検証: 最大誤差=2.84217094e-14 -> PASS
+  出力: ..\..\sample_submission\ptcg_ai\learning\policy_weights_marnie_seqctl_s42.json

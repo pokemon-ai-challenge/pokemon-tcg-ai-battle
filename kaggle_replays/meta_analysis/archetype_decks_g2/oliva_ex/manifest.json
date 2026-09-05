@@ -1,0 +1,45 @@
+{
+  "archetype": "oliva_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "goonew",
+      "rank_at_fetch": 26,
+      "leaderboard_score": 1077.8,
+      "episode_id": "91921754",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "213tubo",
+      "rank_at_fetch": 218,
+      "leaderboard_score": 943.1,
+      "episode_id": "91952633",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "ondy0705",
+      "rank_at_fetch": 313,
+      "leaderboard_score": 910.7,
+      "episode_id": "91934643",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "tonakaiiii",
+      "rank_at_fetch": 887,
+      "leaderboard_score": 811.7,
+      "episode_id": "91934847",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "opantsu",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "91961732",
+      "player_index": 1
+    }
+  ]
+}

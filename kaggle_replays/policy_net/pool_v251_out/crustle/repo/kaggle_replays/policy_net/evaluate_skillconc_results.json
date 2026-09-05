@@ -1,0 +1,56 @@
+{
+  "features_path": "C:\\dev\\pokemon-tcg-ai-battle\\kaggle_replays\\policy_net\\features.npz",
+  "test_n": 22626,
+  "top200_holdout_n": 3408,
+  "candidates": {
+    "baseline_current": {
+      "available": true,
+      "path": "C:\\dev\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights.json",
+      "top200_holdout_top1_accuracy": 0.607981220657277,
+      "top200_holdout_n": 3408,
+      "pool_test_top1_accuracy": 0.5922832140015911,
+      "pool_test_n": 22626,
+      "meta_test_metrics": {
+        "top1_accuracy": 0.5922832140015911,
+        "mean_weighted_nll": 1.1711335346799028
+      }
+    },
+    "configA_rankmax200": {
+      "available": true,
+      "path": "C:\\dev\\pokemon-tcg-ai-battle\\kaggle_replays\\policy_net\\policy_weights_configA.json",
+      "top200_holdout_top1_accuracy": 0.6217723004694836,
+      "top200_holdout_n": 3408,
+      "pool_test_top1_accuracy": 0.563555201980023,
+      "pool_test_n": 22626,
+      "meta_test_metrics": {
+        "top1_accuracy": 0.6217723004694836,
+        "mean_weighted_nll": 1.0970831313089753
+      }
+    },
+    "configB_rankmax1000": {
+      "available": true,
+      "path": "C:\\dev\\pokemon-tcg-ai-battle\\kaggle_replays\\policy_net\\policy_weights_configB.json",
+      "top200_holdout_top1_accuracy": 0.6156103286384976,
+      "top200_holdout_n": 3408,
+      "pool_test_top1_accuracy": 0.5856094758242729,
+      "pool_test_n": 22626,
+      "meta_test_metrics": {
+        "top1_accuracy": 0.6026883686905633,
+        "mean_weighted_nll": 1.1348916490450687
+      }
+    },
+    "configC_concentrated_reweight": {
+      "available": true,
+      "path": "C:\\dev\\pokemon-tcg-ai-battle\\kaggle_replays\\policy_net\\policy_weights_configC.json",
+      "top200_holdout_top1_accuracy": 0.6229460093896714,
+      "top200_holdout_n": 3408,
+      "pool_test_top1_accuracy": 0.5806152214266773,
+      "pool_test_n": 22626,
+      "meta_test_metrics": {
+        "top1_accuracy": 0.5806152214266773,
+        "mean_weighted_nll": 1.1148633452795846
+      }
+    }
+  },
+  "elapsed_seconds": 12.242618083953857
+}

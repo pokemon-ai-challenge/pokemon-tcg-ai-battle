@@ -1,0 +1,18 @@
+{
+  "name": "abl_4_policy_searchN1",
+  "lethal_search": {
+    "enabled": false
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "dummy",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 1,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {"kind": "handcrafted"}
+  }
+}

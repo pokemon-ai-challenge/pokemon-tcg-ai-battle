@@ -1,0 +1,230 @@
+{
+ "buckets": [
+  {
+   "min_evidence": 0,
+   "max_evidence": 0,
+   "weight_nb": 1.0
+  },
+  {
+   "min_evidence": 1,
+   "max_evidence": 1,
+   "weight_nb": 0.3
+  },
+  {
+   "min_evidence": 2,
+   "max_evidence": 3,
+   "weight_nb": 0.55
+  },
+  {
+   "min_evidence": 4,
+   "max_evidence": 6,
+   "weight_nb": 0.0
+  },
+  {
+   "min_evidence": 7,
+   "max_evidence": 10,
+   "weight_nb": 0.0
+  },
+  {
+   "min_evidence": 11,
+   "max_evidence": null,
+   "weight_nb": 0.0
+  }
+ ],
+ "meta": {
+  "method": "evidence_count_bucketed_log_space_geometric_blend",
+  "fitted_at": "2026-07-19T11:17:06.398633+00:00",
+  "fitted_on": "validation split (output/model/split.json), 固定validationウィンドウ(直近14日 x 相手上位200位以内)",
+  "n_samples": 8693,
+  "n_episodes": 92,
+  "classes": [
+   "alakazam",
+   "archaludon_ex",
+   "crustle",
+   "dragapult_ex",
+   "gekkouga_ex",
+   "kamitsuorochi_ex",
+   "marnie_grimmsnarl_ex",
+   "mega_abomasnow_ex",
+   "mega_froslass_ex",
+   "mega_lucario_ex",
+   "mega_starmie_ex",
+   "n_zoroark_ex",
+   "ogerpon_teal_ex",
+   "oliva_ex",
+   "omatsuri_ondo",
+   "other",
+   "rocket_honchkrow",
+   "shirona_garchomp_ex",
+   "takeruraiko_ex",
+   "toxtricity",
+   "yadoking"
+  ],
+  "weight_grid": [
+   0.0,
+   0.05,
+   0.1,
+   0.15,
+   0.2,
+   0.25,
+   0.3,
+   0.35,
+   0.4,
+   0.45,
+   0.5,
+   0.55,
+   0.6,
+   0.65,
+   0.7,
+   0.75,
+   0.8,
+   0.85,
+   0.9,
+   0.95,
+   1.0
+  ],
+  "overall_logloss_lr_only": 0.04623533410261168,
+  "overall_logloss_hybrid": 0.033903183175001,
+  "stability_check": {
+   "seed": 42,
+   "warn_threshold": 0.2,
+   "n_episodes_half_a": 46,
+   "n_episodes_half_b": 46,
+   "n_unstable_buckets": 5
+  },
+  "buckets_detail": [
+   {
+    "bucket": "0",
+    "min_evidence": 0,
+    "max_evidence": 0,
+    "n_samples": 184,
+    "weight_nb": 1.0,
+    "logloss_lr_only": 1.8712613785122476,
+    "logloss_nb_only": 1.3848766393879257,
+    "logloss_best": 1.3848766393879257,
+    "stability": {
+     "n_half_a": 105,
+     "n_half_b": 79,
+     "weight_nb_fit_on_half_a": 1.0,
+     "weight_nb_fit_on_half_b": 0.85,
+     "logloss_half_a_fit_evaluated_on_half_b": 1.6190959092761095,
+     "logloss_half_b_fit_evaluated_on_half_a": 1.2378262866476812,
+     "max_deviation_from_full_fit": 0.15000000000000002,
+     "unstable": false
+    }
+   },
+   {
+    "bucket": "1",
+    "min_evidence": 1,
+    "max_evidence": 1,
+    "n_samples": 167,
+    "weight_nb": 0.3,
+    "logloss_lr_only": 0.13274578676250204,
+    "logloss_nb_only": 0.14796042566983691,
+    "logloss_best": 0.1286389226403794,
+    "stability": {
+     "n_half_a": 76,
+     "n_half_b": 91,
+     "weight_nb_fit_on_half_a": 0.05,
+     "weight_nb_fit_on_half_b": 0.75,
+     "logloss_half_a_fit_evaluated_on_half_b": 0.08469687618616957,
+     "logloss_half_b_fit_evaluated_on_half_a": 0.2130417342957927,
+     "max_deviation_from_full_fit": 0.7,
+     "unstable": true
+    }
+   },
+   {
+    "bucket": "2-3",
+    "min_evidence": 2,
+    "max_evidence": 3,
+    "n_samples": 206,
+    "weight_nb": 0.55,
+    "logloss_lr_only": 0.04837290761634933,
+    "logloss_nb_only": 0.043140234502059234,
+    "logloss_best": 0.03816020125060164,
+    "stability": {
+     "n_half_a": 83,
+     "n_half_b": 123,
+     "weight_nb_fit_on_half_a": 0.15,
+     "weight_nb_fit_on_half_b": 0.6,
+     "logloss_half_a_fit_evaluated_on_half_b": 0.0690936562614486,
+     "logloss_half_b_fit_evaluated_on_half_a": 0.005293312946940031,
+     "max_deviation_from_full_fit": 0.44999999999999996,
+     "unstable": true
+    }
+   },
+   {
+    "bucket": "4-6",
+    "min_evidence": 4,
+    "max_evidence": 6,
+    "n_samples": 601,
+    "weight_nb": 0.3,
+    "logloss_lr_only": 0.018678304341740316,
+    "logloss_nb_only": 0.017007567734681966,
+    "logloss_best": 0.006311017760398595,
+    "stability": {
+     "n_half_a": 351,
+     "n_half_b": 250,
+     "weight_nb_fit_on_half_a": 0.8,
+     "weight_nb_fit_on_half_b": 0.2,
+     "logloss_half_a_fit_evaluated_on_half_b": 0.029990208268998904,
+     "logloss_half_b_fit_evaluated_on_half_a": 0.004283699790801878,
+     "max_deviation_from_full_fit": 0.6000000000000001,
+     "unstable": true
+    }
+   },
+   {
+    "bucket": "7-10",
+    "min_evidence": 7,
+    "max_evidence": 10,
+    "n_samples": 1299,
+    "weight_nb": 0.25,
+    "logloss_lr_only": 0.009368296135064633,
+    "logloss_nb_only": 0.11984552042260319,
+    "logloss_best": 0.003605253055988816,
+    "stability": {
+     "n_half_a": 670,
+     "n_half_b": 629,
+     "weight_nb_fit_on_half_a": 0.65,
+     "weight_nb_fit_on_half_b": 0.1,
+     "logloss_half_a_fit_evaluated_on_half_b": 0.06234667755074092,
+     "logloss_half_b_fit_evaluated_on_half_a": 0.0074418954425049585,
+     "max_deviation_from_full_fit": 0.55,
+     "unstable": true
+    }
+   },
+   {
+    "bucket": "11+",
+    "min_evidence": 11,
+    "max_evidence": null,
+    "n_samples": 6236,
+    "weight_nb": 0.0,
+    "logloss_lr_only": 0.0003340639449340968,
+    "logloss_nb_only": 0.3189130360666466,
+    "logloss_best": 0.0003340639449340968,
+    "stability": {
+     "n_half_a": 3052,
+     "n_half_b": 3184,
+     "weight_nb_fit_on_half_a": 0.55,
+     "weight_nb_fit_on_half_b": 0.0,
+     "logloss_half_a_fit_evaluated_on_half_b": 0.11027674695838467,
+     "logloss_half_b_fit_evaluated_on_half_a": 0.00023341502545928645,
+     "max_deviation_from_full_fit": 0.55,
+     "unstable": true
+    }
+   }
+  ],
+  "manual_adjustment": {
+   "date": "2026-07-19",
+   "reason": "50/50安定性チェックで不安定と警告されたevidence>=4バケットはNBを混ぜずLR単体に固定(慎重側)。フィット時のwはfit結果メタ参照。",
+   "fitted_weights_before_adjustment": {
+    "0": 1.0,
+    "1": 0.3,
+    "2": 0.55,
+    "4": 0.3,
+    "7": 0.25,
+    "11": 0.0
+   }
+  }
+ }
+}
