@@ -205,17 +205,17 @@ flowchart TD
 
 4人チームです。
 
-| メンバー | 役割 | 代表的な担当 |
+| メンバー | 担当した部分 | 具体的には |
 |---|---|---|
-| [@Showgo1130](https://github.com/Showgo1130) | 機械学習と、開発・評価の基盤 | 模倣学習のパイプライン、対戦ビュアー |
-| [@tsuoimorioka](https://github.com/tsuoimorioka) | 探索と強化学習 | 強化学習の学習器、モンテカルロ探索 |
-| [@koshincarrier-pixel](https://github.com/koshincarrier-pixel) | ルールベース AI と学習の実験基盤 | 行動を決める条件分岐の中核、Kaggle 上での学習実行 |
-| [@inada107](https://github.com/inada107) | 確定リーサル探索とデッキ戦術 | 勝ち切る手順を証明する探索、デッキごとの方針 |
+| [@Showgo1130](https://github.com/Showgo1130) | 学習モデルと、開発・評価の道具 | 上位プレイヤーの手を学習させる仕組み / 対戦を1手ずつ見返すビュアー |
+| [@tsuoimorioka](https://github.com/tsuoimorioka) | 探索アルゴリズムと強化学習 | 試行をくり返して手を評価する探索 / 自己対戦で強くする学習器 |
+| [@koshincarrier-pixel](https://github.com/koshincarrier-pixel) | ルールベースの判断ロジック | エネルギーを誰に付けるか・いつ「にげる」かの条件分岐 |
+| [@inada107](https://github.com/inada107) | 勝ち切る手順の探索とデッキ戦術 | このターンで倒し切れるかを調べる探索 / デッキごとの方針 |
 
 <details>
 <summary><b>担当の内訳（クリックで開く）</b></summary>
 
-#### [@Showgo1130](https://github.com/Showgo1130) — 機械学習と、開発・評価の基盤
+#### [@Showgo1130](https://github.com/Showgo1130) — 学習モデルと、開発・評価の道具
 
 - 対戦を1手ずつ見返すバトルビュアーと、配布 PDF から紙のデッキを刷るツール
 - Kaggle のリプレイを集めて学習データにする仕組み
@@ -228,7 +228,7 @@ flowchart TD
 - 改善が本物かを判定する A/B 評価、必要な試合数の見積もり、提出スコアの継続記録
 - テストの整備と、各部品を1本の意思決定につなぐ統合
 
-#### [@tsuoimorioka](https://github.com/tsuoimorioka) — 探索と強化学習
+#### [@tsuoimorioka](https://github.com/tsuoimorioka) — 探索アルゴリズムと強化学習
 
 - 強化学習の学習器（PPO）と、Transformer を使った手の選び方
 - 学習を Kaggle や複数マシンで回す仕組み
@@ -240,7 +240,7 @@ flowchart TD
 - 使用デッキの構成更新（ドラパルト、アラカザム）
 - 提出エージェントの入口と、初期の対戦ビュアー
 
-#### [@koshincarrier-pixel](https://github.com/koshincarrier-pixel) — ルールベース AI と学習の実験基盤
+#### [@koshincarrier-pixel](https://github.com/koshincarrier-pixel) — ルールベースの判断ロジック
 
 - 条件分岐で行動を決めるエージェントの中核部分
 - エネルギーを誰に付けるか・いつ「にげる」かの判断
@@ -252,7 +252,7 @@ flowchart TD
 - 相手のデッキに応じた処理の切り替え
 - リプレイを高速に取得するツール
 
-#### [@inada107](https://github.com/inada107) — 確定リーサル探索とデッキ戦術
+#### [@inada107](https://github.com/inada107) — 勝ち切る手順の探索とデッキ戦術
 
 - 勝ち筋を証明して勝ち切る手順を出す確定リーサル探索の本体
 - 「にげる」判断への、ベイズ推定による相手の攻撃成功率の導入
