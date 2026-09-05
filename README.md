@@ -13,7 +13,7 @@
 - **開催協力：** Google、Google Cloud、NVIDIA
 - **参加した部門：** 第一ラウンド・シミュレーション部門（2026年6月16日〜8月17日）
 
-[作ったもの](#作ったもの) · [工夫と検証](#工夫したことと検証で分かったこと) · [AIの仕組み](#aiの仕組み) · [メンバーと担当](#メンバーと担当) · [実装と起動方法](#実装と起動方法) · [大会結果と順位分析](docs/results.md)
+[作ったもの](#作ったもの) · [工夫と検証](#工夫したことと検証で分かったこと) · [AIの仕組み](#aiの仕組み) · [メンバーと担当](#メンバーと担当) · [コードの入口](#コードの入口) · [大会結果と順位分析](docs/results.md)
 
 ## 作ったもの
 
@@ -78,18 +78,18 @@ flowchart TD
 
 → [担当の詳細とチームの取り組み](docs/development-story.md#メンバーの担当詳細)
 
-## 実装と起動方法
+## コードの入口
 
-| 目的 | 入口 |
+| 見たいもの | 場所 |
 |---|---|
-| AI の実装を読む | [提出エージェントの構成](sample_submission/README.md) · [入口のコード](sample_submission/main.py) |
-| ビュアーを起動する・AI と対戦する | [ビュアーの使い方と起動手順](battle_review_viewer/README.md) |
-| 検証コードを読む | [テストとローカル対戦の構成](sample_submission/tests/README.md) |
-| カードを参照・印刷する | [カード参照ツール](cardlist_referenced/README.md) |
+| 提出した AI の実装 | [提出エージェントの構成](sample_submission/README.md) · [`agent()` のコード](sample_submission/main.py) |
+| 対戦ビュアー | [battle_review_viewer/](battle_review_viewer/README.md) |
+| 検証コード | [テストとローカル対戦の構成](sample_submission/tests/README.md) |
+| カード参照・印刷ツール | [cardlist_referenced/](cardlist_referenced/README.md) |
 
-実行には Python 3.12 以上と、[Kaggle で配布されているコンペのデータ](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/data) が必要です。ファイルの配置や起動手順は、各ツールの README を参照してください。カード画像は配布 PDF から各自の環境で生成する方式のため、リポジトリには含めていません。
+動かすのに必要な環境（Python 3.12 以上と [Kaggle 配布のコンペデータ](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/data)）と手順は、各ディレクトリの README にまとめています。カード画像は配布 PDF から各自の環境で生成する方式のため、リポジトリには含めていません。
 
-**公開状況：** 上の表のリンク先は、このリポジトリで公開している実装・手順です。リプレイの収集・学習データ生成を行う `kaggle_replays/` と、大量の対戦を回す `league/`・`opponents/` は、作業ブランチから master への統合を進めています。
+**公開状況：** 上の表のリンク先は、このリポジトリで公開しているコードです。リプレイの収集・学習データ生成を行う `kaggle_replays/` と、大量の対戦を回す `league/`・`opponents/` は、作業ブランチから master への統合を進めています。
 
 ## 開発記録を読む
 
