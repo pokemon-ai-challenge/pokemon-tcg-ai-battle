@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_crustle_v715b.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 77220,
+  "n_val": 9468,
+  "n_test": 9842,
+  "epochs_trained": 21,
+  "train": {
+    "top1_accuracy": 0.6340973840973841,
+    "mean_weighted_nll": 0.9185877909315814
+  },
+  "val": {
+    "top1_accuracy": 0.5995986480777356,
+    "mean_weighted_nll": 1.0849262650380218
+  },
+  "test": {
+    "top1_accuracy": 0.5860597439544808,
+    "mean_weighted_nll": 1.117071155522758
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.03449873601964859,
+    "mean_weighted_nll": 0.16633847410644043
+  },
+  "self_check_max_abs_err": 3.552713678800501e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_crustle_v715b_s42.json"
+}

@@ -1,0 +1,30 @@
+card_id_max = 1267(all_card_data() から動的に計算)
+読み込み開始: ..\training_data\policy_positions_alakazam.jsonl.gz
+weight スキーム: concentrated
+  5000 件処理済み(経過 4.4s、1147.0 rows/sec)
+  10000 件処理済み(経過 8.6s、1164.3 rows/sec)
+  15000 件処理済み(経過 12.8s、1169.1 rows/sec)
+  20000 件処理済み(経過 17.1s、1166.5 rows/sec)
+  25000 件処理済み(経過 21.6s、1156.1 rows/sec)
+  30000 件処理済み(経過 26.1s、1149.5 rows/sec)
+  35000 件処理済み(経過 30.4s、1152.7 rows/sec)
+  40000 件処理済み(経過 34.6s、1155.6 rows/sec)
+  45000 件処理済み(経過 39.0s、1154.5 rows/sec)
+  50000 件処理済み(経過 43.1s、1161.2 rows/sec)
+  55000 件処理済み(経過 47.1s、1168.7 rows/sec)
+  60000 件処理済み(経過 50.9s、1179.5 rows/sec)
+  65000 件処理済み(経過 54.8s、1186.4 rows/sec)
+  70000 件処理済み(経過 59.1s、1185.3 rows/sec)
+  75000 件処理済み(経過 63.1s、1188.7 rows/sec)
+  80000 件処理済み(経過 67.2s、1190.0 rows/sec)
+  85000 件処理済み(経過 71.0s、1196.9 rows/sec)
+  90000 件処理済み(経過 75.1s、1198.3 rows/sec)
+  95000 件処理済み(経過 79.0s、1202.7 rows/sec)
+  100000 件処理済み(経過 83.1s、1203.3 rows/sec)
+  105000 件処理済み(経過 87.2s、1204.8 rows/sec)
+  110000 件処理済み(経過 91.3s、1205.4 rows/sec)
+完了: 採用 110759 件(経過 91.9s)
+state_features shape=(110759, 190) dtype=float32
+split 内訳: train=89722 val=9537 test=11500
+書き出し完了: features_alakazam_enc2.npz (16.4 MB)
+注意: option_features/option_card_ids は object 配列(ragged)。読み込みは np.load(path, allow_pickle=True) を使うこと。card_id_max はスカラー(data['card_id_max'].item() で取り出す)。

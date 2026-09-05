@@ -1,0 +1,874 @@
+{
+  "games_requested_per_opponent": 40,
+  "opponents": [
+    "crustle",
+    "shirona_garchomp_ex",
+    "ogerpon_teal_ex"
+  ],
+  "games_total": 120,
+  "valid_games": 120,
+  "errors": 0,
+  "elapsed_seconds": 328.2372028827667,
+  "workers": 7,
+  "total_counts": {
+    "cond2": 2389,
+    "cond2_3": 1407,
+    "cond2_3_4": 147,
+    "qualifying": 47,
+    "used_hammer": 13,
+    "missed_hammer": 34
+  },
+  "per_opponent_counts": {
+    "crustle": {
+      "cond2": 1002,
+      "cond2_3": 769,
+      "cond2_3_4": 120,
+      "qualifying": 24,
+      "used_hammer": 10,
+      "missed_hammer": 14
+    },
+    "shirona_garchomp_ex": {
+      "cond2": 881,
+      "cond2_3": 414,
+      "cond2_3_4": 27,
+      "qualifying": 23,
+      "missed_hammer": 20,
+      "used_hammer": 3
+    },
+    "ogerpon_teal_ex": {
+      "cond2": 506,
+      "cond2_3": 224
+    }
+  },
+  "qualifying_records": [
+    {
+      "used_hammer": true,
+      "hand_count": 6,
+      "defender_name": "Crustle",
+      "defender_hp": 110,
+      "defender_max_hp": 150,
+      "special_energy_names": [
+        "Mist Energy",
+        "Spiky Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 120,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 3
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 13,
+      "defender_name": "Crustle",
+      "defender_hp": 150,
+      "defender_max_hp": 150,
+      "special_energy_names": [
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 260,
+      "chosen_option_type": "ABILITY",
+      "chosen_desc": "ABILITY(Dudunsparce)",
+      "opponent": "crustle",
+      "game_index": 2
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 16,
+      "defender_name": "Crustle",
+      "defender_hp": 150,
+      "defender_max_hp": 150,
+      "special_energy_names": [
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 320,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Boss’s Orders)",
+      "opponent": "crustle",
+      "game_index": 2
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 16,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 280,
+      "defender_max_hp": 400,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy",
+        "Grow Grass Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 320,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 16
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 13,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 240,
+      "defender_max_hp": 400,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Grow Grass Energy",
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 260,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 18
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 18,
+      "defender_name": "Crustle",
+      "defender_hp": 250,
+      "defender_max_hp": 250,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 360,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Dudunsparce)",
+      "opponent": "crustle",
+      "game_index": 21
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 17,
+      "defender_name": "Crustle",
+      "defender_hp": 250,
+      "defender_max_hp": 250,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 340,
+      "chosen_option_type": "ABILITY",
+      "chosen_desc": "ABILITY(Dudunsparce)",
+      "opponent": "crustle",
+      "game_index": 21
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 20,
+      "defender_name": "Crustle",
+      "defender_hp": 250,
+      "defender_max_hp": 250,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 400,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Dunsparce)",
+      "opponent": "crustle",
+      "game_index": 21
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 19,
+      "defender_name": "Crustle",
+      "defender_hp": 250,
+      "defender_max_hp": 250,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 380,
+      "chosen_option_type": "ATTACH",
+      "chosen_desc": "ATTACH(Basic {P} Energy)",
+      "opponent": "crustle",
+      "game_index": 21
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 18,
+      "defender_name": "Crustle",
+      "defender_hp": 250,
+      "defender_max_hp": 250,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 360,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Buddy-Buddy Poffin)",
+      "opponent": "crustle",
+      "game_index": 21
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 17,
+      "defender_name": "Crustle",
+      "defender_hp": 250,
+      "defender_max_hp": 250,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 340,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 21
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 11,
+      "defender_name": "Crustle",
+      "defender_hp": 170,
+      "defender_max_hp": 170,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy",
+        "Grow Grass Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 220,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Dudunsparce)",
+      "opponent": "crustle",
+      "game_index": 21
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 10,
+      "defender_name": "Crustle",
+      "defender_hp": 170,
+      "defender_max_hp": 170,
+      "special_energy_names": [
+        "Spiky Energy",
+        "Mist Energy",
+        "Grow Grass Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 200,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 21
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 5,
+      "defender_name": "Crustle",
+      "defender_hp": 70,
+      "defender_max_hp": 150,
+      "special_energy_names": [
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 100,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 20
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 16,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 30,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 320,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 29
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 17,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 300,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Mist Energy",
+        "Spiky Energy",
+        "Spiky Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 340,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Dudunsparce)",
+      "opponent": "crustle",
+      "game_index": 28
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 16,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 300,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Mist Energy",
+        "Spiky Energy",
+        "Spiky Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 320,
+      "chosen_option_type": "ABILITY",
+      "chosen_desc": "ABILITY(Dudunsparce)",
+      "opponent": "crustle",
+      "game_index": 28
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 18,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 300,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Mist Energy",
+        "Spiky Energy",
+        "Spiky Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 360,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Dunsparce)",
+      "opponent": "crustle",
+      "game_index": 28
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 17,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 300,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Mist Energy",
+        "Spiky Energy",
+        "Spiky Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 340,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Night Stretcher)",
+      "opponent": "crustle",
+      "game_index": 28
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 17,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 300,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Mist Energy",
+        "Spiky Energy",
+        "Spiky Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 340,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Dunsparce)",
+      "opponent": "crustle",
+      "game_index": 28
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 16,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 300,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Mist Energy",
+        "Spiky Energy",
+        "Spiky Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 320,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Dudunsparce)",
+      "opponent": "crustle",
+      "game_index": 28
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 15,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 300,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Mist Energy",
+        "Spiky Energy",
+        "Spiky Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 300,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 28
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 14,
+      "defender_name": "Mega Kangaskhan ex",
+      "defender_hp": 270,
+      "defender_max_hp": 300,
+      "special_energy_names": [
+        "Grow Grass Energy",
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 280,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 36
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 18,
+      "defender_name": "Crustle",
+      "defender_hp": 150,
+      "defender_max_hp": 150,
+      "special_energy_names": [
+        "Mist Energy"
+      ],
+      "removed_energy_name": "Mist Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 360,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "crustle",
+      "game_index": 39
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 25,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 500,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 1
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 24,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 480,
+      "chosen_option_type": "ABILITY",
+      "chosen_desc": "ABILITY(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 1
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 27,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 540,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 1
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 26,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 520,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 1
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 21,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 400,
+      "defender_max_hp": 400,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 420,
+      "chosen_option_type": "ABILITY",
+      "chosen_desc": "ABILITY(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 24,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 400,
+      "defender_max_hp": 400,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 480,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Alakazam)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 26,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 400,
+      "defender_max_hp": 400,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 520,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Rare Candy)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 27,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 400,
+      "defender_max_hp": 400,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 540,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 28,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 560,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 27,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 540,
+      "chosen_option_type": "ABILITY",
+      "chosen_desc": "ABILITY(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 30,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 600,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 29,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 580,
+      "chosen_option_type": "ABILITY",
+      "chosen_desc": "ABILITY(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 32,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 640,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 10
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 17,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 340,
+      "chosen_option_type": "ABILITY",
+      "chosen_desc": "ABILITY(Dudunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 16
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 20,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 400,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Dunsparce)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 16
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 19,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 380,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 16
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 26,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 520,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 17
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 23,
+      "defender_name": "Cynthia's Garchomp ex",
+      "defender_hp": 330,
+      "defender_max_hp": 330,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 460,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 27
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 17,
+      "defender_name": "Cynthia's Gabite",
+      "defender_hp": 100,
+      "defender_max_hp": 100,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 340,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Alakazam)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 30
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 19,
+      "defender_name": "Cynthia's Gabite",
+      "defender_hp": 100,
+      "defender_max_hp": 100,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 380,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Alakazam)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 30
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 21,
+      "defender_name": "Cynthia's Gabite",
+      "defender_hp": 100,
+      "defender_max_hp": 100,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 420,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 30
+    },
+    {
+      "used_hammer": false,
+      "hand_count": 16,
+      "defender_name": "Cynthia's Gabite",
+      "defender_hp": 100,
+      "defender_max_hp": 100,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 320,
+      "chosen_option_type": "EVOLVE",
+      "chosen_desc": "EVOLVE(Alakazam)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 37
+    },
+    {
+      "used_hammer": true,
+      "hand_count": 18,
+      "defender_name": "Cynthia's Gabite",
+      "defender_hp": 100,
+      "defender_max_hp": 100,
+      "special_energy_names": [
+        "Rock Fighting Energy"
+      ],
+      "removed_energy_name": "Rock Fighting Energy",
+      "current_damage": 0,
+      "hypothetical_damage": 360,
+      "chosen_option_type": "PLAY",
+      "chosen_desc": "PLAY(Enhanced Hammer)",
+      "opponent": "shirona_garchomp_ex",
+      "game_index": 37
+    }
+  ]
+}

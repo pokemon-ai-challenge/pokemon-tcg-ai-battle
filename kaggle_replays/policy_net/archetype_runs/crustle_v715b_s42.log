@@ -1,0 +1,65 @@
+features.npz を読み込み: features_crustle_v715b.npz
+hand_card_vocab: 38種 [1, 6, 11, 14, 18, 20, 58, 343, 344, 345, 607, 756, 1086, 1087, 1120, 1121, 1122, 1123, 1142, 1147, 1152, 1153, 1159, 1182, 1185, 1186, 1190, 1194, 1197, 1204, 1212, 1219, 1225, 1227, 1247, 1257, 1264, 1267]
+opponent_card_vocab: 157種 [1, 2, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 18, 19, 20, 31, 42, 44, 58, 63, 65, 66, 73, 74, 89, 90, 92, 93, 96, 100, 104, 108, 112, 117, 119, 120, 121, 131, 132, 133, 140, 149, 184, 230, 235, 240, 272, 305, 306, 318, 341, 342, 343, 344, 345, 379, 380, 381, 387, 400, 401, 414, 431, 432, 434, 463, 607, 646, 647, 648, 649, 687, 741, 742, 743, 756, 791, 860, 978, 1071, 1079, 1080, 1081, 1086, 1087, 1092, 1094, 1097, 1116, 1118, 1119, 1120, 1121, 1122, 1123, 1127, 1129, 1134, 1137, 1139, 1141, 1142, 1147, 1152, 1153, 1158, 1159, 1161, 1169, 1172, 1173, 1174, 1175, 1182, 1184, 1185, 1186, 1188, 1190, 1191, 1192, 1193, 1194, 1197, 1198, 1199, 1203, 1204, 1205, 1206, 1208, 1210, 1211, 1212, 1213, 1216, 1217, 1218, 1219, 1220, 1221, 1225, 1227, 1231, 1240, 1245, 1246, 1247, 1250, 1256, 1257, 1259, 1260, 1261, 1264, 1266, 1267]
+  ablate: 状態側 464 次元 / 選択肢側 0 次元を 0 で潰した ['self_board_card_slot', 'self_discard_card_slot', 'opp_board_card_slot', 'opp_discard_card_slot']
+card_id_max=1267  embedding table size=1268 x 8
+train=77220 val=9468 test=9842 (全96530件)
+option特徴の標準化元行列 shape=(498471, 65)
+  ablate対策: 状態側 464 / 選択肢側 0 次元の std を 0 に修正(std<1e-6クリップの上書き。measurement-plan-2026-08-04.md §3.1)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.4614  val_nll=1.4460 (best=1.4460, no_improve=0)  val_top1=0.4648
+    [baseline] epoch   5  train_loss=1.4223  val_nll=1.4308 (best=1.4308, no_improve=0)  val_top1=0.4756
+    [baseline] epoch  10  train_loss=1.4194  val_nll=1.4278 (best=1.4270, no_improve=1)  val_top1=0.4756
+    [baseline] epoch  15  train_loss=1.4181  val_nll=1.4279 (best=1.4258, no_improve=1)  val_top1=0.4736
+    [baseline] epoch  20  train_loss=1.4182  val_nll=1.4246 (best=1.4246, no_improve=0)  val_top1=0.4778
+    [baseline] epoch  25  train_loss=1.4185  val_nll=1.4246 (best=1.4246, no_improve=5)  val_top1=0.4783
+    [baseline] epoch  30  train_loss=1.4189  val_nll=1.4247 (best=1.4239, no_improve=2)  val_top1=0.4788
+    [baseline] epoch  35  train_loss=1.4191  val_nll=1.4270 (best=1.4239, no_improve=7)  val_top1=0.4740
+    [baseline] epoch  40  train_loss=1.4181  val_nll=1.4245 (best=1.4236, no_improve=2)  val_top1=0.4796
+    [baseline] epoch  45  train_loss=1.4183  val_nll=1.4247 (best=1.4234, no_improve=1)  val_top1=0.4797
+    [baseline] epoch  50  train_loss=1.4184  val_nll=1.4256 (best=1.4234, no_improve=6)  val_top1=0.4761
+    [baseline] 早期終了: epoch 54(val_nll が 10 epoch 改善せず)
+  学習完了 (405.9s)
+  val : top1=0.4773  nll=1.4234
+  test: top1=0.4605  nll=1.4488
+
+=== 本命: MLP(PolicyScorer(T1), embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.2134  val_nll=1.1640 (best=1.1640, no_improve=0)  val_top1=0.5746
+    [main] epoch   5  train_loss=1.0103  val_nll=1.0958 (best=1.0937, no_improve=1)  val_top1=0.5931
+    [main] epoch  10  train_loss=0.9536  val_nll=1.0906 (best=1.0873, no_improve=2)  val_top1=0.6013
+    [main] epoch  15  train_loss=0.9235  val_nll=1.0999 (best=1.0849, no_improve=4)  val_top1=0.6032
+    [main] epoch  20  train_loss=0.9045  val_nll=1.0969 (best=1.0849, no_improve=9)  val_top1=0.6007
+    [main] 早期終了: epoch 21(val_nll が 10 epoch 改善せず)
+  学習完了 (231.2s, 21 epochs)
+  train: top1=0.6341  nll=0.9186
+  val  : top1=0.5996  nll=1.0849
+  test : top1=0.5861  nll=1.1171
+  train-val gap: top1=+0.0345  nll=+0.1663(overfitting指標)
+  param_counts: {'fc1': 25248, 'fc2': 33, 'embedding': 10144, 'mlp': 25281, 'total': 35425}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.4773  nll=1.4234
+  本命(state ++ option ++ embed): top1=0.5996  nll=1.0849
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  7251  top1=0.5423  nll=1.1991
+  select_type= 1  n=  2348  top1=0.6870  nll=0.9513
+  select_type= 4  n=    98  top1=0.7959  nll=0.6654
+  select_type= 8  n=    44  top1=1.0000  nll=0.0479
+  select_type= 9  n=   101  top1=1.0000  nll=0.0002
+
+重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_crustle_v715b_s42.json (788.0 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=3.55271368e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.4605 nll=1.4488
+  本命(state ++ option ++ embed) test: top1=0.5861 nll=1.1171
+  自己検証: 最大誤差=3.55271368e-15 -> PASS
+  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_crustle_v715b_s42.json
+  offline指標を書き出しました: archetype_runs\crustle_v715b_s42_metrics.json

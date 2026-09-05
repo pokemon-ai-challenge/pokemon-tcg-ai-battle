@@ -12,6 +12,15 @@
   - split = split_for_episode(row["episode_id"])  (value_net/build_features.py と同じ md5 式)
   - weight = weight_for_rank(row["rank_at_fetch"])  (value_net と同じ rank_bucket テーブル)
 
+2026-08-12(requirements-kamitsuorochi-2026-08-12.md「What to build」2): row["chosen_indices"]
+(複数選択の場合は2件以上、単一選択なら1件)を選択肢と同じ n_options 長の bool 配列
+``chosen_mask``(選ばれた位置が True)へ変換して持ち回す。option_features/option_card_ids と
+同じ ragged 規約(dtype=object の配列、各要素が長さ n_options の numpy 配列)に揃える
+(新しい規約を作らない)。既存の ``chosen_index``(単一 int のスカラー配列)は後方互換のため
+そのまま残す(evaluate.py 等の既存読み手はこれを読む。複数選択行では選ばれた集合の先頭要素)。
+row["chosen_indices"] が無い旧形式の jsonl(2026-08-12より前に作った他アーキタイプの
+policy_positions_*.jsonl.gz)は [row["chosen_index"]] とみなして後方互換に処理する。
+
 card_id_max は ``cg.api.all_card_data()`` から動的に計算し(ハードコードしない。デッキ・
 カードデータが変わっても再学習だけで使い回せるという policy_model.py 側の設計要件)、
 features.npz にスカラーとして保存する。card_embedding テーブルのサイズ(card_id_max + 1)を
@@ -53,6 +62,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import random
 import sys
 import time
 from pathlib import Path
@@ -74,8 +84,13 @@ sys.path.insert(0, str(_HERE.parent / "deck_predictor"))
 from cg.api import all_card_data, to_observation_class  # noqa: E402
 from ptcg_ai.learning.encoder import (  # noqa: E402
     BASE_FEATURE_COUNT,
+    BOARD_SLOTS,
     CONSEQUENCE_FEATURE_COUNT,
+    HAND_CARD_SLOTS,
+    OPP_CARD_SLOTS,
     OPTION_FEATURE_COUNT,
+    POOL8_ARCHETYPES,
+    encode_board_card_ids,
     encode_option_card_ids,
     encode_option_consequence_features,
     encode_options,
@@ -116,6 +131,103 @@ def split_for_episode(episode_id: str) -> int:
     if h < 90:
         return 1
     return 2
+
+
+def _read_deck_csv_ids(path: Path) -> list[int]:
+    """1つのデッキCSV(改行区切り、read_deck_csv() と同じ形式)から card_id のリストを読む。"""
+    with path.open(encoding="utf-8") as fh:
+        return [int(v) for v in fh.read().split("\n") if v.strip()]
+
+
+def build_hand_card_vocab(deck_csv_arg: str) -> list[int]:
+    """``--deck-csv`` の値(ファイル or ディレクトリ)から手札 card_id 語彙(昇順)を作る。
+
+    ファイルならそのファイルの card_id、ディレクトリなら配下の全 ``*.csv`` の card_id の
+    和集合を使う(アーキタイプ内の deck variant 違いのテックカードを漏らさないため。
+    build_features.py の --deck-csv ヘルプ参照)。
+    """
+    path = Path(deck_csv_arg)
+    if path.is_dir():
+        csv_paths = sorted(path.glob("*.csv"))
+        if not csv_paths:
+            raise ValueError(f"--deck-csv にディレクトリを指定しましたが *.csv がありません: {path}")
+        ids: set[int] = set()
+        for csv_path in csv_paths:
+            ids.update(_read_deck_csv_ids(csv_path))
+        print(
+            f"hand_card_vocab: ディレクトリ {path} 配下の {len(csv_paths)} 個のCSVの和集合から作成 "
+            f"({[p.name for p in csv_paths]})",
+            file=sys.stderr,
+        )
+    else:
+        ids = set(_read_deck_csv_ids(path))
+    return sorted(ids)
+
+
+def build_opponent_card_vocab(archetype_decks_root: str) -> list[int]:
+    """T1残り(design-transformer-representation-2026-08-08.md §9論点11): 相手の場・
+    トラッシュ card_id カウント特徴に使う語彙(昇順)を、POOL8(encoder.POOL8_ARCHETYPES)
+    全アーキタイプの代表デッキの和集合から作る。
+
+    自分の手札語彙(build_hand_card_vocab)と異なり「使用中のデッキ」ではなく「相手として
+    出現しうるメタ8アーキタイプ全部」から作る点が違う。``archetype_decks_root`` 配下に
+    POOL8 の各アーキタイプ名のディレクトリがあることを前提とする
+    (kaggle_replays/meta_analysis/archetype_decks/ の構造)。アーキタイプディレクトリが
+    見つからない場合は警告のみで処理は続行する(見つかった分だけで語彙を作る)。
+    """
+    root = Path(archetype_decks_root)
+    ids: set[int] = set()
+    missing: list[str] = []
+    for arch in POOL8_ARCHETYPES:
+        arch_dir = root / arch
+        if not arch_dir.is_dir():
+            missing.append(arch)
+            continue
+        csv_paths = sorted(arch_dir.glob("*.csv"))
+        for csv_path in csv_paths:
+            ids.update(_read_deck_csv_ids(csv_path))
+    if missing:
+        print(
+            f"[build_opponent_card_vocab] 警告: 見つからないアーキタイプディレクトリ: {missing}"
+            f"(root={root})。見つかった分だけで語彙を作ります。",
+            file=sys.stderr,
+        )
+    return sorted(ids)
+
+
+def build_card_id_permutation(seed: int) -> dict[int, int]:
+    """Negative Control(design-transformer-representation-2026-08-08.md §4原則9・§8):
+    ゲーム全体の card_id 空間(``all_card_data()``)に対する固定のランダム全単射を返す。
+
+    ``--shuffle-card-ids`` 指定時、盤面/選択肢の card_id(embedding 用、値そのものが
+    識別子として使われる)をこの写像で置換してから学習する。0("識別なし/範囲外"の
+    予約枠)は常に0に固定する(埋め込みテーブルの index 0 の意味を壊さないため)。
+
+    本物の card_id 版と比べて性能が変わらなければ、改善が card_id という情報そのものの
+    おかげではなく、次元が増えたこと自体の副作用である可能性を示唆する。
+    """
+    ids = sorted(c.cardId for c in all_card_data())
+    shuffled = list(ids)
+    random.Random(seed).shuffle(shuffled)
+    perm = dict(zip(ids, shuffled))
+    perm[0] = 0
+    return perm
+
+
+def shuffle_card_id_list(ids: list[int], seed: int) -> list[int]:
+    """Negative Control: カウント特徴の語彙(hand_card_vocab/opponent_card_vocab)の
+    **並び順**をシャッフルする(値そのものは変えない)。
+
+    語彙は「その語彙に含まれる card_id 全部が必ずどこかのスロットにカウントされる」
+    という閉じた集合なので、``build_card_id_permutation``(ゲーム全体1,267種に対する
+    全単射)をそのまま適用すると、語彙外の card_id にマップされてカウントが失われる
+    (情報が単に消えるだけで対照群として無意味になる)。そのため語彙は要素の**順序**だけを
+    シャッフルし、「どのスロットがどの card_id を指すか」の対応だけを壊す
+    (カウントされる/されないという情報量は保つ)。
+    """
+    shuffled = list(ids)
+    random.Random(seed).shuffle(shuffled)
+    return shuffled
 
 
 def weight_for_rank(rank_at_fetch: int | None) -> float:
@@ -208,6 +320,46 @@ def main() -> None:
         "除くと row_index の元ファイル対応は崩れる(このnpzはoutcome学習専用で evaluate.py の"
         "行突き合わせには使わないため許容)。",
     )
+    parser.add_argument(
+        "--deck-csv", default=None,
+        help="C2 第一段階(roadmap-2026-08-05.md): 自分の手札 card_id カウント特徴"
+        "(encoder.encode_state の hand_card_vocab)の語彙をここから作る(既定: 指定なし = "
+        "語彙なし、追加 HAND_CARD_SLOTS 次元は全て0で従来の出力と完全に同一)。"
+        "ファイルまたはディレクトリを受け付ける: "
+        "  - ファイル(改行区切り60行、read_deck_csv() と同じ形式。例: "
+        "archetype_decks/<arch>/01.csv)を渡すと、そのファイルの card_id だけを使う。"
+        "  - ディレクトリ(例: archetype_decks/<arch>/)を渡すと、配下の全 *.csv の card_id "
+        "の**和集合**を使う。同一アーキタイプでも player ごとにテックカード違いの variant が"
+        "あり、学習データ(policy_positions_*.jsonl.gz)には複数 variant のリプレイが"
+        "混ざっているため、**アーキタイプ単位で学習するならディレクトリを渡すことを推奨する**"
+        "(単一CSVだと他 variant だけが使うテックカードが語彙から漏れ、そのカードが手札に"
+        "あるときだけカウントが handCount と食い違う)。"
+        "学習データに出現した card_id からではなくデッキリストから語彙を作るのは、"
+        "たまたま学習データに出現しなかったカードが欠けて推論時とズレるのを避けるため。"
+        "異なる card_id を昇順に並べ、"
+        f"{HAND_CARD_SLOTS}種を超える場合は警告して先頭{HAND_CARD_SLOTS}種のみ使う"
+        "(encoder.HAND_CARD_SLOTS の固定長スロットに合わせる)。",
+    )
+    parser.add_argument(
+        "--opponent-vocab-dir", default=None,
+        help="T1残り(design-transformer-representation-2026-08-08.md §9論点11): 相手の場・"
+        "トラッシュ card_id カウント特徴(encoder.encode_state の opponent_card_vocab)の語彙を、"
+        "POOL8(encoder.POOL8_ARCHETYPES)全アーキタイプの代表デッキの和集合から作る。"
+        "kaggle_replays/meta_analysis/archetype_decks のようなディレクトリを指定する想定"
+        "(配下に POOL8 各アーキタイプ名のサブディレクトリがあること)。"
+        "既定は指定なし = 語彙なし、追加 OPP_CARD_SLOTS*2 次元は全て0で従来の出力と完全に同一。"
+        f"{OPP_CARD_SLOTS}種を超える場合は警告して先頭{OPP_CARD_SLOTS}種のみ使う。",
+    )
+    parser.add_argument(
+        "--shuffle-card-ids", type=int, default=None,
+        help="Negative Control(design-transformer-representation-2026-08-08.md §4原則9・§8): "
+        "指定した seed で card_id の意味を壊した対照群を作る。手札/場/トラッシュのカウント"
+        "特徴の語彙(hand_card_vocab/opponent_card_vocab)は要素の並び順を、盤面/選択肢の "
+        "card_id(embedding 用、board_card_ids/option_card_ids)は値そのものをゲーム全体の "
+        "card_id 空間に対する固定のランダム全単射で置換する。既定は None(シャッフルしない、"
+        "既存の挙動と完全に同一)。本物の card_id 版と比べて性能が変わらなければ、改善が "
+        "card_id という情報自体ではなく次元増加等の副作用による可能性を示唆する。",
+    )
     args = parser.parse_args()
     weight_fn = weight_for_rank_concentrated if args.weight_scheme == "concentrated" else weight_for_rank
 
@@ -217,6 +369,65 @@ def main() -> None:
 
     card_id_max = max(c.cardId for c in all_card_data())
     print(f"card_id_max = {card_id_max}(all_card_data() から動的に計算)", file=sys.stderr)
+
+    # C2 第一段階: 手札 card_id カウント特徴の語彙(--deck-csv 指定時のみ)。
+    hand_card_vocab: list[int] | None = None
+    if args.deck_csv:
+        hand_card_vocab = build_hand_card_vocab(args.deck_csv)
+        if len(hand_card_vocab) > HAND_CARD_SLOTS:
+            print(
+                f"警告: --deck-csv の異なる card_id 数({len(hand_card_vocab)})が "
+                f"HAND_CARD_SLOTS({HAND_CARD_SLOTS})を超えています。先頭 {HAND_CARD_SLOTS} 種"
+                "のみを語彙として使用します(encoder.HAND_CARD_SLOTS 参照)。",
+                file=sys.stderr,
+            )
+            hand_card_vocab = hand_card_vocab[:HAND_CARD_SLOTS]
+        print(
+            f"hand_card_vocab = {hand_card_vocab}(--deck-csv {args.deck_csv} から、"
+            f"{len(hand_card_vocab)}種)",
+            file=sys.stderr,
+        )
+
+    # T1残り: 相手の場・トラッシュ card_id カウント特徴の語彙(--opponent-vocab-dir 指定時のみ)。
+    opponent_card_vocab: list[int] | None = None
+    if args.opponent_vocab_dir:
+        opponent_card_vocab = build_opponent_card_vocab(args.opponent_vocab_dir)
+        if len(opponent_card_vocab) > OPP_CARD_SLOTS:
+            print(
+                f"警告: --opponent-vocab-dir の異なる card_id 数({len(opponent_card_vocab)})が "
+                f"OPP_CARD_SLOTS({OPP_CARD_SLOTS})を超えています。先頭 {OPP_CARD_SLOTS} 種"
+                "のみを語彙として使用します(encoder.OPP_CARD_SLOTS 参照)。",
+                file=sys.stderr,
+            )
+            opponent_card_vocab = opponent_card_vocab[:OPP_CARD_SLOTS]
+        print(
+            f"opponent_card_vocab = {opponent_card_vocab}(--opponent-vocab-dir "
+            f"{args.opponent_vocab_dir} から POOL8 の和集合、{len(opponent_card_vocab)}種)",
+            file=sys.stderr,
+        )
+
+    # Negative Control(design-transformer-representation-2026-08-08.md §4原則9・§8):
+    # --shuffle-card-ids 指定時、語彙は要素の並び順を、board/option の card_id は値そのものを
+    # 固定のランダム全単射で置換する(理由は各関数のdocstring参照)。
+    card_id_perm: dict[int, int] | None = None
+    if args.shuffle_card_ids is not None:
+        card_id_perm = build_card_id_permutation(args.shuffle_card_ids)
+        if hand_card_vocab:
+            hand_card_vocab = shuffle_card_id_list(hand_card_vocab, args.shuffle_card_ids)
+            print(f"[shuffle-card-ids] hand_card_vocab の並び順をシャッフル: {hand_card_vocab}", file=sys.stderr)
+        if opponent_card_vocab:
+            # hand と同じ seed で shuffle するとゾーン間で同じ並べ替えパターンが出て
+            # シャッフルの意味が薄まるため、seed をずらす(語彙が別空間なので混同はしない)。
+            opponent_card_vocab = shuffle_card_id_list(opponent_card_vocab, args.shuffle_card_ids + 1)
+            print(
+                f"[shuffle-card-ids] opponent_card_vocab の並び順をシャッフル: {opponent_card_vocab}",
+                file=sys.stderr,
+            )
+        print(
+            f"[shuffle-card-ids] seed={args.shuffle_card_ids}: board_card_ids/option_card_ids は "
+            "card_id 空間全体の固定ランダム置換で値そのものを変換します(Negative Control)。",
+            file=sys.stderr,
+        )
 
     outcome_map: dict[tuple[str, int], int] | None = None
     if args.with_outcome:
@@ -244,11 +455,14 @@ def main() -> None:
         )
 
     state_feature_rows: list[list[float]] = []
+    board_card_id_rows: list[list[int]] = []
     option_feature_rows: list[np.ndarray] = []
     option_card_id_rows: list[np.ndarray] = []
     consequence_feature_rows: list[np.ndarray] = []
     n_consequence_errors = 0
     chosen_index_rows: list[int] = []
+    chosen_mask_rows: list[np.ndarray] = []  # 2026-08-12: 複数選択対応、ragged bool配列(長さn_options)
+    n_multi_select_rows = 0
     split_rows: list[int] = []
     weight_rows: list[float] = []
     turn_rows: list[int] = []
@@ -300,9 +514,17 @@ def main() -> None:
             try:
                 obs_dict = {**row["observation"], "logs": []}
                 obs = to_observation_class(obs_dict)
-                state_feats = encode_state(obs)
+                state_feats = encode_state(
+                    obs, hand_card_vocab=hand_card_vocab, opponent_card_vocab=opponent_card_vocab,
+                )
+                board_card_ids = encode_board_card_ids(obs.current)
                 option_feats = encode_options(obs)
                 option_card_ids = encode_option_card_ids(obs.current, obs.select)
+                if card_id_perm is not None:
+                    # Negative Control: embedding に使う値そのものを固定置換で変換する
+                    # (0 = 識別なし/範囲外は perm[0] = 0 のまま変わらない)。
+                    board_card_ids = [card_id_perm.get(cid, cid) for cid in board_card_ids]
+                    option_card_ids = [card_id_perm.get(cid, cid) for cid in option_card_ids]
             except Exception as exc:  # noqa: BLE001 - fail-fast(row_index 対応関係を壊さない)
                 print(
                     f"エラー: encode 失敗(row_index={row_index}, "
@@ -316,6 +538,11 @@ def main() -> None:
                 raise ValueError(
                     f"state特徴ベクトル長不正(row_index={row_index}): "
                     f"{len(state_feats)} != {BASE_FEATURE_COUNT}"
+                )
+            if len(board_card_ids) != BOARD_SLOTS:
+                raise ValueError(
+                    f"board_card_ids長不正(row_index={row_index}): "
+                    f"{len(board_card_ids)} != {BOARD_SLOTS}"
                 )
             n_options = row["n_options"]
             if len(option_feats) != n_options:
@@ -341,6 +568,22 @@ def main() -> None:
                     f"chosen_index が範囲外(row_index={row_index}): "
                     f"{chosen_index} not in [0, {n_options})"
                 )
+
+            # 2026-08-12: 複数選択対応。chosen_indices が無い旧形式の行は [chosen_index] とみなす。
+            raw_chosen_indices = row.get("chosen_indices", [chosen_index])
+            chosen_indices_this_row = [int(v) for v in raw_chosen_indices]
+            if not chosen_indices_this_row:
+                raise ValueError(f"chosen_indices が空(row_index={row_index})")
+            if len(set(chosen_indices_this_row)) != len(chosen_indices_this_row):
+                raise ValueError(f"chosen_indices に重複があります(row_index={row_index}): {chosen_indices_this_row}")
+            for idx in chosen_indices_this_row:
+                if not (0 <= idx < n_options):
+                    raise ValueError(
+                        f"chosen_indices の要素が範囲外(row_index={row_index}): "
+                        f"{idx} not in [0, {n_options}) (chosen_indices={chosen_indices_this_row})"
+                    )
+            chosen_mask_row = np.zeros(n_options, dtype=bool)
+            chosen_mask_row[chosen_indices_this_row] = True
 
             # Phase1(案C): 勝敗ラベル。行の player_index(= obs.current.yourIndex、決定者)で引く。
             # --drop-unknown-outcome 時は引けない行を早期スキップ(consequence 追加より前で行い、
@@ -378,9 +621,13 @@ def main() -> None:
             episode_id = str(row["episode_id"])
 
             state_feature_rows.append(state_feats)
+            board_card_id_rows.append(board_card_ids)
             option_feature_rows.append(np.asarray(option_feats, dtype=np.float32))
             option_card_id_rows.append(np.asarray(option_card_ids, dtype=np.int32))
             chosen_index_rows.append(chosen_index)
+            chosen_mask_rows.append(chosen_mask_row)
+            if len(chosen_indices_this_row) > 1:
+                n_multi_select_rows += 1
             split_rows.append(split_for_episode(episode_id))
             weight_rows.append(weight_fn(rank_at_fetch))
             turn_rows.append(int(row.get("turn", -1)))
@@ -404,6 +651,9 @@ def main() -> None:
     print(f"完了: 採用 {n_total} 件(経過 {elapsed:.1f}s)", file=sys.stderr)
 
     state_features = np.asarray(state_feature_rows, dtype=np.float32)
+    # T2(design-transformer-representation-2026-08-08.md §5.2): 盤面12スロットの card_id 列。
+    # 選択肢と違って固定長(BOARD_SLOTS)なので ragged にならず、通常のint配列でよい。
+    board_card_ids_arr = np.asarray(board_card_id_rows, dtype=np.int32)
     # ragged なので object 配列(dtype=object)にする。読み込み側は allow_pickle=True が必要。
     option_features = np.empty(n_total, dtype=object)
     for i, arr in enumerate(option_feature_rows):
@@ -412,6 +662,11 @@ def main() -> None:
     for i, arr in enumerate(option_card_id_rows):
         option_card_ids_arr[i] = arr
     chosen_index = np.asarray(chosen_index_rows, dtype=np.int32)
+    # 2026-08-12: chosen_mask も option_features/option_card_ids と同じ ragged 規約(dtype=object、
+    # 各要素が長さ n_options の numpy 配列)。train.py の多正解listwise損失はこれを直接使う。
+    chosen_mask_arr = np.empty(n_total, dtype=object)
+    for i, arr in enumerate(chosen_mask_rows):
+        chosen_mask_arr[i] = arr
     split = np.asarray(split_rows, dtype=np.int8)
     weight = np.asarray(weight_rows, dtype=np.float32)
     turn = np.asarray(turn_rows, dtype=np.int32)
@@ -421,9 +676,15 @@ def main() -> None:
     row_index = np.asarray(row_index_rows, dtype=np.int32)  # 元ファイルでの0-indexed行番号(rank-maxフィルタ時はarangeと異なる)
 
     print(f"state_features shape={state_features.shape} dtype={state_features.dtype}", file=sys.stderr)
+    print(f"board_card_ids shape={board_card_ids_arr.shape} dtype={board_card_ids_arr.dtype}", file=sys.stderr)
     print(
         f"split 内訳: train={int((split == 0).sum())} "
         f"val={int((split == 1).sum())} test={int((split == 2).sum())}",
+        file=sys.stderr,
+    )
+    print(
+        f"複数選択(chosen_indices>=2件)行: {n_multi_select_rows}/{n_total} "
+        f"({n_multi_select_rows / max(n_total, 1) * 100:.2f}%)",
         file=sys.stderr,
     )
 
@@ -447,13 +708,21 @@ def main() -> None:
             file=sys.stderr,
         )
 
+    # hand_card_vocab は train.py が重みJSONの meta.hand_card_vocab へそのまま書き出す
+    # (C2 第一段階)。--deck-csv 未指定時は空配列(train.py 側は「語彙なし」として扱う)。
+    extra_arrays["hand_card_vocab"] = np.asarray(hand_card_vocab or [], dtype=np.int32)
+    # opponent_card_vocab も同様(T1残り)。--opponent-vocab-dir 未指定時は空配列。
+    extra_arrays["opponent_card_vocab"] = np.asarray(opponent_card_vocab or [], dtype=np.int32)
+
     np.savez_compressed(
         out_path,
         state_features=state_features,
+        board_card_ids=board_card_ids_arr,
         option_features=option_features,
         option_card_ids=option_card_ids_arr,
         card_id_max=np.array(card_id_max),
         chosen_index=chosen_index,
+        chosen_mask=chosen_mask_arr,
         split=split,
         weight=weight,
         turn=turn,
@@ -466,9 +735,11 @@ def main() -> None:
     size_mb = out_path.stat().st_size / 1e6
     print(f"書き出し完了: {out_path} ({size_mb:.1f} MB)", file=sys.stderr)
     print(
-        "注意: option_features/option_card_ids は object 配列(ragged)。読み込みは "
+        "注意: option_features/option_card_ids/chosen_mask は object 配列(ragged、各行 "
+        "shape=(n_options,) または (n_options, OPTION_FEATURE_COUNT))。読み込みは "
         "np.load(path, allow_pickle=True) を使うこと。card_id_max はスカラー"
-        "(data['card_id_max'].item() で取り出す)。",
+        "(data['card_id_max'].item() で取り出す)。chosen_index(単一int)は複数選択行では "
+        "選ばれた集合の先頭要素、選ばれた全集合は chosen_mask(bool、True=選択された)を使うこと。",
         file=sys.stderr,
     )
     if args.with_consequence_features:

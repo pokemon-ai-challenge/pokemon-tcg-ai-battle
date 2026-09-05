@@ -1,0 +1,53 @@
+{
+  "features_path": "features_v251.npz",
+  "out_weights_path": "value_weights_v251.json",
+  "n_train": 1012321,
+  "n_val": 129235,
+  "n_test": 131860,
+  "logreg_val_metrics": {
+    "auc": 0.7524838472712324,
+    "logloss": 0.5803775292346313
+  },
+  "mlp_val_metrics": {
+    "auc": 0.7892734282355428,
+    "logloss": 0.5458793484169889
+  },
+  "mlp_test_metrics": {
+    "auc": 0.8066546500372949,
+    "logloss": 0.5240492385698978
+  },
+  "calibration_buckets": [
+    {
+      "band": "1-2",
+      "min_turn": 1,
+      "max_turn": 2,
+      "temperature": 2.6498696885276685
+    },
+    {
+      "band": "3-5",
+      "min_turn": 3,
+      "max_turn": 5,
+      "temperature": 1.4303489840258778
+    },
+    {
+      "band": "6-10",
+      "min_turn": 6,
+      "max_turn": 10,
+      "temperature": 1.2037453261576698
+    },
+    {
+      "band": "11+",
+      "min_turn": 11,
+      "max_turn": null,
+      "temperature": 1.1825774149429757
+    },
+    {
+      "band": "unknown",
+      "min_turn": null,
+      "max_turn": null,
+      "temperature": 1.0
+    }
+  ],
+  "self_check_max_abs_err": 2.3260616544007462e-07,
+  "self_check_pass": true
+}

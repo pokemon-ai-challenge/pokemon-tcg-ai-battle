@@ -1,0 +1,353 @@
+{
+  "args": {
+    "models": "BC=policy_weights.json,CONFIG_C=policy_weights_configC.json,CONFIG_A=policy_weights_configA.json,CONFIG_B=policy_weights_configB.json,SPEC_alakazam=policy_weights_alakazam_pool_armA_fixed.json",
+    "learner_deck": "alakazam",
+    "opponents": "alakazam,crustle,marnie_grimmsnarl_ex,archaludon_ex",
+    "games_per_cell": 400,
+    "workers": 8,
+    "seed0": 800000,
+    "routing": "alakazam=CONFIG_C,crustle=CONFIG_C,marnie_grimmsnarl_ex=CONFIG_C,archaludon_ex=CONFIG_C",
+    "out_prefix": "eval_matrix_skillconc"
+  },
+  "models": [
+    "BC",
+    "CONFIG_C",
+    "CONFIG_A",
+    "CONFIG_B",
+    "SPEC_alakazam"
+  ],
+  "opponents": [
+    "alakazam",
+    "crustle",
+    "marnie_grimmsnarl_ex",
+    "archaludon_ex"
+  ],
+  "routing": {
+    "alakazam": "CONFIG_C",
+    "crustle": "CONFIG_C",
+    "marnie_grimmsnarl_ex": "CONFIG_C",
+    "archaludon_ex": "CONFIG_C"
+  },
+  "matrix": {
+    "BC": {
+      "alakazam": {
+        "wins": 195,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.4875,
+        "ci95": [
+          0.4388676214712341,
+          0.5363701945437579
+        ],
+        "seed0": 800000
+      },
+      "crustle": {
+        "wins": 97,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.2425,
+        "ci95": [
+          0.2030757339434459,
+          0.28682327596538965
+        ],
+        "seed0": 1000000
+      },
+      "marnie_grimmsnarl_ex": {
+        "wins": 97,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.2425,
+        "ci95": [
+          0.2030757339434459,
+          0.28682327596538965
+        ],
+        "seed0": 1200000
+      },
+      "archaludon_ex": {
+        "wins": 250,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.625,
+        "ci95": [
+          0.576578102393425,
+          0.6710437374566548
+        ],
+        "seed0": 1400000
+      }
+    },
+    "CONFIG_C": {
+      "alakazam": {
+        "wins": 200,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.5,
+        "ci95": [
+          0.4512336165999552,
+          0.5487663834000448
+        ],
+        "seed0": 1600000
+      },
+      "crustle": {
+        "wins": 102,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.255,
+        "ci95": [
+          0.21475600851610618,
+          0.29990518537773736
+        ],
+        "seed0": 1800000
+      },
+      "marnie_grimmsnarl_ex": {
+        "wins": 98,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.245,
+        "ci95": [
+          0.2054080505388416,
+          0.2894433961669956
+        ],
+        "seed0": 2000000
+      },
+      "archaludon_ex": {
+        "wins": 269,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.6725,
+        "ci95": [
+          0.6250574069613036,
+          0.7166607320318066
+        ],
+        "seed0": 2200000
+      }
+    },
+    "CONFIG_A": {
+      "alakazam": {
+        "wins": 78,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.195,
+        "ci95": [
+          0.15915003771249597,
+          0.23665267305330928
+        ],
+        "seed0": 2400000
+      },
+      "crustle": {
+        "wins": 56,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.14,
+        "ci95": [
+          0.10940912065943277,
+          0.17743998057233734
+        ],
+        "seed0": 2600000
+      },
+      "marnie_grimmsnarl_ex": {
+        "wins": 20,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.05,
+        "ci95": [
+          0.0325971756266401,
+          0.0759642009130725
+        ],
+        "seed0": 2800000
+      },
+      "archaludon_ex": {
+        "wins": 50,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.125,
+        "ci95": [
+          0.09611465529837437,
+          0.16101982515138613
+        ],
+        "seed0": 3000000
+      }
+    },
+    "CONFIG_B": {
+      "alakazam": {
+        "wins": 168,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.42,
+        "ci95": [
+          0.3726168694631035,
+          0.46890515303284536
+        ],
+        "seed0": 3200000
+      },
+      "crustle": {
+        "wins": 66,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.165,
+        "ci95": [
+          0.13184448183586026,
+          0.20452898736592584
+        ],
+        "seed0": 3400000
+      },
+      "marnie_grimmsnarl_ex": {
+        "wins": 73,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.1825,
+        "ci95": [
+          0.14772676508161553,
+          0.2233137616991817
+        ],
+        "seed0": 3600000
+      },
+      "archaludon_ex": {
+        "wins": 186,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.465,
+        "ci95": [
+          0.4166850440507483,
+          0.5139808407912294
+        ],
+        "seed0": 3800000
+      }
+    },
+    "SPEC_alakazam": {
+      "alakazam": {
+        "wins": 283,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.7075,
+        "ci95": [
+          0.6611135422327317,
+          0.7499387119184009
+        ],
+        "seed0": 4000000
+      },
+      "crustle": {
+        "wins": 124,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.31,
+        "ci95": [
+          0.26666296102378073,
+          0.3569518424040979
+        ],
+        "seed0": 4200000
+      },
+      "marnie_grimmsnarl_ex": {
+        "wins": 169,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.4225,
+        "ci95": [
+          0.375054573432128,
+          0.4714198858608225
+        ],
+        "seed0": 4400000
+      },
+      "archaludon_ex": {
+        "wins": 281,
+        "valid": 400,
+        "games": 400,
+        "errors": 0,
+        "winrate": 0.7025,
+        "ci95": [
+          0.6559441809772918,
+          0.7452031995798376
+        ],
+        "seed0": 4600000
+      }
+    }
+  },
+  "pool_avg_equal_weight": {
+    "BC": 0.399375,
+    "CONFIG_C": 0.41812499999999997,
+    "CONFIG_A": 0.1275,
+    "CONFIG_B": 0.308125,
+    "SPEC_alakazam": 0.535625
+  },
+  "oracle_routing": {
+    "per_opponent_winrate": {
+      "alakazam": 0.5,
+      "crustle": 0.255,
+      "marnie_grimmsnarl_ex": 0.245,
+      "archaludon_ex": 0.6725
+    },
+    "equal_weight_avg": 0.41812499999999997,
+    "pooled_wins": 669,
+    "pooled_valid": 1600,
+    "pooled_winrate": 0.418125,
+    "pooled_ci95": [
+      0.39417998174791163,
+      0.4424622402770065
+    ]
+  },
+  "degradation": {
+    "alakazam": {
+      "specialist": "CONFIG_C",
+      "own_opponent": "alakazam",
+      "own_winrate": 0.5,
+      "off_target_avg_winrate": 0.3908333333333333,
+      "own_minus_off_target": 0.10916666666666669,
+      "bc_own_winrate": 0.4875,
+      "bc_off_target_avg_winrate": 0.36999999999999994,
+      "specialist_minus_bc_own": 0.012500000000000011,
+      "specialist_minus_bc_off_target": 0.02083333333333337
+    },
+    "crustle": {
+      "specialist": "CONFIG_C",
+      "own_opponent": "crustle",
+      "own_winrate": 0.255,
+      "off_target_avg_winrate": 0.4725,
+      "own_minus_off_target": -0.21749999999999997,
+      "bc_own_winrate": 0.2425,
+      "bc_off_target_avg_winrate": 0.45166666666666666,
+      "specialist_minus_bc_own": 0.012500000000000011,
+      "specialist_minus_bc_off_target": 0.020833333333333315
+    },
+    "marnie_grimmsnarl_ex": {
+      "specialist": "CONFIG_C",
+      "own_opponent": "marnie_grimmsnarl_ex",
+      "own_winrate": 0.245,
+      "off_target_avg_winrate": 0.47583333333333333,
+      "own_minus_off_target": -0.23083333333333333,
+      "bc_own_winrate": 0.2425,
+      "bc_off_target_avg_winrate": 0.45166666666666666,
+      "specialist_minus_bc_own": 0.0025000000000000022,
+      "specialist_minus_bc_off_target": 0.02416666666666667
+    },
+    "archaludon_ex": {
+      "specialist": "CONFIG_C",
+      "own_opponent": "archaludon_ex",
+      "own_winrate": 0.6725,
+      "off_target_avg_winrate": 0.3333333333333333,
+      "own_minus_off_target": 0.33916666666666667,
+      "bc_own_winrate": 0.625,
+      "bc_off_target_avg_winrate": 0.32416666666666666,
+      "specialist_minus_bc_own": 0.04749999999999999,
+      "specialist_minus_bc_off_target": 0.009166666666666656
+    }
+  },
+  "elapsed_sec": 1981.25927400589
+}

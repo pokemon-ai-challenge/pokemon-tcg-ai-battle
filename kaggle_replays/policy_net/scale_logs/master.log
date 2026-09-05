@@ -1,0 +1,92 @@
+[2026-08-06 09:11:34] === Stage A: subsample_episodes.py ===
+[2026-08-06 09:11:34] subsample start: frac=0.125 seed=1
+[2026-08-06 09:13:27] subsample done: frac=0.125 seed=1
+[2026-08-06 09:13:27] subsample start: frac=0.125 seed=2
+[2026-08-06 09:15:14] subsample done: frac=0.125 seed=2
+[2026-08-06 09:15:14] subsample start: frac=0.25 seed=42
+[2026-08-06 09:17:10] subsample done: frac=0.25 seed=42
+[2026-08-06 09:17:10] subsample start: frac=0.25 seed=1
+[2026-08-06 09:19:05] subsample done: frac=0.25 seed=1
+[2026-08-06 09:19:05] subsample start: frac=0.25 seed=2
+[2026-08-06 09:21:00] subsample done: frac=0.25 seed=2
+[2026-08-06 09:21:00] subsample start: frac=0.5 seed=42
+[2026-08-06 09:23:14] subsample done: frac=0.5 seed=42
+[2026-08-06 09:23:14] subsample start: frac=0.5 seed=1
+[2026-08-06 09:25:27] subsample done: frac=0.5 seed=1
+[2026-08-06 09:25:27] subsample start: frac=0.5 seed=2
+[2026-08-06 09:27:38] subsample done: frac=0.5 seed=2
+[2026-08-06 09:27:38] === Stage B: build_features.py ===
+[2026-08-06 09:27:38] build_features start: frac=0.125 seed=1
+[2026-08-06 09:28:58] build_features done: frac=0.125 seed=1
+[2026-08-06 09:28:58] build_features start: frac=0.125 seed=2
+[2026-08-06 09:30:16] build_features done: frac=0.125 seed=2
+[2026-08-06 09:30:16] build_features start: frac=0.25 seed=42
+[2026-08-06 09:32:17] build_features done: frac=0.25 seed=42
+[2026-08-06 09:32:17] build_features start: frac=0.25 seed=1
+[2026-08-06 09:34:15] build_features done: frac=0.25 seed=1
+[2026-08-06 09:34:15] build_features start: frac=0.25 seed=2
+[2026-08-06 09:36:15] build_features done: frac=0.25 seed=2
+[2026-08-06 09:36:15] build_features start: frac=0.5 seed=42
+[2026-08-06 09:39:36] build_features done: frac=0.5 seed=42
+[2026-08-06 09:39:36] build_features start: frac=0.5 seed=1
+[2026-08-06 09:42:57] build_features done: frac=0.5 seed=1
+[2026-08-06 09:42:57] build_features start: frac=0.5 seed=2
+[2026-08-06 09:46:19] build_features done: frac=0.5 seed=2
+[2026-08-06 09:46:19] === Stage C: train.py ===
+[2026-08-06 09:46:19] train start: frac=0.125 seed=1 feat=scale_features/features_scale_f0.125_s1.npz
+[2026-08-06 09:54:03] train done: frac=0.125 seed=1
+[2026-08-06 09:54:03] removed intermediate npz: frac=0.125 seed=1
+[2026-08-06 09:54:03] train start: frac=0.125 seed=2 feat=scale_features/features_scale_f0.125_s2.npz
+[2026-08-06 10:00:54] train done: frac=0.125 seed=2
+[2026-08-06 10:00:54] removed intermediate npz: frac=0.125 seed=2
+[2026-08-06 10:00:54] train start: frac=0.25 seed=42 feat=scale_features/features_scale_f0.25_s42.npz
+[2026-08-06 10:14:23] train done: frac=0.25 seed=42
+[2026-08-06 10:14:23] removed intermediate npz: frac=0.25 seed=42
+[2026-08-06 10:14:23] train start: frac=0.25 seed=1 feat=scale_features/features_scale_f0.25_s1.npz
+[2026-08-06 10:27:16] train done: frac=0.25 seed=1
+[2026-08-06 10:27:16] removed intermediate npz: frac=0.25 seed=1
+[2026-08-06 10:27:16] train start: frac=0.25 seed=2 feat=scale_features/features_scale_f0.25_s2.npz
+[2026-08-06 10:47:55] train done: frac=0.25 seed=2
+[2026-08-06 10:47:55] removed intermediate npz: frac=0.25 seed=2
+[2026-08-06 10:47:55] train start: frac=0.5 seed=42 feat=scale_features/features_scale_f0.5_s42.npz
+[2026-08-06 11:43:58] train done: frac=0.5 seed=42
+[2026-08-06 11:43:58] removed intermediate npz: frac=0.5 seed=42
+[2026-08-06 11:43:58] train start: frac=0.5 seed=1 feat=scale_features/features_scale_f0.5_s1.npz
+[2026-08-06 12:31:48] train done: frac=0.5 seed=1
+[2026-08-06 12:31:48] removed intermediate npz: frac=0.5 seed=1
+[2026-08-06 12:31:48] train start: frac=0.5 seed=2 feat=scale_features/features_scale_f0.5_s2.npz
+[2026-08-06 13:37:34] train done: frac=0.5 seed=2
+[2026-08-06 13:37:34] removed intermediate npz: frac=0.5 seed=2
+[2026-08-06 13:37:34] train start: frac=1.0 seed=42 feat=/c/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
+[2026-08-06 16:11:45] train done: frac=1.0 seed=42
+[2026-08-06 16:11:45] train start: frac=1.0 seed=1 feat=/c/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
+[2026-08-06 18:45:15] train done: frac=1.0 seed=1
+[2026-08-06 18:45:15] train start: frac=1.0 seed=2 feat=/c/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
+[2026-08-06 20:16:52] train done: frac=1.0 seed=2
+[2026-08-06 20:16:52] === ALL TRAINING DONE ===
+[2026-08-06 20:16:52] === Stage D: eval_diagnostics.py (POOL8, 1600 games each) ===
+[2026-08-06 20:16:52] eval start: frac=0.125 seed=42
+[2026-08-06 20:22:16] eval done: frac=0.125 seed=42
+[2026-08-06 20:22:16] eval start: frac=0.125 seed=1
+[2026-08-06 20:27:51] eval done: frac=0.125 seed=1
+[2026-08-06 20:27:51] eval start: frac=0.125 seed=2
+[2026-08-06 20:33:26] eval done: frac=0.125 seed=2
+[2026-08-06 20:33:26] eval start: frac=0.25 seed=42
+[2026-08-06 20:38:49] eval done: frac=0.25 seed=42
+[2026-08-06 20:38:50] eval start: frac=0.25 seed=1
+[2026-08-06 20:44:20] eval done: frac=0.25 seed=1
+[2026-08-06 20:44:20] eval start: frac=0.25 seed=2
+[2026-08-06 20:50:01] eval done: frac=0.25 seed=2
+[2026-08-06 20:50:01] eval start: frac=0.5 seed=42
+[2026-08-06 20:55:26] eval done: frac=0.5 seed=42
+[2026-08-06 20:55:26] eval start: frac=0.5 seed=1
+[2026-08-06 21:00:48] eval done: frac=0.5 seed=1
+[2026-08-06 21:00:48] eval start: frac=0.5 seed=2
+[2026-08-06 21:06:16] eval done: frac=0.5 seed=2
+[2026-08-06 21:06:16] eval start: frac=1.0 seed=42
+[2026-08-06 21:11:32] eval done: frac=1.0 seed=42
+[2026-08-06 21:11:32] eval start: frac=1.0 seed=1
+[2026-08-06 21:17:00] eval done: frac=1.0 seed=1
+[2026-08-06 21:17:00] eval start: frac=1.0 seed=2
+[2026-08-06 21:25:02] eval done: frac=1.0 seed=2
+[2026-08-06 21:25:02] === PIPELINE ALL DONE ===

@@ -1,0 +1,15 @@
+[progress] 50/100 games done (A win rate so far: 0.100 over 50 valid games, errors: 0, elapsed: 1124.8s)
+[progress] 100/100 games done (A win rate so far: 0.120 over 100 valid games, errors: 0, elapsed: 2101.6s)
+=== league result: ml_policy (A) vs ml_policy (B) ===
+games requested/run: 100/100
+elapsed: 2101.6s (workers: 1)
+
+overall: A 12/100 = 0.120 (95% CI [0.070, 0.198])
+avg turns: 19.5, avg steps: 124.1
+
+A as player0 (êÊéË): 10/50 = 0.200 (95% CI [0.112, 0.330])
+A as player1 (å„éË): 2/50 = 0.040 (95% CI [0.011, 0.135])
+
+errors: 0 (0.0%)
+
+result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\league\results\matchup\vs_crustle.json

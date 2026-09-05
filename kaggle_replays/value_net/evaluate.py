@@ -12,6 +12,8 @@
 
 実行:
     PYTHONIOENCODING=utf-8 python kaggle_replays/value_net/evaluate.py
+    python kaggle_replays/value_net/evaluate.py --features <features.npz> --weights <value_weights.json> \
+        --out <evaluate_results.json>
 
 このスクリプトはオフライン評価専用(提出物ではない)。numpy/sklearn を使ってよい。
 値ネットの本番推論経路(ValueModel)が features.npz の X を素通しした結果と一致することを
@@ -20,6 +22,7 @@
 
 from __future__ import annotations
 
+import argparse
 import gzip
 import json
 import math
@@ -40,8 +43,9 @@ if str(_SAMPLE_SUBMISSION) not in sys.path:
 
 from ptcg_ai.learning.value_model import ValueModel, _turn_band_of  # noqa: E402
 
-_FEATURES = _HERE / "features.npz"
-_WEIGHTS = _SAMPLE_SUBMISSION / "ptcg_ai" / "learning" / "value_weights.json"
+_DEFAULT_FEATURES = _HERE / "features.npz"
+_DEFAULT_WEIGHTS = _SAMPLE_SUBMISSION / "ptcg_ai" / "learning" / "value_weights.json"
+_DEFAULT_OUT = _HERE / "evaluate_results.json"
 _DECK_LABELS = _REPO_ROOT / "kaggle_replays" / "deck_predictor" / "output" / "deck_labels.jsonl"
 
 _TRAIN, _VAL, _TEST = 0, 1, 2
@@ -58,8 +62,8 @@ _CLIP = 1e-12
 # ---------------------------------------------------------------------------
 # 値ネットのベクトル化フォワード(numpy)。ValueModel と数値一致することをスポットチェックで担保。
 # ---------------------------------------------------------------------------
-def load_weights() -> dict:
-    with _WEIGHTS.open("r", encoding="utf-8") as fh:
+def load_weights(weights_path: Path) -> dict:
+    with weights_path.open("r", encoding="utf-8") as fh:
         return json.load(fh)
 
 
@@ -144,8 +148,18 @@ def build_matchup_arrays(episode_id, player_index, labels):
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--features", default=str(_DEFAULT_FEATURES), help="入力 features.npz")
+    parser.add_argument("--weights", default=str(_DEFAULT_WEIGHTS), help="評価する value_weights.json")
+    parser.add_argument("--out", default=str(_DEFAULT_OUT), help="評価結果JSONの書き出し先")
+    args = parser.parse_args()
+
+    features_path = Path(args.features)
+    weights_path = Path(args.weights)
+    out_path = Path(args.out)
+
     print("=== バリューネットワーク オフライン評価(test split) ===\n")
-    data = np.load(_FEATURES, allow_pickle=False)
+    data = np.load(features_path, allow_pickle=False)
     X = data["X"]
     y = data["y"].astype(int)
     turn = data["turn"].astype(int)
@@ -154,7 +168,7 @@ def main() -> None:
     episode_id = data["episode_id"]
     player_index = data["player_index"].astype(int)
 
-    weights = load_weights()
+    weights = load_weights(weights_path)
     feature_names = weights["feature_names"]
     prize_idx = feature_names.index("prize_diff")
 
@@ -168,8 +182,8 @@ def main() -> None:
     p_cal_all = calibrate(p_raw_all, turn, weights)
 
     # スポットチェック: ValueModel の実推論経路が numpy ベクトル版と一致するか(300件)。
-    model = ValueModel()
-    assert model.is_ready, f"value_weights.json をロードできません: {_WEIGHTS}"
+    model = ValueModel(weights_path)
+    assert model.is_ready, f"value_weights.json をロードできません: {weights_path}"
     te_idx = np.where(te)[0]
     rng = random.Random(0)
     check = rng.sample(list(te_idx), min(300, len(te_idx)))
@@ -304,7 +318,7 @@ def main() -> None:
         "reasons": reasons,
         "spotcheck_max_err": max_err,
     }
-    out_path = _HERE / "evaluate_results.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as fh:
         json.dump(out, fh, ensure_ascii=False, indent=2)
     print(f"\n結果を書き出しました: {out_path}")

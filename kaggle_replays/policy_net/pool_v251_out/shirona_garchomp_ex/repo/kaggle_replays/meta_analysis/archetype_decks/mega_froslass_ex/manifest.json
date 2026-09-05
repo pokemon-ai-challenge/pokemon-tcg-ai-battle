@@ -1,0 +1,45 @@
+{
+  "archetype": "mega_froslass_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "taksai",
+      "rank_at_fetch": 10,
+      "leaderboard_score": 1136.4,
+      "episode_id": "86032608",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "Gotem Penguin",
+      "rank_at_fetch": 265,
+      "leaderboard_score": 917.8,
+      "episode_id": "86794706",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "Minami-Sama",
+      "rank_at_fetch": 934,
+      "leaderboard_score": 817.2,
+      "episode_id": "86829599",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "yomi",
+      "rank_at_fetch": 982,
+      "leaderboard_score": 813.5,
+      "episode_id": "86821955",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "TakahiroHon",
+      "rank_at_fetch": 1320,
+      "leaderboard_score": 785.6,
+      "episode_id": "86826503",
+      "player_index": 1
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "archetype": "rocket_mewtwo_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "THIRD PTCG Club",
+      "rank_at_fetch": 3,
+      "leaderboard_score": 1190.1,
+      "episode_id": "86776342",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "THIRD PTCG Club",
+      "rank_at_fetch": 3,
+      "leaderboard_score": 1177.6,
+      "episode_id": "86282084",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "kashiwashira",
+      "rank_at_fetch": 4,
+      "leaderboard_score": 1174.2,
+      "episode_id": "86288283",
+      "player_index": 0
+    },
+    {
+      "file": "04.csv",
+      "team": "kashiwashira",
+      "rank_at_fetch": 4,
+      "leaderboard_score": 1174.2,
+      "episode_id": "86782589",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "Oshbocker",
+      "rank_at_fetch": 8,
+      "leaderboard_score": 1150.2,
+      "episode_id": "86306896",
+      "player_index": 1
+    }
+  ]
+}

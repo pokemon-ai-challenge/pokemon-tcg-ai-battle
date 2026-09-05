@@ -1,0 +1,46 @@
+{
+  "hidden_size": 32,
+  "features": "features_configC_outcome.npz",
+  "consequence_fields": [],
+  "outcome_weighting": {
+    "mode": "advantage",
+    "loss_discount": null,
+    "adv_beta": 0.5,
+    "adv_clip": 3.0,
+    "value_weights": "C:\\dev\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\value_weights.json",
+    "n_outcome_known": 187582,
+    "n_outcome_unknown": 108,
+    "n_win": 96601,
+    "n_loss": 90981
+  },
+  "seed": 42,
+  "param_counts": {
+    "fc1": 7680,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 7713,
+    "total": 17857
+  },
+  "n_train": 147705,
+  "n_val": 17359,
+  "n_test": 22626,
+  "epochs_trained": 24,
+  "train": {
+    "top1_accuracy": 0.6083477201178024,
+    "mean_weighted_nll": 0.9347183175655362
+  },
+  "val": {
+    "top1_accuracy": 0.5976726769975229,
+    "mean_weighted_nll": 1.0939377388332951
+  },
+  "test": {
+    "top1_accuracy": 0.5781401926986652,
+    "mean_weighted_nll": 1.0934317436654157
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.010675043120279448,
+    "mean_weighted_nll": 0.1592194212677589
+  },
+  "self_check_max_abs_err": 3.552713678800501e-15,
+  "out_weights": "..\\..\\sample_submission\\ptcg_ai\\learning\\policy_weights_c2_b05.json"
+}

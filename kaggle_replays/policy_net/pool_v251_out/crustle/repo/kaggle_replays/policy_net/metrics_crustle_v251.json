@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_crustle_v251.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 10400,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 10433,
+    "total": 20577
+  },
+  "n_train": 55730,
+  "n_val": 7199,
+  "n_test": 6853,
+  "epochs_trained": 18,
+  "train": {
+    "top1_accuracy": 0.6347927507626054,
+    "mean_weighted_nll": 0.9180874819959516
+  },
+  "val": {
+    "top1_accuracy": 0.59605500763995,
+    "mean_weighted_nll": 1.0628982759268182
+  },
+  "test": {
+    "top1_accuracy": 0.5813512330366263,
+    "mean_weighted_nll": 1.0798838422300034
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.03873774312265543,
+    "mean_weighted_nll": 0.1448107939308666
+  },
+  "self_check_max_abs_err": 3.1086244689504383e-15,
+  "out_weights": "policy_weights_crustle_v251.json"
+}

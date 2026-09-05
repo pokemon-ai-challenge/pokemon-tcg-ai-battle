@@ -1,0 +1,5050 @@
+{
+  "agent_a": "rule_based",
+  "agent_b": "ml_policy",
+  "deck_a_path": "C:\\dev\\pokemon-tcg-ai-battle\\sample_submission\\deck.csv",
+  "deck_b_path": "C:\\dev\\pokemon-tcg-ai-battle\\sample_submission\\deck.csv",
+  "games_requested": 500,
+  "games_run": 500,
+  "seed_start": 0,
+  "generated_at": "2026-07-21T00:39:37",
+  "elapsed_seconds": 418.2490932941437,
+  "overall": {
+    "wins": 68,
+    "games": 500,
+    "win_rate": 0.136,
+    "wilson_95ci": [
+      0.10871544340723721,
+      0.16883507644877283
+    ],
+    "b_wins": 432,
+    "avg_turns": 13.966,
+    "avg_steps": 123.15
+  },
+  "by_turn_order": {
+    "a_player0_first": {
+      "wins": 45,
+      "games": 250,
+      "win_rate": 0.18,
+      "wilson_95ci": [
+        0.13733343230144174,
+        0.23235187937564278
+      ]
+    },
+    "a_player1_second": {
+      "wins": 23,
+      "games": 250,
+      "win_rate": 0.092,
+      "wilson_95ci": [
+        0.062087015113306714,
+        0.13426175727497602
+      ]
+    }
+  },
+  "errors": {
+    "count": 0,
+    "rate": 0.0,
+    "by_reason": {}
+  },
+  "games": [
+    {
+      "index": 0,
+      "seed": 0,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 95,
+      "seconds": 0.2860543727874756,
+      "error": null
+    },
+    {
+      "index": 1,
+      "seed": 1,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 84,
+      "seconds": 0.20217537879943848,
+      "error": null
+    },
+    {
+      "index": 2,
+      "seed": 2,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 142,
+      "seconds": 0.3828277587890625,
+      "error": null
+    },
+    {
+      "index": 3,
+      "seed": 3,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 68,
+      "seconds": 0.13998746871948242,
+      "error": null
+    },
+    {
+      "index": 4,
+      "seed": 4,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 159,
+      "seconds": 0.32764124870300293,
+      "error": null
+    },
+    {
+      "index": 5,
+      "seed": 5,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 86,
+      "seconds": 0.2687230110168457,
+      "error": null
+    },
+    {
+      "index": 6,
+      "seed": 6,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 156,
+      "seconds": 0.5776770114898682,
+      "error": null
+    },
+    {
+      "index": 7,
+      "seed": 7,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 149,
+      "seconds": 0.6232924461364746,
+      "error": null
+    },
+    {
+      "index": 8,
+      "seed": 8,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 177,
+      "seconds": 0.5795028209686279,
+      "error": null
+    },
+    {
+      "index": 9,
+      "seed": 9,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 12,
+      "steps": 90,
+      "seconds": 0.14005398750305176,
+      "error": null
+    },
+    {
+      "index": 10,
+      "seed": 10,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 12,
+      "steps": 145,
+      "seconds": 0.6425280570983887,
+      "error": null
+    },
+    {
+      "index": 11,
+      "seed": 11,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 72,
+      "seconds": 0.27888035774230957,
+      "error": null
+    },
+    {
+      "index": 12,
+      "seed": 12,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 157,
+      "seconds": 1.4977831840515137,
+      "error": null
+    },
+    {
+      "index": 13,
+      "seed": 13,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 3,
+      "steps": 22,
+      "seconds": 0.02371048927307129,
+      "error": null
+    },
+    {
+      "index": 14,
+      "seed": 14,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 46,
+      "seconds": 0.10841941833496094,
+      "error": null
+    },
+    {
+      "index": 15,
+      "seed": 15,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 155,
+      "seconds": 0.48487138748168945,
+      "error": null
+    },
+    {
+      "index": 16,
+      "seed": 16,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 154,
+      "seconds": 0.9083611965179443,
+      "error": null
+    },
+    {
+      "index": 17,
+      "seed": 17,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 126,
+      "seconds": 0.7197351455688477,
+      "error": null
+    },
+    {
+      "index": 18,
+      "seed": 18,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 35,
+      "seconds": 0.15041065216064453,
+      "error": null
+    },
+    {
+      "index": 19,
+      "seed": 19,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 96,
+      "seconds": 0.22181320190429688,
+      "error": null
+    },
+    {
+      "index": 20,
+      "seed": 20,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 170,
+      "seconds": 1.1671433448791504,
+      "error": null
+    },
+    {
+      "index": 21,
+      "seed": 21,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 147,
+      "seconds": 0.599407434463501,
+      "error": null
+    },
+    {
+      "index": 22,
+      "seed": 22,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 169,
+      "seconds": 1.2194924354553223,
+      "error": null
+    },
+    {
+      "index": 23,
+      "seed": 23,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 137,
+      "seconds": 0.6490235328674316,
+      "error": null
+    },
+    {
+      "index": 24,
+      "seed": 24,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 172,
+      "seconds": 0.812502384185791,
+      "error": null
+    },
+    {
+      "index": 25,
+      "seed": 25,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 49,
+      "seconds": 0.23066329956054688,
+      "error": null
+    },
+    {
+      "index": 26,
+      "seed": 26,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 160,
+      "seconds": 0.782656192779541,
+      "error": null
+    },
+    {
+      "index": 27,
+      "seed": 27,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 156,
+      "seconds": 0.8332920074462891,
+      "error": null
+    },
+    {
+      "index": 28,
+      "seed": 28,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 57,
+      "seconds": 0.24067258834838867,
+      "error": null
+    },
+    {
+      "index": 29,
+      "seed": 29,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 130,
+      "seconds": 0.6243124008178711,
+      "error": null
+    },
+    {
+      "index": 30,
+      "seed": 30,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 21,
+      "steps": 128,
+      "seconds": 0.4420206546783447,
+      "error": null
+    },
+    {
+      "index": 31,
+      "seed": 31,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 185,
+      "seconds": 1.611060380935669,
+      "error": null
+    },
+    {
+      "index": 32,
+      "seed": 32,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 8,
+      "steps": 72,
+      "seconds": 0.5390548706054688,
+      "error": null
+    },
+    {
+      "index": 33,
+      "seed": 33,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 116,
+      "seconds": 0.9825036525726318,
+      "error": null
+    },
+    {
+      "index": 34,
+      "seed": 34,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 137,
+      "seconds": 1.0396063327789307,
+      "error": null
+    },
+    {
+      "index": 35,
+      "seed": 35,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 108,
+      "seconds": 0.9136488437652588,
+      "error": null
+    },
+    {
+      "index": 36,
+      "seed": 36,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 207,
+      "seconds": 3.9705140590667725,
+      "error": null
+    },
+    {
+      "index": 37,
+      "seed": 37,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 20,
+      "steps": 160,
+      "seconds": 1.8086369037628174,
+      "error": null
+    },
+    {
+      "index": 38,
+      "seed": 38,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 42,
+      "seconds": 0.37804365158081055,
+      "error": null
+    },
+    {
+      "index": 39,
+      "seed": 39,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 3,
+      "steps": 18,
+      "seconds": 0.08113574981689453,
+      "error": null
+    },
+    {
+      "index": 40,
+      "seed": 40,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 122,
+      "seconds": 0.8382511138916016,
+      "error": null
+    },
+    {
+      "index": 41,
+      "seed": 41,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 116,
+      "seconds": 1.2866129875183105,
+      "error": null
+    },
+    {
+      "index": 42,
+      "seed": 42,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 14,
+      "steps": 166,
+      "seconds": 1.676098108291626,
+      "error": null
+    },
+    {
+      "index": 43,
+      "seed": 43,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 63,
+      "seconds": 0.5769774913787842,
+      "error": null
+    },
+    {
+      "index": 44,
+      "seed": 44,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 166,
+      "seconds": 1.200019121170044,
+      "error": null
+    },
+    {
+      "index": 45,
+      "seed": 45,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 113,
+      "seconds": 0.8126945495605469,
+      "error": null
+    },
+    {
+      "index": 46,
+      "seed": 46,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 118,
+      "seconds": 0.5424180030822754,
+      "error": null
+    },
+    {
+      "index": 47,
+      "seed": 47,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 65,
+      "steps": 246,
+      "seconds": 1.6851065158843994,
+      "error": null
+    },
+    {
+      "index": 48,
+      "seed": 48,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 149,
+      "seconds": 1.268836259841919,
+      "error": null
+    },
+    {
+      "index": 49,
+      "seed": 49,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 119,
+      "seconds": 0.48737645149230957,
+      "error": null
+    },
+    {
+      "index": 50,
+      "seed": 50,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 129,
+      "seconds": 0.8058433532714844,
+      "error": null
+    },
+    {
+      "index": 51,
+      "seed": 51,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 113,
+      "seconds": 0.5291397571563721,
+      "error": null
+    },
+    {
+      "index": 52,
+      "seed": 52,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 158,
+      "seconds": 1.1873726844787598,
+      "error": null
+    },
+    {
+      "index": 53,
+      "seed": 53,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 149,
+      "seconds": 1.0173206329345703,
+      "error": null
+    },
+    {
+      "index": 54,
+      "seed": 54,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 14,
+      "steps": 160,
+      "seconds": 1.8662388324737549,
+      "error": null
+    },
+    {
+      "index": 55,
+      "seed": 55,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 167,
+      "seconds": 1.6446199417114258,
+      "error": null
+    },
+    {
+      "index": 56,
+      "seed": 56,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 20,
+      "steps": 121,
+      "seconds": 0.7873728275299072,
+      "error": null
+    },
+    {
+      "index": 57,
+      "seed": 57,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 30,
+      "seconds": 0.21001052856445312,
+      "error": null
+    },
+    {
+      "index": 58,
+      "seed": 58,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 151,
+      "seconds": 0.9146804809570312,
+      "error": null
+    },
+    {
+      "index": 59,
+      "seed": 59,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 114,
+      "seconds": 0.5805537700653076,
+      "error": null
+    },
+    {
+      "index": 60,
+      "seed": 60,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 157,
+      "seconds": 0.8690083026885986,
+      "error": null
+    },
+    {
+      "index": 61,
+      "seed": 61,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 134,
+      "seconds": 0.5783941745758057,
+      "error": null
+    },
+    {
+      "index": 62,
+      "seed": 62,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 141,
+      "seconds": 0.46817803382873535,
+      "error": null
+    },
+    {
+      "index": 63,
+      "seed": 63,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 97,
+      "seconds": 0.40518856048583984,
+      "error": null
+    },
+    {
+      "index": 64,
+      "seed": 64,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 155,
+      "seconds": 1.1067695617675781,
+      "error": null
+    },
+    {
+      "index": 65,
+      "seed": 65,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 168,
+      "seconds": 1.1431188583374023,
+      "error": null
+    },
+    {
+      "index": 66,
+      "seed": 66,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 88,
+      "seconds": 0.4129204750061035,
+      "error": null
+    },
+    {
+      "index": 67,
+      "seed": 67,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 159,
+      "seconds": 0.9483122825622559,
+      "error": null
+    },
+    {
+      "index": 68,
+      "seed": 68,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 131,
+      "seconds": 0.8276615142822266,
+      "error": null
+    },
+    {
+      "index": 69,
+      "seed": 69,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 13,
+      "steps": 169,
+      "seconds": 1.0787630081176758,
+      "error": null
+    },
+    {
+      "index": 70,
+      "seed": 70,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 12,
+      "steps": 164,
+      "seconds": 0.9720580577850342,
+      "error": null
+    },
+    {
+      "index": 71,
+      "seed": 71,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 95,
+      "seconds": 0.5948131084442139,
+      "error": null
+    },
+    {
+      "index": 72,
+      "seed": 72,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 101,
+      "seconds": 0.5727450847625732,
+      "error": null
+    },
+    {
+      "index": 73,
+      "seed": 73,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 78,
+      "seconds": 0.4321255683898926,
+      "error": null
+    },
+    {
+      "index": 74,
+      "seed": 74,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 14,
+      "steps": 172,
+      "seconds": 1.055443525314331,
+      "error": null
+    },
+    {
+      "index": 75,
+      "seed": 75,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 41,
+      "seconds": 0.20502114295959473,
+      "error": null
+    },
+    {
+      "index": 76,
+      "seed": 76,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 21,
+      "steps": 203,
+      "seconds": 4.561128616333008,
+      "error": null
+    },
+    {
+      "index": 77,
+      "seed": 77,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 38,
+      "seconds": 0.14909791946411133,
+      "error": null
+    },
+    {
+      "index": 78,
+      "seed": 78,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 24,
+      "seconds": 0.07816004753112793,
+      "error": null
+    },
+    {
+      "index": 79,
+      "seed": 79,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 92,
+      "seconds": 0.555884599685669,
+      "error": null
+    },
+    {
+      "index": 80,
+      "seed": 80,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 24,
+      "steps": 186,
+      "seconds": 0.7540342807769775,
+      "error": null
+    },
+    {
+      "index": 81,
+      "seed": 81,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 68,
+      "seconds": 0.3044857978820801,
+      "error": null
+    },
+    {
+      "index": 82,
+      "seed": 82,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 143,
+      "seconds": 1.762315034866333,
+      "error": null
+    },
+    {
+      "index": 83,
+      "seed": 83,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 81,
+      "seconds": 0.4228487014770508,
+      "error": null
+    },
+    {
+      "index": 84,
+      "seed": 84,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 169,
+      "seconds": 1.2922449111938477,
+      "error": null
+    },
+    {
+      "index": 85,
+      "seed": 85,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 60,
+      "seconds": 0.3892703056335449,
+      "error": null
+    },
+    {
+      "index": 86,
+      "seed": 86,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 103,
+      "seconds": 0.591963529586792,
+      "error": null
+    },
+    {
+      "index": 87,
+      "seed": 87,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 161,
+      "seconds": 0.6471312046051025,
+      "error": null
+    },
+    {
+      "index": 88,
+      "seed": 88,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 97,
+      "seconds": 0.4882831573486328,
+      "error": null
+    },
+    {
+      "index": 89,
+      "seed": 89,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 24,
+      "steps": 167,
+      "seconds": 0.7513782978057861,
+      "error": null
+    },
+    {
+      "index": 90,
+      "seed": 90,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 158,
+      "seconds": 0.5735278129577637,
+      "error": null
+    },
+    {
+      "index": 91,
+      "seed": 91,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 106,
+      "seconds": 0.38689208030700684,
+      "error": null
+    },
+    {
+      "index": 92,
+      "seed": 92,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 223,
+      "seconds": 5.0949695110321045,
+      "error": null
+    },
+    {
+      "index": 93,
+      "seed": 93,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 19,
+      "steps": 133,
+      "seconds": 0.43825554847717285,
+      "error": null
+    },
+    {
+      "index": 94,
+      "seed": 94,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 177,
+      "seconds": 2.7800252437591553,
+      "error": null
+    },
+    {
+      "index": 95,
+      "seed": 95,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 82,
+      "seconds": 0.6409091949462891,
+      "error": null
+    },
+    {
+      "index": 96,
+      "seed": 96,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 8,
+      "steps": 79,
+      "seconds": 0.685631513595581,
+      "error": null
+    },
+    {
+      "index": 97,
+      "seed": 97,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 15,
+      "steps": 143,
+      "seconds": 0.9412200450897217,
+      "error": null
+    },
+    {
+      "index": 98,
+      "seed": 98,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 22,
+      "seconds": 0.06731271743774414,
+      "error": null
+    },
+    {
+      "index": 99,
+      "seed": 99,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 102,
+      "seconds": 0.24054455757141113,
+      "error": null
+    },
+    {
+      "index": 100,
+      "seed": 100,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 8,
+      "steps": 61,
+      "seconds": 0.4068470001220703,
+      "error": null
+    },
+    {
+      "index": 101,
+      "seed": 101,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 177,
+      "seconds": 1.0502512454986572,
+      "error": null
+    },
+    {
+      "index": 102,
+      "seed": 102,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 174,
+      "seconds": 0.9778711795806885,
+      "error": null
+    },
+    {
+      "index": 103,
+      "seed": 103,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 125,
+      "seconds": 0.6123189926147461,
+      "error": null
+    },
+    {
+      "index": 104,
+      "seed": 104,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 140,
+      "seconds": 0.8253121376037598,
+      "error": null
+    },
+    {
+      "index": 105,
+      "seed": 105,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 112,
+      "seconds": 0.5117433071136475,
+      "error": null
+    },
+    {
+      "index": 106,
+      "seed": 106,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 193,
+      "seconds": 1.335630178451538,
+      "error": null
+    },
+    {
+      "index": 107,
+      "seed": 107,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 23,
+      "seconds": 0.06920027732849121,
+      "error": null
+    },
+    {
+      "index": 108,
+      "seed": 108,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 118,
+      "seconds": 0.3794398307800293,
+      "error": null
+    },
+    {
+      "index": 109,
+      "seed": 109,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 138,
+      "seconds": 0.5834324359893799,
+      "error": null
+    },
+    {
+      "index": 110,
+      "seed": 110,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 159,
+      "seconds": 1.5688984394073486,
+      "error": null
+    },
+    {
+      "index": 111,
+      "seed": 111,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 15,
+      "steps": 169,
+      "seconds": 0.6317756175994873,
+      "error": null
+    },
+    {
+      "index": 112,
+      "seed": 112,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 145,
+      "seconds": 0.4610321521759033,
+      "error": null
+    },
+    {
+      "index": 113,
+      "seed": 113,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 168,
+      "seconds": 0.5469715595245361,
+      "error": null
+    },
+    {
+      "index": 114,
+      "seed": 114,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 104,
+      "seconds": 0.8339083194732666,
+      "error": null
+    },
+    {
+      "index": 115,
+      "seed": 115,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 47,
+      "seconds": 0.36638593673706055,
+      "error": null
+    },
+    {
+      "index": 116,
+      "seed": 116,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 50,
+      "seconds": 0.3423924446105957,
+      "error": null
+    },
+    {
+      "index": 117,
+      "seed": 117,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 115,
+      "seconds": 0.38109850883483887,
+      "error": null
+    },
+    {
+      "index": 118,
+      "seed": 118,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 197,
+      "seconds": 0.8226609230041504,
+      "error": null
+    },
+    {
+      "index": 119,
+      "seed": 119,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 78,
+      "seconds": 0.3706202507019043,
+      "error": null
+    },
+    {
+      "index": 120,
+      "seed": 120,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 15,
+      "steps": 168,
+      "seconds": 1.7165288925170898,
+      "error": null
+    },
+    {
+      "index": 121,
+      "seed": 121,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 112,
+      "seconds": 0.5543513298034668,
+      "error": null
+    },
+    {
+      "index": 122,
+      "seed": 122,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 22,
+      "seconds": 0.07035088539123535,
+      "error": null
+    },
+    {
+      "index": 123,
+      "seed": 123,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 131,
+      "seconds": 0.5688245296478271,
+      "error": null
+    },
+    {
+      "index": 124,
+      "seed": 124,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 173,
+      "seconds": 1.0918028354644775,
+      "error": null
+    },
+    {
+      "index": 125,
+      "seed": 125,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 27,
+      "seconds": 0.1750485897064209,
+      "error": null
+    },
+    {
+      "index": 126,
+      "seed": 126,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 118,
+      "seconds": 0.4683799743652344,
+      "error": null
+    },
+    {
+      "index": 127,
+      "seed": 127,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 129,
+      "seconds": 0.6653797626495361,
+      "error": null
+    },
+    {
+      "index": 128,
+      "seed": 128,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 73,
+      "seconds": 0.5380616188049316,
+      "error": null
+    },
+    {
+      "index": 129,
+      "seed": 129,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 181,
+      "seconds": 0.9624290466308594,
+      "error": null
+    },
+    {
+      "index": 130,
+      "seed": 130,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 19,
+      "steps": 172,
+      "seconds": 1.0228748321533203,
+      "error": null
+    },
+    {
+      "index": 131,
+      "seed": 131,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 21,
+      "steps": 106,
+      "seconds": 0.470869779586792,
+      "error": null
+    },
+    {
+      "index": 132,
+      "seed": 132,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 108,
+      "seconds": 0.4055149555206299,
+      "error": null
+    },
+    {
+      "index": 133,
+      "seed": 133,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 7,
+      "steps": 18,
+      "seconds": 0.029031038284301758,
+      "error": null
+    },
+    {
+      "index": 134,
+      "seed": 134,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 38,
+      "seconds": 0.10678458213806152,
+      "error": null
+    },
+    {
+      "index": 135,
+      "seed": 135,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 36,
+      "seconds": 0.21853232383728027,
+      "error": null
+    },
+    {
+      "index": 136,
+      "seed": 136,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 38,
+      "seconds": 0.13596439361572266,
+      "error": null
+    },
+    {
+      "index": 137,
+      "seed": 137,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 68,
+      "seconds": 0.542248010635376,
+      "error": null
+    },
+    {
+      "index": 138,
+      "seed": 138,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 14,
+      "steps": 133,
+      "seconds": 0.7257266044616699,
+      "error": null
+    },
+    {
+      "index": 139,
+      "seed": 139,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 50,
+      "seconds": 0.3211066722869873,
+      "error": null
+    },
+    {
+      "index": 140,
+      "seed": 140,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 184,
+      "seconds": 0.6935365200042725,
+      "error": null
+    },
+    {
+      "index": 141,
+      "seed": 141,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 158,
+      "seconds": 0.8029861450195312,
+      "error": null
+    },
+    {
+      "index": 142,
+      "seed": 142,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 181,
+      "seconds": 1.102998971939087,
+      "error": null
+    },
+    {
+      "index": 143,
+      "seed": 143,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 82,
+      "seconds": 0.4457075595855713,
+      "error": null
+    },
+    {
+      "index": 144,
+      "seed": 144,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 124,
+      "seconds": 0.6826756000518799,
+      "error": null
+    },
+    {
+      "index": 145,
+      "seed": 145,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 162,
+      "seconds": 0.7574512958526611,
+      "error": null
+    },
+    {
+      "index": 146,
+      "seed": 146,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 4,
+      "steps": 27,
+      "seconds": 0.04574704170227051,
+      "error": null
+    },
+    {
+      "index": 147,
+      "seed": 147,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 36,
+      "seconds": 0.21770143508911133,
+      "error": null
+    },
+    {
+      "index": 148,
+      "seed": 148,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 24,
+      "steps": 194,
+      "seconds": 0.7495014667510986,
+      "error": null
+    },
+    {
+      "index": 149,
+      "seed": 149,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 59,
+      "seconds": 0.2603781223297119,
+      "error": null
+    },
+    {
+      "index": 150,
+      "seed": 150,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 187,
+      "seconds": 0.8022894859313965,
+      "error": null
+    },
+    {
+      "index": 151,
+      "seed": 151,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 179,
+      "seconds": 0.8782567977905273,
+      "error": null
+    },
+    {
+      "index": 152,
+      "seed": 152,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 10,
+      "steps": 49,
+      "seconds": 0.2751638889312744,
+      "error": null
+    },
+    {
+      "index": 153,
+      "seed": 153,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 44,
+      "seconds": 0.2266387939453125,
+      "error": null
+    },
+    {
+      "index": 154,
+      "seed": 154,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 170,
+      "seconds": 1.1051805019378662,
+      "error": null
+    },
+    {
+      "index": 155,
+      "seed": 155,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 152,
+      "seconds": 0.7043659687042236,
+      "error": null
+    },
+    {
+      "index": 156,
+      "seed": 156,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 20,
+      "steps": 91,
+      "seconds": 0.4090754985809326,
+      "error": null
+    },
+    {
+      "index": 157,
+      "seed": 157,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 128,
+      "seconds": 0.5050482749938965,
+      "error": null
+    },
+    {
+      "index": 158,
+      "seed": 158,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 33,
+      "seconds": 0.15551090240478516,
+      "error": null
+    },
+    {
+      "index": 159,
+      "seed": 159,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 30,
+      "seconds": 0.14926481246948242,
+      "error": null
+    },
+    {
+      "index": 160,
+      "seed": 160,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 12,
+      "steps": 142,
+      "seconds": 0.7803566455841064,
+      "error": null
+    },
+    {
+      "index": 161,
+      "seed": 161,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 134,
+      "seconds": 0.7960155010223389,
+      "error": null
+    },
+    {
+      "index": 162,
+      "seed": 162,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 198,
+      "seconds": 0.9029638767242432,
+      "error": null
+    },
+    {
+      "index": 163,
+      "seed": 163,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 151,
+      "seconds": 0.9278132915496826,
+      "error": null
+    },
+    {
+      "index": 164,
+      "seed": 164,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 173,
+      "seconds": 0.8993504047393799,
+      "error": null
+    },
+    {
+      "index": 165,
+      "seed": 165,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 47,
+      "seconds": 0.30049777030944824,
+      "error": null
+    },
+    {
+      "index": 166,
+      "seed": 166,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 177,
+      "seconds": 0.8758900165557861,
+      "error": null
+    },
+    {
+      "index": 167,
+      "seed": 167,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 16,
+      "seconds": 0.03153228759765625,
+      "error": null
+    },
+    {
+      "index": 168,
+      "seed": 168,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 162,
+      "seconds": 1.1556129455566406,
+      "error": null
+    },
+    {
+      "index": 169,
+      "seed": 169,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 64,
+      "seconds": 0.29897642135620117,
+      "error": null
+    },
+    {
+      "index": 170,
+      "seed": 170,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 166,
+      "seconds": 0.9926035404205322,
+      "error": null
+    },
+    {
+      "index": 171,
+      "seed": 171,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 133,
+      "seconds": 0.5346071720123291,
+      "error": null
+    },
+    {
+      "index": 172,
+      "seed": 172,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 96,
+      "seconds": 0.46626734733581543,
+      "error": null
+    },
+    {
+      "index": 173,
+      "seed": 173,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 19,
+      "steps": 184,
+      "seconds": 1.1871988773345947,
+      "error": null
+    },
+    {
+      "index": 174,
+      "seed": 174,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 42,
+      "seconds": 0.18988251686096191,
+      "error": null
+    },
+    {
+      "index": 175,
+      "seed": 175,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 153,
+      "seconds": 0.605377197265625,
+      "error": null
+    },
+    {
+      "index": 176,
+      "seed": 176,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 22,
+      "steps": 179,
+      "seconds": 1.249441385269165,
+      "error": null
+    },
+    {
+      "index": 177,
+      "seed": 177,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 58,
+      "seconds": 0.2299504280090332,
+      "error": null
+    },
+    {
+      "index": 178,
+      "seed": 178,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 18,
+      "steps": 193,
+      "seconds": 1.4193458557128906,
+      "error": null
+    },
+    {
+      "index": 179,
+      "seed": 179,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 128,
+      "seconds": 0.6936981678009033,
+      "error": null
+    },
+    {
+      "index": 180,
+      "seed": 180,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 161,
+      "seconds": 1.2298815250396729,
+      "error": null
+    },
+    {
+      "index": 181,
+      "seed": 181,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 28,
+      "seconds": 0.14037632942199707,
+      "error": null
+    },
+    {
+      "index": 182,
+      "seed": 182,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 39,
+      "seconds": 0.1342015266418457,
+      "error": null
+    },
+    {
+      "index": 183,
+      "seed": 183,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 87,
+      "seconds": 0.5010936260223389,
+      "error": null
+    },
+    {
+      "index": 184,
+      "seed": 184,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 150,
+      "seconds": 0.8302879333496094,
+      "error": null
+    },
+    {
+      "index": 185,
+      "seed": 185,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 195,
+      "seconds": 0.9131381511688232,
+      "error": null
+    },
+    {
+      "index": 186,
+      "seed": 186,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 143,
+      "seconds": 0.6198832988739014,
+      "error": null
+    },
+    {
+      "index": 187,
+      "seed": 187,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 72,
+      "seconds": 0.500216007232666,
+      "error": null
+    },
+    {
+      "index": 188,
+      "seed": 188,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 8,
+      "steps": 63,
+      "seconds": 0.2549116611480713,
+      "error": null
+    },
+    {
+      "index": 189,
+      "seed": 189,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 43,
+      "seconds": 0.14223742485046387,
+      "error": null
+    },
+    {
+      "index": 190,
+      "seed": 190,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 79,
+      "seconds": 0.2593867778778076,
+      "error": null
+    },
+    {
+      "index": 191,
+      "seed": 191,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 60,
+      "seconds": 0.24434661865234375,
+      "error": null
+    },
+    {
+      "index": 192,
+      "seed": 192,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 85,
+      "seconds": 0.20310735702514648,
+      "error": null
+    },
+    {
+      "index": 193,
+      "seed": 193,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 72,
+      "seconds": 0.39415454864501953,
+      "error": null
+    },
+    {
+      "index": 194,
+      "seed": 194,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 117,
+      "seconds": 0.4405326843261719,
+      "error": null
+    },
+    {
+      "index": 195,
+      "seed": 195,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 158,
+      "seconds": 0.5931787490844727,
+      "error": null
+    },
+    {
+      "index": 196,
+      "seed": 196,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 145,
+      "seconds": 0.875399112701416,
+      "error": null
+    },
+    {
+      "index": 197,
+      "seed": 197,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 176,
+      "seconds": 1.1524877548217773,
+      "error": null
+    },
+    {
+      "index": 198,
+      "seed": 198,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 91,
+      "seconds": 0.5282385349273682,
+      "error": null
+    },
+    {
+      "index": 199,
+      "seed": 199,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 92,
+      "seconds": 0.4904301166534424,
+      "error": null
+    },
+    {
+      "index": 200,
+      "seed": 200,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 168,
+      "seconds": 0.9367766380310059,
+      "error": null
+    },
+    {
+      "index": 201,
+      "seed": 201,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 154,
+      "seconds": 0.903942346572876,
+      "error": null
+    },
+    {
+      "index": 202,
+      "seed": 202,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 161,
+      "seconds": 1.196948528289795,
+      "error": null
+    },
+    {
+      "index": 203,
+      "seed": 203,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 3,
+      "steps": 15,
+      "seconds": 0.020281076431274414,
+      "error": null
+    },
+    {
+      "index": 204,
+      "seed": 204,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 22,
+      "seconds": 0.07313275337219238,
+      "error": null
+    },
+    {
+      "index": 205,
+      "seed": 205,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 56,
+      "seconds": 0.17978858947753906,
+      "error": null
+    },
+    {
+      "index": 206,
+      "seed": 206,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 175,
+      "seconds": 0.7205672264099121,
+      "error": null
+    },
+    {
+      "index": 207,
+      "seed": 207,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 91,
+      "seconds": 0.512864351272583,
+      "error": null
+    },
+    {
+      "index": 208,
+      "seed": 208,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 169,
+      "seconds": 0.9603359699249268,
+      "error": null
+    },
+    {
+      "index": 209,
+      "seed": 209,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 156,
+      "seconds": 0.917855978012085,
+      "error": null
+    },
+    {
+      "index": 210,
+      "seed": 210,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 112,
+      "seconds": 0.5748059749603271,
+      "error": null
+    },
+    {
+      "index": 211,
+      "seed": 211,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 153,
+      "seconds": 2.745105028152466,
+      "error": null
+    },
+    {
+      "index": 212,
+      "seed": 212,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 79,
+      "seconds": 0.35041284561157227,
+      "error": null
+    },
+    {
+      "index": 213,
+      "seed": 213,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 88,
+      "seconds": 0.43997955322265625,
+      "error": null
+    },
+    {
+      "index": 214,
+      "seed": 214,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 18,
+      "steps": 177,
+      "seconds": 1.3254177570343018,
+      "error": null
+    },
+    {
+      "index": 215,
+      "seed": 215,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 59,
+      "seconds": 0.30649709701538086,
+      "error": null
+    },
+    {
+      "index": 216,
+      "seed": 216,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 153,
+      "seconds": 0.7840859889984131,
+      "error": null
+    },
+    {
+      "index": 217,
+      "seed": 217,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 142,
+      "seconds": 0.8067564964294434,
+      "error": null
+    },
+    {
+      "index": 218,
+      "seed": 218,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 154,
+      "seconds": 0.6128149032592773,
+      "error": null
+    },
+    {
+      "index": 219,
+      "seed": 219,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 21,
+      "seconds": 0.05598783493041992,
+      "error": null
+    },
+    {
+      "index": 220,
+      "seed": 220,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 88,
+      "seconds": 0.4905996322631836,
+      "error": null
+    },
+    {
+      "index": 221,
+      "seed": 221,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 13,
+      "steps": 153,
+      "seconds": 0.7921204566955566,
+      "error": null
+    },
+    {
+      "index": 222,
+      "seed": 222,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 145,
+      "seconds": 0.8382797241210938,
+      "error": null
+    },
+    {
+      "index": 223,
+      "seed": 223,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 129,
+      "seconds": 0.4593961238861084,
+      "error": null
+    },
+    {
+      "index": 224,
+      "seed": 224,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 158,
+      "seconds": 0.6289842128753662,
+      "error": null
+    },
+    {
+      "index": 225,
+      "seed": 225,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 179,
+      "seconds": 1.0451529026031494,
+      "error": null
+    },
+    {
+      "index": 226,
+      "seed": 226,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 115,
+      "seconds": 0.6674332618713379,
+      "error": null
+    },
+    {
+      "index": 227,
+      "seed": 227,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 94,
+      "seconds": 0.6250653266906738,
+      "error": null
+    },
+    {
+      "index": 228,
+      "seed": 228,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 10,
+      "steps": 52,
+      "seconds": 0.17401981353759766,
+      "error": null
+    },
+    {
+      "index": 229,
+      "seed": 229,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 8,
+      "steps": 86,
+      "seconds": 0.3514432907104492,
+      "error": null
+    },
+    {
+      "index": 230,
+      "seed": 230,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 85,
+      "seconds": 0.5812852382659912,
+      "error": null
+    },
+    {
+      "index": 231,
+      "seed": 231,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 92,
+      "seconds": 0.397568941116333,
+      "error": null
+    },
+    {
+      "index": 232,
+      "seed": 232,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 21,
+      "steps": 135,
+      "seconds": 0.4175529479980469,
+      "error": null
+    },
+    {
+      "index": 233,
+      "seed": 233,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 19,
+      "steps": 176,
+      "seconds": 0.8068070411682129,
+      "error": null
+    },
+    {
+      "index": 234,
+      "seed": 234,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 180,
+      "seconds": 2.1667487621307373,
+      "error": null
+    },
+    {
+      "index": 235,
+      "seed": 235,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 57,
+      "seconds": 0.319995641708374,
+      "error": null
+    },
+    {
+      "index": 236,
+      "seed": 236,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 8,
+      "steps": 58,
+      "seconds": 0.20841169357299805,
+      "error": null
+    },
+    {
+      "index": 237,
+      "seed": 237,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 123,
+      "seconds": 0.5308108329772949,
+      "error": null
+    },
+    {
+      "index": 238,
+      "seed": 238,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 73,
+      "seconds": 0.2742729187011719,
+      "error": null
+    },
+    {
+      "index": 239,
+      "seed": 239,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 19,
+      "steps": 177,
+      "seconds": 1.1535475254058838,
+      "error": null
+    },
+    {
+      "index": 240,
+      "seed": 240,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 133,
+      "seconds": 0.5733561515808105,
+      "error": null
+    },
+    {
+      "index": 241,
+      "seed": 241,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 173,
+      "seconds": 0.8727600574493408,
+      "error": null
+    },
+    {
+      "index": 242,
+      "seed": 242,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 128,
+      "seconds": 0.5067577362060547,
+      "error": null
+    },
+    {
+      "index": 243,
+      "seed": 243,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 135,
+      "seconds": 0.6059038639068604,
+      "error": null
+    },
+    {
+      "index": 244,
+      "seed": 244,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 179,
+      "seconds": 1.3075242042541504,
+      "error": null
+    },
+    {
+      "index": 245,
+      "seed": 245,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 153,
+      "seconds": 0.5296223163604736,
+      "error": null
+    },
+    {
+      "index": 246,
+      "seed": 246,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 102,
+      "seconds": 0.37960338592529297,
+      "error": null
+    },
+    {
+      "index": 247,
+      "seed": 247,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 165,
+      "seconds": 0.8295540809631348,
+      "error": null
+    },
+    {
+      "index": 248,
+      "seed": 248,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 151,
+      "seconds": 0.4525136947631836,
+      "error": null
+    },
+    {
+      "index": 249,
+      "seed": 249,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 65,
+      "seconds": 0.5492219924926758,
+      "error": null
+    },
+    {
+      "index": 250,
+      "seed": 250,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 118,
+      "seconds": 0.6470656394958496,
+      "error": null
+    },
+    {
+      "index": 251,
+      "seed": 251,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 129,
+      "seconds": 0.746870756149292,
+      "error": null
+    },
+    {
+      "index": 252,
+      "seed": 252,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 110,
+      "seconds": 0.3867342472076416,
+      "error": null
+    },
+    {
+      "index": 253,
+      "seed": 253,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 20,
+      "steps": 178,
+      "seconds": 1.5132722854614258,
+      "error": null
+    },
+    {
+      "index": 254,
+      "seed": 254,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 78,
+      "seconds": 0.47323131561279297,
+      "error": null
+    },
+    {
+      "index": 255,
+      "seed": 255,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 107,
+      "seconds": 0.5224146842956543,
+      "error": null
+    },
+    {
+      "index": 256,
+      "seed": 256,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 185,
+      "seconds": 0.9927425384521484,
+      "error": null
+    },
+    {
+      "index": 257,
+      "seed": 257,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 48,
+      "seconds": 0.1687021255493164,
+      "error": null
+    },
+    {
+      "index": 258,
+      "seed": 258,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 134,
+      "seconds": 0.5572521686553955,
+      "error": null
+    },
+    {
+      "index": 259,
+      "seed": 259,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 76,
+      "seconds": 0.46054577827453613,
+      "error": null
+    },
+    {
+      "index": 260,
+      "seed": 260,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 125,
+      "seconds": 0.3886985778808594,
+      "error": null
+    },
+    {
+      "index": 261,
+      "seed": 261,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 77,
+      "seconds": 0.3913567066192627,
+      "error": null
+    },
+    {
+      "index": 262,
+      "seed": 262,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 56,
+      "seconds": 0.3184347152709961,
+      "error": null
+    },
+    {
+      "index": 263,
+      "seed": 263,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 37,
+      "seconds": 0.20037102699279785,
+      "error": null
+    },
+    {
+      "index": 264,
+      "seed": 264,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 4,
+      "steps": 26,
+      "seconds": 0.06284165382385254,
+      "error": null
+    },
+    {
+      "index": 265,
+      "seed": 265,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 21,
+      "steps": 101,
+      "seconds": 0.2635078430175781,
+      "error": null
+    },
+    {
+      "index": 266,
+      "seed": 266,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 15,
+      "steps": 91,
+      "seconds": 0.33901524543762207,
+      "error": null
+    },
+    {
+      "index": 267,
+      "seed": 267,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 43,
+      "seconds": 0.17038869857788086,
+      "error": null
+    },
+    {
+      "index": 268,
+      "seed": 268,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 93,
+      "seconds": 0.5063028335571289,
+      "error": null
+    },
+    {
+      "index": 269,
+      "seed": 269,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 60,
+      "seconds": 0.25103020668029785,
+      "error": null
+    },
+    {
+      "index": 270,
+      "seed": 270,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 187,
+      "seconds": 1.1828322410583496,
+      "error": null
+    },
+    {
+      "index": 271,
+      "seed": 271,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 148,
+      "seconds": 1.3891494274139404,
+      "error": null
+    },
+    {
+      "index": 272,
+      "seed": 272,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 172,
+      "seconds": 2.1935927867889404,
+      "error": null
+    },
+    {
+      "index": 273,
+      "seed": 273,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 152,
+      "seconds": 1.1437957286834717,
+      "error": null
+    },
+    {
+      "index": 274,
+      "seed": 274,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 163,
+      "seconds": 0.6895835399627686,
+      "error": null
+    },
+    {
+      "index": 275,
+      "seed": 275,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 136,
+      "seconds": 0.6827130317687988,
+      "error": null
+    },
+    {
+      "index": 276,
+      "seed": 276,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 10,
+      "steps": 107,
+      "seconds": 0.4009969234466553,
+      "error": null
+    },
+    {
+      "index": 277,
+      "seed": 277,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 91,
+      "seconds": 0.2732119560241699,
+      "error": null
+    },
+    {
+      "index": 278,
+      "seed": 278,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 188,
+      "seconds": 2.1708595752716064,
+      "error": null
+    },
+    {
+      "index": 279,
+      "seed": 279,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 36,
+      "seconds": 0.1473245620727539,
+      "error": null
+    },
+    {
+      "index": 280,
+      "seed": 280,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 97,
+      "seconds": 0.4248213768005371,
+      "error": null
+    },
+    {
+      "index": 281,
+      "seed": 281,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 96,
+      "seconds": 0.31922030448913574,
+      "error": null
+    },
+    {
+      "index": 282,
+      "seed": 282,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 22,
+      "steps": 164,
+      "seconds": 0.607712984085083,
+      "error": null
+    },
+    {
+      "index": 283,
+      "seed": 283,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 103,
+      "seconds": 0.4239075183868408,
+      "error": null
+    },
+    {
+      "index": 284,
+      "seed": 284,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 171,
+      "seconds": 4.385374307632446,
+      "error": null
+    },
+    {
+      "index": 285,
+      "seed": 285,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 181,
+      "seconds": 1.4062857627868652,
+      "error": null
+    },
+    {
+      "index": 286,
+      "seed": 286,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 15,
+      "steps": 140,
+      "seconds": 0.7335741519927979,
+      "error": null
+    },
+    {
+      "index": 287,
+      "seed": 287,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 200,
+      "seconds": 2.5723721981048584,
+      "error": null
+    },
+    {
+      "index": 288,
+      "seed": 288,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 20,
+      "steps": 183,
+      "seconds": 2.1152195930480957,
+      "error": null
+    },
+    {
+      "index": 289,
+      "seed": 289,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 177,
+      "seconds": 1.0527241230010986,
+      "error": null
+    },
+    {
+      "index": 290,
+      "seed": 290,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 26,
+      "steps": 157,
+      "seconds": 1.213930368423462,
+      "error": null
+    },
+    {
+      "index": 291,
+      "seed": 291,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 10,
+      "steps": 58,
+      "seconds": 0.11536717414855957,
+      "error": null
+    },
+    {
+      "index": 292,
+      "seed": 292,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 109,
+      "seconds": 0.4822957515716553,
+      "error": null
+    },
+    {
+      "index": 293,
+      "seed": 293,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 15,
+      "steps": 145,
+      "seconds": 0.6322860717773438,
+      "error": null
+    },
+    {
+      "index": 294,
+      "seed": 294,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 178,
+      "seconds": 0.8222887516021729,
+      "error": null
+    },
+    {
+      "index": 295,
+      "seed": 295,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 165,
+      "seconds": 0.559990406036377,
+      "error": null
+    },
+    {
+      "index": 296,
+      "seed": 296,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 62,
+      "seconds": 0.26429057121276855,
+      "error": null
+    },
+    {
+      "index": 297,
+      "seed": 297,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 142,
+      "seconds": 0.6796550750732422,
+      "error": null
+    },
+    {
+      "index": 298,
+      "seed": 298,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 147,
+      "seconds": 0.4967994689941406,
+      "error": null
+    },
+    {
+      "index": 299,
+      "seed": 299,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 65,
+      "seconds": 0.30253148078918457,
+      "error": null
+    },
+    {
+      "index": 300,
+      "seed": 300,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 103,
+      "seconds": 0.36940622329711914,
+      "error": null
+    },
+    {
+      "index": 301,
+      "seed": 301,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 96,
+      "seconds": 0.3484961986541748,
+      "error": null
+    },
+    {
+      "index": 302,
+      "seed": 302,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 8,
+      "steps": 80,
+      "seconds": 0.18744826316833496,
+      "error": null
+    },
+    {
+      "index": 303,
+      "seed": 303,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 57,
+      "seconds": 0.25861263275146484,
+      "error": null
+    },
+    {
+      "index": 304,
+      "seed": 304,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 151,
+      "seconds": 0.6233165264129639,
+      "error": null
+    },
+    {
+      "index": 305,
+      "seed": 305,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 168,
+      "seconds": 0.8592736721038818,
+      "error": null
+    },
+    {
+      "index": 306,
+      "seed": 306,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 153,
+      "seconds": 0.9094400405883789,
+      "error": null
+    },
+    {
+      "index": 307,
+      "seed": 307,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 113,
+      "seconds": 0.3966944217681885,
+      "error": null
+    },
+    {
+      "index": 308,
+      "seed": 308,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 12,
+      "steps": 137,
+      "seconds": 0.5570118427276611,
+      "error": null
+    },
+    {
+      "index": 309,
+      "seed": 309,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 51,
+      "seconds": 0.1352372169494629,
+      "error": null
+    },
+    {
+      "index": 310,
+      "seed": 310,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 89,
+      "seconds": 0.3186454772949219,
+      "error": null
+    },
+    {
+      "index": 311,
+      "seed": 311,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 161,
+      "seconds": 0.6279990673065186,
+      "error": null
+    },
+    {
+      "index": 312,
+      "seed": 312,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 171,
+      "seconds": 0.7538778781890869,
+      "error": null
+    },
+    {
+      "index": 313,
+      "seed": 313,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 142,
+      "seconds": 0.8515307903289795,
+      "error": null
+    },
+    {
+      "index": 314,
+      "seed": 314,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 19,
+      "steps": 185,
+      "seconds": 1.0469281673431396,
+      "error": null
+    },
+    {
+      "index": 315,
+      "seed": 315,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 89,
+      "seconds": 0.385174036026001,
+      "error": null
+    },
+    {
+      "index": 316,
+      "seed": 316,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 171,
+      "seconds": 0.9578418731689453,
+      "error": null
+    },
+    {
+      "index": 317,
+      "seed": 317,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 29,
+      "seconds": 0.17872047424316406,
+      "error": null
+    },
+    {
+      "index": 318,
+      "seed": 318,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 145,
+      "seconds": 1.2002170085906982,
+      "error": null
+    },
+    {
+      "index": 319,
+      "seed": 319,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 93,
+      "seconds": 0.8934028148651123,
+      "error": null
+    },
+    {
+      "index": 320,
+      "seed": 320,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 147,
+      "seconds": 0.8762550354003906,
+      "error": null
+    },
+    {
+      "index": 321,
+      "seed": 321,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 162,
+      "seconds": 0.7771565914154053,
+      "error": null
+    },
+    {
+      "index": 322,
+      "seed": 322,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 149,
+      "seconds": 0.9386417865753174,
+      "error": null
+    },
+    {
+      "index": 323,
+      "seed": 323,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 8,
+      "steps": 73,
+      "seconds": 0.4301302433013916,
+      "error": null
+    },
+    {
+      "index": 324,
+      "seed": 324,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 204,
+      "seconds": 1.0991184711456299,
+      "error": null
+    },
+    {
+      "index": 325,
+      "seed": 325,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 23,
+      "seconds": 0.11975908279418945,
+      "error": null
+    },
+    {
+      "index": 326,
+      "seed": 326,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 127,
+      "seconds": 0.6158463954925537,
+      "error": null
+    },
+    {
+      "index": 327,
+      "seed": 327,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 47,
+      "seconds": 0.21529459953308105,
+      "error": null
+    },
+    {
+      "index": 328,
+      "seed": 328,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 166,
+      "seconds": 0.9751632213592529,
+      "error": null
+    },
+    {
+      "index": 329,
+      "seed": 329,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 42,
+      "seconds": 0.24489164352416992,
+      "error": null
+    },
+    {
+      "index": 330,
+      "seed": 330,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 14,
+      "steps": 175,
+      "seconds": 1.1258876323699951,
+      "error": null
+    },
+    {
+      "index": 331,
+      "seed": 331,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 34,
+      "seconds": 0.19247698783874512,
+      "error": null
+    },
+    {
+      "index": 332,
+      "seed": 332,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 180,
+      "seconds": 1.2923908233642578,
+      "error": null
+    },
+    {
+      "index": 333,
+      "seed": 333,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 149,
+      "seconds": 0.7597265243530273,
+      "error": null
+    },
+    {
+      "index": 334,
+      "seed": 334,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 100,
+      "seconds": 0.8793036937713623,
+      "error": null
+    },
+    {
+      "index": 335,
+      "seed": 335,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 131,
+      "seconds": 0.8022525310516357,
+      "error": null
+    },
+    {
+      "index": 336,
+      "seed": 336,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 198,
+      "seconds": 2.896937847137451,
+      "error": null
+    },
+    {
+      "index": 337,
+      "seed": 337,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 85,
+      "seconds": 0.41066980361938477,
+      "error": null
+    },
+    {
+      "index": 338,
+      "seed": 338,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 14,
+      "steps": 159,
+      "seconds": 1.1492867469787598,
+      "error": null
+    },
+    {
+      "index": 339,
+      "seed": 339,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 75,
+      "seconds": 0.5818123817443848,
+      "error": null
+    },
+    {
+      "index": 340,
+      "seed": 340,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 48,
+      "seconds": 0.17850971221923828,
+      "error": null
+    },
+    {
+      "index": 341,
+      "seed": 341,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 126,
+      "seconds": 0.5182070732116699,
+      "error": null
+    },
+    {
+      "index": 342,
+      "seed": 342,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 30,
+      "seconds": 0.12194585800170898,
+      "error": null
+    },
+    {
+      "index": 343,
+      "seed": 343,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 61,
+      "seconds": 0.49726319313049316,
+      "error": null
+    },
+    {
+      "index": 344,
+      "seed": 344,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 200,
+      "seconds": 1.2629494667053223,
+      "error": null
+    },
+    {
+      "index": 345,
+      "seed": 345,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 70,
+      "seconds": 0.2506442070007324,
+      "error": null
+    },
+    {
+      "index": 346,
+      "seed": 346,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 147,
+      "seconds": 0.8997402191162109,
+      "error": null
+    },
+    {
+      "index": 347,
+      "seed": 347,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 85,
+      "seconds": 0.6868503093719482,
+      "error": null
+    },
+    {
+      "index": 348,
+      "seed": 348,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 55,
+      "seconds": 0.17260003089904785,
+      "error": null
+    },
+    {
+      "index": 349,
+      "seed": 349,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 20,
+      "steps": 131,
+      "seconds": 0.5893106460571289,
+      "error": null
+    },
+    {
+      "index": 350,
+      "seed": 350,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 145,
+      "seconds": 0.6300923824310303,
+      "error": null
+    },
+    {
+      "index": 351,
+      "seed": 351,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 58,
+      "seconds": 0.23296475410461426,
+      "error": null
+    },
+    {
+      "index": 352,
+      "seed": 352,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 113,
+      "seconds": 0.5168559551239014,
+      "error": null
+    },
+    {
+      "index": 353,
+      "seed": 353,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 112,
+      "seconds": 0.41625285148620605,
+      "error": null
+    },
+    {
+      "index": 354,
+      "seed": 354,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 36,
+      "seconds": 0.17868733406066895,
+      "error": null
+    },
+    {
+      "index": 355,
+      "seed": 355,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 123,
+      "seconds": 0.6719160079956055,
+      "error": null
+    },
+    {
+      "index": 356,
+      "seed": 356,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 551,
+      "steps": 2988,
+      "seconds": 65.94204902648926,
+      "error": null
+    },
+    {
+      "index": 357,
+      "seed": 357,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 112,
+      "seconds": 0.5030012130737305,
+      "error": null
+    },
+    {
+      "index": 358,
+      "seed": 358,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 101,
+      "seconds": 0.35240721702575684,
+      "error": null
+    },
+    {
+      "index": 359,
+      "seed": 359,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 85,
+      "seconds": 0.38455939292907715,
+      "error": null
+    },
+    {
+      "index": 360,
+      "seed": 360,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 11,
+      "steps": 57,
+      "seconds": 0.12584757804870605,
+      "error": null
+    },
+    {
+      "index": 361,
+      "seed": 361,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 70,
+      "seconds": 0.3210282325744629,
+      "error": null
+    },
+    {
+      "index": 362,
+      "seed": 362,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 138,
+      "seconds": 0.7255549430847168,
+      "error": null
+    },
+    {
+      "index": 363,
+      "seed": 363,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 119,
+      "seconds": 0.4179036617279053,
+      "error": null
+    },
+    {
+      "index": 364,
+      "seed": 364,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 165,
+      "seconds": 1.0856225490570068,
+      "error": null
+    },
+    {
+      "index": 365,
+      "seed": 365,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 118,
+      "seconds": 1.140509843826294,
+      "error": null
+    },
+    {
+      "index": 366,
+      "seed": 366,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 10,
+      "steps": 61,
+      "seconds": 0.5305867195129395,
+      "error": null
+    },
+    {
+      "index": 367,
+      "seed": 367,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 152,
+      "seconds": 0.8148448467254639,
+      "error": null
+    },
+    {
+      "index": 368,
+      "seed": 368,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 5,
+      "steps": 47,
+      "seconds": 0.13016295433044434,
+      "error": null
+    },
+    {
+      "index": 369,
+      "seed": 369,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 145,
+      "seconds": 1.4242115020751953,
+      "error": null
+    },
+    {
+      "index": 370,
+      "seed": 370,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 180,
+      "seconds": 1.1938726902008057,
+      "error": null
+    },
+    {
+      "index": 371,
+      "seed": 371,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 135,
+      "seconds": 0.46074628829956055,
+      "error": null
+    },
+    {
+      "index": 372,
+      "seed": 372,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 180,
+      "seconds": 0.9475526809692383,
+      "error": null
+    },
+    {
+      "index": 373,
+      "seed": 373,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 138,
+      "seconds": 0.7417256832122803,
+      "error": null
+    },
+    {
+      "index": 374,
+      "seed": 374,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 164,
+      "seconds": 1.3714439868927002,
+      "error": null
+    },
+    {
+      "index": 375,
+      "seed": 375,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 92,
+      "seconds": 0.8202774524688721,
+      "error": null
+    },
+    {
+      "index": 376,
+      "seed": 376,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 173,
+      "seconds": 1.629267930984497,
+      "error": null
+    },
+    {
+      "index": 377,
+      "seed": 377,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 59,
+      "seconds": 0.2619600296020508,
+      "error": null
+    },
+    {
+      "index": 378,
+      "seed": 378,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 14,
+      "steps": 167,
+      "seconds": 0.9606184959411621,
+      "error": null
+    },
+    {
+      "index": 379,
+      "seed": 379,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 6,
+      "steps": 47,
+      "seconds": 0.10327601432800293,
+      "error": null
+    },
+    {
+      "index": 380,
+      "seed": 380,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 151,
+      "seconds": 1.036984920501709,
+      "error": null
+    },
+    {
+      "index": 381,
+      "seed": 381,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 130,
+      "seconds": 0.8376157283782959,
+      "error": null
+    },
+    {
+      "index": 382,
+      "seed": 382,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 136,
+      "seconds": 0.5120007991790771,
+      "error": null
+    },
+    {
+      "index": 383,
+      "seed": 383,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 73,
+      "seconds": 0.23929786682128906,
+      "error": null
+    },
+    {
+      "index": 384,
+      "seed": 384,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 172,
+      "seconds": 0.7681891918182373,
+      "error": null
+    },
+    {
+      "index": 385,
+      "seed": 385,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 21,
+      "steps": 145,
+      "seconds": 0.6628689765930176,
+      "error": null
+    },
+    {
+      "index": 386,
+      "seed": 386,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 81,
+      "seconds": 0.3171403408050537,
+      "error": null
+    },
+    {
+      "index": 387,
+      "seed": 387,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 167,
+      "seconds": 0.9484436511993408,
+      "error": null
+    },
+    {
+      "index": 388,
+      "seed": 388,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 111,
+      "seconds": 0.32947635650634766,
+      "error": null
+    },
+    {
+      "index": 389,
+      "seed": 389,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 39,
+      "seconds": 0.16302180290222168,
+      "error": null
+    },
+    {
+      "index": 390,
+      "seed": 390,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 23,
+      "steps": 171,
+      "seconds": 0.6165978908538818,
+      "error": null
+    },
+    {
+      "index": 391,
+      "seed": 391,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 154,
+      "seconds": 0.5293989181518555,
+      "error": null
+    },
+    {
+      "index": 392,
+      "seed": 392,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 14,
+      "steps": 167,
+      "seconds": 0.8602373600006104,
+      "error": null
+    },
+    {
+      "index": 393,
+      "seed": 393,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 143,
+      "seconds": 0.8209414482116699,
+      "error": null
+    },
+    {
+      "index": 394,
+      "seed": 394,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 79,
+      "seconds": 0.3843224048614502,
+      "error": null
+    },
+    {
+      "index": 395,
+      "seed": 395,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 129,
+      "seconds": 0.598731279373169,
+      "error": null
+    },
+    {
+      "index": 396,
+      "seed": 396,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 157,
+      "seconds": 0.6117544174194336,
+      "error": null
+    },
+    {
+      "index": 397,
+      "seed": 397,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 19,
+      "steps": 174,
+      "seconds": 1.0571231842041016,
+      "error": null
+    },
+    {
+      "index": 398,
+      "seed": 398,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 140,
+      "seconds": 0.46331119537353516,
+      "error": null
+    },
+    {
+      "index": 399,
+      "seed": 399,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 88,
+      "seconds": 0.8367898464202881,
+      "error": null
+    },
+    {
+      "index": 400,
+      "seed": 400,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 92,
+      "seconds": 0.5730035305023193,
+      "error": null
+    },
+    {
+      "index": 401,
+      "seed": 401,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 158,
+      "seconds": 1.3472790718078613,
+      "error": null
+    },
+    {
+      "index": 402,
+      "seed": 402,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 5,
+      "steps": 49,
+      "seconds": 0.13941121101379395,
+      "error": null
+    },
+    {
+      "index": 403,
+      "seed": 403,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 140,
+      "seconds": 0.6268963813781738,
+      "error": null
+    },
+    {
+      "index": 404,
+      "seed": 404,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 126,
+      "seconds": 0.5593581199645996,
+      "error": null
+    },
+    {
+      "index": 405,
+      "seed": 405,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 3,
+      "steps": 14,
+      "seconds": 0.04774141311645508,
+      "error": null
+    },
+    {
+      "index": 406,
+      "seed": 406,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 172,
+      "seconds": 1.6575720310211182,
+      "error": null
+    },
+    {
+      "index": 407,
+      "seed": 407,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 206,
+      "seconds": 1.5750973224639893,
+      "error": null
+    },
+    {
+      "index": 408,
+      "seed": 408,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 19,
+      "steps": 185,
+      "seconds": 4.2245965003967285,
+      "error": null
+    },
+    {
+      "index": 409,
+      "seed": 409,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 25,
+      "steps": 117,
+      "seconds": 0.45534849166870117,
+      "error": null
+    },
+    {
+      "index": 410,
+      "seed": 410,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 124,
+      "seconds": 0.817798376083374,
+      "error": null
+    },
+    {
+      "index": 411,
+      "seed": 411,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 93,
+      "seconds": 0.5161116123199463,
+      "error": null
+    },
+    {
+      "index": 412,
+      "seed": 412,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 17,
+      "seconds": 0.07212138175964355,
+      "error": null
+    },
+    {
+      "index": 413,
+      "seed": 413,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 83,
+      "seconds": 0.7449519634246826,
+      "error": null
+    },
+    {
+      "index": 414,
+      "seed": 414,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 132,
+      "seconds": 0.971904993057251,
+      "error": null
+    },
+    {
+      "index": 415,
+      "seed": 415,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 127,
+      "seconds": 0.8347940444946289,
+      "error": null
+    },
+    {
+      "index": 416,
+      "seed": 416,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 10,
+      "steps": 74,
+      "seconds": 0.5581409931182861,
+      "error": null
+    },
+    {
+      "index": 417,
+      "seed": 417,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 164,
+      "seconds": 0.9110753536224365,
+      "error": null
+    },
+    {
+      "index": 418,
+      "seed": 418,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 24,
+      "steps": 192,
+      "seconds": 3.115027666091919,
+      "error": null
+    },
+    {
+      "index": 419,
+      "seed": 419,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 76,
+      "seconds": 0.461498498916626,
+      "error": null
+    },
+    {
+      "index": 420,
+      "seed": 420,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 171,
+      "seconds": 1.1721961498260498,
+      "error": null
+    },
+    {
+      "index": 421,
+      "seed": 421,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 142,
+      "seconds": 0.7944989204406738,
+      "error": null
+    },
+    {
+      "index": 422,
+      "seed": 422,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 22,
+      "steps": 100,
+      "seconds": 0.600412130355835,
+      "error": null
+    },
+    {
+      "index": 423,
+      "seed": 423,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 144,
+      "seconds": 0.8261063098907471,
+      "error": null
+    },
+    {
+      "index": 424,
+      "seed": 424,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 128,
+      "seconds": 0.5268683433532715,
+      "error": null
+    },
+    {
+      "index": 425,
+      "seed": 425,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 86,
+      "seconds": 0.609900712966919,
+      "error": null
+    },
+    {
+      "index": 426,
+      "seed": 426,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 172,
+      "seconds": 2.1967391967773438,
+      "error": null
+    },
+    {
+      "index": 427,
+      "seed": 427,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 77,
+      "seconds": 0.2556273937225342,
+      "error": null
+    },
+    {
+      "index": 428,
+      "seed": 428,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 79,
+      "seconds": 0.28650832176208496,
+      "error": null
+    },
+    {
+      "index": 429,
+      "seed": 429,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 139,
+      "seconds": 0.6811861991882324,
+      "error": null
+    },
+    {
+      "index": 430,
+      "seed": 430,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 10,
+      "steps": 75,
+      "seconds": 0.43923425674438477,
+      "error": null
+    },
+    {
+      "index": 431,
+      "seed": 431,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 78,
+      "seconds": 0.376056432723999,
+      "error": null
+    },
+    {
+      "index": 432,
+      "seed": 432,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 73,
+      "seconds": 0.2848551273345947,
+      "error": null
+    },
+    {
+      "index": 433,
+      "seed": 433,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 65,
+      "seconds": 0.2661311626434326,
+      "error": null
+    },
+    {
+      "index": 434,
+      "seed": 434,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 4,
+      "steps": 28,
+      "seconds": 0.06194186210632324,
+      "error": null
+    },
+    {
+      "index": 435,
+      "seed": 435,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 50,
+      "seconds": 0.18146085739135742,
+      "error": null
+    },
+    {
+      "index": 436,
+      "seed": 436,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 178,
+      "seconds": 1.03261137008667,
+      "error": null
+    },
+    {
+      "index": 437,
+      "seed": 437,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 136,
+      "seconds": 1.0863158702850342,
+      "error": null
+    },
+    {
+      "index": 438,
+      "seed": 438,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 95,
+      "seconds": 0.5593268871307373,
+      "error": null
+    },
+    {
+      "index": 439,
+      "seed": 439,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 50,
+      "seconds": 0.2059164047241211,
+      "error": null
+    },
+    {
+      "index": 440,
+      "seed": 440,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 107,
+      "seconds": 0.5342426300048828,
+      "error": null
+    },
+    {
+      "index": 441,
+      "seed": 441,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 81,
+      "seconds": 0.3851637840270996,
+      "error": null
+    },
+    {
+      "index": 442,
+      "seed": 442,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 57,
+      "seconds": 0.25168299674987793,
+      "error": null
+    },
+    {
+      "index": 443,
+      "seed": 443,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 166,
+      "seconds": 0.6470603942871094,
+      "error": null
+    },
+    {
+      "index": 444,
+      "seed": 444,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 130,
+      "seconds": 0.35131359100341797,
+      "error": null
+    },
+    {
+      "index": 445,
+      "seed": 445,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 100,
+      "seconds": 0.23075127601623535,
+      "error": null
+    },
+    {
+      "index": 446,
+      "seed": 446,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 153,
+      "seconds": 0.816903829574585,
+      "error": null
+    },
+    {
+      "index": 447,
+      "seed": 447,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 7,
+      "steps": 59,
+      "seconds": 0.1997849941253662,
+      "error": null
+    },
+    {
+      "index": 448,
+      "seed": 448,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 137,
+      "seconds": 0.5508975982666016,
+      "error": null
+    },
+    {
+      "index": 449,
+      "seed": 449,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 156,
+      "seconds": 0.7562081813812256,
+      "error": null
+    },
+    {
+      "index": 450,
+      "seed": 450,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 4,
+      "steps": 32,
+      "seconds": 0.04867887496948242,
+      "error": null
+    },
+    {
+      "index": 451,
+      "seed": 451,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 171,
+      "seconds": 0.5561885833740234,
+      "error": null
+    },
+    {
+      "index": 452,
+      "seed": 452,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 22,
+      "steps": 206,
+      "seconds": 2.500375509262085,
+      "error": null
+    },
+    {
+      "index": 453,
+      "seed": 453,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 133,
+      "seconds": 1.6571860313415527,
+      "error": null
+    },
+    {
+      "index": 454,
+      "seed": 454,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 18,
+      "steps": 183,
+      "seconds": 1.0173394680023193,
+      "error": null
+    },
+    {
+      "index": 455,
+      "seed": 455,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 35,
+      "seconds": 0.16058802604675293,
+      "error": null
+    },
+    {
+      "index": 456,
+      "seed": 456,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 176,
+      "seconds": 1.0699479579925537,
+      "error": null
+    },
+    {
+      "index": 457,
+      "seed": 457,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 82,
+      "seconds": 0.27280306816101074,
+      "error": null
+    },
+    {
+      "index": 458,
+      "seed": 458,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 12,
+      "steps": 160,
+      "seconds": 1.064499855041504,
+      "error": null
+    },
+    {
+      "index": 459,
+      "seed": 459,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 136,
+      "seconds": 0.5169899463653564,
+      "error": null
+    },
+    {
+      "index": 460,
+      "seed": 460,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 133,
+      "seconds": 0.5309386253356934,
+      "error": null
+    },
+    {
+      "index": 461,
+      "seed": 461,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 52,
+      "seconds": 0.18719244003295898,
+      "error": null
+    },
+    {
+      "index": 462,
+      "seed": 462,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 119,
+      "seconds": 0.9175302982330322,
+      "error": null
+    },
+    {
+      "index": 463,
+      "seed": 463,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 109,
+      "seconds": 0.539109468460083,
+      "error": null
+    },
+    {
+      "index": 464,
+      "seed": 464,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 164,
+      "seconds": 0.8410840034484863,
+      "error": null
+    },
+    {
+      "index": 465,
+      "seed": 465,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 71,
+      "seconds": 0.4014475345611572,
+      "error": null
+    },
+    {
+      "index": 466,
+      "seed": 466,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 9,
+      "steps": 69,
+      "seconds": 0.13991403579711914,
+      "error": null
+    },
+    {
+      "index": 467,
+      "seed": 467,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 99,
+      "seconds": 0.7097651958465576,
+      "error": null
+    },
+    {
+      "index": 468,
+      "seed": 468,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 15,
+      "steps": 114,
+      "seconds": 0.3735842704772949,
+      "error": null
+    },
+    {
+      "index": 469,
+      "seed": 469,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 124,
+      "seconds": 0.523061990737915,
+      "error": null
+    },
+    {
+      "index": 470,
+      "seed": 470,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 74,
+      "seconds": 0.26387882232666016,
+      "error": null
+    },
+    {
+      "index": 471,
+      "seed": 471,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 39,
+      "seconds": 0.14349937438964844,
+      "error": null
+    },
+    {
+      "index": 472,
+      "seed": 472,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 131,
+      "seconds": 0.5053369998931885,
+      "error": null
+    },
+    {
+      "index": 473,
+      "seed": 473,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 19,
+      "steps": 165,
+      "seconds": 0.961259126663208,
+      "error": null
+    },
+    {
+      "index": 474,
+      "seed": 474,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 80,
+      "seconds": 0.41434645652770996,
+      "error": null
+    },
+    {
+      "index": 475,
+      "seed": 475,
+      "a_player_index": 1,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 174,
+      "seconds": 1.6512303352355957,
+      "error": null
+    },
+    {
+      "index": 476,
+      "seed": 476,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 130,
+      "seconds": 0.5845725536346436,
+      "error": null
+    },
+    {
+      "index": 477,
+      "seed": 477,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 3,
+      "steps": 32,
+      "seconds": 0.08656668663024902,
+      "error": null
+    },
+    {
+      "index": 478,
+      "seed": 478,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 20,
+      "steps": 192,
+      "seconds": 2.6505537033081055,
+      "error": null
+    },
+    {
+      "index": 479,
+      "seed": 479,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 4,
+      "steps": 24,
+      "seconds": 0.06424117088317871,
+      "error": null
+    },
+    {
+      "index": 480,
+      "seed": 480,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 17,
+      "steps": 147,
+      "seconds": 0.6170370578765869,
+      "error": null
+    },
+    {
+      "index": 481,
+      "seed": 481,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 120,
+      "seconds": 0.3660116195678711,
+      "error": null
+    },
+    {
+      "index": 482,
+      "seed": 482,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 157,
+      "seconds": 0.6938266754150391,
+      "error": null
+    },
+    {
+      "index": 483,
+      "seed": 483,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 96,
+      "seconds": 0.6200814247131348,
+      "error": null
+    },
+    {
+      "index": 484,
+      "seed": 484,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 4,
+      "steps": 38,
+      "seconds": 0.06951904296875,
+      "error": null
+    },
+    {
+      "index": 485,
+      "seed": 485,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 11,
+      "steps": 142,
+      "seconds": 0.5665261745452881,
+      "error": null
+    },
+    {
+      "index": 486,
+      "seed": 486,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 146,
+      "seconds": 0.5949187278747559,
+      "error": null
+    },
+    {
+      "index": 487,
+      "seed": 487,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 90,
+      "seconds": 0.37947607040405273,
+      "error": null
+    },
+    {
+      "index": 488,
+      "seed": 488,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 73,
+      "seconds": 0.27941012382507324,
+      "error": null
+    },
+    {
+      "index": 489,
+      "seed": 489,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 17,
+      "steps": 141,
+      "seconds": 0.5846962928771973,
+      "error": null
+    },
+    {
+      "index": 490,
+      "seed": 490,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 14,
+      "steps": 151,
+      "seconds": 0.6345586776733398,
+      "error": null
+    },
+    {
+      "index": 491,
+      "seed": 491,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 171,
+      "seconds": 0.8510928153991699,
+      "error": null
+    },
+    {
+      "index": 492,
+      "seed": 492,
+      "a_player_index": 0,
+      "winner_agent": "A",
+      "turns": 16,
+      "steps": 195,
+      "seconds": 1.531494140625,
+      "error": null
+    },
+    {
+      "index": 493,
+      "seed": 493,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 5,
+      "steps": 58,
+      "seconds": 0.4264681339263916,
+      "error": null
+    },
+    {
+      "index": 494,
+      "seed": 494,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 8,
+      "steps": 48,
+      "seconds": 0.19680547714233398,
+      "error": null
+    },
+    {
+      "index": 495,
+      "seed": 495,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 9,
+      "steps": 66,
+      "seconds": 0.4696803092956543,
+      "error": null
+    },
+    {
+      "index": 496,
+      "seed": 496,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 16,
+      "steps": 199,
+      "seconds": 0.6703171730041504,
+      "error": null
+    },
+    {
+      "index": 497,
+      "seed": 497,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 21,
+      "steps": 151,
+      "seconds": 1.5604019165039062,
+      "error": null
+    },
+    {
+      "index": 498,
+      "seed": 498,
+      "a_player_index": 0,
+      "winner_agent": "B",
+      "turns": 6,
+      "steps": 48,
+      "seconds": 0.11477851867675781,
+      "error": null
+    },
+    {
+      "index": 499,
+      "seed": 499,
+      "a_player_index": 1,
+      "winner_agent": "B",
+      "turns": 13,
+      "steps": 103,
+      "seconds": 0.41764187812805176,
+      "error": null
+    }
+  ]
+}

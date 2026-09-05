@@ -1,0 +1,37 @@
+{
+  "archetype": "oliva_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "を",
+      "rank_at_fetch": 1004,
+      "leaderboard_score": 811.8,
+      "episode_id": "86813502",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "iwata hiroki",
+      "rank_at_fetch": 2758,
+      "leaderboard_score": 644.9,
+      "episode_id": "85341100",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "bushdoge",
+      "rank_at_fetch": 4267,
+      "leaderboard_score": 474.9,
+      "episode_id": "85918300",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "iwata hiroki",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86818344",
+      "player_index": 1
+    }
+  ]
+}

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
 from typing import Protocol
 
 from cg.api import State
@@ -24,6 +25,12 @@ from cg.api import State
 from ptcg_ai.board_evaluation.board_features import attacker_score
 
 _NEUTRAL = 0.5
+
+# ValueModelEvaluator の既定重み(value_weights.json)と同じディレクトリ。config で
+# 相対パスの value_weights_path を指定したとき、ここを基準に解決する
+# (learning/value_model.py の ValueModel は weights_path をそのまま Path() に渡すだけで、
+# 相対パスは呼び出し時の cwd 基準になってしまうため、ここで明示的に絶対化する)。
+_LEARNING_WEIGHTS_DIR = Path(__file__).resolve().parent.parent / "learning"
 
 
 def _sigmoid(z: float) -> float:
@@ -150,14 +157,26 @@ def value_model_ready() -> bool:
 
 
 class ValueModelEvaluator:
-    """既存 ValueModel を ``me`` 視点へ整列して包む差し替え実装。"""
+    """既存 ValueModel を ``me`` 視点へ整列して包む差し替え実装。
 
-    def __init__(self, model=None):
-        self._model = model  # 未指定ならプロセス共有インスタンスを使う(毎select再読込を防ぐ)
+    ``weights_path`` を指定すると、初回 evaluate 時にそのパスの重みJSONを読んだ
+    ``ValueModel`` を遅延生成する。未指定(既定)ならプロセス共有インスタンスを使い、
+    毎select の再読込を避ける(既存呼び出しの挙動は変えない)。
+    """
+
+    def __init__(self, model=None, weights_path: str | Path | None = None):
+        self._model = model  # 未指定なら初回 evaluate で遅延生成
+        self._weights_path = weights_path
 
     def _get_model(self):
         if self._model is None:
-            self._model = _get_shared_value_model()
+            if self._weights_path is not None:
+                from ptcg_ai.learning.value_model import ValueModel
+
+                self._model = ValueModel(self._weights_path)
+            else:
+                # 既定は共有インスタンス(毎select再読込を防ぐ)
+                self._model = _get_shared_value_model()
         return self._model
 
     def evaluate(self, state: State, me: int) -> float:
@@ -215,13 +234,20 @@ def build_evaluator(config: dict | None = None) -> LeafEvaluator:
 
     - ``"handcrafted"``(既定): 手作り線形評価。``config["card_advantage_coeff"]``(既定 0.0=
       無効)で汎用のカードアドバンテージ項を有効化できる。
-    - ``"value"``: 学習 Value 単体。
+    - ``"value"``: 学習 Value 単体。``config["value_weights_path"]``(既定 None)で既定重み
+      (``ptcg_ai/learning/value_weights.json``)以外の重みJSONへ差し替えられる。相対パスは
+      ``ptcg_ai/learning/`` 基準で解決する(絶対パスはそのまま使う)。
     - ``"blend"``: ``config["alpha"]``(既定 0.5)で learned/handcrafted を線形混合。
     """
     cfg = config or {}
     kind = cfg.get("kind", "handcrafted")
     if kind == "value":
-        return ValueModelEvaluator()
+        weights_path = cfg.get("value_weights_path")
+        resolved_path = None
+        if weights_path is not None:
+            _p = Path(weights_path)
+            resolved_path = str(_p if _p.is_absolute() else (_LEARNING_WEIGHTS_DIR / _p))
+        return ValueModelEvaluator(weights_path=resolved_path)
     if kind == "blend":
         return BlendedEvaluator(
             alpha=float(cfg.get("alpha", 0.5)),

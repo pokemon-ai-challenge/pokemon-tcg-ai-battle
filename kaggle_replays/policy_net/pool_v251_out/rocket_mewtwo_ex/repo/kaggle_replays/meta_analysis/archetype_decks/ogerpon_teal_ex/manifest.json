@@ -1,0 +1,45 @@
+{
+  "archetype": "ogerpon_teal_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Ajishio",
+      "rank_at_fetch": 459,
+      "leaderboard_score": 873.0,
+      "episode_id": "86806933",
+      "player_index": 0
+    },
+    {
+      "file": "02.csv",
+      "team": "Pokkén",
+      "rank_at_fetch": 592,
+      "leaderboard_score": 853.3,
+      "episode_id": "86815725",
+      "player_index": 0
+    },
+    {
+      "file": "03.csv",
+      "team": "vibechu",
+      "rank_at_fetch": 608,
+      "leaderboard_score": 851.7,
+      "episode_id": "86791880",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "BioMath",
+      "rank_at_fetch": 1030,
+      "leaderboard_score": 810.1,
+      "episode_id": "86049677",
+      "player_index": 0
+    },
+    {
+      "file": "05.csv",
+      "team": "Hamadryas Baboon",
+      "rank_at_fetch": 1795,
+      "leaderboard_score": 739.8,
+      "episode_id": "86812115",
+      "player_index": 0
+    }
+  ]
+}

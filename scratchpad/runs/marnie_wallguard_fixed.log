@@ -1,0 +1,16 @@
+[info] running 100 games across 2 worker processes
+[progress] 50/100 games done (A win rate so far: 0.120 over 50 valid games, errors: 0, elapsed: 345.2s)
+[progress] 100/100 games done (A win rate so far: 0.130 over 100 valid games, errors: 0, elapsed: 684.9s)
+=== league result: rule_based (A) vs ml_policy (B) ===
+games requested/run: 100/100
+elapsed: 684.9s (workers: 2)
+
+overall: A 13/100 = 0.130 (95% CI [0.078, 0.210])
+avg turns: 15.1, avg steps: 114.7
+
+A as player0 (êÊéË): 8/50 = 0.160 (95% CI [0.083, 0.285])
+A as player1 (å„éË): 5/50 = 0.100 (95% CI [0.043, 0.214])
+
+errors: 0 (0.0%)
+
+result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\league\results\marnie_wallguard_fixed.json

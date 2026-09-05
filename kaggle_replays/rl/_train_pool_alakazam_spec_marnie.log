@@ -1,0 +1,467 @@
+{
+  "args": {
+    "learner": "alakazam",
+    "learner_weights": null,
+    "train_opponents": "marnie_grimmsnarl_ex",
+    "eval_opponents": "marnie_grimmsnarl_ex",
+    "eval_fixed": null,
+    "iters": 20,
+    "games_per_iter": 512,
+    "eval_games": 200,
+    "eval_every": 4,
+    "final_eval_games": 400,
+    "workers": 8,
+    "epochs": 4,
+    "clip": 0.2,
+    "lr_policy": 0.0003,
+    "lr_value": 0.001,
+    "entropy": 0.005,
+    "gamma": 0.999,
+    "lam": 0.95,
+    "temperature": 1.0,
+    "device": "cpu",
+    "tag": "spec_marnie",
+    "force": false
+  },
+  "train_opponents": [
+    "marnie_grimmsnarl_ex"
+  ],
+  "eval_opponents": [
+    "marnie_grimmsnarl_ex"
+  ],
+  "eval_fixed": null,
+  "history": [
+    {
+      "eval_winrate": 0.235,
+      "eval_wins": 47,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "marnie_grimmsnarl_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 47,
+          "errors": 0,
+          "winrate": 0.235
+        }
+      },
+      "iter": 0
+    },
+    {
+      "iter": 1,
+      "train_winrate": 0.10546875,
+      "steps": 40073,
+      "pol_loss": -0.008408362977206707,
+      "val_loss": 0.015351789072155952,
+      "entropy": 1.0856842994689941,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 54,
+          "errors": 0,
+          "winrate": 0.10546875
+        }
+      }
+    },
+    {
+      "iter": 2,
+      "train_winrate": 0.119140625,
+      "steps": 40642,
+      "pol_loss": -0.006969826761633158,
+      "val_loss": 0.013390474952757359,
+      "entropy": 1.0936448574066162,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 61,
+          "errors": 0,
+          "winrate": 0.119140625
+        }
+      }
+    },
+    {
+      "iter": 3,
+      "train_winrate": 0.150390625,
+      "steps": 39210,
+      "pol_loss": -0.00672669243067503,
+      "val_loss": 0.014025956392288208,
+      "entropy": 1.0851775407791138,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 77,
+          "errors": 0,
+          "winrate": 0.150390625
+        }
+      }
+    },
+    {
+      "iter": 4,
+      "train_winrate": 0.16796875,
+      "steps": 39267,
+      "pol_loss": -0.0069492594338953495,
+      "val_loss": 0.01610349677503109,
+      "entropy": 1.0817694664001465,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 86,
+          "errors": 0,
+          "winrate": 0.16796875
+        }
+      },
+      "eval_winrate": 0.34,
+      "eval_wins": 68,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "marnie_grimmsnarl_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 68,
+          "errors": 0,
+          "winrate": 0.34
+        }
+      }
+    },
+    {
+      "iter": 5,
+      "train_winrate": 0.158203125,
+      "steps": 38528,
+      "pol_loss": -0.007321829907596111,
+      "val_loss": 0.015065127052366734,
+      "entropy": 1.0526455640792847,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 81,
+          "errors": 0,
+          "winrate": 0.158203125
+        }
+      }
+    },
+    {
+      "iter": 6,
+      "train_winrate": 0.212890625,
+      "steps": 37777,
+      "pol_loss": -0.0069991955533623695,
+      "val_loss": 0.01885593868792057,
+      "entropy": 1.0435408353805542,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 109,
+          "errors": 0,
+          "winrate": 0.212890625
+        }
+      }
+    },
+    {
+      "iter": 7,
+      "train_winrate": 0.208984375,
+      "steps": 37517,
+      "pol_loss": -0.007403687573969364,
+      "val_loss": 0.020888417959213257,
+      "entropy": 1.0328885316848755,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 107,
+          "errors": 0,
+          "winrate": 0.208984375
+        }
+      }
+    },
+    {
+      "iter": 8,
+      "train_winrate": 0.240234375,
+      "steps": 36065,
+      "pol_loss": -0.006684316322207451,
+      "val_loss": 0.024676399305462837,
+      "entropy": 1.0149593353271484,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 123,
+          "errors": 0,
+          "winrate": 0.240234375
+        }
+      },
+      "eval_winrate": 0.39,
+      "eval_wins": 78,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "marnie_grimmsnarl_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 78,
+          "errors": 0,
+          "winrate": 0.39
+        }
+      }
+    },
+    {
+      "iter": 9,
+      "train_winrate": 0.26171875,
+      "steps": 36807,
+      "pol_loss": -0.006489355582743883,
+      "val_loss": 0.024950582534074783,
+      "entropy": 1.0119434595108032,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 134,
+          "errors": 0,
+          "winrate": 0.26171875
+        }
+      }
+    },
+    {
+      "iter": 10,
+      "train_winrate": 0.287109375,
+      "steps": 34521,
+      "pol_loss": -0.006488264538347721,
+      "val_loss": 0.02681213803589344,
+      "entropy": 0.9784836769104004,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 147,
+          "errors": 0,
+          "winrate": 0.287109375
+        }
+      }
+    },
+    {
+      "iter": 11,
+      "train_winrate": 0.314453125,
+      "steps": 34963,
+      "pol_loss": -0.006264473777264357,
+      "val_loss": 0.02712949551641941,
+      "entropy": 0.9780951738357544,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 161,
+          "errors": 0,
+          "winrate": 0.314453125
+        }
+      }
+    },
+    {
+      "iter": 12,
+      "train_winrate": 0.318359375,
+      "steps": 34680,
+      "pol_loss": -0.005711364094167948,
+      "val_loss": 0.03033345192670822,
+      "entropy": 0.9681298136711121,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 163,
+          "errors": 0,
+          "winrate": 0.318359375
+        }
+      },
+      "eval_winrate": 0.43,
+      "eval_wins": 86,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "marnie_grimmsnarl_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 86,
+          "errors": 0,
+          "winrate": 0.43
+        }
+      }
+    },
+    {
+      "iter": 13,
+      "train_winrate": 0.333984375,
+      "steps": 33263,
+      "pol_loss": -0.005812718067318201,
+      "val_loss": 0.030028855428099632,
+      "entropy": 0.9544692635536194,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 171,
+          "errors": 0,
+          "winrate": 0.333984375
+        }
+      }
+    },
+    {
+      "iter": 14,
+      "train_winrate": 0.353515625,
+      "steps": 33717,
+      "pol_loss": -0.005934663582593203,
+      "val_loss": 0.03092343918979168,
+      "entropy": 0.9399840831756592,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 181,
+          "errors": 0,
+          "winrate": 0.353515625
+        }
+      }
+    },
+    {
+      "iter": 15,
+      "train_winrate": 0.32421875,
+      "steps": 33739,
+      "pol_loss": -0.0057314541190862656,
+      "val_loss": 0.029334310442209244,
+      "entropy": 0.9479963779449463,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 166,
+          "errors": 0,
+          "winrate": 0.32421875
+        }
+      }
+    },
+    {
+      "iter": 16,
+      "train_winrate": 0.353515625,
+      "steps": 34485,
+      "pol_loss": -0.005864768289029598,
+      "val_loss": 0.031480710953474045,
+      "entropy": 0.9380980134010315,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 181,
+          "errors": 0,
+          "winrate": 0.353515625
+        }
+      },
+      "eval_winrate": 0.46,
+      "eval_wins": 92,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "marnie_grimmsnarl_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 92,
+          "errors": 0,
+          "winrate": 0.46
+        }
+      }
+    },
+    {
+      "iter": 17,
+      "train_winrate": 0.35546875,
+      "steps": 34950,
+      "pol_loss": -0.005255397874861956,
+      "val_loss": 0.03164144605398178,
+      "entropy": 0.9311646223068237,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 182,
+          "errors": 0,
+          "winrate": 0.35546875
+        }
+      }
+    },
+    {
+      "iter": 18,
+      "train_winrate": 0.373046875,
+      "steps": 34709,
+      "pol_loss": -0.005498084239661694,
+      "val_loss": 0.030150068923830986,
+      "entropy": 0.932039737701416,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 191,
+          "errors": 0,
+          "winrate": 0.373046875
+        }
+      }
+    },
+    {
+      "iter": 19,
+      "train_winrate": 0.361328125,
+      "steps": 33895,
+      "pol_loss": -0.005493096075952053,
+      "val_loss": 0.028978751972317696,
+      "entropy": 0.9191054701805115,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 185,
+          "errors": 0,
+          "winrate": 0.361328125
+        }
+      }
+    },
+    {
+      "iter": 20,
+      "train_winrate": 0.388671875,
+      "steps": 34294,
+      "pol_loss": -0.00548953702673316,
+      "val_loss": 0.0326809324324131,
+      "entropy": 0.9115464687347412,
+      "per_opponent_train": {
+        "marnie_grimmsnarl_ex": {
+          "games": 512,
+          "valid": 512,
+          "wins": 199,
+          "errors": 0,
+          "winrate": 0.388671875
+        }
+      },
+      "eval_winrate": 0.475,
+      "eval_wins": 95,
+      "eval_valid": 200,
+      "eval_per_opponent": {
+        "marnie_grimmsnarl_ex": {
+          "games": 200,
+          "valid": 200,
+          "wins": 95,
+          "errors": 0,
+          "winrate": 0.475
+        }
+      }
+    },
+    {
+      "iter": "final",
+      "final_eval": {
+        "eval_opponents_winrate": 0.46,
+        "eval_opponents_wins": 184,
+        "eval_opponents_valid": 400,
+        "eval_opponents_per_opponent": {
+          "marnie_grimmsnarl_ex": {
+            "games": 400,
+            "valid": 400,
+            "wins": 184,
+            "errors": 0,
+            "winrate": 0.46
+          }
+        }
+      }
+    }
+  ]
+}

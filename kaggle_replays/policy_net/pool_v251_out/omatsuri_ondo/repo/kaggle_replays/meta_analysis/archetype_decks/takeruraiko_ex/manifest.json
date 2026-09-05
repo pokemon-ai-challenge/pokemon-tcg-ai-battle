@@ -1,0 +1,45 @@
+{
+  "archetype": "takeruraiko_ex",
+  "decks": [
+    {
+      "file": "01.csv",
+      "team": "Shibungi",
+      "rank_at_fetch": 1701,
+      "leaderboard_score": 747.9,
+      "episode_id": "86811921",
+      "player_index": 1
+    },
+    {
+      "file": "02.csv",
+      "team": "Mactorr",
+      "rank_at_fetch": 3870,
+      "leaderboard_score": 527.2,
+      "episode_id": "86064867",
+      "player_index": 1
+    },
+    {
+      "file": "03.csv",
+      "team": "morikennnnn",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86303982",
+      "player_index": 1
+    },
+    {
+      "file": "04.csv",
+      "team": "miso",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86527715",
+      "player_index": 1
+    },
+    {
+      "file": "05.csv",
+      "team": "Ishan Kapoor",
+      "rank_at_fetch": null,
+      "leaderboard_score": null,
+      "episode_id": "86719911",
+      "player_index": 0
+    }
+  ]
+}

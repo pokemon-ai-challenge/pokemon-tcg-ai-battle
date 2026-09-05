@@ -1,0 +1,45 @@
+learner=marnie_grimmsnarl_ex weights=C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_scale_f0.125_s1.json
+opponents=['alakazam', 'crustle', 'marnie_grimmsnarl_ex', 'rocket_mewtwo_ex', 'omatsuri_ondo', 'shirona_garchomp_ex', 'ogerpon_teal_ex', 'dragapult_ex'] games=1600
+
+有効試合 1600/1600
+
+=== 先攻/後攻の内訳 ===
+  全体   0.7300  (n=1600)
+  先攻   0.7575  (n=800)
+  後攻   0.7025  (n=800)
+  差     +5.5pt
+
+=== 最終サイド差（相手の残り − 自分の残り。正が優勢）===
+  平均 +1.877  SD 3.597
+  勝敗との相関 r = 0.851
+  （r が高いほど、サイド差は勝率の低分散な代理指標として使える）
+  勝ち試合の平均サイド差 +3.738 (n=1168)
+  負け試合の平均サイド差 -3.153 (n=432)
+
+=== 試合長 ===
+  平均 14.6 ターン  最大 60
+
+=== 敗因の内訳(負け試合、終局理由) ===
+  サイドを取り切った        388 件   89.8%
+  山札切れ              22 件    5.1%
+  ベンチ切れ             22 件    5.1%
+
+=== 勝因の内訳(勝ち試合、終局理由) ===
+  サイドを取り切った        975 件   83.5%
+  山札切れ              64 件    5.5%
+  ベンチ切れ            129 件   11.0%
+
+=== 終局理由ごとの平均ターン数 ===
+  サイドを取り切った      平均  14.5 ターン  (n=1363)
+  山札切れ           平均  22.4 ターン  (n=86)
+  ベンチ切れ          平均  10.3 ターン  (n=151)
+
+=== 相手別 ===
+  alakazam                   0.8300 (n=200)  先攻 0.890 / 後攻 0.770
+  crustle                    0.5050 (n=200)  先攻 0.540 / 後攻 0.470
+  dragapult_ex               0.9050 (n=200)  先攻 0.910 / 後攻 0.900
+  marnie_grimmsnarl_ex       0.6800 (n=200)  先攻 0.660 / 後攻 0.700
+  ogerpon_teal_ex            0.8650 (n=200)  先攻 0.870 / 後攻 0.860
+  omatsuri_ondo              0.7000 (n=200)  先攻 0.770 / 後攻 0.630
+  rocket_mewtwo_ex           0.7450 (n=200)  先攻 0.820 / 後攻 0.670
+  shirona_garchomp_ex        0.6100 (n=200)  先攻 0.600 / 後攻 0.620

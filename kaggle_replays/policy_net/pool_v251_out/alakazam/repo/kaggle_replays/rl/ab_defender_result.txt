@@ -1,0 +1,26 @@
+learner=marnie_grimmsnarl_ex weights=policy_weights_marnie_grimmsnarl_ex_bc2.json games/arm=600 workers=4
+アーム: A=crustle修正あり B=crustle修正なし C=alakazam修正あり D=alakazam修正なし
+
+[アームA] 開始: opponent=crustle 修正あり(既定) games=600
+[アームA] 完了 (2.3分): win_rate=0.5900 (n=600) 有効試合=600/600
+[アームB] 開始: opponent=crustle 修正なし(PTCG_DISABLE_DEFENDER_ABILITY=1) games=600
+[アームB] 完了 (2.3分): win_rate=0.6067 (n=600) 有効試合=600/600
+[アームC] 開始: opponent=alakazam 修正あり(既定) games=600
+[アームC] 完了 (2.4分): win_rate=0.8583 (n=600) 有効試合=600/600
+[アームD] 開始: opponent=alakazam 修正なし(PTCG_DISABLE_DEFENDER_ABILITY=1) games=600
+[アームD] 完了 (2.6分): win_rate=0.8050 (n=600) 有効試合=600/600
+
+全4アーム完了。合計 9.6分
+
+==============================================================================
+防御側特性 A/B比較 結果
+==============================================================================
+アーム     相手        修正            勝率     n      先攻      後攻     平均ターン
+A       crustle   あり        0.5900   600  0.6000  0.5800      19.9
+B       crustle   なし        0.6067   600  0.6600  0.5533      20.5
+C       alakazam  あり        0.8583   600  0.8933  0.8233      12.1
+D       alakazam  なし        0.8050   600  0.8267  0.7833      12.4
+
+=== 差分(修正あり − 修正なし) ===
+  crustle  (A-B): -0.0167   (A=0.5900 B=0.6067)  ← ここで差が出るのが期待される結果
+  alakazam (C-D): +0.0533   (C=0.8583 D=0.8050)  ← ここは差が出ないはず(対照)

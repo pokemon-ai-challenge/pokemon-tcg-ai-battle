@@ -1,0 +1,19 @@
+card_id_max = 1267(all_card_data() から動的に計算)
+読み込み開始: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions_rocket_mewtwo_ex.jsonl.gz
+weight スキーム: concentrated
+  5000 件処理済み(経過 2.2s、2228.4 rows/sec)
+  10000 件処理済み(経過 4.4s、2276.6 rows/sec)
+  15000 件処理済み(経過 6.5s、2304.8 rows/sec)
+  20000 件処理済み(経過 8.7s、2310.3 rows/sec)
+  25000 件処理済み(経過 10.8s、2313.6 rows/sec)
+  30000 件処理済み(経過 13.0s、2301.0 rows/sec)
+  35000 件処理済み(経過 15.3s、2294.5 rows/sec)
+  40000 件処理済み(経過 17.5s、2292.1 rows/sec)
+  45000 件処理済み(経過 19.5s、2303.7 rows/sec)
+  50000 件処理済み(経過 21.6s、2309.6 rows/sec)
+  55000 件処理済み(経過 23.8s、2306.3 rows/sec)
+完了: 採用 55761 件(経過 24.2s)
+state_features shape=(55761, 166) dtype=float32
+split 内訳: train=44673 val=6265 test=4823
+書き出し完了: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_rocket_mewtwo_ex.npz (7.4 MB)
+注意: option_features/option_card_ids は object 配列(ragged)。読み込みは np.load(path, allow_pickle=True) を使うこと。card_id_max はスカラー(data['card_id_max'].item() で取り出す)。

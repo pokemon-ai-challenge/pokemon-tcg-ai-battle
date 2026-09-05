@@ -1,0 +1,687 @@
+[1/5] リーダーボード取得: pokemon-tcg-ai-battle 上位200チーム (run_id=20260730T094742Z)
+  #1 James Cox & Henry Chao (teamId=16375647, score=1176.9)
+  #2 flg (teamId=16380946, score=1174.3)
+  #3 Luca (teamId=16448747, score=1174.3)
+  #4 LiamK (teamId=16463316, score=1171.6)
+  #5 Dries @ Tufa Labs (teamId=16531269, score=1164.2)
+  #6 JZ (teamId=16408505, score=1163.7)
+  #7 Majkel1337 (teamId=16374395, score=1131.0)
+  #8 haggle (teamId=16441077, score=1128.9)
+  #9 Raja Biswas (teamId=16452116, score=1125.3)
+  #10 李秉叡（ntumlnoob） (teamId=16536318, score=1119.4)
+  #11 カントー地方マスター(KantoRegionMaster) (teamId=16375320, score=1115.9)
+  #12 A. R. SEKKAT (teamId=16561141, score=1113.6)
+  #13 Pokemon Siuuuu (teamId=16372782, score=1113.1)
+  #14 insuperabilehart (teamId=16431331, score=1112.9)
+  #15 Pokemon Fan (teamId=16505594, score=1108.9)
+  #16 ANDPAD kaggler team (teamId=16411029, score=1108.2)
+  #17 やる気元気ミワハルキ (teamId=16371703, score=1107.3)
+  #18 Yushin Ito (teamId=16381823, score=1106.6)
+  #19 Dominic Peel (teamId=16514272, score=1103.5)
+  #20 Xiangyu Liu (teamId=16426595, score=1095.9)
+  #21 Roy Pidril (teamId=16421840, score=1093.4)
+  #22 e-toppo + kurupical (teamId=16371829, score=1092.4)
+  #23 SQUIRTLE (prime) (teamId=16407282, score=1088.9)
+  #24 Azat Akhtyamov (teamId=16462035, score=1088.6)
+  #25 szlachetny snieg (teamId=16376653, score=1086.9)
+  #26 213tubo (teamId=16371653, score=1085.7)
+  #27 대답해드리는게인지상정 (teamId=16448642, score=1085.1)
+  #28 宝糕手 (teamId=16383960, score=1081.5)
+  #29 qb (teamId=16454280, score=1080.9)
+  #30 Team Rot-Weiß (teamId=16499803, score=1078.4)
+  #31 Matheus, Dieter, Eduardo (teamId=16461850, score=1077.3)
+  #32 想要成为kaggle大师 (teamId=16438680, score=1077.1)
+  #33 Pokopia (teamId=16390101, score=1076.1)
+  #34 Rmy (teamId=16425135, score=1075.6)
+  #35 miya (teamId=16388364, score=1074.5)
+  #36 me and the lads (teamId=16411724, score=1073.1)
+  #37 Oshbocker (teamId=16404352, score=1072.9)
+  #38 YuPengCao (teamId=16514960, score=1072.0)
+  #39 NguyenThanhNhan (teamId=16381904, score=1070.6)
+  #40 MtN (teamId=16408528, score=1067.4)
+  #41 PP kawada (teamId=16391939, score=1065.5)
+  #42 Raihan Ramadistra (teamId=16422241, score=1065.0)
+  #43 vibechu (teamId=16382914, score=1063.2)
+  #44 junlee789 (teamId=16422150, score=1061.4)
+  #45 Iliamna (teamId=16391123, score=1059.2)
+  #46 flxwld (teamId=16460880, score=1057.6)
+  #47 tedo (teamId=16555095, score=1057.3)
+  #48 Hiroki Yamazaki (teamId=16386225, score=1056.8)
+  #49 less (teamId=16541765, score=1054.1)
+  #50 typeIIIfairy (teamId=16427180, score=1054.1)
+  #51 cununn (teamId=16442659, score=1052.5)
+  #52 Oleksandr_Savsunenko (teamId=16403994, score=1051.4)
+  #53 M Sato (teamId=16385817, score=1049.5)
+  #54 Rotation Theory (teamId=16430842, score=1046.9)
+  #55 서주영 (teamId=16430670, score=1046.4)
+  #56 懒惰的金枪鱼 (teamId=16386246, score=1046.3)
+  #57 Tony Li (teamId=16408255, score=1046.0)
+  #58 Chua Zheng Wei Brian (teamId=16382034, score=1045.8)
+  #59 cm391 (teamId=16372608, score=1044.8)
+  #60 LumenLiquidity (teamId=16381624, score=1044.0)
+  #61 wwwwwwwwwwwwwwwwwwwwwwwwwwwwww (teamId=16464757, score=1043.9)
+  #62 Kusanagi (teamId=16590916, score=1043.1)
+  #63 matsurih (teamId=16385250, score=1042.7)
+  #64 Where is my orbit (teamId=16454068, score=1042.4)
+  #65 Pushu? (teamId=16389043, score=1042.1)
+  #66 Lunariz (teamId=16382207, score=1041.5)
+  #67 gecogeco (teamId=16406640, score=1039.3)
+  #68 Vadim Vasilenko (teamId=16531877, score=1039.3)
+  #69 Zhenyu Zhang (teamId=16395176, score=1036.2)
+  #70 bono (teamId=16371427, score=1035.2)
+  #71 kashiwashira (teamId=16385372, score=1033.9)
+  #72 レジギガス大好き (teamId=16372765, score=1033.8)
+  #73 NIWATORI (teamId=16446951, score=1033.3)
+  #74 Lior Toledano (teamId=16473278, score=1031.9)
+  #75 tyt mogla быть vasha reklama (teamId=16553647, score=1031.9)
+  #76 zhangshuosc (teamId=16494330, score=1029.0)
+  #77 MPGaming (teamId=16376499, score=1028.4)
+  #78 Octavi Grau (teamId=16374074, score=1027.9)
+  #79 ヌメルゴンex (teamId=16371479, score=1027.8)
+  #80 ei ei ei yikuso (teamId=16473179, score=1026.8)
+  #81 zhan renyi (teamId=16399480, score=1025.8)
+  #82 titako0000 (teamId=16386872, score=1025.4)
+  #83 palsystem (teamId=16406979, score=1025.2)
+  #84 Roman Nesterov (teamId=16507505, score=1024.1)
+  #85 lmaffei (teamId=16487924, score=1021.1)
+  #86 six seven (teamId=16373257, score=1020.2)
+  #87 hatry (teamId=16531787, score=1019.8)
+  #88 syuuuuu (teamId=16377088, score=1017.5)
+  #89 Articuno0144 (teamId=16388592, score=1017.3)
+  #90 lollipop947 (teamId=16381852, score=1017.3)
+  #91 wangyuou (teamId=16454198, score=1017.1)
+  #92 Pokér-man (teamId=16371606, score=1016.6)
+  #93 hinox13 (teamId=16468429, score=1016.3)
+  #94 齐乐 (teamId=16445525, score=1015.5)
+  #95 GuerillaMoon (teamId=16602856, score=1015.2)
+  #96 ☕ Psyduck Needs Coffee (teamId=16483241, score=1015.2)
+  #97 Thai (teamId=16450476, score=1013.6)
+  #98 Rostislav (teamId=16530943, score=1013.1)
+  #99 beeyan (teamId=16514497, score=1012.1)
+  #100 I4Kaggle (teamId=16538741, score=1012.0)
+  #101 john jiang zhifeng (teamId=16505814, score=1012.0)
+  #102 xnx (teamId=16385225, score=1011.2)
+  #103 celebi (teamId=16422615, score=1008.5)
+  #104 Abhi (teamId=16394135, score=1008.3)
+  #105 Meghana284 (teamId=16574077, score=1006.5)
+  #106 Käfersammler Max (teamId=16481642, score=1006.4)
+  #107 cocosu3434 (teamId=16395413, score=1006.3)
+  #108 Rafael (teamId=16382964, score=1006.2)
+  #109 vvs (teamId=16388654, score=1004.0)
+  #110 Marshall Maximizer (teamId=16421599, score=1003.4)
+  #111 __Taichicchi__ (teamId=16400014, score=1003.1)
+  #112 Pokémon Day Care (teamId=16464168, score=1001.8)
+  #113 poppy457 (teamId=16388680, score=1001.8)
+  #114 goonew (teamId=16372168, score=1001.7)
+  #115 Z (teamId=16381145, score=1001.0)
+  #116 Orin (teamId=16377894, score=999.2)
+  #117 Daikon99 (teamId=16385216, score=999.2)
+  #118 WinDecks (teamId=16393241, score=998.9)
+  #119 wkonishi (teamId=16379289, score=997.7)
+  #120 ktr (teamId=16375635, score=996.9)
+  #121 perrodawn (teamId=16375942, score=996.4)
+  #122 MTADA (teamId=16445258, score=993.8)
+  #123 Karandeep Singh #2 (teamId=16561259, score=993.8)
+  #124 porply (teamId=16371476, score=993.3)
+  #125 arai9953 (teamId=16379679, score=992.7)
+  #126 Kilupy (teamId=16558678, score=992.6)
+  #127 Charmander & Meowth (teamId=16603508, score=992.5)
+  #128 trainer-1 (teamId=16559688, score=992.4)
+  #129 Kazama Yusuke (teamId=16390728, score=992.1)
+  #130 🐱KittenLeague🐱 (teamId=16447261, score=991.4)
+  #131 saeNeko (teamId=16405655, score=990.4)
+  #132 nasuo445 (teamId=16371722, score=990.2)
+  #133 Aurora wy (teamId=16532928, score=989.9)
+  #134 西松大祐 (teamId=16374469, score=989.1)
+  #135 【共逐荣光】Timmy Juicehouse (teamId=16424674, score=988.7)
+  #136 youtube.com/@BigBugginnings (teamId=16375066, score=988.2)
+  #137 Ghleii (teamId=16462943, score=987.8)
+  #138 monnosuke (teamId=16376465, score=987.3)
+  #139 Myckel Uribe (teamId=16392733, score=986.4)
+  #140 Yudai Ueno (teamId=16418623, score=986.2)
+  #141 Ivan Vorfolomeev (teamId=16568723, score=986.0)
+  #142 KanaeKanae (teamId=16383493, score=985.8)
+  #143 btk15049 (teamId=16371466, score=985.8)
+  #144 moya (teamId=16399063, score=984.6)
+  #145 Budew (teamId=16371434, score=983.6)
+  #146 Bart, Edwyn (teamId=16531497, score=982.9)
+  #147 tennogh (teamId=16417006, score=982.6)
+  #148 Jose Coronel (teamId=16374614, score=982.1)
+  #149 NoOne (teamId=16417358, score=980.4)
+  #150 ei1333 (teamId=16372422, score=978.9)
+  #151 Ochir Dorzhiev (teamId=16395406, score=978.3)
+  #152 Pokésonic (teamId=16372325, score=978.2)
+  #153 Phil_Hellmuth (teamId=16383701, score=977.2)
+  #154 Asa-sotta  (teamId=16387022, score=977.0)
+  #155 NorthStar (teamId=16397982, score=974.3)
+  #156 Dipam Chakraborty (teamId=16581741, score=974.3)
+  #157 GUOHAOYANG (teamId=16445292, score=973.0)
+  #158 nsytsqdtn (teamId=16382190, score=972.6)
+  #159 gemelom (teamId=16373076, score=971.8)
+  #160 Shardul Gharat (teamId=16371474, score=971.3)
+  #161 rmizuta (teamId=16372394, score=971.0)
+  #162 Zachary Zhang (teamId=16539421, score=970.8)
+  #163 GPT-5.6 Sol🏆 (teamId=16589783, score=970.5)
+  #164 H & Z (teamId=16418377, score=970.5)
+  #165 EricYang03 (teamId=16531302, score=969.5)
+  #166 Kyoungwon Jeong (teamId=16385016, score=969.1)
+  #167 AdrianWang2003 (teamId=16450204, score=969.1)
+  #168 Boseiju (teamId=16372591, score=968.6)
+  #169 kenkoooo @ estie, inc. (teamId=16380112, score=967.9)
+  #170 TakahiroHon (teamId=16504778, score=967.5)
+  #171 hyonu0620 (teamId=16411511, score=967.4)
+  #172 amaotone (teamId=16406057, score=967.1)
+  #173 Dragon Ball Z (teamId=16516416, score=966.9)
+  #174 jneums (teamId=16566047, score=965.6)
+  #175 Kh0a (teamId=16569286, score=965.2)
+  #176 SantaClaws 🎅 (teamId=16385170, score=965.2)
+  #177 Latte (teamId=16380674, score=964.7)
+  #178 shg195 (teamId=16374432, score=964.6)
+  #179 Cook Noah (teamId=16585300, score=964.5)
+  #180 Team KASA. (teamId=16372307, score=964.5)
+  #181 jiatu.l (teamId=16397524, score=964.0)
+  #182 Tanupro (teamId=16378362, score=963.3)
+  #183 kuromoka (teamId=16393006, score=962.8)
+  #184 Canon (teamId=16373951, score=962.4)
+  #185 hoshi18 (teamId=16532420, score=962.0)
+  #186 shyjin (teamId=16591662, score=960.8)
+  #187 vvhan (teamId=16425569, score=960.2)
+  #188 zhexun Liu (teamId=16593194, score=959.5)
+  #189 HSBMAX (teamId=16451815, score=959.0)
+  #190 MarineYY (teamId=16400698, score=958.9)
+  #191 ポケカ前線 (teamId=16377557, score=958.8)
+  #192 Evgeniy Zdoronok (teamId=16595297, score=958.5)
+  #193 hotpotbro (teamId=16421871, score=958.4)
+  #194 Abhiraj Singh (teamId=16570624, score=958.3)
+  #195 Hancang Mi (teamId=16514878, score=957.4)
+  #196 Kotaro OKUYAMA (teamId=16379968, score=957.4)
+  #197 Jeffrey Pike (teamId=16373130, score=957.4)
+  #198 tototo (teamId=16381506, score=956.7)
+  #199 wally0593 (teamId=16471516, score=956.5)
+  #200 Haumea (teamId=16404960, score=956.5)
+[2/5] 各チームの提出IDを取得(チームごと最新1件)
+[3/5] エピソード一覧を取得(200件の提出から)
+[4/5] リプレイ4000件をダウンロード -> C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\replays
+  (1/4000) episode 88909065 -> episode-88909065-replay.json
+  (2/4000) episode 88909191 -> episode-88909191-replay.json
+  (3/4000) episode 88909205 -> episode-88909205-replay.json
+  (4/4000) episode 88909212 -> episode-88909212-replay.json
+  (5/4000) episode 88909215 -> episode-88909215-replay.json
+  (6/4000) episode 88909226 -> episode-88909226-replay.json
+  (7/4000) episode 88909230 -> episode-88909230-replay.json
+  (8/4000) episode 88909234 -> episode-88909234-replay.json
+  (9/4000) episode 88909293 -> episode-88909293-replay.json
+  (10/4000) episode 88909316 -> episode-88909316-replay.json
+  (11/4000) episode 88909318 -> episode-88909318-replay.json
+  (12/4000) episode 88909322 -> episode-88909322-replay.json
+  (13/4000) episode 88909324 -> episode-88909324-replay.json
+  (14/4000) episode 88909325 -> episode-88909325-replay.json
+  (15/4000) episode 88909334 -> episode-88909334-replay.json
+  (16/4000) episode 88909342 -> episode-88909342-replay.json
+  (17/4000) episode 88909344 -> episode-88909344-replay.json
+  (18/4000) episode 88909348 -> episode-88909348-replay.json
+  (19/4000) episode 88909355 -> episode-88909355-replay.json
+  (20/4000) episode 88909364 -> episode-88909364-replay.json
+  (21/4000) episode 88909368 -> episode-88909368-replay.json
+  (22/4000) episode 88909373 -> episode-88909373-replay.json
+  (23/4000) episode 88909374 -> episode-88909374-replay.json
+  (24/4000) episode 88909376 -> episode-88909376-replay.json
+  (25/4000) episode 88909395 -> episode-88909395-replay.json
+  (26/4000) episode 88909411 -> episode-88909411-replay.json
+  (27/4000) episode 88909431 -> episode-88909431-replay.json
+  (28/4000) episode 88909441 -> episode-88909441-replay.json
+  (29/4000) episode 88909448 -> episode-88909448-replay.json
+  (30/4000) episode 88909494 -> episode-88909494-replay.json
+  (31/4000) episode 88909497 -> episode-88909497-replay.json
+  (32/4000) episode 88909511 -> episode-88909511-replay.json
+  (33/4000) episode 88909526 -> episode-88909526-replay.json
+  (34/4000) episode 88909651 -> episode-88909651-replay.json
+  (35/4000) episode 88909653 -> episode-88909653-replay.json
+  (36/4000) episode 88909660 -> episode-88909660-replay.json
+  (37/4000) episode 88909664 -> episode-88909664-replay.json
+  (38/4000) episode 88909687 -> episode-88909687-replay.json
+  (39/4000) episode 88909692 -> episode-88909692-replay.json
+  (40/4000) episode 88909704 -> episode-88909704-replay.json
+  (41/4000) episode 88909732 -> episode-88909732-replay.json
+  (42/4000) episode 88909734 -> episode-88909734-replay.json
+  (43/4000) episode 88909746 -> episode-88909746-replay.json
+  (44/4000) episode 88909747 -> episode-88909747-replay.json
+  (45/4000) episode 88909750 -> episode-88909750-replay.json
+  (46/4000) episode 88909752 -> episode-88909752-replay.json
+  (47/4000) episode 88909756 -> episode-88909756-replay.json
+  (48/4000) episode 88909757 -> episode-88909757-replay.json
+  (49/4000) episode 88909760 -> episode-88909760-replay.json
+  (50/4000) episode 88909767 -> episode-88909767-replay.json
+  (51/4000) episode 88909788 -> episode-88909788-replay.json
+  (52/4000) episode 88909806 -> episode-88909806-replay.json
+  (53/4000) episode 88909814 -> episode-88909814-replay.json
+  (54/4000) episode 88909830 -> episode-88909830-replay.json
+  (55/4000) episode 88909843 -> episode-88909843-replay.json
+  (56/4000) episode 88909845 -> episode-88909845-replay.json
+  (57/4000) episode 88909851 -> episode-88909851-replay.json
+  (58/4000) episode 88909855 -> episode-88909855-replay.json
+  (59/4000) episode 88909860 -> episode-88909860-replay.json
+  (60/4000) episode 88909864 -> episode-88909864-replay.json
+  (61/4000) episode 88909879 -> episode-88909879-replay.json
+  (62/4000) episode 88909886 -> episode-88909886-replay.json
+  (63/4000) episode 88909892 -> episode-88909892-replay.json
+  (64/4000) episode 88909917 -> episode-88909917-replay.json
+  (65/4000) episode 88909918 -> episode-88909918-replay.json
+  (66/4000) episode 88909925 -> episode-88909925-replay.json
+  (67/4000) episode 88909956 -> episode-88909956-replay.json
+  (68/4000) episode 88910001 -> episode-88910001-replay.json
+  (69/4000) episode 88910067 -> episode-88910067-replay.json
+  (70/4000) episode 88910104 -> episode-88910104-replay.json
+  (71/4000) episode 88910109 -> episode-88910109-replay.json
+  (72/4000) episode 88910111 -> episode-88910111-replay.json
+  (73/4000) episode 88910116 -> episode-88910116-replay.json
+  (74/4000) episode 88910134 -> episode-88910134-replay.json
+  (75/4000) episode 88910135 -> episode-88910135-replay.json
+  (76/4000) episode 88910138 -> episode-88910138-replay.json
+  (77/4000) episode 88910144 -> episode-88910144-replay.json
+  (78/4000) episode 88910149 -> episode-88910149-replay.json
+  (79/4000) episode 88910165 -> episode-88910165-replay.json
+  (80/4000) episode 88910209 -> episode-88910209-replay.json
+  (81/4000) episode 88910225 -> episode-88910225-replay.json
+  (82/4000) episode 88910233 -> episode-88910233-replay.json
+  (83/4000) episode 88910234 -> episode-88910234-replay.json
+  (84/4000) episode 88910242 -> episode-88910242-replay.json
+  (85/4000) episode 88910249 -> episode-88910249-replay.json
+  (86/4000) episode 88910255 -> episode-88910255-replay.json
+  (87/4000) episode 88910259 -> episode-88910259-replay.json
+  (88/4000) episode 88910279 -> episode-88910279-replay.json
+  (89/4000) episode 88910284 -> episode-88910284-replay.json
+  (90/4000) episode 88910292 -> episode-88910292-replay.json
+  (91/4000) episode 88910302 -> episode-88910302-replay.json
+  (92/4000) episode 88910303 -> episode-88910303-replay.json
+  (93/4000) episode 88910304 -> episode-88910304-replay.json
+  (94/4000) episode 88910314 -> episode-88910314-replay.json
+  (95/4000) episode 88910318 -> episode-88910318-replay.json
+  (96/4000) episode 88910320 -> episode-88910320-replay.json
+  (97/4000) episode 88910338 -> episode-88910338-replay.json
+  (98/4000) episode 88910358 -> episode-88910358-replay.json
+  (99/4000) episode 88910386 -> episode-88910386-replay.json
+  (100/4000) episode 88910396 -> episode-88910396-replay.json
+  (101/4000) episode 88910405 -> episode-88910405-replay.json
+  (102/4000) episode 88910412 -> episode-88910412-replay.json
+  (103/4000) episode 88910498 -> episode-88910498-replay.json
+  (104/4000) episode 88910556 -> episode-88910556-replay.json
+  (105/4000) episode 88910573 -> episode-88910573-replay.json
+  (106/4000) episode 88910580 -> episode-88910580-replay.json
+  (107/4000) episode 88910588 -> episode-88910588-replay.json
+  (108/4000) episode 88910595 -> episode-88910595-replay.json
+  (109/4000) episode 88910598 -> episode-88910598-replay.json
+  (110/4000) episode 88910605 -> episode-88910605-replay.json
+  (111/4000) episode 88910611 -> episode-88910611-replay.json
+  (112/4000) episode 88910612 -> episode-88910612-replay.json
+  (113/4000) episode 88910614 -> episode-88910614-replay.json
+  (114/4000) episode 88910620 -> episode-88910620-replay.json
+  (115/4000) episode 88910631 -> episode-88910631-replay.json
+  (116/4000) episode 88910634 -> episode-88910634-replay.json
+  (117/4000) episode 88910638 -> episode-88910638-replay.json
+  (118/4000) episode 88910662 -> episode-88910662-replay.json
+  (119/4000) episode 88910663 -> episode-88910663-replay.json
+  (120/4000) episode 88910668 -> episode-88910668-replay.json
+  (121/4000) episode 88910670 -> episode-88910670-replay.json
+  (122/4000) episode 88910687 -> episode-88910687-replay.json
+  (123/4000) episode 88910691 -> episode-88910691-replay.json
+  (124/4000) episode 88910705 -> episode-88910705-replay.json
+  (125/4000) episode 88910717 -> episode-88910717-replay.json
+  (126/4000) episode 88910724 -> episode-88910724-replay.json
+  (127/4000) episode 88910726 -> episode-88910726-replay.json
+  (128/4000) episode 88910737 -> episode-88910737-replay.json
+  (129/4000) episode 88910738 -> episode-88910738-replay.json
+  (130/4000) episode 88910745 -> episode-88910745-replay.json
+  (131/4000) episode 88910746 -> episode-88910746-replay.json
+  (132/4000) episode 88910751 -> episode-88910751-replay.json
+  (133/4000) episode 88910769 -> episode-88910769-replay.json
+  (134/4000) episode 88910774 -> episode-88910774-replay.json
+  (135/4000) episode 88910785 -> episode-88910785-replay.json
+  (136/4000) episode 88910791 -> episode-88910791-replay.json
+  (137/4000) episode 88910804 -> episode-88910804-replay.json
+  (138/4000) episode 88910814 -> episode-88910814-replay.json
+  (139/4000) episode 88910825 -> episode-88910825-replay.json
+  (140/4000) episode 88910839 -> episode-88910839-replay.json
+  (141/4000) episode 88910891 -> episode-88910891-replay.json
+  (142/4000) episode 88911024 -> episode-88911024-replay.json
+  (143/4000) episode 88911058 -> episode-88911058-replay.json
+  (144/4000) episode 88911068 -> episode-88911068-replay.json
+  (145/4000) episode 88911097 -> episode-88911097-replay.json
+  (146/4000) episode 88911116 -> episode-88911116-replay.json
+  (147/4000) episode 88911126 -> episode-88911126-replay.json
+  (148/4000) episode 88911131 -> episode-88911131-replay.json
+  (149/4000) episode 88911140 -> episode-88911140-replay.json
+  (150/4000) episode 88911147 -> episode-88911147-replay.json
+  (151/4000) episode 88911183 -> episode-88911183-replay.json
+  (152/4000) episode 88911192 -> episode-88911192-replay.json
+  (153/4000) episode 88911195 -> episode-88911195-replay.json
+  (154/4000) episode 88911210 -> episode-88911210-replay.json
+  (155/4000) episode 88911215 -> episode-88911215-replay.json
+  (156/4000) episode 88911235 -> episode-88911235-replay.json
+  (157/4000) episode 88911240 -> episode-88911240-replay.json
+  (158/4000) episode 88911268 -> episode-88911268-replay.json
+  (159/4000) episode 88911273 -> episode-88911273-replay.json
+  (160/4000) episode 88911280 -> episode-88911280-replay.json
+  (161/4000) episode 88911285 -> episode-88911285-replay.json
+  (162/4000) episode 88911287 -> episode-88911287-replay.json
+  (163/4000) episode 88911297 -> episode-88911297-replay.json
+  (164/4000) episode 88911303 -> episode-88911303-replay.json
+  (165/4000) episode 88911319 -> episode-88911319-replay.json
+  (166/4000) episode 88911336 -> episode-88911336-replay.json
+  (167/4000) episode 88911339 -> episode-88911339-replay.json
+  (168/4000) episode 88911380 -> episode-88911380-replay.json
+  (169/4000) episode 88911394 -> episode-88911394-replay.json
+  (170/4000) episode 88911396 -> episode-88911396-replay.json
+  (171/4000) episode 88911408 -> episode-88911408-replay.json
+  (172/4000) episode 88911415 -> episode-88911415-replay.json
+  (173/4000) episode 88911486 -> episode-88911486-replay.json
+  (174/4000) episode 88911491 -> episode-88911491-replay.json
+  (175/4000) episode 88911536 -> episode-88911536-replay.json
+  (176/4000) episode 88911554 -> episode-88911554-replay.json
+  (177/4000) episode 88911567 -> episode-88911567-replay.json
+  (178/4000) episode 88911574 -> episode-88911574-replay.json
+  (179/4000) episode 88911583 -> episode-88911583-replay.json
+  (180/4000) episode 88911591 -> episode-88911591-replay.json
+  (181/4000) episode 88911593 -> episode-88911593-replay.json
+  (182/4000) episode 88911652 -> episode-88911652-replay.json
+  (183/4000) episode 88911664 -> episode-88911664-replay.json
+  (184/4000) episode 88911683 -> episode-88911683-replay.json
+  (185/4000) episode 88911696 -> episode-88911696-replay.json
+  (186/4000) episode 88911702 -> episode-88911702-replay.json
+  (187/4000) episode 88911705 -> episode-88911705-replay.json
+  (188/4000) episode 88911707 -> episode-88911707-replay.json
+  (189/4000) episode 88911710 -> episode-88911710-replay.json
+  (190/4000) episode 88911725 -> episode-88911725-replay.json
+  (191/4000) episode 88911736 -> episode-88911736-replay.json
+  (192/4000) episode 88911739 -> episode-88911739-replay.json
+  (193/4000) episode 88911743 -> episode-88911743-replay.json
+  (194/4000) episode 88911749 -> episode-88911749-replay.json
+  (195/4000) episode 88911764 -> episode-88911764-replay.json
+  (196/4000) episode 88911765 -> episode-88911765-replay.json
+  (197/4000) episode 88911772 -> episode-88911772-replay.json
+  (198/4000) episode 88911778 -> episode-88911778-replay.json
+  (199/4000) episode 88911782 -> episode-88911782-replay.json
+  (200/4000) episode 88911788 -> episode-88911788-replay.json
+  (201/4000) episode 88911825 -> episode-88911825-replay.json
+  (202/4000) episode 88911868 -> episode-88911868-replay.json
+  (203/4000) episode 88911918 -> episode-88911918-replay.json
+  (204/4000) episode 88911922 -> episode-88911922-replay.json
+  (205/4000) episode 88911950 -> episode-88911950-replay.json
+  (206/4000) episode 88911992 -> episode-88911992-replay.json
+  (207/4000) episode 88912000 -> episode-88912000-replay.json
+  (208/4000) episode 88912019 -> episode-88912019-replay.json
+  (209/4000) episode 88912033 -> episode-88912033-replay.json
+  (210/4000) episode 88912048 -> episode-88912048-replay.json
+  (211/4000) episode 88912049 -> episode-88912049-replay.json
+  (212/4000) episode 88912051 -> episode-88912051-replay.json
+  (213/4000) episode 88912056 -> episode-88912056-replay.json
+  (214/4000) episode 88912058 -> episode-88912058-replay.json
+  (215/4000) episode 88912112 -> episode-88912112-replay.json
+  (216/4000) episode 88912119 -> episode-88912119-replay.json
+  (217/4000) episode 88912126 -> episode-88912126-replay.json
+  (218/4000) episode 88912129 -> episode-88912129-replay.json
+  (219/4000) episode 88912131 -> episode-88912131-replay.json
+  (220/4000) episode 88912138 -> episode-88912138-replay.json
+  (221/4000) episode 88912146 -> episode-88912146-replay.json
+  (222/4000) episode 88912155 -> episode-88912155-replay.json
+  (223/4000) episode 88912165 -> episode-88912165-replay.json
+  (224/4000) episode 88912171 -> episode-88912171-replay.json
+  (225/4000) episode 88912175 -> episode-88912175-replay.json
+  (226/4000) episode 88912178 -> episode-88912178-replay.json
+  (227/4000) episode 88912188 -> episode-88912188-replay.json
+  (228/4000) episode 88912201 -> episode-88912201-replay.json
+  (229/4000) episode 88912215 -> episode-88912215-replay.json
+  (230/4000) episode 88912216 -> episode-88912216-replay.json
+  (231/4000) episode 88912224 -> episode-88912224-replay.json
+  (232/4000) episode 88912309 -> episode-88912309-replay.json
+  (233/4000) episode 88912371 -> episode-88912371-replay.json
+  (234/4000) episode 88912383 -> episode-88912383-replay.json
+  (235/4000) episode 88912414 -> episode-88912414-replay.json
+  (236/4000) episode 88912442 -> episode-88912442-replay.json
+  (237/4000) episode 88912457 -> episode-88912457-replay.json
+  (238/4000) episode 88912467 -> episode-88912467-replay.json
+  (239/4000) episode 88912468 -> episode-88912468-replay.json
+  (240/4000) episode 88912480 -> episode-88912480-replay.json
+  (241/4000) episode 88912505 -> episode-88912505-replay.json
+  (242/4000) episode 88912508 -> episode-88912508-replay.json
+  (243/4000) episode 88912518 -> episode-88912518-replay.json
+  (244/4000) episode 88912560 -> episode-88912560-replay.json
+  (245/4000) episode 88912561 -> episode-88912561-replay.json
+  (246/4000) episode 88912575 -> episode-88912575-replay.json
+  (247/4000) episode 88912578 -> episode-88912578-replay.json
+  (248/4000) episode 88912596 -> episode-88912596-replay.json
+  (249/4000) episode 88912599 -> episode-88912599-replay.json
+  (250/4000) episode 88912614 -> episode-88912614-replay.json
+  (251/4000) episode 88912615 -> episode-88912615-replay.json
+  (252/4000) episode 88912623 -> episode-88912623-replay.json
+  (253/4000) episode 88912624 -> episode-88912624-replay.json
+  (254/4000) episode 88912630 -> episode-88912630-replay.json
+  (255/4000) episode 88912638 -> episode-88912638-replay.json
+  (256/4000) episode 88912643 -> episode-88912643-replay.json
+  (257/4000) episode 88912657 -> episode-88912657-replay.json
+  (258/4000) episode 88912659 -> episode-88912659-replay.json
+  (259/4000) episode 88912667 -> episode-88912667-replay.json
+  (260/4000) episode 88912673 -> episode-88912673-replay.json
+  (261/4000) episode 88912674 -> episode-88912674-replay.json
+  (262/4000) episode 88912720 -> episode-88912720-replay.json
+  (263/4000) episode 88912752 -> episode-88912752-replay.json
+  (264/4000) episode 88912774 -> episode-88912774-replay.json
+  (265/4000) episode 88912829 -> episode-88912829-replay.json
+  (266/4000) episode 88912844 -> episode-88912844-replay.json
+  (267/4000) episode 88912849 -> episode-88912849-replay.json
+  (268/4000) episode 88912870 -> episode-88912870-replay.json
+  (269/4000) episode 88912872 -> episode-88912872-replay.json
+  (270/4000) episode 88912875 -> episode-88912875-replay.json
+  (271/4000) episode 88912883 -> episode-88912883-replay.json
+  (272/4000) episode 88912900 -> episode-88912900-replay.json
+  (273/4000) episode 88912934 -> episode-88912934-replay.json
+  (274/4000) episode 88912953 -> episode-88912953-replay.json
+  (275/4000) episode 88912961 -> episode-88912961-replay.json
+  (276/4000) episode 88912963 -> episode-88912963-replay.json
+  (277/4000) episode 88912964 -> episode-88912964-replay.json
+  (278/4000) episode 88912970 -> episode-88912970-replay.json
+  (279/4000) episode 88912974 -> episode-88912974-replay.json
+  (280/4000) episode 88912978 -> episode-88912978-replay.json
+  (281/4000) episode 88912988 -> episode-88912988-replay.json
+  (282/4000) episode 88912991 -> episode-88912991-replay.json
+  (283/4000) episode 88912994 -> episode-88912994-replay.json
+  (284/4000) episode 88912998 -> episode-88912998-replay.json
+  (285/4000) episode 88913003 -> episode-88913003-replay.json
+  (286/4000) episode 88913019 -> episode-88913019-replay.json
+  (287/4000) episode 88913044 -> episode-88913044-replay.json
+  (288/4000) episode 88913065 -> episode-88913065-replay.json
+  (289/4000) episode 88913067 -> episode-88913067-replay.json
+  (290/4000) episode 88913072 -> episode-88913072-replay.json
+  (291/4000) episode 88913076 -> episode-88913076-replay.json
+  (292/4000) episode 88913100 -> episode-88913100-replay.json
+  (293/4000) episode 88913104 -> episode-88913104-replay.json
+  (294/4000) episode 88913109 -> episode-88913109-replay.json
+  (295/4000) episode 88913141 -> episode-88913141-replay.json
+  (296/4000) episode 88913149 -> episode-88913149-replay.json
+  (297/4000) episode 88913150 -> episode-88913150-replay.json
+  (298/4000) episode 88913269 -> episode-88913269-replay.json
+  (299/4000) episode 88913283 -> episode-88913283-replay.json
+  (300/4000) episode 88913287 -> episode-88913287-replay.json
+  (301/4000) episode 88913320 -> episode-88913320-replay.json
+  (302/4000) episode 88913348 -> episode-88913348-replay.json
+  (303/4000) episode 88913349 -> episode-88913349-replay.json
+  (304/4000) episode 88913363 -> episode-88913363-replay.json
+  (305/4000) episode 88913382 -> episode-88913382-replay.json
+  (306/4000) episode 88913399 -> episode-88913399-replay.json
+  (307/4000) episode 88913402 -> episode-88913402-replay.json
+  (308/4000) episode 88913433 -> episode-88913433-replay.json
+  (309/4000) episode 88913472 -> episode-88913472-replay.json
+  (310/4000) episode 88913485 -> episode-88913485-replay.json
+  (311/4000) episode 88913500 -> episode-88913500-replay.json
+  (312/4000) episode 88913501 -> episode-88913501-replay.json
+  (313/4000) episode 88913502 -> episode-88913502-replay.json
+  (314/4000) episode 88913509 -> episode-88913509-replay.json
+  (315/4000) episode 88913511 -> episode-88913511-replay.json
+  (316/4000) episode 88913513 -> episode-88913513-replay.json
+  (317/4000) episode 88913515 -> episode-88913515-replay.json
+  (318/4000) episode 88913520 -> episode-88913520-replay.json
+  (319/4000) episode 88913523 -> episode-88913523-replay.json
+  (320/4000) episode 88913527 -> episode-88913527-replay.json
+  (321/4000) episode 88913546 -> episode-88913546-replay.json
+  (322/4000) episode 88913548 -> episode-88913548-replay.json
+  (323/4000) episode 88913569 -> episode-88913569-replay.json
+  (324/4000) episode 88913580 -> episode-88913580-replay.json
+  (325/4000) episode 88913584 -> episode-88913584-replay.json
+  (326/4000) episode 88913626 -> episode-88913626-replay.json
+  (327/4000) episode 88913629 -> episode-88913629-replay.json
+  (328/4000) episode 88913649 -> episode-88913649-replay.json
+  (329/4000) episode 88913661 -> episode-88913661-replay.json
+  (330/4000) episode 88913665 -> episode-88913665-replay.json
+  (331/4000) episode 88913720 -> episode-88913720-replay.json
+  (332/4000) episode 88913734 -> episode-88913734-replay.json
+  (333/4000) episode 88913741 -> episode-88913741-replay.json
+  (334/4000) episode 88913750 -> episode-88913750-replay.json
+  (335/4000) episode 88913762 -> episode-88913762-replay.json
+  (336/4000) episode 88913781 -> episode-88913781-replay.json
+  (337/4000) episode 88913816 -> episode-88913816-replay.json
+  (338/4000) episode 88913841 -> episode-88913841-replay.json
+  (339/4000) episode 88913842 -> episode-88913842-replay.json
+  (340/4000) episode 88913855 -> episode-88913855-replay.json
+  (341/4000) episode 88913902 -> episode-88913902-replay.json
+  (342/4000) episode 88913906 -> episode-88913906-replay.json
+  (343/4000) episode 88913909 -> episode-88913909-replay.json
+  (344/4000) episode 88913911 -> episode-88913911-replay.json
+  (345/4000) episode 88913924 -> episode-88913924-replay.json
+  (346/4000) episode 88913933 -> episode-88913933-replay.json
+  (347/4000) episode 88913936 -> episode-88913936-replay.json
+  (348/4000) episode 88913944 -> episode-88913944-replay.json
+  (349/4000) episode 88913946 -> episode-88913946-replay.json
+  (350/4000) episode 88913955 -> episode-88913955-replay.json
+  (351/4000) episode 88913987 -> episode-88913987-replay.json
+  (352/4000) episode 88913996 -> episode-88913996-replay.json
+  (353/4000) episode 88913999 -> episode-88913999-replay.json
+  (354/4000) episode 88914012 -> episode-88914012-replay.json
+  (355/4000) episode 88914020 -> episode-88914020-replay.json
+  (356/4000) episode 88914068 -> episode-88914068-replay.json
+  (357/4000) episode 88914073 -> episode-88914073-replay.json
+  (358/4000) episode 88914075 -> episode-88914075-replay.json
+  (359/4000) episode 88914077 -> episode-88914077-replay.json
+  (360/4000) episode 88914086 -> episode-88914086-replay.json
+  (361/4000) episode 88914089 -> episode-88914089-replay.json
+  (362/4000) episode 88914187 -> episode-88914187-replay.json
+  (363/4000) episode 88914188 -> episode-88914188-replay.json
+  (364/4000) episode 88914206 -> episode-88914206-replay.json
+  (365/4000) episode 88914217 -> episode-88914217-replay.json
+  (366/4000) episode 88914221 -> episode-88914221-replay.json
+  (367/4000) episode 88914240 -> episode-88914240-replay.json
+  (368/4000) episode 88914250 -> episode-88914250-replay.json
+  (369/4000) episode 88914264 -> episode-88914264-replay.json
+  (370/4000) episode 88914271 -> episode-88914271-replay.json
+  (371/4000) episode 88914292 -> episode-88914292-replay.json
+  (372/4000) episode 88914304 -> episode-88914304-replay.json
+  (373/4000) episode 88914324 -> episode-88914324-replay.json
+  (374/4000) episode 88914345 -> episode-88914345-replay.json
+  (375/4000) episode 88914349 -> episode-88914349-replay.json
+  (376/4000) episode 88914351 -> episode-88914351-replay.json
+  (377/4000) episode 88914355 -> episode-88914355-replay.json
+  (378/4000) episode 88914362 -> episode-88914362-replay.json
+  (379/4000) episode 88914373 -> episode-88914373-replay.json
+  (380/4000) episode 88914395 -> episode-88914395-replay.json
+  (381/4000) episode 88914411 -> episode-88914411-replay.json
+  (382/4000) episode 88914414 -> episode-88914414-replay.json
+  (383/4000) episode 88914415 -> episode-88914415-replay.json
+  (384/4000) episode 88914438 -> episode-88914438-replay.json
+  (385/4000) episode 88914445 -> episode-88914445-replay.json
+  (386/4000) episode 88914448 -> episode-88914448-replay.json
+  (387/4000) episode 88914449 -> episode-88914449-replay.json
+  (388/4000) episode 88914455 -> episode-88914455-replay.json
+  (389/4000) episode 88914479 -> episode-88914479-replay.json
+  (390/4000) episode 88914483 -> episode-88914483-replay.json
+  (391/4000) episode 88914524 -> episode-88914524-replay.json
+  (392/4000) episode 88914531 -> episode-88914531-replay.json
+  (393/4000) episode 88914549 -> episode-88914549-replay.json
+  (394/4000) episode 88914554 -> episode-88914554-replay.json
+  (395/4000) episode 88914555 -> episode-88914555-replay.json
+  (396/4000) episode 88914562 -> episode-88914562-replay.json
+  (397/4000) episode 88914566 -> episode-88914566-replay.json
+  (398/4000) episode 88914584 -> episode-88914584-replay.json
+  (399/4000) episode 88914644 -> episode-88914644-replay.json
+  (400/4000) episode 88914650 -> episode-88914650-replay.json
+  (401/4000) episode 88914666 -> episode-88914666-replay.json
+  (402/4000) episode 88914696 -> episode-88914696-replay.json
+  (403/4000) episode 88914698 -> episode-88914698-replay.json
+  (404/4000) episode 88914707 -> episode-88914707-replay.json
+  (405/4000) episode 88914718 -> episode-88914718-replay.json
+  (406/4000) episode 88914724 -> episode-88914724-replay.json
+  (407/4000) episode 88914730 -> episode-88914730-replay.json
+  (408/4000) episode 88914737 -> episode-88914737-replay.json
+  (409/4000) episode 88914740 -> episode-88914740-replay.json
+  (410/4000) episode 88914747 -> episode-88914747-replay.json
+  (411/4000) episode 88914790 -> episode-88914790-replay.json
+  (412/4000) episode 88914811 -> episode-88914811-replay.json
+  (413/4000) episode 88914816 -> episode-88914816-replay.json
+  (414/4000) episode 88914826 -> episode-88914826-replay.json
+  (415/4000) episode 88914830 -> episode-88914830-replay.json
+  (416/4000) episode 88914840 -> episode-88914840-replay.json
+  (417/4000) episode 88914850 -> episode-88914850-replay.json
+  (418/4000) episode 88914876 -> episode-88914876-replay.json
+  (419/4000) episode 88914879 -> episode-88914879-replay.json
+  (420/4000) episode 88914915 -> episode-88914915-replay.json
+  (421/4000) episode 88914936 -> episode-88914936-replay.json
+  (422/4000) episode 88914937 -> episode-88914937-replay.json
+  (423/4000) episode 88914948 -> episode-88914948-replay.json
+  (424/4000) episode 88914957 -> episode-88914957-replay.json
+  (425/4000) episode 88914964 -> episode-88914964-replay.json
+  (426/4000) episode 88914976 -> episode-88914976-replay.json
+  (427/4000) episode 88914977 -> episode-88914977-replay.json
+  (428/4000) episode 88914994 -> episode-88914994-replay.json
+  (429/4000) episode 88915016 -> episode-88915016-replay.json
+  (430/4000) episode 88915027 -> episode-88915027-replay.json
+  (431/4000) episode 88915080 -> episode-88915080-replay.json
+  (432/4000) episode 88915091 -> episode-88915091-replay.json
+  (433/4000) episode 88915105 -> episode-88915105-replay.json
+  (434/4000) episode 88915134 -> episode-88915134-replay.json
+  (435/4000) episode 88915137 -> episode-88915137-replay.json
+  (436/4000) episode 88915144 -> episode-88915144-replay.json
+  (437/4000) episode 88915172 -> episode-88915172-replay.json
+  (438/4000) episode 88915188 -> episode-88915188-replay.json
+  (439/4000) episode 88915190 -> episode-88915190-replay.json
+  (440/4000) episode 88915203 -> episode-88915203-replay.json
+  (441/4000) episode 88915205 -> episode-88915205-replay.json
+  (442/4000) episode 88915208 -> episode-88915208-replay.json
+  (443/4000) episode 88915217 -> episode-88915217-replay.json
+  (444/4000) episode 88915239 -> episode-88915239-replay.json
+  (445/4000) episode 88915255 -> episode-88915255-replay.json
+  (446/4000) episode 88915279 -> episode-88915279-replay.json
+  (447/4000) episode 88915283 -> episode-88915283-replay.json
+  (448/4000) episode 88915299 -> episode-88915299-replay.json
+  (449/4000) episode 88915307 -> episode-88915307-replay.json
+  (450/4000) episode 88915310 -> episode-88915310-replay.json
+  (451/4000) episode 88915323 -> episode-88915323-replay.json
+  (452/4000) episode 88915345 -> episode-88915345-replay.json
+  (453/4000) episode 88915366 -> episode-88915366-replay.json
+  (454/4000) episode 88915372 -> episode-88915372-replay.json
+  (455/4000) episode 88915380 -> episode-88915380-replay.json
+  (456/4000) episode 88915388 -> episode-88915388-replay.json
+  (457/4000) episode 88915390 -> episode-88915390-replay.json
+  (458/4000) episode 88915417 -> episode-88915417-replay.json
+  (459/4000) episode 88915418 -> episode-88915418-replay.json
+  (460/4000) episode 88915424 -> episode-88915424-replay.json
+  (461/4000) episode 88915440 -> episode-88915440-replay.json
+  (462/4000) episode 88915459 -> episode-88915459-replay.json
+  (463/4000) episode 88915464 -> episode-88915464-replay.json
+  (464/4000) episode 88915528 -> episode-88915528-replay.json
+  (465/4000) episode 88915560 -> episode-88915560-replay.json
+  (466/4000) episode 88915566 -> episode-88915566-replay.json
+  (467/4000) episode 88915578 -> episode-88915578-replay.json
+  (468/4000) episode 88915586 -> episode-88915586-replay.json
+  (469/4000) episode 88915601 -> episode-88915601-replay.json
+  (470/4000) episode 88915612 -> episode-88915612-replay.json
+  (471/4000) episode 88915635 -> episode-88915635-replay.json
+  (472/4000) episode 88915641 -> episode-88915641-replay.json
+  (473/4000) episode 88915643 -> episode-88915643-replay.json
+  (474/4000) episode 88915655 -> episode-88915655-replay.json
+  (475/4000) episode 88915687 -> episode-88915687-replay.json
+  (476/4000) episode 88915688 -> episode-88915688-replay.json
+  (477/4000) episode 88915719 -> episode-88915719-replay.json
+  (478/4000) episode 88915732 -> episode-88915732-replay.json
+  (479/4000) episode 88915744 -> episode-88915744-replay.json
+  (480/4000) episode 88915756 -> episode-88915756-replay.json
+  (481/4000) episode 88915783 -> episode-88915783-replay.json
+  (482/4000) episode 88915801 -> episode-88915801-replay.json
+  (483/4000) episode 88915803 -> episode-88915803-replay.json

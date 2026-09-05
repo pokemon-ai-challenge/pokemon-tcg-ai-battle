@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_kamitsuorochi_ex_deck06.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 6014,
+  "n_val": 465,
+  "n_test": 781,
+  "epochs_trained": 46,
+  "train": {
+    "top1_accuracy": 0.7467575656800798,
+    "mean_weighted_nll": 0.7065913822847527
+  },
+  "val": {
+    "top1_accuracy": 0.7139784946236559,
+    "mean_weighted_nll": 0.8174444756430617
+  },
+  "test": {
+    "top1_accuracy": 0.6952624839948783,
+    "mean_weighted_nll": 0.8296254841142386
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.03277907105642386,
+    "mean_weighted_nll": 0.11085309335830895
+  },
+  "self_check_max_abs_err": 3.552713678800501e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_kamitsuorochi_ex_ft_C_alakazam_s42.json"
+}

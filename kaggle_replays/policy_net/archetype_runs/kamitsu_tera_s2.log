@@ -1,0 +1,66 @@
+features.npz を読み込み: features_kamitsuorochi_ex_deck06_tera.npz
+hand_card_vocab: 43種 [1, 92, 93, 96, 140, 149, 150, 172, 173, 346, 650, 651, 652, 655, 708, 709, 710, 917, 918, 919, 920, 1071, 1079, 1080, 1081, 1094, 1097, 1110, 1121, 1127, 1152, 1174, 1182, 1184, 1188, 1201, 1213, 1221, 1225, 1227, 1229, 1231, 1261]
+opponent_card_vocab: 157種 [1, 2, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 18, 19, 20, 31, 42, 44, 58, 63, 65, 66, 73, 74, 89, 90, 92, 93, 96, 100, 104, 108, 112, 117, 119, 120, 121, 131, 132, 133, 140, 149, 184, 230, 235, 240, 272, 305, 306, 318, 341, 342, 343, 344, 345, 379, 380, 381, 387, 400, 401, 414, 431, 432, 434, 463, 607, 646, 647, 648, 649, 687, 741, 742, 743, 756, 791, 860, 978, 1071, 1079, 1080, 1081, 1086, 1087, 1092, 1094, 1097, 1116, 1118, 1119, 1120, 1121, 1122, 1123, 1127, 1129, 1134, 1137, 1139, 1141, 1142, 1147, 1152, 1153, 1158, 1159, 1161, 1169, 1172, 1173, 1174, 1175, 1182, 1184, 1185, 1186, 1188, 1190, 1191, 1192, 1193, 1194, 1197, 1198, 1199, 1203, 1204, 1205, 1206, 1208, 1210, 1211, 1212, 1213, 1216, 1217, 1218, 1219, 1220, 1221, 1225, 1227, 1231, 1240, 1245, 1246, 1247, 1250, 1256, 1257, 1259, 1260, 1261, 1264, 1266, 1267]
+  ablate: 状態側 464 次元 / 選択肢側 0 次元を 0 で潰した ['self_board_card_slot', 'self_discard_card_slot', 'opp_board_card_slot', 'opp_discard_card_slot']
+card_id_max=1267  embedding table size=1268 x 8
+train=27347 val=3544 test=4456 (全35347件)
+option特徴の標準化元行列 shape=(179218, 65)
+  ablate対策: 状態側 464 / 選択肢側 0 次元の std を 0 に修正(std<1e-6クリップの上書き。measurement-plan-2026-08-04.md §3.1)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.3049  val_nll=1.2070 (best=1.2070, no_improve=0)  val_top1=0.5821
+    [baseline] epoch   5  train_loss=1.2013  val_nll=1.1888 (best=1.1888, no_improve=0)  val_top1=0.5796
+    [baseline] epoch  10  train_loss=1.1969  val_nll=1.1858 (best=1.1852, no_improve=1)  val_top1=0.5793
+    [baseline] epoch  15  train_loss=1.1959  val_nll=1.1829 (best=1.1829, no_improve=1)  val_top1=0.5804
+    [baseline] epoch  20  train_loss=1.1942  val_nll=1.1825 (best=1.1823, no_improve=2)  val_top1=0.5830
+    [baseline] epoch  25  train_loss=1.1937  val_nll=1.1819 (best=1.1815, no_improve=2)  val_top1=0.5796
+    [baseline] epoch  30  train_loss=1.1929  val_nll=1.1809 (best=1.1809, no_improve=0)  val_top1=0.5813
+    [baseline] epoch  35  train_loss=1.1922  val_nll=1.1812 (best=1.1806, no_improve=4)  val_top1=0.5790
+    [baseline] epoch  40  train_loss=1.1927  val_nll=1.1808 (best=1.1804, no_improve=1)  val_top1=0.5818
+    [baseline] epoch  45  train_loss=1.1928  val_nll=1.1799 (best=1.1799, no_improve=0)  val_top1=0.5815
+    [baseline] epoch  50  train_loss=1.1925  val_nll=1.1807 (best=1.1797, no_improve=4)  val_top1=0.5838
+    [baseline] epoch  55  train_loss=1.1920  val_nll=1.1818 (best=1.1797, no_improve=9)  val_top1=0.5799
+    [baseline] 早期終了: epoch 56(val_nll が 10 epoch 改善せず)
+  学習完了 (186.9s)
+  val : top1=0.5838  nll=1.1797
+  test: top1=0.5626  nll=1.2194
+
+=== 本命: MLP(PolicyScorer(T1), embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.1243  val_nll=1.0068 (best=1.0068, no_improve=0)  val_top1=0.6411
+    [main] epoch   5  train_loss=0.8873  val_nll=0.9528 (best=0.9528, no_improve=0)  val_top1=0.6572
+    [main] epoch  10  train_loss=0.8024  val_nll=0.9737 (best=0.9524, no_improve=4)  val_top1=0.6611
+    [main] epoch  15  train_loss=0.7529  val_nll=1.0064 (best=0.9524, no_improve=9)  val_top1=0.6566
+    [main] 早期終了: epoch 16(val_nll が 10 epoch 改善せず)
+  学習完了 (75.6s, 16 epochs)
+  train: top1=0.6831  nll=0.8309
+  val  : top1=0.6566  nll=0.9524
+  test : top1=0.6578  nll=0.9890
+  train-val gap: top1=+0.0265  nll=+0.1215(overfitting指標)
+  param_counts: {'fc1': 25248, 'fc2': 33, 'embedding': 10144, 'mlp': 25281, 'total': 35425}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5838  nll=1.1797
+  本命(state ++ option ++ embed): top1=0.6566  nll=0.9524
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  2823  top1=0.5948  nll=1.1357
+  select_type= 1  n=  1425  top1=0.7425  nll=0.8089
+  select_type= 4  n=   110  top1=0.9182  nll=0.3668
+  select_type= 6  n=     1  top1=1.0000  nll=0.0000
+  select_type= 8  n=    10  top1=1.0000  nll=0.0242
+  select_type= 9  n=    87  top1=0.9425  nll=0.1427
+
+重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_tera_s2.json (790.0 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=1.77635684e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.5626 nll=1.2194
+  本命(state ++ option ++ embed) test: top1=0.6578 nll=0.9890
+  自己検証: 最大誤差=1.77635684e-15 -> PASS
+  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_tera_s2.json
+  offline指標を書き出しました: archetype_runs\kamitsu_tera_s2_metrics.json

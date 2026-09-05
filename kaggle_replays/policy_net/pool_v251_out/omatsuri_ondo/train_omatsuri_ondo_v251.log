@@ -1,0 +1,72 @@
+features.npz を読み込み: features_omatsuri_ondo_v251.npz
+hand_card_vocab: 40種 [1, 18, 42, 73, 74, 89, 90, 92, 93, 100, 149, 240, 343, 1080, 1086, 1092, 1094, 1097, 1122, 1123, 1129, 1137, 1152, 1158, 1169, 1174, 1175, 1182, 1184, 1191, 1192, 1193, 1194, 1199, 1210, 1211, 1213, 1227, 1231, 1245]
+card_id_max=1267  embedding table size=1268 x 8
+train=22751 val=2820 test=3447 (全29018件)
+option特徴の標準化元行列 shape=(175734, 65)
+
+=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
+    [baseline] epoch   1  train_loss=1.4432  val_nll=1.3463 (best=1.3463, no_improve=0)  val_top1=0.5667
+    [baseline] epoch   5  train_loss=1.3457  val_nll=1.3083 (best=1.3083, no_improve=0)  val_top1=0.5649
+    [baseline] epoch  10  train_loss=1.3369  val_nll=1.2988 (best=1.2988, no_improve=0)  val_top1=0.5649
+    [baseline] epoch  15  train_loss=1.3309  val_nll=1.2926 (best=1.2926, no_improve=0)  val_top1=0.5745
+    [baseline] epoch  20  train_loss=1.3269  val_nll=1.2880 (best=1.2880, no_improve=0)  val_top1=0.5738
+    [baseline] epoch  25  train_loss=1.3224  val_nll=1.2850 (best=1.2850, no_improve=0)  val_top1=0.5766
+    [baseline] epoch  30  train_loss=1.3200  val_nll=1.2823 (best=1.2823, no_improve=2)  val_top1=0.5826
+    [baseline] epoch  35  train_loss=1.3172  val_nll=1.2786 (best=1.2786, no_improve=0)  val_top1=0.5798
+    [baseline] epoch  40  train_loss=1.3159  val_nll=1.2777 (best=1.2777, no_improve=0)  val_top1=0.5798
+    [baseline] epoch  45  train_loss=1.3151  val_nll=1.2766 (best=1.2759, no_improve=1)  val_top1=0.5826
+    [baseline] epoch  50  train_loss=1.3133  val_nll=1.2739 (best=1.2739, no_improve=0)  val_top1=0.5773
+    [baseline] epoch  55  train_loss=1.3124  val_nll=1.2738 (best=1.2738, no_improve=0)  val_top1=0.5762
+    [baseline] epoch  60  train_loss=1.3115  val_nll=1.2720 (best=1.2720, no_improve=0)  val_top1=0.5773
+    [baseline] epoch  65  train_loss=1.3105  val_nll=1.2712 (best=1.2709, no_improve=1)  val_top1=0.5794
+    [baseline] epoch  70  train_loss=1.3104  val_nll=1.2732 (best=1.2704, no_improve=3)  val_top1=0.5787
+    [baseline] epoch  75  train_loss=1.3098  val_nll=1.2705 (best=1.2704, no_improve=8)  val_top1=0.5773
+    [baseline] epoch  80  train_loss=1.3099  val_nll=1.2708 (best=1.2696, no_improve=4)  val_top1=0.5716
+    [baseline] epoch  85  train_loss=1.3097  val_nll=1.2703 (best=1.2693, no_improve=2)  val_top1=0.5777
+    [baseline] epoch  90  train_loss=1.3086  val_nll=1.2696 (best=1.2686, no_improve=1)  val_top1=0.5816
+    [baseline] epoch  95  train_loss=1.3090  val_nll=1.2686 (best=1.2686, no_improve=6)  val_top1=0.5823
+    [baseline] 早期終了: epoch 99(val_nll が 10 epoch 改善せず)
+  学習完了 (188.0s)
+  val : top1=0.5791  nll=1.2686
+  test: top1=0.5799  nll=1.2731
+
+=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
+    [main] epoch   1  train_loss=1.3041  val_nll=1.1774 (best=1.1774, no_improve=0)  val_top1=0.6223
+    [main] epoch   5  train_loss=1.0152  val_nll=1.0919 (best=1.0919, no_improve=0)  val_top1=0.6369
+    [main] epoch  10  train_loss=0.9358  val_nll=1.1150 (best=1.0919, no_improve=5)  val_top1=0.6199
+    [main] epoch  15  train_loss=0.8906  val_nll=1.1438 (best=1.0919, no_improve=10)  val_top1=0.6220
+    [main] 早期終了: epoch 15(val_nll が 10 epoch 改善せず)
+  学習完了 (37.2s, 15 epochs)
+  train: top1=0.6769  nll=0.9804
+  val  : top1=0.6369  nll=1.0919
+  test : top1=0.6408  nll=1.1030
+  train-val gap: top1=+0.0401  nll=+0.1115(overfitting指標)
+  param_counts: {'fc1': 10400, 'fc2': 33, 'embedding': 10144, 'mlp': 10433, 'total': 20577}
+
+=== 本命 vs ベースライン(val split) ===
+  ベースライン(option only): top1=0.5791  nll=1.2686
+  本命(state ++ option ++ embed): top1=0.6369  nll=1.0919
+
+=== select_type別 Top-1一致率(本命モデル, test split) ===
+  select_type= 0  n=  2263  top1=0.6319  nll=1.1198
+  select_type= 1  n=   973  top1=0.5838  nll=1.2988
+  select_type= 2  n=    12  top1=1.0000  nll=0.0000
+  select_type= 4  n=    31  top1=1.0000  nll=0.0043
+  select_type= 6  n=   131  top1=1.0000  nll=0.0000
+  select_type= 8  n=     9  top1=1.0000  nll=0.0000
+  select_type= 9  n=    28  top1=1.0000  nll=0.0000
+
+重みを書き出しました: policy_weights_omatsuri_ondo_v251.json (453.3 KB)
+
+=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
+  検証件数=50  最大誤差=3.55271368e-15  許容=1e-06
+  結果: PASS
+
+============================================================
+学習パイプライン完了サマリ
+============================================================
+  ベースライン(option only)      test: top1=0.5799 nll=1.2731
+  本命(state ++ option ++ embed) test: top1=0.6408 nll=1.1030
+  自己検証: 最大誤差=3.55271368e-15 -> PASS
+  出力: policy_weights_omatsuri_ondo_v251.json
+  offline指標を書き出しました: metrics_omatsuri_ondo_v251.json

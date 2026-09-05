@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_dragapult_ex_v715b.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 96607,
+  "n_val": 12904,
+  "n_test": 15546,
+  "epochs_trained": 15,
+  "train": {
+    "top1_accuracy": 0.6122641216474997,
+    "mean_weighted_nll": 0.9727442778264646
+  },
+  "val": {
+    "top1_accuracy": 0.5869497830130193,
+    "mean_weighted_nll": 1.0591421086578496
+  },
+  "test": {
+    "top1_accuracy": 0.5849093014280201,
+    "mean_weighted_nll": 1.1099596606878654
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.025314338634480404,
+    "mean_weighted_nll": 0.08639783083138508
+  },
+  "self_check_max_abs_err": 1.7763568394002505e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_dragapult_ex_v715b_s42.json"
+}

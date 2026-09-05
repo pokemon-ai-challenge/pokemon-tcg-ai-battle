@@ -1,0 +1,194 @@
+[{"stream_name":"stderr","time":7.937142745,"data":"/usr/local/lib/python3.12/dist-packages/nbformat/__init__.py:96: MissingIDFieldWarning: Cell is missing an id field, this will become a hard error in future nbformat versions. You may want to use `normalize()` on your notebooks before validations (available since nbformat 5.1.4). Previous versions of nbformat are fixing this issue transparently, and will stop doing so in the future.\n"}
+,{"stream_name":"stderr","time":7.937236506,"data":"  validate(nb)\n"}
+,{"stream_name":"stderr","time":9.16770378,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":9.16774436,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":9.16774927,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":9.1677531,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":9.901287253,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":9.901324733,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":9.901329193,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":9.901332833,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":11.446936407,"data":"--- /kaggle/input ---\n"}
+,{"stream_name":"stdout","time":11.998867446,"data":"  /kaggle/input/\n"}
+,{"stream_name":"stdout","time":11.998906956999999,"data":"  /kaggle/input/datasets\n"}
+,{"stream_name":"stdout","time":11.998911877,"data":"  /kaggle/input/datasets/koshin953\n"}
+,{"stream_name":"stdout","time":11.998915566,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code\n"}
+,{"stream_name":"stdout","time":11.998919006,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays\n"}
+,{"stream_name":"stdout","time":11.998922497,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis\n"}
+,{"stream_name":"stdout","time":11.998925946,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks\n"}
+,{"stream_name":"stdout","time":11.998929397,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/alakazam\n"}
+,{"stream_name":"stdout","time":11.998932486,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/alakazam/01.csv\n"}
+,{"stream_name":"stdout","time":11.998935626,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/alakazam/02.csv\n"}
+,{"stream_name":"stdout","time":11.998939206,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/alakazam/03.csv\n"}
+,{"stream_name":"stdout","time":11.998941337,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/alakazam/04.csv\n"}
+,{"stream_name":"stdout","time":11.998943457,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/alakazam/05.csv\n"}
+,{"stream_name":"stdout","time":11.998945486,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/alakazam/manifest.json\n"}
+,{"stream_name":"stdout","time":11.998947517,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/archaludon_ex\n"}
+,{"stream_name":"stdout","time":11.998964226,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/archaludon_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.998966477,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/archaludon_ex/02.csv\n"}
+,{"stream_name":"stdout","time":11.998968546,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/archaludon_ex/03.csv\n"}
+,{"stream_name":"stdout","time":11.998972077,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/archaludon_ex/04.csv\n"}
+,{"stream_name":"stdout","time":11.998975717,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/archaludon_ex/05.csv\n"}
+,{"stream_name":"stdout","time":11.998980897,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/archaludon_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":11.998984537,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/crustle\n"}
+,{"stream_name":"stdout","time":11.998988386,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/crustle/01.csv\n"}
+,{"stream_name":"stdout","time":11.998992097,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/crustle/02.csv\n"}
+,{"stream_name":"stdout","time":11.998995686,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/crustle/03.csv\n"}
+,{"stream_name":"stdout","time":11.998999477,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/crustle/04.csv\n"}
+,{"stream_name":"stdout","time":11.999002997,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/crustle/05.csv\n"}
+,{"stream_name":"stdout","time":11.999006167,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/crustle/manifest.json\n"}
+,{"stream_name":"stdout","time":11.999009697,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/dragapult_ex\n"}
+,{"stream_name":"stdout","time":11.999013027,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/dragapult_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.999016487,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/dragapult_ex/02.csv\n"}
+,{"stream_name":"stdout","time":11.999019987,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/dragapult_ex/03.csv\n"}
+,{"stream_name":"stdout","time":11.999023467,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/dragapult_ex/04.csv\n"}
+,{"stream_name":"stdout","time":11.999026977,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/dragapult_ex/05.csv\n"}
+,{"stream_name":"stdout","time":11.999030747,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/dragapult_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":11.999034417,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/gekkouga_ex\n"}
+,{"stream_name":"stdout","time":11.999043167,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/gekkouga_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.999047276,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/gekkouga_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":11.999050667,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/kamitsuorochi_ex\n"}
+,{"stream_name":"stdout","time":11.999053987,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/kamitsuorochi_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.999057487,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/kamitsuorochi_ex/02.csv\n"}
+,{"stream_name":"stdout","time":11.999060396,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/kamitsuorochi_ex/03.csv\n"}
+,{"stream_name":"stdout","time":11.999062396,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/kamitsuorochi_ex/04.csv\n"}
+,{"stream_name":"stdout","time":11.999064516,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/kamitsuorochi_ex/05.csv\n"}
+,{"stream_name":"stdout","time":11.999066547,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/kamitsuorochi_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":11.999069996,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/marnie_grimmsnarl_ex\n"}
+,{"stream_name":"stdout","time":11.999073276,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/marnie_grimmsnarl_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.999076976,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/marnie_grimmsnarl_ex/02.csv\n"}
+,{"stream_name":"stdout","time":11.999080687,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/marnie_grimmsnarl_ex/03.csv\n"}
+,{"stream_name":"stdout","time":11.999084336,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/marnie_grimmsnarl_ex/04.csv\n"}
+,{"stream_name":"stdout","time":11.999088216,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/marnie_grimmsnarl_ex/05.csv\n"}
+,{"stream_name":"stdout","time":11.999091747,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/marnie_grimmsnarl_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":11.999095347,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_abomasnow_ex\n"}
+,{"stream_name":"stdout","time":11.999099407,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_abomasnow_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.999102747,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_abomasnow_ex/02.csv\n"}
+,{"stream_name":"stdout","time":11.999106116,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_abomasnow_ex/03.csv\n"}
+,{"stream_name":"stdout","time":11.999109576,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_abomasnow_ex/04.csv\n"}
+,{"stream_name":"stdout","time":11.999118496,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_abomasnow_ex/05.csv\n"}
+,{"stream_name":"stdout","time":11.999122176,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_abomasnow_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":11.999125787,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_froslass_ex\n"}
+,{"stream_name":"stdout","time":11.999129356,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_froslass_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.999132916,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_froslass_ex/02.csv\n"}
+,{"stream_name":"stdout","time":11.999136407,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_froslass_ex/03.csv\n"}
+,{"stream_name":"stdout","time":11.999139917,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_froslass_ex/04.csv\n"}
+,{"stream_name":"stdout","time":11.999143427,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_froslass_ex/05.csv\n"}
+,{"stream_name":"stdout","time":11.999147017,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_froslass_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":11.999150667,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex\n"}
+,{"stream_name":"stdout","time":11.999154267,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.999157317,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/02.csv\n"}
+,{"stream_name":"stdout","time":11.999161127,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/03.csv\n"}
+,{"stream_name":"stdout","time":11.999164597,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/04.csv\n"}
+,{"stream_name":"stdout","time":11.999168097,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/05.csv\n"}
+,{"stream_name":"stdout","time":11.999171837,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_lucario_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":11.999175327,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_starmie_ex\n"}
+,{"stream_name":"stdout","time":11.999178977,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_starmie_ex/01.csv\n"}
+,{"stream_name":"stdout","time":11.999182427000001,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_starmie_ex/02.csv\n"}
+,{"stream_name":"stdout","time":11.999186107,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_starmie_ex/03.csv\n"}
+,{"stream_name":"stdout","time":11.999189657,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_starmie_ex/04.csv\n"}
+,{"stream_name":"stdout","time":11.999197527,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_starmie_ex/05.csv\n"}
+,{"stream_name":"stdout","time":11.999201247,"data":"  /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code/kaggle_replays/meta_analysis/archetype_decks/mega_starmie_ex/manifest.json\n"}
+,{"stream_name":"stdout","time":12.216158631,"data":"コード: 展開済みツリーから複製: /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-code\n"}
+,{"stream_name":"stdout","time":13.690025939,"data":"特徴量: /kaggle/input/datasets/koshin953/ptcg-bc-pool-v251-features/features_dragapult_ex_v251.npz -\u003e /kaggle/working/repo/kaggle_replays/policy_net/features_dragapult_ex_v251.npz\n"}
+,{"stream_name":"stdout","time":13.690082089,"data":"\n"}
+,{"stream_name":"stdout","time":13.690089009,"data":"--- 必要ファイルの確認 ---\n"}
+,{"stream_name":"stdout","time":13.690094189,"data":"  OK   sample_submission/cg/libcg.so\n"}
+,{"stream_name":"stdout","time":13.690097349,"data":"  OK   sample_submission/ptcg_ai/learning/encoder.py\n"}
+,{"stream_name":"stdout","time":13.690100369,"data":"  OK   kaggle_replays/policy_net/train.py\n"}
+,{"stream_name":"stdout","time":17.31643314,"data":"python       : 3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]\n"}
+,{"stream_name":"stdout","time":17.31647551,"data":"platform     : Linux-6.12.90+-x86_64-with-glibc2.35\n"}
+,{"stream_name":"stdout","time":17.31648205,"data":"cpu_count    : 4\n"}
+,{"stream_name":"stdout","time":17.31648657,"data":"torch        : 2.10.0+cpu\n"}
+,{"stream_name":"stdout","time":17.31649162,"data":"torch.cuda   : False\n"}
+,{"stream_name":"stdout","time":17.31649636,"data":"libcg.so     : OK ( /kaggle/working/repo/sample_submission/cg/libcg.so )\n"}
+,{"stream_name":"stdout","time":17.334245355,"data":"=== train.py (BC学習, dragapult_ex) ===\n"}
+,{"stream_name":"stdout","time":17.334917836,"data":"$ /usr/bin/python3 -u train.py --features features_dragapult_ex_v251.npz --out-weights policy_weights_dragapult_ex_v251.json --seed 42 --metrics-out metrics_dragapult_ex_v251.json\n"}
+,{"stream_name":"stdout","time":18.960886029,"data":"features.npz を読み込み: features_dragapult_ex_v251.npz\n"}
+,{"stream_name":"stdout","time":19.817410677,"data":"hand_card_vocab: 37種 [2, 5, 7, 12, 31, 66, 112, 119, 120, 121, 131, 132, 133, 140, 184, 235, 272, 305, 306, 343, 791, 1071, 1079, 1080, 1086, 1097, 1120, 1121, 1152, 1182, 1198, 1213, 1227, 1240, 1246, 1256, 1260]\n"}
+,{"stream_name":"stdout","time":19.818202428,"data":"card_id_max=1267  embedding table size=1268 x 8\n"}
+,{"stream_name":"stdout","time":19.818909919,"data":"train=29721 val=4676 test=4079 (全38476件)\n"}
+,{"stream_name":"stdout","time":19.918490043,"data":"option特徴の標準化元行列 shape=(193909, 65)\n"}
+,{"stream_name":"stdout","time":20.16191127,"data":"\n"}
+,{"stream_name":"stdout","time":20.162559301,"data":"=== ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===\n"}
+,{"stream_name":"stdout","time":28.033344699,"data":"    [baseline] epoch   1  train_loss=1.3929  val_nll=1.3462 (best=1.3462, no_improve=0)  val_top1=0.5135\n"}
+,{"stream_name":"stdout","time":36.474922596,"data":"    [baseline] epoch   5  train_loss=1.3086  val_nll=1.3247 (best=1.3247, no_improve=0)  val_top1=0.5165\n"}
+,{"stream_name":"stdout","time":46.775827583,"data":"    [baseline] epoch  10  train_loss=1.3007  val_nll=1.3202 (best=1.3202, no_improve=0)  val_top1=0.5158\n"}
+,{"stream_name":"stdout","time":57.367372622,"data":"    [baseline] epoch  15  train_loss=1.2962  val_nll=1.3169 (best=1.3169, no_improve=0)  val_top1=0.5201\n"}
+,{"stream_name":"stdout","time":68.253459074,"data":"    [baseline] epoch  20  train_loss=1.2931  val_nll=1.3155 (best=1.3154, no_improve=3)  val_top1=0.5182\n"}
+,{"stream_name":"stdout","time":78.586686068,"data":"    [baseline] epoch  25  train_loss=1.2916  val_nll=1.3134 (best=1.3131, no_improve=1)  val_top1=0.5216\n"}
+,{"stream_name":"stdout","time":88.712316669,"data":"    [baseline] epoch  30  train_loss=1.2911  val_nll=1.3127 (best=1.3127, no_improve=0)  val_top1=0.5222\n"}
+,{"stream_name":"stdout","time":99.221130786,"data":"    [baseline] epoch  35  train_loss=1.2908  val_nll=1.3133 (best=1.3120, no_improve=2)  val_top1=0.5259\n"}
+,{"stream_name":"stdout","time":110.103735168,"data":"    [baseline] epoch  40  train_loss=1.2906  val_nll=1.3130 (best=1.3119, no_improve=4)  val_top1=0.5237\n"}
+,{"stream_name":"stdout","time":121.369805403,"data":"    [baseline] epoch  45  train_loss=1.2894  val_nll=1.3114 (best=1.3114, no_improve=0)  val_top1=0.5197\n"}
+,{"stream_name":"stdout","time":131.498684429,"data":"    [baseline] epoch  50  train_loss=1.2890  val_nll=1.3123 (best=1.3114, no_improve=5)  val_top1=0.5308\n"}
+,{"stream_name":"stdout","time":141.76168219,"data":"    [baseline] epoch  55  train_loss=1.2891  val_nll=1.3116 (best=1.3113, no_improve=1)  val_top1=0.5235\n"}
+,{"stream_name":"stdout","time":152.012665473,"data":"    [baseline] epoch  60  train_loss=1.2883  val_nll=1.3108 (best=1.3108, no_improve=0)  val_top1=0.5308\n"}
+,{"stream_name":"stdout","time":162.31581277,"data":"    [baseline] epoch  65  train_loss=1.2899  val_nll=1.3114 (best=1.3108, no_improve=5)  val_top1=0.5297\n"}
+,{"stream_name":"stdout","time":172.242686227,"data":"    [baseline] epoch  70  train_loss=1.2892  val_nll=1.3133 (best=1.3108, no_improve=10)  val_top1=0.5314\n"}
+,{"stream_name":"stdout","time":172.243446127,"data":"    [baseline] 早期終了: epoch 70(val_nll が 10 epoch 改善せず)\n"}
+,{"stream_name":"stdout","time":172.244189207,"data":"  学習完了 (152.1s)\n"}
+,{"stream_name":"stdout","time":172.341044717,"data":"  val : top1=0.5308  nll=1.3108\n"}
+,{"stream_name":"stdout","time":172.341757317,"data":"  test: top1=0.5050  nll=1.3108\n"}
+,{"stream_name":"stdout","time":172.342374587,"data":"\n"}
+,{"stream_name":"stdout","time":172.343070786,"data":"=== 本命: MLP(embedding(card_id) ++ Linear(in,32) -\u003e ReLU -\u003e Linear(32,1)) ===\n"}
+,{"stream_name":"stdout","time":175.336210699,"data":"    [main] epoch   1  train_loss=1.2465  val_nll=1.1930 (best=1.1930, no_improve=0)  val_top1=0.5635\n"}
+,{"stream_name":"stdout","time":187.518173077,"data":"    [main] epoch   5  train_loss=0.9728  val_nll=1.1136 (best=1.1136, no_improve=0)  val_top1=0.5774\n"}
+,{"stream_name":"stdout","time":202.604806587,"data":"    [main] epoch  10  train_loss=0.8744  val_nll=1.1410 (best=1.1136, no_improve=5)  val_top1=0.5768\n"}
+,{"stream_name":"stdout","time":219.475027457,"data":"    [main] epoch  15  train_loss=0.8192  val_nll=1.1799 (best=1.1136, no_improve=10)  val_top1=0.5708\n"}
+,{"stream_name":"stdout","time":219.475913887,"data":"    [main] 早期終了: epoch 15(val_nll が 10 epoch 改善せず)\n"}
+,{"stream_name":"stdout","time":219.476536087,"data":"  学習完了 (47.1s, 15 epochs)\n"}
+,{"stream_name":"stdout","time":220.362104763,"data":"  train: top1=0.6239  nll=0.9284\n"}
+,{"stream_name":"stdout","time":220.363056653,"data":"  val  : top1=0.5774  nll=1.1136\n"}
+,{"stream_name":"stdout","time":220.363937473,"data":"  test : top1=0.5891  nll=1.0776\n"}
+,{"stream_name":"stdout","time":220.364640213,"data":"  train-val gap: top1=+0.0465  nll=+0.1852(overfitting指標)\n"}
+,{"stream_name":"stdout","time":220.365842663,"data":"  param_counts: {'fc1': 10400, 'fc2': 33, 'embedding': 10144, 'mlp': 10433, 'total': 20577}\n"}
+,{"stream_name":"stdout","time":220.366316863,"data":"\n"}
+,{"stream_name":"stdout","time":220.367087893,"data":"=== 本命 vs ベースライン(val split) ===\n"}
+,{"stream_name":"stdout","time":220.367720133,"data":"  ベースライン(option only): top1=0.5308  nll=1.3108\n"}
+,{"stream_name":"stdout","time":220.368433893,"data":"  本命(state ++ option ++ embed): top1=0.5774  nll=1.1136\n"}
+,{"stream_name":"stdout","time":220.369051863,"data":"\n"}
+,{"stream_name":"stdout","time":220.369604183,"data":"=== select_type別 Top-1一致率(本命モデル, test split) ===\n"}
+,{"stream_name":"stdout","time":220.422172717,"data":"  select_type= 0  n=  2022  top1=0.5277  nll=1.2751\n"}
+,{"stream_name":"stdout","time":220.465197102,"data":"  select_type= 1  n=  1836  top1=0.6144  nll=0.9541\n"}
+,{"stream_name":"stdout","time":220.467558422,"data":"  select_type= 4  n=    91  top1=0.9341  nll=0.3547\n"}
+,{"stream_name":"stdout","time":220.469387482,"data":"  select_type= 7  n=     3  top1=1.0000  nll=0.0000\n"}
+,{"stream_name":"stdout","time":220.472175871,"data":"  select_type= 8  n=    91  top1=0.9231  nll=0.2684\n"}
+,{"stream_name":"stdout","time":220.473673191,"data":"  select_type= 9  n=    36  top1=1.0000  nll=0.0014\n"}
+,{"stream_name":"stdout","time":220.48817001,"data":"\n"}
+,{"stream_name":"stdout","time":220.488932,"data":"重みを書き出しました: policy_weights_dragapult_ex_v251.json (452.9 KB)\n"}
+,{"stream_name":"stdout","time":220.48957507,"data":"\n"}
+,{"stream_name":"stdout","time":220.49020393,"data":"=== 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===\n"}
+,{"stream_name":"stdout","time":220.535128785,"data":"  検証件数=50  最大誤差=2.66453526e-15  許容=1e-06\n"}
+,{"stream_name":"stdout","time":220.535927625,"data":"  結果: PASS\n"}
+,{"stream_name":"stdout","time":220.536929885,"data":"\n"}
+,{"stream_name":"stdout","time":220.537537584,"data":"============================================================\n"}
+,{"stream_name":"stdout","time":220.538317784,"data":"学習パイプライン完了サマリ\n"}
+,{"stream_name":"stdout","time":220.539029674,"data":"============================================================\n"}
+,{"stream_name":"stdout","time":220.539687004,"data":"  ベースライン(option only)      test: top1=0.5050 nll=1.3108\n"}
+,{"stream_name":"stdout","time":220.540215674,"data":"  本命(state ++ option ++ embed) test: top1=0.5891 nll=1.0776\n"}
+,{"stream_name":"stdout","time":220.540805884,"data":"  自己検証: 最大誤差=2.66453526e-15 -\u003e PASS\n"}
+,{"stream_name":"stdout","time":220.541313834,"data":"  出力: policy_weights_dragapult_ex_v251.json\n"}
+,{"stream_name":"stdout","time":220.541873554,"data":"  offline指標を書き出しました: metrics_dragapult_ex_v251.json\n"}
+,{"stream_name":"stdout","time":221.366773276,"data":"\n"}
+,{"stream_name":"stdout","time":221.366809816,"data":"[exit=0] 204s elapsed\n"}
+,{"stream_name":"stdout","time":221.367588607,"data":"\n"}
+,{"stream_name":"stdout","time":221.367656797,"data":"[完了] 204s elapsed\n"}
+,{"stream_name":"stdout","time":221.388383844,"data":"回収: /kaggle/working/policy_weights_dragapult_ex_v251.json (0.453 MB)\n"}
+,{"stream_name":"stdout","time":221.388420414,"data":"回収: /kaggle/working/metrics_dragapult_ex_v251.json (0.001 MB)\n"}
+,{"stream_name":"stdout","time":221.388425524,"data":"\n"}
+,{"stream_name":"stdout","time":221.388428824,"data":"--- /kaggle/working ---\n"}
+,{"stream_name":"stdout","time":221.388449274,"data":"  __notebook__.ipynb  (0.034 MB)\n"}
+,{"stream_name":"stdout","time":221.388452524,"data":"  metrics_dragapult_ex_v251.json  (0.001 MB)\n"}
+,{"stream_name":"stdout","time":221.388455974,"data":"  policy_weights_dragapult_ex_v251.json  (0.453 MB)\n"}
+,{"stream_name":"stdout","time":221.388459284,"data":"  repo/\n"}
+,{"stream_name":"stdout","time":221.388462424,"data":"  train_dragapult_ex_v251.log  (0.004 MB)\n"}
+,{"stream_name":"stderr","time":224.958326286,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":224.958373296,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":225.135107627,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":225.135163237,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":225.796053897,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":226.088407926,"data":"[NbConvertApp] Writing 27447 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":228.708073648,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":229.556635378,"data":"[NbConvertApp] Writing 318818 bytes to __results__.html\n"}
+]

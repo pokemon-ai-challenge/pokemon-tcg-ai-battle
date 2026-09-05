@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_kamitsuorochi_ex_deck06.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 25248,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 25281,
+    "total": 35425
+  },
+  "n_train": 13022,
+  "n_val": 1684,
+  "n_test": 2388,
+  "epochs_trained": 12,
+  "train": {
+    "top1_accuracy": 0.6889878666871448,
+    "mean_weighted_nll": 0.8096774642122607
+  },
+  "val": {
+    "top1_accuracy": 0.6805225653206651,
+    "mean_weighted_nll": 0.8908704571102788
+  },
+  "test": {
+    "top1_accuracy": 0.6762981574539364,
+    "mean_weighted_nll": 0.9584151079535442
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.008465301366479716,
+    "mean_weighted_nll": 0.08119299289801807
+  },
+  "self_check_max_abs_err": 1.7763568394002505e-15,
+  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_kamitsuorochi_ex_ft_B_exrace_s42.json"
+}

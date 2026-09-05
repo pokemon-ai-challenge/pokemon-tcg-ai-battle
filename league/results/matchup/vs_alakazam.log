@@ -1,0 +1,15 @@
+[progress] 50/100 games done (A win rate so far: 0.280 over 50 valid games, errors: 0, elapsed: 977.1s)
+[progress] 100/100 games done (A win rate so far: 0.280 over 100 valid games, errors: 0, elapsed: 1979.4s)
+=== league result: ml_policy (A) vs ml_policy (B) ===
+games requested/run: 100/100
+elapsed: 1979.4s (workers: 1)
+
+overall: A 28/100 = 0.280 (95% CI [0.201, 0.375])
+avg turns: 12.0, avg steps: 134.4
+
+A as player0 (êÊéË): 19/50 = 0.380 (95% CI [0.259, 0.518])
+A as player1 (å„éË): 9/50 = 0.180 (95% CI [0.098, 0.308])
+
+errors: 0 (0.0%)
+
+result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\league\results\matchup\vs_alakazam.json

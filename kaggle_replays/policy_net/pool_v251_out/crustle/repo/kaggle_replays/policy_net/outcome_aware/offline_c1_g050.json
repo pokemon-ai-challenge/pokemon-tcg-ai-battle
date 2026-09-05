@@ -1,0 +1,46 @@
+{
+  "hidden_size": 32,
+  "features": "features_configC_outcome.npz",
+  "consequence_fields": [],
+  "outcome_weighting": {
+    "mode": "discount",
+    "loss_discount": 0.5,
+    "adv_beta": null,
+    "adv_clip": null,
+    "value_weights": null,
+    "n_outcome_known": 187582,
+    "n_outcome_unknown": 108,
+    "n_win": 96601,
+    "n_loss": 90981
+  },
+  "seed": 42,
+  "param_counts": {
+    "fc1": 7680,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 7713,
+    "total": 17857
+  },
+  "n_train": 147705,
+  "n_val": 17359,
+  "n_test": 22626,
+  "epochs_trained": 24,
+  "train": {
+    "top1_accuracy": 0.610791780914661,
+    "mean_weighted_nll": 0.9652949454950737
+  },
+  "val": {
+    "top1_accuracy": 0.6025116654185149,
+    "mean_weighted_nll": 1.1243229058816553
+  },
+  "test": {
+    "top1_accuracy": 0.5795544948289578,
+    "mean_weighted_nll": 1.1024307958620856
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.008280115496146156,
+    "mean_weighted_nll": 0.15902796038658162
+  },
+  "self_check_max_abs_err": 1.7763568394002505e-15,
+  "out_weights": "..\\..\\sample_submission\\ptcg_ai\\learning\\policy_weights_c1_g050.json"
+}

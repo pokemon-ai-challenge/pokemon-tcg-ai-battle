@@ -1,0 +1,36 @@
+{
+  "hidden_size": 32,
+  "features": "features_rocket_mewtwo_ex_v251.npz",
+  "consequence_fields": [],
+  "outcome_weighting": null,
+  "seed": 42,
+  "param_counts": {
+    "fc1": 10400,
+    "fc2": 33,
+    "embedding": 10144,
+    "mlp": 10433,
+    "total": 20577
+  },
+  "n_train": 44673,
+  "n_val": 6265,
+  "n_test": 4823,
+  "epochs_trained": 17,
+  "train": {
+    "top1_accuracy": 0.6493407651153941,
+    "mean_weighted_nll": 0.8908916014947867
+  },
+  "val": {
+    "top1_accuracy": 0.6188347964884278,
+    "mean_weighted_nll": 1.0118031161837269
+  },
+  "test": {
+    "top1_accuracy": 0.5929919137466307,
+    "mean_weighted_nll": 1.078226076803093
+  },
+  "train_val_gap": {
+    "top1_accuracy": 0.030505968626966307,
+    "mean_weighted_nll": 0.12091151468894012
+  },
+  "self_check_max_abs_err": 1.7763568394002505e-15,
+  "out_weights": "policy_weights_rocket_mewtwo_ex_v251.json"
+}
