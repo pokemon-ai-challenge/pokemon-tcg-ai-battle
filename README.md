@@ -14,7 +14,7 @@
 
 主催: Kaggle・株式会社ポケモン｜共催: 株式会社松尾研究所・HEROZ株式会社｜開催協力: Google・Google Cloud・NVIDIA（[公式サイト](https://ptcg-abc.pokemon.co.jp/)）
 
-[作ったもの](#作ったもの) · [難しかった点](#難しかった点) · [AIの仕組み](#aiの仕組み) · [そこに至るまで](#そこに至るまで) · [メンバーと担当](#メンバーと担当) · [コードの入口](#コードの入口)
+[作ったもの](#作ったもの) · [難しかった点](#難しかった点) · [AIの仕組み](#aiの仕組み) · [そこに至るまで](#そこに至るまで) · [メンバーと担当](#メンバーと担当) · [リポジトリ構成](#リポジトリ構成)
 
 ## 作ったもの
 
@@ -137,9 +137,9 @@ flowchart TD
 
 → [担当の詳細とチームの取り組み](docs/development-story.md#メンバーの担当詳細)
 
-## コードの入口
+## リポジトリ構成
 
-| 見たいもの | 場所 |
+| 対象 | 場所 |
 |---|---|
 | 提出した AI の実装 | [提出エージェントの構成](sample_submission/README.md) · [`agent()` のコード](sample_submission/main.py) |
 | 対戦ビュアー | [battle_review_viewer/](battle_review_viewer/README.md) |
@@ -151,7 +151,7 @@ flowchart TD
 
 提出したモデルは、使用デッキ・設定・重みのハッシュと、採用を決めた評価結果をあわせて [`sample_submission/models/`](sample_submission/models/) に凍結してある。
 
-## もっと詳しく
+## 関連ドキュメント
 
 - [開発の経緯とチームの取り組み](docs/development-story.md) — 各段階の背景と、メンバー4人それぞれの担当の内訳
 - [大会結果と順位分析](docs/results.md) — 最終成績、スコアの推移と31位の位置づけ、対戦相手の変化
