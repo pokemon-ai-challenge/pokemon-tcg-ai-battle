@@ -127,7 +127,8 @@ kaggle_replays/**/*.pt
 
 # 生の実行ログ(成果物ではない。分析レポート .md は追跡する)
 kaggle_replays/**/*.log
-kaggle_replays/*.out
+kaggle_replays/**/*.out
+kaggle_replays/**/*.err
 
 # 提出tarball(ビルド成果物。提出済みのものは Kaggle 側に記録が残る)
 build_ready/*.tar.gz
@@ -136,3 +137,8 @@ build_ready/*.tar.gz
 .tmp_battle_review_viewer/
 battle_review_viewer/output/
 battle_review_viewer/_tmp_served.json
+# RL学習中の一時ポリシー(_tmp_policy_*): train_*.py が eval のたびに export_temp() で
+# 上書きするワーカー配布用のスクラッチ。本命の成果物は
+# sample_submission/ptcg_ai/learning/policy_weights_<arch>_rl_<tag>.json 側。
+kaggle_replays/rl/_tmp_policy_*.json
+kaggle_replays/rl/_smoke_*.json
