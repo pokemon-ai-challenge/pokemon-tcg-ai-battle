@@ -104,6 +104,10 @@ pokemon-card-ai-team/
 **/archive.json
 **/board.html
 
+# Local-only working directory (currently only tracked on the local
+# feature/mppo-pbrs branch; not part of any other branch's history)
+ptcg-agent/
+
 # OS
 .DS_Store
 Thumbs.db
