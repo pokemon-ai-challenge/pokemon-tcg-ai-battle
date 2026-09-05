@@ -41,7 +41,7 @@
 
 つまり **31位はレーティングが収束する前の上振れ**であり、このエージェントの実力値は一貫して910〜920点付近でした。同一提出のスコア振れ幅は、追跡した提出全体の中央値で 173.8点あります。
 
-この「変えていないのにスコアが動く」性質は、開発中にもっとも苦しんだ点でもあります。ローカルで改善が出ても、それが順位に効いたのかを1回の提出結果からは判断できません。そのため提出ごとのスコアを継続的に記録し、変動幅そのものを実測しました（[`kaggle_replays/_lb_history.tsv`](kaggle_replays/_lb_history.tsv)）。
+この「変えていないのにスコアが動く」性質は、開発中にもっとも苦しんだ点でもあります。ローカルで改善が出ても、それが順位に効いたのかを1回の提出結果からは判断できません。そのため提出ごとのスコアを継続的に記録し、変動幅そのものを実測しました（`kaggle_replays/_lb_history.tsv`）。
 
 ## このコンペの何が難しいのか
 
@@ -139,8 +139,8 @@ flowchart TD
 |---|---|
 | [`cardlist_referenced/`](cardlist_referenced/) | 配布カードPDFの参照・整理・印刷。紙でデッキを回して検証するために作った |
 | [`battle_review_viewer/`](battle_review_viewer/) | 対戦リプレイを1手ずつ再生できるビュアー。盤面・選択肢・ログ・相手デッキの推定を確認できる。人間 vs CPU で対戦する機能もある |
-| [`kaggle_replays/`](kaggle_replays/) | Kaggle 上の対戦リプレイの取得・分析。上位プレイヤーの手を模倣学習の教師データにするためにも使っている |
-| [`league/`](league/) · [`opponents/`](opponents/) | ローカルで多数のエージェントを総当たりさせる対戦環境 |
+| `kaggle_replays/` | Kaggle 上の対戦リプレイの取得・分析。上位プレイヤーの手を模倣学習の教師データにするためにも使っている |
+| `league/` · `opponents/` | ローカルで多数のエージェントを総当たりさせる対戦環境 |
 
 ![バトルビュアー](docs/images/battle-viewer.png)
 
@@ -177,6 +177,8 @@ pokemon-tcg-ai-battle/
 ├── league/ · opponents/    # ローカル対戦環境
 └── data/                   # コンペ提供データ（Kaggle からダウンロードして配置）
 ```
+
+一部のディレクトリ（`kaggle_replays/` `league/` `opponents/` など、分析・評価まわりのコード）は現在それぞれの作業ブランチにあり、master への統合を進めています。
 
 `data/` はサイズが大きいためリポジトリに含めていません。[コンペのデータページ](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/data)から取得して配置してください。
 
