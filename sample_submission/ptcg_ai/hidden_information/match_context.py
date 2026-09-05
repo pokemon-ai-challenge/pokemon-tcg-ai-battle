@@ -66,10 +66,52 @@ def reset() -> None:
     _knowledge.clear()
     _own_states.clear()
     _opponent_states.clear()
+    _own_deck_override.clear()
+
+
+# ローカル評価harness専用の「自分の60枚」上書き（player_index -> card_ids）。
+#
+# 本番(Kaggle)は 1プロセス1エージェントで、自分のデッキは常に `deck.csv` なので
+# この dict は空のまま = 挙動は完全に不変。
+#
+# 一方ローカルの `run_league`/`eval_field` は **1プロセスで両陣営の ml_policy を動かす**が、
+# デッキは `battle_start(deck0, deck1)` でエンジンへ直接渡され、エージェント側は常に
+# `deck.csv` を自分の山札だと思い込む。その結果、deck.csv 以外のデッキを持つ側は
+# OwnHiddenState のサイド枚数が実盤面と食い違い、`search_begin` が
+# "your_prize does not match the number of cards in your prize." で必ず例外になる
+# → pipeline が黙って None を返し、**その陣営だけ PIMC 探索が無効化される**
+# (実測: 相手側 begin 失敗率≒100% / climb 側 0%。`_diag_pimc_failure.py`)。
+# 相手を不当に弱くしたまま field 勝率を測ることになるため、harness から正しい60枚を
+# 教えられるようにする。
+_own_deck_override: dict[int, list[int]] = {}
+
+
+def set_own_deck_override(player_index: int, card_ids: list[int] | None) -> None:
+    """``player_index`` の「自分の60枚」を明示する（ローカル評価harness用）。
+
+    ``None`` を渡すと解除。``reset()`` でも解除されるため、game 単位で設定し直す。
+    production からは呼ばれない（呼ばなければ従来どおり ``deck.csv`` を読む）。
+    """
+    if card_ids is None:
+        _own_deck_override.pop(player_index, None)
+    else:
+        _own_deck_override[player_index] = list(card_ids)
+
+
+def _own_deck_ids_for(player_index: int | None) -> list[int]:
+    """``player_index`` の「自分の60枚」を返す。
+
+    harness が ``set_own_deck_override`` で宣言していればそれを、無ければ従来どおり
+    ``_load_own_deck_ids()``（=``deck.csv``）を返す。``_load_own_deck_ids`` の引数なし
+    シグネチャは既存テストが差し替え対象にしているため変更しない。
+    """
+    if player_index is not None and player_index in _own_deck_override:
+        return list(_own_deck_override[player_index])
+    return _load_own_deck_ids()
 
 
 def _load_own_deck_ids() -> list[int]:
-    """自分の60枚を ``read_deck_csv()`` から取得する。
+    """自分の60枚を ``read_deck_csv()``（=``deck.csv``）から取得する。
 
     ``rule_based_agent`` への依存は呼び出し時点まで遅延importする。本モジュールは
     ``rule_based_agent.agent()`` から呼ばれる想定であり、モジュール先頭で
@@ -109,7 +151,7 @@ def get_own_state(player_index: int) -> OwnHiddenState:
     state = _own_states.get(player_index)
     if state is None:
         try:
-            state = OwnHiddenState(_load_own_deck_ids())
+            state = OwnHiddenState(_own_deck_ids_for(player_index))
         except Exception:  # noqa: BLE001 -- deck.csv 読み込み失敗時も空デッキで安全側に倒す
             state = OwnHiddenState([])
         _own_states[player_index] = state
@@ -157,7 +199,7 @@ def update(obs: Observation) -> None:
 
         own_state = _own_states.get(me)
         if own_state is None:
-            own_state = OwnHiddenState(_load_own_deck_ids())
+            own_state = OwnHiddenState(_own_deck_ids_for(me))
             _own_states[me] = own_state
 
         knowledge = _knowledge.get(me)

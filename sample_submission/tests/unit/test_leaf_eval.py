@@ -128,3 +128,123 @@ def test_build_evaluator_passes_card_advantage_coeff(leaf_eval):
     assert leaf_eval.build_evaluator(
         {"kind": "handcrafted", "card_advantage_coeff": 0.07}
     ).card_advantage_coeff == 0.07
+
+
+# --- BlendedEvaluator(climb v1.5: 学習Valueを葉へ入れる混合口) ---
+
+
+class _FakeValue:
+    """ValueModel を差し替える固定値スタブ(重みJSON非依存でブレンド則だけ検証する)。"""
+
+    def __init__(self, value):
+        self.value = value
+
+    def evaluate(self, state, me):
+        return self.value
+
+
+def test_blend_alpha_zero_matches_handcrafted(leaf_eval):
+    """α=0.0 は handcrafted と数値的に一致する(既定挙動を壊さないことの保証)。"""
+    hand = leaf_eval.HandcraftedEvaluator()
+    ev = leaf_eval.BlendedEvaluator(alpha=0.0, handcrafted=hand, value=_FakeValue(0.9))
+    s = _state(my_prize=2, opp_prize=5)
+    assert ev.evaluate(s, me=0) == hand.evaluate(s, me=0)
+
+
+def test_blend_alpha_one_matches_value(leaf_eval):
+    """α=1.0 は learned value 単体と一致する。"""
+    ev = leaf_eval.BlendedEvaluator(alpha=1.0, value=_FakeValue(0.83))
+    assert ev.evaluate(_state(), me=0) == pytest.approx(0.83)
+
+
+def test_blend_is_convex_combination(leaf_eval):
+    """0<α<1 は両者の凸結合。handcrafted と value の間に必ず入る。"""
+    hand = leaf_eval.HandcraftedEvaluator()
+    s = _state(my_prize=2, opp_prize=5)
+    h = hand.evaluate(s, me=0)
+    ev = leaf_eval.BlendedEvaluator(alpha=0.5, handcrafted=hand, value=_FakeValue(0.0))
+    assert ev.evaluate(s, me=0) == pytest.approx(0.5 * 0.0 + 0.5 * h)
+    assert min(h, 0.0) <= ev.evaluate(s, me=0) <= max(h, 0.0)
+
+
+def test_blend_keeps_decided_states_hard(leaf_eval):
+    """決着局面はブレンドしても確定値(1.0/0.0)。学習Valueの誤差が勝敗を濁らせない。"""
+    ev = leaf_eval.BlendedEvaluator(alpha=0.5, value=_FakeValue(0.5))
+    assert ev.evaluate(_state(me=0, result=0), me=0) == 1.0
+    assert ev.evaluate(_state(me=0, result=1), me=0) == 0.0
+
+
+def test_blend_alpha_is_clamped(leaf_eval):
+    assert leaf_eval.BlendedEvaluator(alpha=-3.0).alpha == 0.0
+    assert leaf_eval.BlendedEvaluator(alpha=9.0).alpha == 1.0
+
+
+def test_build_evaluator_blend_kind(leaf_eval):
+    ev = leaf_eval.build_evaluator({"kind": "blend", "alpha": 0.8})
+    assert isinstance(ev, leaf_eval.BlendedEvaluator)
+    assert ev.alpha == 0.8
+    # 既定 kind は従来どおり handcrafted のまま(本番不変)。
+    assert isinstance(leaf_eval.build_evaluator({}), leaf_eval.HandcraftedEvaluator)
+
+
+def test_shared_value_model_is_reused(leaf_eval):
+    """`build_evaluator` は select 毎に呼ばれるため、ValueModel は共有インスタンスであること
+    (毎回重みJSONを読み直すと探索予算を食う)。"""
+    a = leaf_eval._get_shared_value_model()
+    b = leaf_eval._get_shared_value_model()
+    assert a is b
+
+
+def test_value_model_ready_reports_true_when_weights_present(leaf_eval):
+    """本リポジトリには value_weights.json が同梱されているので ready であるべき。
+
+    ここが False のまま kind="value"/"blend" を走らせると、葉評価が定数 0.5 になっているのに
+    探索は動くという気付きにくい失敗になる(A/B の前に必ず確認する)。
+    """
+    assert leaf_eval.value_model_ready() is True
+
+
+class _FakeValueModel:
+    """`predict_win_prob_from_state` だけを持つ ValueModel スタブ。"""
+
+    def __init__(self, prob):
+        self.prob = prob
+        self.calls = 0
+
+    def predict_win_prob_from_state(self, state):
+        self.calls += 1
+        return self.prob
+
+
+def test_value_evaluator_flips_perspective_for_opponent(leaf_eval):
+    """ValueModel は state.yourIndex 視点の勝率を返す。``me`` がそれと違うなら 1-p にする。
+
+    ここを取り違えると、探索の葉で **相手の勝率を自分の勝率として最大化** することになり、
+    勝率だけ見ても気付けない(実際に診断スクリプトで同じ取り違えを踏んだ)。
+    """
+    ev = leaf_eval.ValueModelEvaluator(model=_FakeValueModel(0.8))
+    s = _state(your_index=0)
+    assert ev.evaluate(s, me=0) == pytest.approx(0.8)     # 視点一致 → そのまま
+    assert ev.evaluate(s, me=1) == pytest.approx(0.2)     # 視点反転 → 1-p
+
+
+def test_blend_uses_flipped_value_for_opponent(leaf_eval):
+    """ブレンドも視点反転を引き継ぐ(α=1 は value 単体と一致)。"""
+    ev = leaf_eval.BlendedEvaluator(
+        alpha=1.0, value=leaf_eval.ValueModelEvaluator(model=_FakeValueModel(0.9)))
+    s = _state(your_index=0)
+    assert ev.evaluate(s, me=1) == pytest.approx(0.1)
+
+
+def test_blend_alpha_one_equals_value_kind(leaf_eval):
+    """α=1.0 の blend は kind="value" と数値的に一致する。
+
+    α スイープでは全 arm を同じ実装経路(BlendedEvaluator)に揃えたいが、
+    それが従来の kind="value" と等価であることを保証しておく。
+    """
+    fake = _FakeValueModel(0.73)
+    v = leaf_eval.ValueModelEvaluator(model=fake)
+    b = leaf_eval.BlendedEvaluator(alpha=1.0, value=leaf_eval.ValueModelEvaluator(model=fake))
+    s = _state(my_prize=2, opp_prize=5, your_index=0)
+    assert b.evaluate(s, me=0) == pytest.approx(v.evaluate(s, me=0))
+    assert b.evaluate(s, me=1) == pytest.approx(v.evaluate(s, me=1))

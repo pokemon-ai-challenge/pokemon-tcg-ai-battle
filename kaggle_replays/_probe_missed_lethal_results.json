@@ -1,0 +1,1976 @@
+[
+  {
+    "episode": 92608360,
+    "turn": 12,
+    "own_index": 1,
+    "decisions": [
+      {
+        "row": 157,
+        "turn": 12,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 17,
+        "answer": [
+          12
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.30039999401197,
+          "max_time_ms": 100.30039999401197,
+          "avg_time_ms": 100.30039999401197
+        },
+        "timing": {
+          "begin_ms": 1.0155999916605651,
+          "step_ms": 0.8124588237157749,
+          "nodes_in_100ms": 121.8331281770502
+        },
+        "p2": {
+          "nodes": 123,
+          "depth_reached": 2,
+          "abort": "time",
+          "elapsed_ms": 100.06739999516867,
+          "found": false
+        },
+        "boss_option_indices": [
+          2,
+          3
+        ],
+        "boss_candidate_rank": {
+          "2": 12,
+          "3": 13
+        },
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 120,
+            "depth_reached": 2,
+            "abort": "time",
+            "elapsed_ms": 100.1
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 264,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 200.2
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 568,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 400.7
+          },
+          {
+            "time_limit_ms": 800,
+            "found": false,
+            "nodes": 984,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 800.7
+          },
+          {
+            "time_limit_ms": 1600,
+            "found": true,
+            "nodes": 1847,
+            "depth_reached": 4,
+            "abort": null,
+            "elapsed_ms": 1480.8
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 128,
+          "depth_reached": 2,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 94,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": false,
+            "nodes": 116,
+            "abort": "time"
+          }
+        },
+        "p3": {
+          "nodes": 2009,
+          "depth_reached": 4,
+          "abort": null,
+          "elapsed_ms": 1574.6955999929924,
+          "found": true,
+          "path": [
+            [
+              2
+            ],
+            [
+              0
+            ],
+            [
+              8
+            ],
+            [
+              0
+            ]
+          ]
+        },
+        "p4": [
+          {
+            "first": [
+              2
+            ],
+            "nodes": 63,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 48.19759998645168,
+            "found": true,
+            "path": [
+              [
+                2
+              ],
+              [
+                0
+              ],
+              [
+                8
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          },
+          {
+            "first": [
+              3
+            ],
+            "nodes": 63,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 39.31700000248384,
+            "found": true,
+            "path": [
+              [
+                3
+              ],
+              [
+                0
+              ],
+              [
+                8
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          }
+        ]
+      },
+      {
+        "row": 158,
+        "turn": 12,
+        "select_type": "CARD",
+        "select_context": "ATTACH_TO",
+        "n_options": 2,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.33760000078473,
+          "max_time_ms": 100.33760000078473,
+          "avg_time_ms": 100.33760000078473
+        },
+        "timing": {
+          "begin_ms": 0.9480000007897615,
+          "step_ms": 0.7948000056785531,
+          "nodes_in_100ms": 124.6250620175141
+        },
+        "p2": {
+          "nodes": 118,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 100.88159999577329,
+          "found": false
+        }
+      },
+      {
+        "row": 159,
+        "turn": 12,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 13,
+        "answer": [
+          9
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.24840000551194,
+          "max_time_ms": 100.24840000551194,
+          "avg_time_ms": 100.24840000551194
+        },
+        "timing": {
+          "begin_ms": 0.9733000042615458,
+          "step_ms": 0.8525846149915686,
+          "nodes_in_100ms": 116.14882353550064
+        },
+        "p2": {
+          "nodes": 126,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 100.23090000322554,
+          "found": false
+        },
+        "boss_option_indices": [
+          2,
+          3
+        ],
+        "boss_candidate_rank": {
+          "2": 8,
+          "3": 9
+        },
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 124,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 100.4
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 268,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 200.4
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 519,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 400.3
+          },
+          {
+            "time_limit_ms": 800,
+            "found": true,
+            "nodes": 839,
+            "depth_reached": 4,
+            "abort": null,
+            "elapsed_ms": 623.1
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 149,
+          "depth_reached": 3,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 123,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": true,
+            "nodes": 79,
+            "abort": null
+          }
+        },
+        "p3": {
+          "nodes": 828,
+          "depth_reached": 4,
+          "abort": null,
+          "elapsed_ms": 662.4613000021782,
+          "found": true,
+          "path": [
+            [
+              2
+            ],
+            [
+              0
+            ],
+            [
+              4
+            ],
+            [
+              0
+            ]
+          ]
+        },
+        "p4": [
+          {
+            "first": [
+              2
+            ],
+            "nodes": 43,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 34.48509999725502,
+            "found": true,
+            "path": [
+              [
+                2
+              ],
+              [
+                0
+              ],
+              [
+                4
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          },
+          {
+            "first": [
+              3
+            ],
+            "nodes": 43,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 25.652399999671616,
+            "found": true,
+            "path": [
+              [
+                3
+              ],
+              [
+                0
+              ],
+              [
+                4
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          }
+        ]
+      },
+      {
+        "row": 160,
+        "turn": 12,
+        "select_type": "CARD",
+        "select_context": "ATTACH_TO",
+        "n_options": 1,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.81079999508802,
+          "max_time_ms": 100.81079999508802,
+          "avg_time_ms": 100.81079999508802
+        },
+        "timing": {
+          "begin_ms": 0.8987000037450343,
+          "step_ms": 0.7498999912058935,
+          "nodes_in_100ms": 132.15268856970235
+        },
+        "p2": {
+          "nodes": 119,
+          "depth_reached": 4,
+          "abort": "time",
+          "elapsed_ms": 100.73059999558609,
+          "found": false
+        }
+      },
+      {
+        "row": 161,
+        "turn": 12,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 12,
+        "answer": [
+          5
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.3119999950286,
+          "max_time_ms": 100.3119999950286,
+          "avg_time_ms": 100.3119999950286
+        },
+        "timing": {
+          "begin_ms": 1.6656999941915274,
+          "step_ms": 0.5362500002471885,
+          "nodes_in_100ms": 183.37398594029003
+        },
+        "p2": {
+          "nodes": 163,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 100.57809999852907,
+          "found": false
+        },
+        "boss_option_indices": [
+          2,
+          3
+        ],
+        "boss_candidate_rank": {
+          "2": 7,
+          "3": 8
+        },
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 156,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 100.1
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 313,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 200.3
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 526,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 400.4
+          },
+          {
+            "time_limit_ms": 800,
+            "found": true,
+            "nodes": 746,
+            "depth_reached": 4,
+            "abort": null,
+            "elapsed_ms": 519.3
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 111,
+          "depth_reached": 3,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 114,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": true,
+            "nodes": 101,
+            "abort": null
+          }
+        },
+        "p3": {
+          "nodes": 686,
+          "depth_reached": 4,
+          "abort": null,
+          "elapsed_ms": 474.6581000072183,
+          "found": true,
+          "path": [
+            [
+              2
+            ],
+            [
+              0
+            ],
+            [
+              3
+            ],
+            [
+              0
+            ]
+          ]
+        },
+        "p4": [
+          {
+            "first": [
+              2
+            ],
+            "nodes": 38,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 26.025399987702258,
+            "found": true,
+            "path": [
+              [
+                2
+              ],
+              [
+                0
+              ],
+              [
+                3
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          },
+          {
+            "first": [
+              3
+            ],
+            "nodes": 38,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 30.328099994221702,
+            "found": true,
+            "path": [
+              [
+                3
+              ],
+              [
+                0
+              ],
+              [
+                3
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          }
+        ]
+      },
+      {
+        "row": 162,
+        "turn": 12,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 11,
+        "answer": [
+          7
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.66189999633934,
+          "max_time_ms": 100.66189999633934,
+          "avg_time_ms": 100.66189999633934
+        },
+        "timing": {
+          "begin_ms": 0.9542000043438748,
+          "step_ms": 0.8246454553128305,
+          "nodes_in_100ms": 120.1071313223729
+        },
+        "p2": {
+          "nodes": 126,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 100.26469999866094,
+          "found": false
+        },
+        "boss_option_indices": [],
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 114,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 100.2
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 232,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 200.4
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 471,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 400.8
+          },
+          {
+            "time_limit_ms": 800,
+            "found": false,
+            "nodes": 959,
+            "depth_reached": 5,
+            "abort": "time",
+            "elapsed_ms": 801.1
+          },
+          {
+            "time_limit_ms": 1600,
+            "found": false,
+            "nodes": 1853,
+            "depth_reached": 5,
+            "abort": "time",
+            "elapsed_ms": 1600.2
+          },
+          {
+            "time_limit_ms": 3200,
+            "found": false,
+            "nodes": 3787,
+            "depth_reached": 6,
+            "abort": "time",
+            "elapsed_ms": 3200.7
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 116,
+          "depth_reached": 3,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 110,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": false,
+            "nodes": 111,
+            "abort": "time"
+          }
+        },
+        "p3": {
+          "nodes": 12386,
+          "depth_reached": 7,
+          "abort": "time",
+          "elapsed_ms": 10000.385799998185,
+          "found": false,
+          "path": null
+        },
+        "p4": []
+      },
+      {
+        "row": 163,
+        "turn": 12,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 10,
+        "answer": [
+          6
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.3772999974899,
+          "max_time_ms": 100.3772999974899,
+          "avg_time_ms": 100.3772999974899
+        },
+        "timing": {
+          "begin_ms": 0.5220000020926818,
+          "step_ms": 0.5902399992919527,
+          "nodes_in_100ms": 168.5382219389407
+        },
+        "p2": {
+          "nodes": 132,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 102.01170000073034,
+          "found": false
+        },
+        "boss_option_indices": [],
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 142,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 100.2
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 297,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 200.6
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 498,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 400.4
+          },
+          {
+            "time_limit_ms": 800,
+            "found": false,
+            "nodes": 1004,
+            "depth_reached": 5,
+            "abort": "time",
+            "elapsed_ms": 800.8
+          },
+          {
+            "time_limit_ms": 1600,
+            "found": false,
+            "nodes": 1954,
+            "depth_reached": 6,
+            "abort": "time",
+            "elapsed_ms": 1600.6
+          },
+          {
+            "time_limit_ms": 3200,
+            "found": false,
+            "nodes": 3985,
+            "depth_reached": 7,
+            "abort": "time",
+            "elapsed_ms": 3200.8
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 118,
+          "depth_reached": 3,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 110,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": false,
+            "nodes": 98,
+            "abort": "time"
+          }
+        },
+        "p3": {
+          "nodes": 5069,
+          "depth_reached": 7,
+          "abort": "exhausted",
+          "elapsed_ms": 4264.414699995541,
+          "found": false,
+          "path": null
+        },
+        "p4": []
+      },
+      {
+        "row": 164,
+        "turn": 12,
+        "select_type": "CARD",
+        "select_context": "TO_HAND",
+        "n_options": 5,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": false
+      },
+      {
+        "row": 165,
+        "turn": 12,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 9,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.31090000120457,
+          "max_time_ms": 100.31090000120457,
+          "avg_time_ms": 100.31090000120457
+        },
+        "timing": {
+          "begin_ms": 0.7445999945048243,
+          "step_ms": 0.42328888796166414,
+          "nodes_in_100ms": 234.48619330277435
+        },
+        "p2": {
+          "nodes": 132,
+          "depth_reached": 4,
+          "abort": "time",
+          "elapsed_ms": 100.0832999998238,
+          "found": false
+        },
+        "boss_option_indices": [],
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 114,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 100.4
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 315,
+            "depth_reached": 5,
+            "abort": "time",
+            "elapsed_ms": 200.1
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 414,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 344.1
+          },
+          {
+            "time_limit_ms": 800,
+            "found": false,
+            "nodes": 414,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 350.7
+          },
+          {
+            "time_limit_ms": 1600,
+            "found": false,
+            "nodes": 414,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 310.3
+          },
+          {
+            "time_limit_ms": 3200,
+            "found": false,
+            "nodes": 414,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 361.1
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 113,
+          "depth_reached": 4,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 139,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": false,
+            "nodes": 120,
+            "abort": "time"
+          }
+        },
+        "p3": {
+          "nodes": 414,
+          "depth_reached": 5,
+          "abort": "exhausted",
+          "elapsed_ms": 337.9791000043042,
+          "found": false,
+          "path": null
+        },
+        "p4": []
+      },
+      {
+        "row": 166,
+        "turn": 12,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 3,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 0,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 39.075699998647906,
+          "max_time_ms": 39.075699998647906,
+          "avg_time_ms": 39.075699998647906
+        },
+        "timing": {
+          "begin_ms": 0.46239999937824905,
+          "step_ms": 0.5963000003248453,
+          "nodes_in_100ms": 166.9253730444354
+        },
+        "p2": {
+          "nodes": 43,
+          "depth_reached": 4,
+          "abort": "exhausted",
+          "elapsed_ms": 38.47010000026785,
+          "found": false
+        },
+        "boss_option_indices": [],
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 43,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 32.9
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 43,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 34.9
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 43,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 36.7
+          },
+          {
+            "time_limit_ms": 800,
+            "found": false,
+            "nodes": 43,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 35.5
+          },
+          {
+            "time_limit_ms": 1600,
+            "found": false,
+            "nodes": 43,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 38.7
+          },
+          {
+            "time_limit_ms": 3200,
+            "found": false,
+            "nodes": 43,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 38.8
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 43,
+          "depth_reached": 4,
+          "abort": "exhausted"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 17,
+            "abort": "exhausted"
+          },
+          "PLAY優先": {
+            "found": false,
+            "nodes": 17,
+            "abort": "exhausted"
+          }
+        },
+        "p3": {
+          "nodes": 43,
+          "depth_reached": 4,
+          "abort": "exhausted",
+          "elapsed_ms": 26.332599998568185,
+          "found": false,
+          "path": null
+        },
+        "p4": []
+      }
+    ]
+  },
+  {
+    "episode": 92588584,
+    "turn": 16,
+    "own_index": 1,
+    "decisions": [
+      {
+        "row": 201,
+        "turn": 16,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 10,
+        "answer": [
+          4
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.76190000108909,
+          "max_time_ms": 100.76190000108909,
+          "avg_time_ms": 100.76190000108909
+        },
+        "timing": {
+          "begin_ms": 0.906000001123175,
+          "step_ms": 0.6947300003957935,
+          "nodes_in_100ms": 142.63670770288047
+        },
+        "p2": {
+          "nodes": 121,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 100.18389999459032,
+          "found": false
+        },
+        "boss_option_indices": [
+          1
+        ],
+        "boss_candidate_rank": {
+          "1": 4
+        },
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 118,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 100.5
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 239,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 200.4
+          },
+          {
+            "time_limit_ms": 400,
+            "found": true,
+            "nodes": 448,
+            "depth_reached": 4,
+            "abort": null,
+            "elapsed_ms": 353.1
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 144,
+          "depth_reached": 3,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 141,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": true,
+            "nodes": 40,
+            "abort": null
+          }
+        },
+        "p3": {
+          "nodes": 461,
+          "depth_reached": 4,
+          "abort": null,
+          "elapsed_ms": 358.31510000571143,
+          "found": true,
+          "path": [
+            [
+              1
+            ],
+            [
+              1
+            ],
+            [
+              4
+            ],
+            [
+              0
+            ]
+          ]
+        },
+        "p4": [
+          {
+            "first": [
+              1
+            ],
+            "nodes": 45,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 39.58240000065416,
+            "found": true,
+            "path": [
+              [
+                1
+              ],
+              [
+                1
+              ],
+              [
+                4
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          }
+        ]
+      },
+      {
+        "row": 202,
+        "turn": 16,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 12,
+        "answer": [
+          8
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.7333000015933,
+          "max_time_ms": 100.7333000015933,
+          "avg_time_ms": 100.7333000015933
+        },
+        "timing": {
+          "begin_ms": 0.6320999964373186,
+          "step_ms": 0.47413333353082027,
+          "nodes_in_100ms": 209.57796673686818
+        },
+        "p2": {
+          "nodes": 137,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 100.50970000156667,
+          "found": false
+        },
+        "boss_option_indices": [
+          1
+        ],
+        "boss_candidate_rank": {
+          "1": 7
+        },
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 117,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 100.3
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 255,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 200.6
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 502,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 400.4
+          },
+          {
+            "time_limit_ms": 800,
+            "found": true,
+            "nodes": 693,
+            "depth_reached": 4,
+            "abort": null,
+            "elapsed_ms": 460.1
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 137,
+          "depth_reached": 3,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 122,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": true,
+            "nodes": 80,
+            "abort": null
+          }
+        },
+        "p3": {
+          "nodes": 716,
+          "depth_reached": 4,
+          "abort": null,
+          "elapsed_ms": 584.1318000020692,
+          "found": true,
+          "path": [
+            [
+              1
+            ],
+            [
+              1
+            ],
+            [
+              5
+            ],
+            [
+              0
+            ]
+          ]
+        },
+        "p4": [
+          {
+            "first": [
+              1
+            ],
+            "nodes": 55,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 43.5317999945255,
+            "found": true,
+            "path": [
+              [
+                1
+              ],
+              [
+                1
+              ],
+              [
+                5
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          }
+        ]
+      },
+      {
+        "row": 203,
+        "turn": 16,
+        "select_type": "CARD",
+        "select_context": "ATTACH_TO",
+        "n_options": 1,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.36630000104196,
+          "max_time_ms": 100.36630000104196,
+          "avg_time_ms": 100.36630000104196
+        },
+        "timing": {
+          "begin_ms": 0.4616999940481037,
+          "step_ms": 0.36439999530557543,
+          "nodes_in_100ms": 273.15669947383486
+        },
+        "p2": {
+          "nodes": 124,
+          "depth_reached": 4,
+          "abort": "time",
+          "elapsed_ms": 100.15759999805596,
+          "found": false
+        }
+      },
+      {
+        "row": 204,
+        "turn": 16,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 9,
+        "answer": [
+          4
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.3606000012951,
+          "max_time_ms": 100.3606000012951,
+          "avg_time_ms": 100.3606000012951
+        },
+        "timing": {
+          "begin_ms": 0.9267999994335696,
+          "step_ms": 0.8411555544524971,
+          "nodes_in_100ms": 117.78225736742897
+        },
+        "p2": {
+          "nodes": 119,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 100.30390000611078,
+          "found": false
+        },
+        "boss_option_indices": [
+          1
+        ],
+        "boss_candidate_rank": {
+          "1": 3
+        },
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 121,
+            "depth_reached": 3,
+            "abort": "time",
+            "elapsed_ms": 100.4
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 242,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 200.3
+          },
+          {
+            "time_limit_ms": 400,
+            "found": true,
+            "nodes": 309,
+            "depth_reached": 4,
+            "abort": null,
+            "elapsed_ms": 239.6
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 126,
+          "depth_reached": 3,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": true,
+            "nodes": 78,
+            "abort": null
+          },
+          "PLAY優先": {
+            "found": true,
+            "nodes": 73,
+            "abort": null
+          }
+        },
+        "p3": {
+          "nodes": 273,
+          "depth_reached": 4,
+          "abort": null,
+          "elapsed_ms": 219.09230000164825,
+          "found": true,
+          "path": [
+            [
+              1
+            ],
+            [
+              1
+            ],
+            [
+              1
+            ],
+            [
+              0
+            ]
+          ]
+        },
+        "p4": [
+          {
+            "first": [
+              1
+            ],
+            "nodes": 27,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 23.543899995274842,
+            "found": true,
+            "path": [
+              [
+                1
+              ],
+              [
+                1
+              ],
+              [
+                1
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          }
+        ]
+      },
+      {
+        "row": 205,
+        "turn": 16,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 8,
+        "answer": [
+          3
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.326200001291,
+          "max_time_ms": 100.326200001291,
+          "avg_time_ms": 100.326200001291
+        },
+        "timing": {
+          "begin_ms": 0.9074999979929999,
+          "step_ms": 0.8484999998472631,
+          "nodes_in_100ms": 116.78550385367643
+        },
+        "p2": {
+          "nodes": 116,
+          "depth_reached": 3,
+          "abort": "time",
+          "elapsed_ms": 100.6072000018321,
+          "found": false
+        },
+        "boss_option_indices": [
+          1
+        ],
+        "boss_candidate_rank": {
+          "1": 3
+        },
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": true,
+            "nodes": 150,
+            "depth_reached": 4,
+            "abort": null,
+            "elapsed_ms": 87.4
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 133,
+          "depth_reached": 3,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 67,
+            "abort": "time"
+          },
+          "PLAY優先": {
+            "found": true,
+            "nodes": 49,
+            "abort": null
+          }
+        },
+        "p3": {
+          "nodes": 178,
+          "depth_reached": 4,
+          "abort": null,
+          "elapsed_ms": 138.84640000469517,
+          "found": true,
+          "path": [
+            [
+              1
+            ],
+            [
+              1
+            ],
+            [
+              0
+            ],
+            [
+              0
+            ]
+          ]
+        },
+        "p4": [
+          {
+            "first": [
+              1
+            ],
+            "nodes": 21,
+            "depth_reached": 3,
+            "abort": null,
+            "elapsed_ms": 17.624600004637614,
+            "found": true,
+            "path": [
+              [
+                1
+              ],
+              [
+                1
+              ],
+              [
+                0
+              ],
+              [
+                0
+              ]
+            ],
+            "verify_replay_wins": true
+          }
+        ]
+      },
+      {
+        "row": 206,
+        "turn": 16,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 7,
+        "answer": [
+          3
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.15689999272581,
+          "max_time_ms": 100.15689999272581,
+          "avg_time_ms": 100.15689999272581
+        },
+        "timing": {
+          "begin_ms": 0.8948000031523407,
+          "step_ms": 0.7952142851926121,
+          "nodes_in_100ms": 124.62703681542013
+        },
+        "p2": {
+          "nodes": 119,
+          "depth_reached": 4,
+          "abort": "time",
+          "elapsed_ms": 100.90419999323785,
+          "found": false
+        },
+        "boss_option_indices": [],
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 118,
+            "depth_reached": 4,
+            "abort": "time",
+            "elapsed_ms": 100.2
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 235,
+            "depth_reached": 5,
+            "abort": "time",
+            "elapsed_ms": 200.4
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 482,
+            "depth_reached": 7,
+            "abort": "time",
+            "elapsed_ms": 401.1
+          },
+          {
+            "time_limit_ms": 800,
+            "found": false,
+            "nodes": 951,
+            "depth_reached": 8,
+            "abort": "time",
+            "elapsed_ms": 800.9
+          },
+          {
+            "time_limit_ms": 1600,
+            "found": false,
+            "nodes": 1165,
+            "depth_reached": 9,
+            "abort": "exhausted",
+            "elapsed_ms": 1040.7
+          },
+          {
+            "time_limit_ms": 3200,
+            "found": false,
+            "nodes": 1076,
+            "depth_reached": 9,
+            "abort": "exhausted",
+            "elapsed_ms": 944.7
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 116,
+          "depth_reached": 4,
+          "abort": "time"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 81,
+            "abort": null
+          },
+          "PLAY優先": {
+            "found": false,
+            "nodes": 79,
+            "abort": null
+          }
+        },
+        "p3": {
+          "nodes": 1121,
+          "depth_reached": 9,
+          "abort": "exhausted",
+          "elapsed_ms": 964.4939999998314,
+          "found": false,
+          "path": null
+        },
+        "p4": []
+      },
+      {
+        "row": 207,
+        "turn": 16,
+        "select_type": "CARD",
+        "select_context": "ATTACH_TO",
+        "n_options": 1,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 1,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 100.12689999712165,
+          "max_time_ms": 100.12689999712165,
+          "avg_time_ms": 100.12689999712165
+        },
+        "timing": {
+          "begin_ms": 0.8611999946879223,
+          "step_ms": 0.6881000008434057,
+          "nodes_in_100ms": 144.07615155325888
+        },
+        "p2": {
+          "nodes": 113,
+          "depth_reached": 5,
+          "abort": "time",
+          "elapsed_ms": 100.5182000080822,
+          "found": false
+        }
+      },
+      {
+        "row": 208,
+        "turn": 16,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 4,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 0,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 49.84949999197852,
+          "max_time_ms": 49.84949999197852,
+          "avg_time_ms": 49.84949999197852
+        },
+        "timing": {
+          "begin_ms": 0.8900999964680523,
+          "step_ms": 0.9030999972310383,
+          "nodes_in_100ms": 109.74410398340069
+        },
+        "p2": {
+          "nodes": 71,
+          "depth_reached": 5,
+          "abort": "exhausted",
+          "elapsed_ms": 63.61290000495501,
+          "found": false
+        },
+        "boss_option_indices": [],
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 71,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 64.3
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 71,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 64.2
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 71,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 64.1
+          },
+          {
+            "time_limit_ms": 800,
+            "found": false,
+            "nodes": 71,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 54.3
+          },
+          {
+            "time_limit_ms": 1600,
+            "found": false,
+            "nodes": 71,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 52.9
+          },
+          {
+            "time_limit_ms": 3200,
+            "found": false,
+            "nodes": 71,
+            "depth_reached": 5,
+            "abort": "exhausted",
+            "elapsed_ms": 36.0
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 71,
+          "depth_reached": 5,
+          "abort": "exhausted"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 21,
+            "abort": null
+          },
+          "PLAY優先": {
+            "found": false,
+            "nodes": 21,
+            "abort": null
+          }
+        },
+        "p3": {
+          "nodes": 71,
+          "depth_reached": 5,
+          "abort": "exhausted",
+          "elapsed_ms": 66.21560000348836,
+          "found": false,
+          "path": null
+        },
+        "p4": []
+      },
+      {
+        "row": 209,
+        "turn": 16,
+        "select_type": "MAIN",
+        "select_context": "MAIN",
+        "n_options": 3,
+        "answer": [
+          0
+        ],
+        "hidden_state_ok": true,
+        "prod_action": null,
+        "prod_stats": {
+          "searches": 1,
+          "found": 0,
+          "timeouts": 0,
+          "node_limit_hits": 0,
+          "verify_rejects": 0,
+          "total_time_ms": 25.633099998231046,
+          "max_time_ms": 25.633099998231046,
+          "avg_time_ms": 25.633099998231046
+        },
+        "timing": {
+          "begin_ms": 0.8649000083096325,
+          "step_ms": 0.933299995570754,
+          "nodes_in_100ms": 106.21997263705642
+        },
+        "p2": {
+          "nodes": 28,
+          "depth_reached": 4,
+          "abort": "exhausted",
+          "elapsed_ms": 14.374300008057617,
+          "found": false
+        },
+        "boss_option_indices": [],
+        "sweep": [
+          {
+            "time_limit_ms": 100,
+            "found": false,
+            "nodes": 28,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 14.0
+          },
+          {
+            "time_limit_ms": 200,
+            "found": false,
+            "nodes": 28,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 14.2
+          },
+          {
+            "time_limit_ms": 400,
+            "found": false,
+            "nodes": 28,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 19.0
+          },
+          {
+            "time_limit_ms": 800,
+            "found": false,
+            "nodes": 28,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 18.4
+          },
+          {
+            "time_limit_ms": 1600,
+            "found": false,
+            "nodes": 28,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 25.0
+          },
+          {
+            "time_limit_ms": 3200,
+            "found": false,
+            "nodes": 28,
+            "depth_reached": 4,
+            "abort": "exhausted",
+            "elapsed_ms": 24.0
+          }
+        ],
+        "p6_reorder_play_first": {
+          "found": false,
+          "nodes": 28,
+          "depth_reached": 4,
+          "abort": "exhausted"
+        },
+        "p7_fixed_depth4": {
+          "現行順序": {
+            "found": false,
+            "nodes": 10,
+            "abort": "exhausted"
+          },
+          "PLAY優先": {
+            "found": false,
+            "nodes": 10,
+            "abort": "exhausted"
+          }
+        },
+        "p3": {
+          "nodes": 28,
+          "depth_reached": 4,
+          "abort": "exhausted",
+          "elapsed_ms": 24.760799991781823,
+          "found": false,
+          "path": null
+        },
+        "p4": []
+      }
+    ]
+  }
+]

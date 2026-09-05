@@ -1,0 +1,21 @@
+baseline dragapult_ex {"wins": 148, "games": 150, "wr": 0.9867}
+baseline marnie_grimmsnarl_ex {"wins": 148, "games": 150, "wr": 0.9867}
+baseline kamitsuorochi_ex {"wins": 125, "games": 150, "wr": 0.8333}
+baseline alakazam {"wins": 103, "games": 150, "wr": 0.6867}
+baseline lopunny_megafroslass {"wins": 123, "games": 150, "wr": 0.82}
+cut_hammer dragapult_ex {"wins": 146, "games": 150, "wr": 0.9733}
+cut_hammer marnie_grimmsnarl_ex {"wins": 148, "games": 150, "wr": 0.9867}
+cut_hammer kamitsuorochi_ex {"wins": 129, "games": 150, "wr": 0.86}
+cut_hammer alakazam {"wins": 113, "games": 150, "wr": 0.7533}
+cut_hammer lopunny_megafroslass {"wins": 132, "games": 150, "wr": 0.88}
+cut_jumbo dragapult_ex {"wins": 144, "games": 150, "wr": 0.96}
+cut_jumbo marnie_grimmsnarl_ex {"wins": 148, "games": 150, "wr": 0.9867}
+cut_jumbo kamitsuorochi_ex {"wins": 125, "games": 150, "wr": 0.8333}
+cut_jumbo alakazam {"wins": 119, "games": 150, "wr": 0.7933}
+cut_jumbo lopunny_megafroslass {"wins": 119, "games": 150, "wr": 0.7933}
+cut_pokegear dragapult_ex {"wins": 148, "games": 150, "wr": 0.9867}
+cut_pokegear marnie_grimmsnarl_ex {"wins": 146, "games": 150, "wr": 0.9733}
+cut_pokegear kamitsuorochi_ex {"wins": 123, "games": 150, "wr": 0.82}
+cut_pokegear alakazam {"wins": 117, "games": 150, "wr": 0.78}
+cut_pokegear lopunny_megafroslass {"wins": 123, "games": 150, "wr": 0.82}
+FINAL {"baseline": {"dragapult_ex": {"wins": 148, "games": 150, "wr": 0.9867}, "marnie_grimmsnarl_ex": {"wins": 148, "games": 150, "wr": 0.9867}, "kamitsuorochi_ex": {"wins": 125, "games": 150, "wr": 0.8333}, "alakazam": {"wins": 103, "games": 150, "wr": 0.6867}, "lopunny_megafroslass": {"wins": 123, "games": 150, "wr": 0.82}}, "cut_hammer": {"dragapult_ex": {"wins": 146, "games": 150, "wr": 0.9733}, "marnie_grimmsnarl_ex": {"wins": 148, "games": 150, "wr": 0.9867}, "kamitsuorochi_ex": {"wins": 129, "games": 150, "wr": 0.86}, "alakazam": {"wins": 113, "games": 150, "wr": 0.7533}, "lopunny_megafroslass": {"wins": 132, "games": 150, "wr": 0.88}}, "cut_jumbo": {"dragapult_ex": {"wins": 144, "games": 150, "wr": 0.96}, "marnie_grimmsnarl_ex": {"wins": 148, "games": 150, "wr": 0.9867}, "kamitsuorochi_ex": {"wins": 125, "games": 150, "wr": 0.8333}, "alakazam": {"wins": 119, "games": 150, "wr": 0.7933}, "lopunny_megafroslass": {"wins": 119, "games": 150, "wr": 0.7933}}, "cut_pokegear": {"dragapult_ex": {"wins": 148, "games": 150, "wr": 0.9867}, "marnie_grimmsnarl_ex": {"wins": 146, "games": 150, "wr": 0.9733}, "kamitsuorochi_ex": {"wins": 123, "games": 150, "wr": 0.82}, "alakazam": {"wins": 117, "games": 150, "wr": 0.78}, "lopunny_megafroslass": {"wins": 123, "games": 150, "wr": 0.82}}}

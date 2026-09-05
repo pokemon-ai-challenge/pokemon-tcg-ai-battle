@@ -41,8 +41,16 @@ def load_config(path=None) -> dict:
 
 
 def _get_evaluator(config: dict):
-    # Champion と同じ handcrafted leaf(pipeline.leaf_eval)。Value は使わない。
-    leaf_cfg = (config.get("pipeline") or {}).get("leaf_eval") or {"kind": "handcrafted"}
+    """ISMCTS leaf の評価器を返す。
+
+    解決順(後方互換): ``ismcts.leaf_eval`` があればそれ(v2.2 value-leaf 用の専用キー。
+    pipeline fallback を汚染しないよう ISMCTS 専用に分離)→ 無ければ ``pipeline.leaf_eval``
+    (Champion と同じ handcrafted。v1/v2.1 config は ``ismcts.leaf_eval`` を持たないので
+    ここに解決し、従来挙動が byte 単位で不変)→ 無ければ handcrafted 既定。
+    """
+    leaf_cfg = (config.get("ismcts") or {}).get("leaf_eval") \
+        or (config.get("pipeline") or {}).get("leaf_eval") \
+        or {"kind": "handcrafted"}
     return leaf_eval.build_evaluator(leaf_cfg)
 
 
@@ -63,16 +71,81 @@ def _ismcts_applicable(obs: Observation) -> bool:
             and sel.maxCount == 1 and bool(sel.option))
 
 
+_ROLLOUT_POLICY_CACHE: dict[str, object] = {}
+
+
+def _get_rollout_policy(config: dict):
+    """v2.4: ``ismcts.rollout_policy_weights``(student weights JSON path)があれば PolicyModel を
+    ロードして返す(path でキャッシュ)。無ければ None = teacher(v1 不変)。student は rollout の
+    greedy 選択のみに使われ、tree prior/expansion/fallback は teacher のまま。"""
+    ic = config.get("ismcts") or {}
+    path = ic.get("rollout_policy_weights")
+    if not path:
+        return None
+    batched = bool(ic.get("rollout_policy_batched"))    # v2.11: numpy batched scorer(意味不変・高速化のみ)
+    key = f"{path}|batched={batched}"
+    model = _ROLLOUT_POLICY_CACHE.get(key)
+    if model is None:
+        p = Path(path)
+        if not p.is_absolute():
+            p = _SUB / p            # sample_submission 相対を許可
+        if batched:
+            from batched_policy import BatchedPolicyModel
+            model = BatchedPolicyModel(weights_path=p)
+        else:
+            from ptcg_ai.learning.policy_model import PolicyModel
+            model = PolicyModel(weights_path=p)
+        _ROLLOUT_POLICY_CACHE[key] = model
+    return model
+
+
+def _resolve_extension(ic: dict) -> tuple[dict, float | None]:
+    """v2.13 hard-root extension の cfg/budget 解決(byte 不変性の一元管理・unit test 対象)。
+
+    返り: (search へ渡す cfg, budget_ms=deadline 決定値)。
+    - extension OFF(既定/未指定/enabled=false): cfg は ``dict(ic)`` のまま(soft_cap_ms/checkpoints_ms を足さない)、
+      budget=``budget_ms``(soft cap)= v2.11/v2.12 と完全同一。
+    - extension ON: budget=``hard_cap_ms``(hard cap)まで探索。cfg に soft_cap_ms/checkpoints_ms を付与(記録専用)。
+      soft cap では停止せず、v2.12 と同一の early-stop rule が hard cap 前に発火すれば早期終了。
+    """
+    soft_cap_ms = ic.get("budget_ms")
+    hre = ic.get("hard_root_extension") or {}
+    cfg = dict(ic)
+    if hre.get("enabled"):
+        budget_ms = float(hre.get("hard_cap_ms", 3000))
+        cfg["soft_cap_ms"] = soft_cap_ms
+        if hre.get("checkpoints_ms"):
+            cfg["checkpoints_ms"] = list(hre["checkpoints_ms"])
+        return cfg, budget_ms
+    return cfg, soft_cap_ms
+
+
 def _run_ismcts(obs: Observation, config: dict) -> list[int] | None:
     ic = config.get("ismcts") or {}
     model = mpa._get_model(config)
     evaluator = _get_evaluator(config)
     determinize = _determinize_factory(obs, config)
-    budget_ms = ic.get("budget_ms")
+    rollout_policy = _get_rollout_policy(config)
+    cfg, budget_ms = _resolve_extension(ic)
     deadline = time.perf_counter() + ((budget_ms / 1000.0) if budget_ms else 3600.0)
     rng = random.Random(ic.get("seed", 0))
     stats = ismcts.SearchStats()
-    action = ismcts.search(obs, dict(ic), model, evaluator, determinize, deadline, rng, stats)
+    action = ismcts.search(obs, cfg, model, evaluator, determinize, deadline, rng, stats,
+                           rollout_policy=rollout_policy)
+    # v2.10b Search-Dynamics Gate(opt-in・既定 OFF → Current ISMCTS と byte 不変)。search が Original を
+    # 変更したが「低信頼(share/gap が閾値未満)」なら Original policy top1 へ revert(= search 全採用を抑制)。
+    # 追加 Search なし=既存 SearchStats のみ利用(Phase L1)。lethal/fallback は不変。
+    gate = ic.get("dynamics_gate") or {}
+    if (gate.get("enabled") and action is not None and stats.policy_changed_by_search
+            and stats.root_children_full and stats.root_policy_top1 is not None):
+        _rc = stats.root_children_full            # [(action, visits, Q, prior)] visits 降順
+        _tot = sum(v for _a, v, _q, _p in _rc) or 1
+        _share = _rc[0][1] / _tot
+        _gap = (_rc[0][1] - (_rc[1][1] if len(_rc) > 1 else 0)) / _tot
+        if not (_share >= float(gate.get("share", 0.5)) and _gap >= float(gate.get("gap", 0.2))):
+            _orig = list(stats.root_policy_top1)  # 低信頼 correction → Original を採用
+            if mpa._is_valid_action(_orig, obs.select):
+                action = _orig
     if ic.get("instrument"):
         _diag_log.append({"turn": getattr(obs.current, "turn", None), "iters": stats.iterations,
                           "nodes": stats.nodes, "expanded": stats.expanded_nodes, "max_depth": stats.max_depth,
@@ -81,6 +154,11 @@ def _run_ismcts(obs: Observation, config: dict) -> list[int] | None:
                           "budget_ms": round(stats.budget_ms, 1), "timeout": stats.timeout,
                           "policy_top1": stats.root_policy_top1, "selected": stats.selected_action,
                           "changed": stats.policy_changed_by_search, "mapping_errors": stats.mapping_errors,
+                          "early_stopped": stats.early_stopped, "stop_iter": stats.stop_iter,
+                          "is_hard_root": stats.is_hard_root,
+                          "soft_cap_action": list(stats.soft_cap_action) if stats.soft_cap_action else None,
+                          "extended_changed": (stats.is_hard_root and stats.soft_cap_action is not None
+                                               and stats.selected_action != stats.soft_cap_action),
                           "root_children": [(list(a), n, round(q, 3), round(p, 3)) for a, n, q, p in stats.root_children]})
     return action
 
@@ -148,6 +226,21 @@ def default_agent(obs: Observation) -> list[int]:
         match_context.reset()
         return mpa.agent(obs, _DEFAULT_CFG)
     return agent(obs, _DEFAULT_CFG)
+
+
+def default_agent_ctrl(obs: Observation) -> list[int]:
+    """direct H2H(v2.4 student vs v1)の control 側 agent_fn(picklable)。config は env
+    `ISMCTS_CONFIG_CTRL`(path)から読む(cand は default_agent が `ISMCTS_CONFIG` を読む)。
+    両者 ISMCTS を別 config で同一プロセスに置くための対称関数。挙動は default_agent と同一。"""
+    import os
+    path = os.environ.get("ISMCTS_CONFIG_CTRL") or str(_CONFIG_PATH)
+    cfg = _CFG_CACHE.get(path)
+    if cfg is None:
+        cfg = _CFG_CACHE[path] = load_config(path)
+    if obs.select is None:
+        match_context.reset()
+        return mpa.agent(obs, cfg)
+    return agent(obs, cfg)
 
 
 def make_agent(config: dict | None = None):

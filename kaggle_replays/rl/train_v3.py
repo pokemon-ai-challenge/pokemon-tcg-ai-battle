@@ -64,11 +64,16 @@ def build_padded(trajs, device):
     max_n = max(len(s["option_feats"]) for s in steps)
     sd = len(steps[0]["state_feat"])
     od = len(steps[0]["option_feats"][0])
+    # 各ステップの選択列。多選択=Plackett-Luce の選んだ順(chosen_seq)。
+    # chosen_seq 無し(collect_parallel 等の従来の単一選択)は [chosen_idx] に正規化=後方互換。
+    seqs = [s["chosen_seq"] if "chosen_seq" in s else [s["chosen_idx"]] for s in steps]
+    K_max = max(1, max(len(sq) for sq in seqs))
     state_rows = torch.zeros(n, sd)
     option_pad = torch.zeros(n, max_n, od)
     card_pad = torch.zeros(n, max_n, dtype=torch.long)
     mask = torch.zeros(n, max_n)
-    chosen = torch.zeros(n, dtype=torch.long)
+    chosen_pad = torch.zeros(n, K_max, dtype=torch.long)
+    k_lengths = torch.zeros(n, dtype=torch.long)
     old_logp = torch.zeros(n)
     for i, s in enumerate(steps):
         state_rows[i] = torch.tensor(s["state_feat"])
@@ -76,11 +81,15 @@ def build_padded(trajs, device):
         option_pad[i, :k] = torch.tensor(s["option_feats"])
         card_pad[i, :k] = torch.tensor(s["card_ids"])
         mask[i, :k] = 1.0
-        chosen[i] = s["chosen_idx"]
+        sq = seqs[i]
+        k_lengths[i] = len(sq)
+        for j, c in enumerate(sq):
+            chosen_pad[i, j] = c
         old_logp[i] = s["logprob"]
     return {"state_rows": state_rows.to(device), "option_pad": option_pad.to(device),
             "card_pad": card_pad.to(device), "mask": mask.to(device),
-            "chosen": chosen.to(device), "old_logp": old_logp.to(device),
+            "chosen_pad": chosen_pad.to(device), "k_lengths": k_lengths.to(device), "K_max": K_max,
+            "old_logp": old_logp.to(device),
             "n": n, "max_n": max_n,
             "lengths": [len(tr["steps"]) for tr in trajs],
             "rewards": [tr["reward"] for tr in trajs]}
@@ -109,11 +118,30 @@ def policy_logp_entropy(policy, batch):
     of = batch["option_pad"].reshape(n * max_n, od)
     cf = batch["card_pad"].reshape(n * max_n)
     scores = policy.option_scores_flat(sf, of, cf).reshape(n, max_n)
-    scores = torch.where(batch["mask"] > 0, scores, torch.full_like(scores, torch.finfo(scores.dtype).min))
-    logp = torch.log_softmax(scores, dim=1)
-    chosen_logp = logp.gather(1, batch["chosen"].unsqueeze(1)).squeeze(1)
-    ent = -(logp.exp() * logp.masked_fill(batch["mask"] == 0, 0.0)).sum(dim=1)
-    return chosen_logp, ent
+    NEG = torch.finfo(scores.dtype).min
+    base = batch["mask"] > 0
+    # entropy: 全体集合(最初の選択)の softmax エントロピーを代理に使う(多選択も可)。
+    s0 = torch.where(base, scores, torch.full_like(scores, NEG))
+    logp0 = torch.log_softmax(s0, dim=1)
+    ent = -(logp0.exp() * logp0.masked_fill(~base, 0.0)).sum(dim=1)
+    # Plackett-Luce の逐次 log-prob。選んだ順に softmax を取り、選んだ要素を除いて次へ。
+    # 単一選択(K=1)なら j=0 のみ寄与=従来の gather と数値一致(後方互換)。
+    K_max = batch["K_max"]; chosen_pad = batch["chosen_pad"]; k_lengths = batch["k_lengths"]
+    avail = base.float()
+    total_logp = torch.zeros(n, device=scores.device)
+    for j in range(K_max):
+        masked = torch.where(avail > 0, scores, torch.full_like(scores, NEG))
+        lsm = torch.log_softmax(masked, dim=1)
+        cj = chosen_pad[:, j].unsqueeze(1)               # [n,1]
+        valid = (j < k_lengths).float()                  # [n]
+        contrib_raw = lsm.gather(1, cj).squeeze(1)        # [n]
+        # 無効(j>=k)のステップは 0(consumed行のnanを混入させない)。
+        contrib = torch.where(valid > 0, contrib_raw, torch.zeros_like(contrib_raw))
+        total_logp = total_logp + contrib
+        remove = torch.zeros_like(avail)
+        remove.scatter_(1, cj, valid.unsqueeze(1))        # 選んだ要素を次から除外(有効時のみ)
+        avail = avail * (1.0 - remove)
+    return total_logp, ent
 
 
 def export_temp(policy, base_payload, path):

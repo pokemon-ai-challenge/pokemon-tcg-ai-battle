@@ -1,0 +1,55 @@
+{
+  "name": "abl_5_full_og_r8",
+  "lethal_search": {
+    "enabled": true,
+    "module": "lethal_simple",
+    "max_remaining_prizes": 3,
+    "time_limit_ms": 400,
+    "max_depth": 20,
+    "max_nodes": 10000,
+    "max_combinations_per_select": 128,
+    "verify_shuffles": 1,
+    "priority_play_card_ids": [1182, 1201],
+    "priority_play_max_remaining_prizes": 2,
+    "priority_sort_switch_targets": true,
+    "endgame_time_limit_ms": 2500,
+    "endgame_max_nodes": 30000,
+    "endgame_max_remaining_prizes": 2,
+    "isolated_rng": true
+  },
+  "pipeline": {
+    "enabled": true,
+    "hidden_state_source": "estimated",
+    "top_k": 4,
+    "top1_shortcut_prob": 0.9,
+    "num_determinizations": 8,
+    "opponent_depth": 1,
+    "max_rollout_steps": 40,
+    "time_limit_ms": 400,
+    "tie_eps": 0.02,
+    "leaf_eval": {"kind": "handcrafted"},
+    "time_budget": {
+      "total_ms": 540000,
+      "assumed_total_selects": 400,
+      "min_ms": 50,
+      "max_ms": 2000
+    }
+  },
+  "hammer_veto": {
+    "enabled": true,
+    "apply_veto": false,
+    "card_ids": [1120],
+    "redirect_target": true,
+    "time_limit_ms": 100
+  },
+  "briar_gate": true,
+  "hand_damage_guard": {
+    "enabled": true,
+    "substitute_only": true,
+    "_comment": "I3: I1(presence-only)を維持しつつ substitute_only=true を追加。代替サポート(ジャッジマン1213、無ければボスの指令1182)が手札に無い場合は介入せずリーリエ/クラウンをそのまま許す(=代替が無いのに封じるだけ封じてドローエンジンを止める純損を回避)。I2で試した imminent=active_or_energized はスナップショットゲートG3(93335550 row168)を壊すため未適用(imminentキーは使わない)。",
+    "sources": [
+      {"card_id": 861, "per_card": 50, "count": "own_hand"},
+      {"card_id": 743, "per_card": 20, "count": "opp_hand"}
+    ]
+  }
+}

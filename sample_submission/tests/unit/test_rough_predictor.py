@@ -517,3 +517,57 @@ def test_predict_archaludon_ex_from_anchor_and_core():
     assert result["display_name"] == "ブリジュラスex"
     assert result["score"] == 13
     assert result["status"] == "confident"
+
+
+# --- 新規アーキタイプ: yadoking / lopunny_megafroslass ---
+
+
+def test_predict_yadoking_from_public_board():
+    rough_predictor._load_config.cache_clear()
+    opponent = make_player_state(
+        active=[make_pokemon(163, serial=51)],  # ヤドキング
+        bench=[make_pokemon(162, serial=52)],  # ヤドン
+    )
+    result = predict(make_state(opponent))
+
+    assert result["top_candidate_deck_type"] == "yadoking"
+    assert result["top_candidate"] == "ヤドキング"
+
+
+def test_predict_lopunny_megafroslass_from_both_signature_cards():
+    """メガミミロップex(849) + メガユキメノコex(861) が両方見えると confident になる。"""
+    rough_predictor._load_config.cache_clear()
+    opponent = make_player_state(
+        active=[make_pokemon(849, serial=61)],  # メガミミロップex
+        bench=[make_pokemon(861, serial=62)],  # メガユキメノコex
+    )
+    result = predict(make_state(opponent))
+
+    assert result["deck_type"] == "lopunny_megafroslass"
+    assert result["display_name"] == "ミミロップ+メガユキメノコex"
+    assert result["status"] == "confident"
+    assert result["match_rate"] == 1.0
+
+
+def test_predict_lopunny_megafroslass_single_signature_card_is_moderate_not_confident():
+    """片方(メガミミロップexのみ)だと中程度のスコアに留まり confident までは届かない
+    (このアーキタイプに限らず、既存アーキタイプも anchor 1枚だけでは confident にならない
+    設計と一貫させている)。"""
+    rough_predictor._load_config.cache_clear()
+    opponent = make_player_state(active=[make_pokemon(849, serial=71)])  # メガミミロップexのみ
+    result = predict(make_state(opponent))
+
+    assert result["top_candidate_deck_type"] == "lopunny_megafroslass"
+    assert result["status"] == "insufficient_evidence"
+    assert 0.0 < result["match_rate"] < 1.0
+
+
+def test_predict_mega_froslass_ex_unaffected_by_lopunny_addition():
+    """既存の mega_froslass_ex アーキタイプの単体挙動は lopunny_megafroslass 追加後も変わらない。"""
+    rough_predictor._load_config.cache_clear()
+    opponent = make_player_state(active=[make_pokemon(861, serial=81)])  # メガユキメノコexのみ
+    result = predict(make_state(opponent))
+
+    assert result["top_candidate_deck_type"] == "mega_froslass_ex"
+    candidate_types = {c["deck_type"] for c in result["candidates"]}
+    assert "lopunny_megafroslass" in candidate_types  # 候補には現れるが1位は奪わない

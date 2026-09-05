@@ -1,0 +1,328 @@
+{
+  "groups": 200,
+  "games": 52,
+  "candidates": 1284,
+  "turn_band": {
+    "early": 70,
+    "middle": 70,
+    "late": 60
+  },
+  "arch": {
+    "omatsuri_ondo": 8,
+    "dragapult_ex": 12,
+    "marnie_grimmsnarl_ex": 36,
+    "mega_froslass_ex": 39,
+    "ogerpon_teal_ex": 24,
+    "mega_lucario_ex": 8,
+    "alakazam": 28,
+    "shirona_garchomp_ex": 32,
+    "rocket_mewtwo_ex": 8,
+    "archaludon_ex": 5
+  },
+  "first_rate": 0.515,
+  "m_audit": {
+    "1": {
+      "pairwise": 0.7147,
+      "top1": 0.595,
+      "large_margin": 0.9051,
+      "mean_abs_diff": 0.0274
+    },
+    "2": {
+      "pairwise": 0.7529,
+      "top1": 0.62,
+      "large_margin": 0.9529,
+      "mean_abs_diff": 0.0194
+    },
+    "4": {
+      "pairwise": 0.7707,
+      "top1": 0.63,
+      "large_margin": 0.9867,
+      "mean_abs_diff": 0.0128
+    },
+    "8": {
+      "pairwise": 0.8099,
+      "top1": 0.695,
+      "large_margin": 0.994,
+      "mean_abs_diff": 0.0092
+    }
+  },
+  "selected_M": 8,
+  "R0": "PASS",
+  "h1_reference": {
+    "pairwise_self_reliability": 0.6801,
+    "noise_floor_regret": 0.0148,
+    "n": 200
+  },
+  "scorers": {
+    "Q0": {
+      "n": 187,
+      "regret": 0.0747,
+      "pairwise": 0.5406,
+      "top1": 0.1711,
+      "spearman": 0.1402
+    },
+    "EntityQ": {
+      "n": 187,
+      "regret": 0.0402,
+      "pairwise": 0.5959,
+      "top1": 0.3048,
+      "spearman": 0.326
+    },
+    "TD1": {
+      "n": 187,
+      "regret": 0.0536,
+      "pairwise": 0.5655,
+      "top1": 0.2406,
+      "spearman": 0.2429
+    },
+    "IV": {
+      "n": 187,
+      "regret": 0.043,
+      "pairwise": 0.5731,
+      "top1": 0.2995,
+      "spearman": 0.2484
+    },
+    "TES": {
+      "n": 187,
+      "regret": 0.0349,
+      "pairwise": 0.6073,
+      "top1": 0.3048,
+      "spearman": 0.328
+    }
+  },
+  "bootstrap": {
+    "TES-IV_regret": {
+      "mean_diff": -0.0081,
+      "ci95": [
+        -0.0213,
+        0.0049
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-IV_pairwise": {
+      "mean_diff": 0.0342,
+      "ci95": [
+        -0.0058,
+        0.0741
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-IV_top1": {
+      "mean_diff": 0.0053,
+      "ci95": [
+        -0.0798,
+        0.0847
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-EntityQ_regret": {
+      "mean_diff": -0.0054,
+      "ci95": [
+        -0.0194,
+        0.0095
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-EntityQ_pairwise": {
+      "mean_diff": 0.0114,
+      "ci95": [
+        -0.0363,
+        0.0604
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-EntityQ_top1": {
+      "mean_diff": 0.0,
+      "ci95": [
+        -0.0825,
+        0.0815
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-Q0_regret": {
+      "mean_diff": -0.0398,
+      "ci95": [
+        -0.0803,
+        -0.0106
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-Q0_pairwise": {
+      "mean_diff": 0.0666,
+      "ci95": [
+        0.0154,
+        0.1197
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-Q0_top1": {
+      "mean_diff": 0.1337,
+      "ci95": [
+        0.0326,
+        0.2389
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-TD1_regret": {
+      "mean_diff": -0.0187,
+      "ci95": [
+        -0.0393,
+        -0.0008
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-TD1_pairwise": {
+      "mean_diff": 0.0418,
+      "ci95": [
+        -0.0043,
+        0.0889
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "TES-TD1_top1": {
+      "mean_diff": 0.0642,
+      "ci95": [
+        -0.0102,
+        0.1383
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "IV-EntityQ_regret": {
+      "mean_diff": 0.0027,
+      "ci95": [
+        -0.0074,
+        0.0129
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "IV-EntityQ_pairwise": {
+      "mean_diff": -0.0229,
+      "ci95": [
+        -0.0595,
+        0.0146
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    },
+    "IV-EntityQ_top1": {
+      "mean_diff": -0.0053,
+      "ci95": [
+        -0.0703,
+        0.0595
+      ],
+      "n_groups": 187,
+      "n_games": 51,
+      "method": "cluster_bootstrap_game"
+    }
+  },
+  "plan_length": {
+    "1": {
+      "groups": 9,
+      "TES_regret": 0.0551,
+      "IV_regret": 0.084,
+      "EntityQ_regret": 0.0017,
+      "TES_minus_IV": -0.0289
+    },
+    "2": {
+      "groups": 22,
+      "TES_regret": 0.0217,
+      "IV_regret": 0.0076,
+      "EntityQ_regret": 0.0057,
+      "TES_minus_IV": 0.0141
+    },
+    "3+": {
+      "groups": 168,
+      "TES_regret": 0.0351,
+      "IV_regret": 0.0454,
+      "EntityQ_regret": 0.0471,
+      "TES_minus_IV": -0.0103
+    }
+  },
+  "by_action_type": {
+    "ability": {
+      "groups": 68,
+      "TES": 0.0463,
+      "IV": 0.044,
+      "EntityQ": 0.0502
+    },
+    "attach": {
+      "groups": 10,
+      "TES": 0.035,
+      "IV": 0.0277,
+      "EntityQ": 0.0186
+    },
+    "attack": {
+      "groups": 15,
+      "TES": 0.0332,
+      "IV": 0.0536,
+      "EntityQ": 0.002
+    },
+    "play": {
+      "groups": 107,
+      "TES": 0.028,
+      "IV": 0.0425,
+      "EntityQ": 0.0411
+    }
+  },
+  "by_turn": {
+    "early": {
+      "groups": 70,
+      "TES": 0.0487,
+      "IV": 0.0528,
+      "EntityQ": 0.049
+    },
+    "late": {
+      "groups": 60,
+      "TES": 0.0162,
+      "IV": 0.0335,
+      "EntityQ": 0.0227
+    },
+    "middle": {
+      "groups": 70,
+      "TES": 0.0336,
+      "IV": 0.0396,
+      "EntityQ": 0.0433
+    }
+  },
+  "disagreement": {
+    "TES_vs_Q0": 0.89,
+    "TES_vs_EntityQ": 0.805,
+    "TES_vs_IV": 0.77
+  },
+  "runtime": {
+    "measured_AB_M8_ms_mean": 6970.3,
+    "ms_per_candidate_per_rollout": 60.36,
+    "estimated_decision_ms_at_selected_M": 3100.0,
+    "p50_AB": 4344.7,
+    "p90_AB": 16845.7,
+    "production_budget_ms": 1446.7,
+    "estimated_budget_share": 214.3
+  }
+}

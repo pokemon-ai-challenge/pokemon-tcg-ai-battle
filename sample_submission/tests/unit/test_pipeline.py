@@ -207,3 +207,206 @@ def test_extra_candidate_types_default_off_matches_top_k(pipeline, fixtures):
     ranked = list(range(n))
     idx = pipeline._select_candidate_indices(obs.select, ranked, {"top_k": 2})
     assert idx == ranked[:2]
+
+
+# --- dynamic top-k(確信度で候補数を変える。既定OFF=固定 top_k のまま) ---
+
+
+def _ranked_probs(top1_prob, n=20):
+    """top1 が ``top1_prob``、残りを均等に割った確率分布と降順ランク。"""
+    rest = (1.0 - top1_prob) / (n - 1)
+    probs = [top1_prob] + [rest] * (n - 1)
+    ranked = list(range(n))
+    return ranked, probs
+
+
+def test_resolve_top_k_defaults_to_fixed(pipeline):
+    """dynamic_top_k キーが無ければ従来どおり固定 top_k(本番 abl_5_full は不変)。"""
+    ranked, probs = _ranked_probs(0.4)
+    assert pipeline._resolve_top_k({"top_k": 4}, probs, ranked) == 4
+    # enabled=False も同様。
+    assert pipeline._resolve_top_k(
+        {"top_k": 4, "dynamic_top_k": {"enabled": False, "mode": "confidence",
+                                       "min_k": 1, "max_k": 9}},
+        probs, ranked) == 4
+
+
+def test_resolve_top_k_narrows_when_confident(pipeline):
+    cfg = {"top_k": 4, "dynamic_top_k": {
+        "enabled": True, "mode": "confidence", "min_k": 3, "max_k": 12,
+        "confident_prob": 0.6, "uncertain_prob": 0.3}}
+    ranked, probs = _ranked_probs(0.85)     # 自明手
+    assert pipeline._resolve_top_k(cfg, probs, ranked) == 3
+
+
+def test_resolve_top_k_widens_when_uncertain(pipeline):
+    cfg = {"top_k": 4, "dynamic_top_k": {
+        "enabled": True, "mode": "confidence", "min_k": 3, "max_k": 12,
+        "confident_prob": 0.6, "uncertain_prob": 0.3}}
+    ranked, probs = _ranked_probs(0.12)     # 迷っている
+    assert pipeline._resolve_top_k(cfg, probs, ranked) == 12
+
+
+def test_resolve_top_k_is_monotonic_in_confidence(pipeline):
+    """確信度が上がるほど候補数は増えない(単調非増加)。"""
+    cfg = {"top_k": 4, "dynamic_top_k": {
+        "enabled": True, "mode": "confidence", "min_k": 2, "max_k": 10,
+        "confident_prob": 0.7, "uncertain_prob": 0.2}}
+    ks = []
+    for p in (0.10, 0.25, 0.40, 0.55, 0.70, 0.90):
+        ranked, probs = _ranked_probs(p)
+        ks.append(pipeline._resolve_top_k(cfg, probs, ranked))
+    assert ks == sorted(ks, reverse=True)
+    assert min(ks) >= 2 and max(ks) <= 10
+
+
+def test_resolve_top_k_bad_thresholds_fall_back_to_fixed(pipeline):
+    """confident<=uncertain のような設定不正は従来固定へ倒す(探索を壊さない)。"""
+    cfg = {"top_k": 5, "dynamic_top_k": {
+        "enabled": True, "mode": "confidence", "confident_prob": 0.2, "uncertain_prob": 0.8}}
+    ranked, probs = _ranked_probs(0.5)
+    assert pipeline._resolve_top_k(cfg, probs, ranked) == 5
+
+
+def test_resolve_top_k_without_probs_falls_back(pipeline):
+    """probs が無ければ固定 top_k へ。ただし候補数を超えないようクランプする
+    (Phase5 で `1 <= k <= n_options` を契約にしたため、選択肢2件なら 2 が正)。"""
+    cfg = {"top_k": 4, "dynamic_top_k": {"enabled": True, "mode": "confidence"}}
+    assert pipeline._resolve_top_k(cfg, None, list(range(10))) == 4
+    assert pipeline._resolve_top_k(cfg, None, [0, 1]) == 2
+
+
+def test_climb_baseline_config_matches_production_abl_5_full():
+    """`climb_baseline` は本番 `abl_5_full` の名前付きアンカー。name 以外は完全一致であること。
+
+    ここがズレると「baseline と比較した」という主張自体が無効になる。
+    """
+    import json
+    from pathlib import Path
+
+    cfgdir = Path(__file__).resolve().parents[2] / "configs"
+    prod = json.loads((cfgdir / "abl_5_full.json").read_text(encoding="utf-8"))
+    base = json.loads((cfgdir / "climb_baseline.json").read_text(encoding="utf-8"))
+    prod.pop("name", None)
+    base.pop("name", None)
+    assert base == prod
+
+
+def test_leaf_a05_differs_from_baseline_only_in_leaf_eval():
+    """`climb_v15_leaf_a05` の差分は leaf_eval **だけ**(top_k 等を巻き込んでいない)。
+
+    「Valueブレンド単体の効果」を測る前提条件。
+    """
+    import json
+    from pathlib import Path
+
+    cfgdir = Path(__file__).resolve().parents[2] / "configs"
+    base = json.loads((cfgdir / "climb_baseline.json").read_text(encoding="utf-8"))
+    cand = json.loads((cfgdir / "climb_v15_leaf_a05.json").read_text(encoding="utf-8"))
+    base.pop("name", None)
+    cand.pop("name", None)
+    assert cand["pipeline"].pop("leaf_eval") == {"kind": "blend", "alpha": 0.5}
+    assert base["pipeline"].pop("leaf_eval") == {"kind": "handcrafted"}
+    assert cand == base
+    # dynamic_top_k を混ぜていないこと(単一要因比較の保証)。
+    assert "dynamic_top_k" not in cand["pipeline"]
+
+
+# --- n_options-gated dynamic top-k(Phase5 本命)---
+#
+# 診断(_diag_topk_miss.py n=46)で「探索最良手が top-4 外に出る率」が選択肢数に対して
+# 単調(5-7:12.5% / 8-11:37.5% / 12+:50.0%)だったのを受けた設計。
+# 確信度ゲートは同じ診断で予測力が無かったため、今回の A/B では使わない。
+
+NOPTK = {"enabled": True, "mode": "n_options"}
+
+
+def _k(pipeline, n_options, cfg_extra=None):
+    cfg = {"top_k": 4, "dynamic_top_k": {**NOPTK, **(cfg_extra or {})}}
+    ranked = list(range(n_options))
+    probs = [1.0 / n_options] * n_options if n_options else []
+    return pipeline._resolve_top_k(cfg, probs, ranked)
+
+
+@pytest.mark.parametrize("n_options,expected", [
+    (1, 1), (4, 4), (5, 4), (7, 4), (8, 8), (11, 8), (12, 12), (20, 12),
+])
+def test_noptions_gate_boundaries(pipeline, n_options, expected):
+    """指示の境界表どおりに解決されること(top_k は候補数を超えない)。"""
+    assert _k(pipeline, n_options) == expected
+
+
+def test_noptions_gate_never_exceeds_n_options(pipeline):
+    for n in range(1, 25):
+        k = _k(pipeline, n)
+        assert 1 <= k <= n
+
+
+def test_noptions_gate_is_monotonic(pipeline):
+    ks = [_k(pipeline, n) for n in range(1, 25)]
+    assert ks == sorted(ks)
+
+
+def test_noptions_thresholds_are_config_driven(pipeline):
+    """しきい値・top-k をハードコードせず config から変えられること。"""
+    cfg_extra = {"thresholds": [
+        {"max_options": 3, "top_k": 2},
+        {"max_options": None, "top_k": 6},
+    ]}
+    assert _k(pipeline, 3, cfg_extra) == 2
+    assert _k(pipeline, 10, cfg_extra) == 6
+    assert _k(pipeline, 5, cfg_extra) == 5   # top_k=6 > n_options=5 -> クランプ
+
+
+def test_max_top_k_cap_is_respected(pipeline):
+    assert _k(pipeline, 20, {"max_top_k": 6}) == 6
+
+
+def test_off_is_exactly_fixed_top_k(pipeline):
+    """OFF(既定)は固定 top_k=4 と完全一致 = 本番挙動不変。"""
+    for n in range(1, 25):
+        cfg = {"top_k": 4}
+        ranked = list(range(n))
+        probs = [1.0 / n] * n
+        assert pipeline._resolve_top_k(cfg, probs, ranked) == min(4, n)
+        cfg_off = {"top_k": 4, "dynamic_top_k": {"enabled": False, "mode": "n_options"}}
+        assert pipeline._resolve_top_k(cfg_off, probs, ranked) == min(4, n)
+
+
+def test_unknown_mode_falls_back_to_fixed(pipeline):
+    assert _k(pipeline, 20, {"mode": "something_new"}) == 4
+
+
+def test_zero_options_is_safe(pipeline):
+    assert pipeline._resolve_top_k({"top_k": 4, "dynamic_top_k": NOPTK}, [], []) == 4
+
+
+def test_confidence_mode_not_used_by_noptk_config():
+    """A/B で使う config が confidence ゲートを持たないこと(取り違え防止)。"""
+    import json
+    from pathlib import Path
+
+    cfgdir = Path(__file__).resolve().parents[2] / "configs"
+    c = json.loads((cfgdir / "climb_v15_leaf_a05_noptk.json").read_text(encoding="utf-8"))
+    dt = c["pipeline"]["dynamic_top_k"]
+    assert dt["enabled"] is True
+    assert dt["mode"] == "n_options"
+    for key in ("confident_prob", "uncertain_prob", "min_k", "max_k"):
+        assert key not in dt, f"confidence ゲートの設定 {key} が混入している"
+
+
+def test_noptk_config_differs_from_a05_only_in_dynamic_top_k():
+    """B は A に dynamic_top_k を足しただけ(leaf/α/det/rollout/budget は同一)。"""
+    import json
+    from pathlib import Path
+
+    cfgdir = Path(__file__).resolve().parents[2] / "configs"
+    a = json.loads((cfgdir / "climb_v15_leaf_a05.json").read_text(encoding="utf-8"))
+    b = json.loads((cfgdir / "climb_v15_leaf_a05_noptk.json").read_text(encoding="utf-8"))
+    a.pop("name", None)
+    b.pop("name", None)
+    assert b["pipeline"].pop("dynamic_top_k")["mode"] == "n_options"
+    assert "dynamic_top_k" not in a["pipeline"]
+    assert b == a
+    # leaf は両方 α=0.5 のまま(αを同時に動かしていない)
+    assert a["pipeline"]["leaf_eval"] == {"kind": "blend", "alpha": 0.5}

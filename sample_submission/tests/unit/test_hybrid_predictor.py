@@ -326,6 +326,109 @@ def test_predict_top_n_larger_than_class_count_returns_all(tmp_path):
 # --- 既定パス解決(weights_path/hybrid_config_path省略) ---
 
 
+# --- rough_prediction によるオーバーライド ---
+
+
+def test_rough_prediction_none_matches_base_predict(tmp_path):
+    """rough_prediction を渡さない(既定)場合は従来と完全に同じ分布を返す。"""
+    lr_path = _write_lr_weights(tmp_path)
+    nb_path = _write_nb_weights(tmp_path)
+    hybrid_path = _write_hybrid_config(tmp_path, [{"min_evidence": 0, "max_evidence": None, "weight_nb": 0.5}])
+    hybrid = HybridDeckPredictor(lr_weights_path=lr_path, nb_weights_path=nb_path, hybrid_config_path=hybrid_path)
+
+    observed = {"SigA": 1}
+    base = hybrid.predict(observed, turn=3)
+    explicit_none = hybrid.predict(observed, turn=3, rough_prediction=None)
+    assert base == explicit_none
+
+
+def test_rough_prediction_known_class_does_not_change_output(tmp_path):
+    """rough が学習済みクラス(CLASSES に含まれる)を confident で返しても出力は変わらない。"""
+    lr_path = _write_lr_weights(tmp_path)
+    nb_path = _write_nb_weights(tmp_path)
+    hybrid_path = _write_hybrid_config(tmp_path, [{"min_evidence": 0, "max_evidence": None, "weight_nb": 0.5}])
+    hybrid = HybridDeckPredictor(lr_weights_path=lr_path, nb_weights_path=nb_path, hybrid_config_path=hybrid_path)
+
+    observed = {"SigA": 1}
+    base = hybrid.predict(observed, turn=3)
+    overridden = hybrid.predict(
+        observed,
+        turn=3,
+        rough_prediction={"status": "confident", "deck_type": "alakazam", "match_rate": 0.99},
+    )
+    assert overridden == base
+
+
+def test_rough_prediction_not_confident_does_not_change_output(tmp_path):
+    """rough の status が confident でなければ何もしない。"""
+    lr_path = _write_lr_weights(tmp_path)
+    nb_path = _write_nb_weights(tmp_path)
+    hybrid = HybridDeckPredictor(lr_weights_path=lr_path, nb_weights_path=nb_path)
+
+    observed = {"SigA": 1}
+    base = hybrid.predict(observed, turn=3)
+    for status in ("insufficient_evidence", "ambiguous", "no_candidate"):
+        overridden = hybrid.predict(
+            observed,
+            turn=3,
+            rough_prediction={"status": status, "deck_type": "new_archetype", "match_rate": 0.9},
+        )
+        assert overridden == base
+
+
+def test_rough_prediction_new_class_gets_capped_probability_mass(tmp_path):
+    """rough が未学習の新アーキタイプを confident で返した場合、そのクラスに
+    min(match_rate, 0.9) の確率質量が割り当てられ、残りは既存分布の比率を保って縮小する。
+    """
+    lr_path = _write_lr_weights(tmp_path)
+    nb_path = _write_nb_weights(tmp_path)
+    hybrid_path = _write_hybrid_config(tmp_path, [{"min_evidence": 0, "max_evidence": None, "weight_nb": 0.5}])
+    hybrid = HybridDeckPredictor(lr_weights_path=lr_path, nb_weights_path=nb_path, hybrid_config_path=hybrid_path)
+
+    observed = {"SigA": 1}
+    base = hybrid.predict(observed, turn=3)
+    overridden = hybrid.predict(
+        observed,
+        turn=3,
+        rough_prediction={"status": "confident", "deck_type": "lopunny_megafroslass", "match_rate": 0.95},
+    )
+
+    assert math.isclose(sum(overridden.values()), 1.0, abs_tol=1e-9)
+    assert math.isclose(overridden["lopunny_megafroslass"], 0.9, abs_tol=1e-9)  # match_rate 0.95 は 0.9 に頭打ち
+    # 既存クラス同士の相対比率は base のときと変わらない(一律スケールされただけ)。
+    for cls in CLASSES:
+        assert math.isclose(overridden[cls] / base[cls], 0.1, rel_tol=1e-6)
+
+
+def test_rough_prediction_new_class_uses_raw_match_rate_when_below_cap(tmp_path):
+    lr_path = _write_lr_weights(tmp_path)
+    nb_path = _write_nb_weights(tmp_path)
+    hybrid = HybridDeckPredictor(lr_weights_path=lr_path, nb_weights_path=nb_path)
+
+    overridden = hybrid.predict(
+        {"SigA": 1},
+        turn=3,
+        rough_prediction={"status": "confident", "deck_type": "yadoking_2", "match_rate": 0.62},
+    )
+    assert math.isclose(overridden["yadoking_2"], 0.62, abs_tol=1e-9)
+    assert math.isclose(sum(overridden.values()), 1.0, abs_tol=1e-9)
+
+
+def test_rough_prediction_new_class_when_unready_still_surfaces(tmp_path):
+    """LR/NB 両方未ロード(unready)でも rough が confident なら新クラスの確率を返す。"""
+    missing_lr_path = tmp_path / "does_not_exist_lr.json"
+    missing_nb_path = tmp_path / "does_not_exist_nb.json"
+    hybrid = HybridDeckPredictor(lr_weights_path=missing_lr_path, nb_weights_path=missing_nb_path)
+
+    overridden = hybrid.predict(
+        {"SigA": 1},
+        turn=3,
+        rough_prediction={"status": "confident", "deck_type": "lopunny_megafroslass", "match_rate": 0.9},
+    )
+    assert math.isclose(overridden["lopunny_megafroslass"], 0.9, abs_tol=1e-9)
+    assert math.isclose(sum(overridden.values()), 1.0, abs_tol=1e-9)
+
+
 def test_default_paths_resolve_relative_to_module():
     hybrid = HybridDeckPredictor()
     module_dir = Path(__file__).resolve().parents[2] / "ptcg_ai" / "opponent_modeling"

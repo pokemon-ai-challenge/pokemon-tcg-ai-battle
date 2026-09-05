@@ -1,0 +1,2 @@
+{"name": "g2top2_v032", "kind": "swap1", "base": "g2top2", "diff": [{"out": 1122, "out_name": "ポケギア3.0", "in": 1119, "in_name": "エネルギー転送"}]}
+{"name": "seed_g2top1", "kind": "seed", "base": "g2top1", "diff": []}

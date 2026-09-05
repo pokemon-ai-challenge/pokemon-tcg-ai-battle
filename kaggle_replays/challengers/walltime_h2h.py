@@ -35,18 +35,21 @@ def main() -> int:
     ap.add_argument("--budgets", default="1350,3000,5500")
     ap.add_argument("--games", type=int, default=100)
     ap.add_argument("--workers", type=int, default=15)
+    ap.add_argument("--tags", default="v1,v2_1",
+                    help="ISMCTS variant tags(config: ismcts_<tag>_t<T>.json)。既定は v1,v2_1(従来)。v2.2 は v2_2 を渡す。")
     ap.add_argument("--run-dir", default=str(_HERE / "results" / "walltime"))
     args = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     budgets = [int(b) for b in args.budgets.split(",")]
+    tags = [t.strip() for t in args.tags.split(",") if t.strip()]
     deck = _load_deck()
     ctrl = driver.AgentSpec("abl_5_full", label="abl_5_full")
     run_root = Path(args.run_dir)
-    print(f"=== ISMCTS equal-wall-time H2H vs abl_5_full: budgets={budgets}ms games={args.games} workers={args.workers} ===")
+    print(f"=== ISMCTS equal-wall-time H2H vs abl_5_full: budgets={budgets}ms tags={tags} games={args.games} workers={args.workers} ===")
     curve = []
     for T in budgets:
-        for tag in ("v1", "v2_1"):
+        for tag in tags:
             cfg = _HERE / "configs" / f"ismcts_{tag}_t{T}.json"
             if not cfg.exists():
                 print(f"[skip] {cfg}"); continue

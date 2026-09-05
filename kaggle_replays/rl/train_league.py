@@ -94,11 +94,42 @@ def _expand(rows, suffix=None):
     return out
 
 
+# hard-tail混合(Codex 5.6-sol R4合意、2026-08-14)。g2top2_v032デッキ用のRL短分岐向け。
+# 「元フィールド67% + hard-tail 33%」= mix の正規化シェアを0.67倍したものに、
+# 実ラダーで比重が大きい/苦手な3対面(ミラーのogerpon_teal_ex, alakazam, crustle)へ
+# 0.33を1/3ずつ均等配分して上乗せする。mix の定義(FIELD_MIX)は変えず、mix の展開結果
+# から計算で導出する(mix が更新されたら自動追従し、二重管理でずれるのを防ぐ)。
+_HARD_TAIL_ARCHS = ("ogerpon_teal_ex", "alakazam", "crustle")
+_HARD_TAIL_FRAC = 0.33
+
+
+def _mix_hard_tail(mix_rows, hard_archs=_HARD_TAIL_ARCHS, hard_frac=_HARD_TAIL_FRAC):
+    """mix(_expand済み)から hard-tail 混合を計算で導出する。
+    絶対スケールは mix の合計に合わせて維持する(share の桁を他プリセットと揃えて可読にする)。
+    出力の各アーキ比率 = share_i/total = 0.67*(元のmix比率) + (hard_archsなら0.33/3を加算)。
+    """
+    total = sum(r[1] for r in mix_rows)
+    names = [r[0] for r in mix_rows]
+    missing = [a for a in hard_archs if a not in names]
+    if missing:
+        raise ValueError(f"mixhard: mix に無いアーキ指定: {missing}")
+    base_scale = 1.0 - hard_frac
+    bonus = total * hard_frac / len(hard_archs)
+    out = []
+    for arch, share, gen, dd in mix_rows:
+        new_share = share * base_scale
+        if arch in hard_archs:
+            new_share += bonus
+        out.append((arch, new_share, gen, dd))
+    return out
+
+
 FIELD_PRESETS = {
     "realmeta": _expand(FIELD, ""),
     "g2": _expand(FIELD_G2, "_g2"),
     "mix": _expand(FIELD_MIX),
 }
+FIELD_PRESETS["mixhard"] = _mix_hard_tail(FIELD_PRESETS["mix"])
 
 
 def main():
@@ -140,9 +171,13 @@ def main():
     ap.add_argument("--field-preset", default="realmeta", choices=sorted(FIELD_PRESETS),
                     help="固定フィールドの世代。realmeta=従来(既定で挙動不変)、"
                          "g2=2026-08取得の実測11アーキ(全部gen2)、"
-                         "mix=アーキごとに強い方を実測で選んだ混成(推奨)")
+                         "mix=アーキごとに強い方を実測で選んだ混成(推奨)、"
+                         "mixhard=mixの67%%+hard-tail3対面(ogerpon_teal_ex/alakazam/crustle)33%%")
     ap.add_argument("--mirror-weights", default=None,
                     help="ミラー(alakazam)相手の重み。既定=policy_weights_alakazam_rl_climb.json")
+    ap.add_argument("--field-only", default=None, metavar="ARCH",
+                    help="指定アーキ以外の share を0にして単一相手の専用モデルを作る。"
+                         "--field-frac 1.0 と併用すると champion も混ざらない純粋な対策学習になる。")
     ap.add_argument("--field-weight", action="append", default=None, metavar="ARCH=W",
                     help="FIELD の特定アーキ share を上書き(例 --field-weight crustle=350)。"
                          "偏重診断用の opt-in。未指定なら FIELD の既定比率(本番不変)。")
@@ -182,6 +217,12 @@ def main():
     if _missing:
         raise SystemExit("相手重みが無い: " + ", ".join(Path(m).name for m in _missing))
     field_shares_raw = [s for _, s, _, _ in field]
+    if args.field_only:
+        names = [a for a, _, _, _ in field]
+        if args.field_only not in names:
+            raise SystemExit(f"--field-only {args.field_only} は preset に無い: {names}")
+        field_shares_raw = [(1.0 if a == args.field_only else 0.0) for a in names]
+        print(f"[field-only] {args.field_only} 以外の share を0にしました", flush=True)
     if args.field_weight:  # ARCH=W 上書き(偏重診断用、未指定なら本番不変)。
         _ov = {}
         for kv in args.field_weight:

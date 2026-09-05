@@ -1,0 +1,66 @@
+{
+ "abl_5_full_og_r7_isorng": {
+  "alakazam": {
+   "wins": 248,
+   "games": 400,
+   "wr": 0.62
+  },
+  "dragapult_ex": {
+   "wins": 373,
+   "games": 400,
+   "wr": 0.9325
+  },
+  "lopunny_megafroslass": {
+   "wins": 309,
+   "games": 400,
+   "wr": 0.7725
+  },
+  "mega_froslass_ex": {
+   "wins": 234,
+   "games": 300,
+   "wr": 0.78
+  },
+  "kamitsuorochi_ex": {
+   "wins": 235,
+   "games": 300,
+   "wr": 0.7833
+  },
+  "marnie_grimmsnarl_ex": {
+   "wins": 191,
+   "games": 200,
+   "wr": 0.955
+  }
+ },
+ "abl_5_full_og_r8": {
+  "alakazam": {
+   "wins": 285,
+   "games": 400,
+   "wr": 0.7125
+  },
+  "dragapult_ex": {
+   "wins": 379,
+   "games": 400,
+   "wr": 0.9475
+  },
+  "lopunny_megafroslass": {
+   "wins": 316,
+   "games": 400,
+   "wr": 0.79
+  },
+  "mega_froslass_ex": {
+   "wins": 229,
+   "games": 300,
+   "wr": 0.7633
+  },
+  "kamitsuorochi_ex": {
+   "wins": 237,
+   "games": 300,
+   "wr": 0.79
+  },
+  "marnie_grimmsnarl_ex": {
+   "wins": 195,
+   "games": 200,
+   "wr": 0.975
+  }
+ }
+}

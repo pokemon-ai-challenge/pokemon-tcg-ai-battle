@@ -65,10 +65,29 @@ v2.1 config = ismcts_v1.json + `ismcts.leaf_mode="node"`(`configs/ismcts_v2_1_hc
 → 同 wall-time で v2.1 は **~22-33× 多い iterations、depth 12-19**(v1 は 4-5)。
 
 ### 6.4 Equal-Wall-Time H2H(Primary、H3)vs abl_5_full、各 100 games、budget {1.35, 3, 5.5}s
-<!-- RESULT_EQUAL_WALLTIME -->
+実行: desktop(workers15, alternate_sides, mirror, δ_min=0.05/α.05/β.10)、全 600 games、errors 0 / timeout 0。所要 約159分。
+
+| budget | v1(rollout)winrate [Wilson95] SPRT | v2.1(leaf-at-node)winrate [Wilson95] SPRT | Δ(v1−v2.1) |
+|---|---|---|---|
+| **1350ms**(submission) | **0.677** [0.578,0.762] **PROMOTE**(N=96) | 0.550 [0.452,0.644] None | **+0.127** |
+| **3000ms** | **0.660** [0.563,0.745] None | 0.480 [0.385,0.577] None | **+0.180** |
+| **5500ms** | **0.620** [0.522,0.709] None | 0.490 [0.394,0.587] None | **+0.130** |
+
+**観察(決定的)**:
+- **v1(rollout)は全 budget で Champion に勝ち越し**(1350ms は formal SPRT PROMOTE、他 2 budget も CI 下限 >0.52)。
+- **v2.1(leaf-at-node)は全 budget で Champion 互角どまり**(3 budget とも Wilson95 が 0.50 を含む)。
+- **v2.1 は budget を増やしても strength が伸びない**(0.550→0.480→0.490)。§6.3 のとおり同 wall-time で **22–33× 多い iterations・depth 12–19**(v1 は 4–5)を得ているのに v1 に届かない = **compute-starved でなく、leaf-at-node estimator 自体が v1 より低い天井**。
+- **判定**: H1(efficiency)✓ / **H3(Primary: equal-wall-time で v2.1 ≥ v1)✗**。
 
 ### 6.5 Conclusion(Case A-D)
-<!-- RESULT_CONCLUSION -->
+**Case C(fast but weak)確定**。leaf-at-node は 10–37× 高速(H1 成功)だが、equal-wall-time で 22–33× 多い iteration・深い tree を回しても v1 の rollout strength に届かず、**3 budget すべてで Champion 互角どまり**(v1 は勝ち越し)。しかも budget 増でも改善しない = より多くの iteration は弱い estimator を強くしない(bias は反復で消えない)。
+
+**因果の含意**: **rollout の policy-greedy 先読み(自ターン貪欲展開 + 相手ターン opponent_depth=1 + handcrafted leaf)が strength に本質的**。expand ノードでの handcrafted leaf 即評価は、その先読みが織り込む「この手の後、両者が方策どおり指すとどうなるか」を捨てるため、同じ handcrafted 評価器でも系統的に低い value 推定になり、探索量では埋まらない。
+
+**決定(事前登録 §4 の分岐どおり)**:
+- **leaf-at-node 単独は不採用**。ISMCTS v1(rollout)を frozen strength baseline として維持(config 59384591)。
+- **次の1ステップ = Value leaf(新 pre-registration)**: leaf-at-node の速度を活かしつつ、弱点である handcrafted-shallow leaf を**学習 Value に差し替え**、estimator の質を上げて equal-wall-time で competitive にできるかを独立 ablation で検証。today は実装しない(レビュー後)。
+- 代替: rollout を残したまま Policy forward を削る efficiency(policy cache/batch)は §6.2 profiling で低効果と判明済みゆえ後回し。
 
 ## Integrity
 ISMCTS v1 config 59384591 / Champion ca6c37af / Policy 735dd38a / Belief / handcrafted evaluator / Reference Pool v2 14db8345 /

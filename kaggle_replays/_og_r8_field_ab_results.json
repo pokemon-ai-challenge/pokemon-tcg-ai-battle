@@ -1,0 +1,136 @@
+{
+ "abl_5_full_og_r7": {
+  "alakazam": {
+   "wins": 256,
+   "games": 400,
+   "wr": 0.64
+  },
+  "mega_froslass_ex": {
+   "wins": 311,
+   "games": 400,
+   "wr": 0.7775
+  },
+  "lopunny_megafroslass": {
+   "wins": 303,
+   "games": 400,
+   "wr": 0.7575
+  },
+  "yadoking": {
+   "wins": 195,
+   "games": 200,
+   "wr": 0.975
+  },
+  "marnie_grimmsnarl_ex": {
+   "wins": 146,
+   "games": 150,
+   "wr": 0.9733
+  },
+  "dragapult_ex": {
+   "wins": 141,
+   "games": 150,
+   "wr": 0.94
+  },
+  "mega_lucario_ex": {
+   "wins": 97,
+   "games": 150,
+   "wr": 0.6467
+  },
+  "ogerpon_teal_ex": {
+   "wins": 59,
+   "games": 100,
+   "wr": 0.59
+  },
+  "archaludon_ex": {
+   "wins": 68,
+   "games": 100,
+   "wr": 0.68
+  },
+  "crustle": {
+   "wins": 12,
+   "games": 100,
+   "wr": 0.12
+  },
+  "shirona_garchomp_ex": {
+   "wins": 96,
+   "games": 100,
+   "wr": 0.96
+  },
+  "omatsuri_ondo": {
+   "wins": 88,
+   "games": 100,
+   "wr": 0.88
+  },
+  "rocket_mewtwo_ex": {
+   "wins": 97,
+   "games": 100,
+   "wr": 0.97
+  }
+ },
+ "abl_5_full_og_r8": {
+  "alakazam": {
+   "wins": 261,
+   "games": 400,
+   "wr": 0.6525
+  },
+  "mega_froslass_ex": {
+   "wins": 286,
+   "games": 400,
+   "wr": 0.715
+  },
+  "lopunny_megafroslass": {
+   "wins": 295,
+   "games": 400,
+   "wr": 0.7375
+  },
+  "yadoking": {
+   "wins": 197,
+   "games": 200,
+   "wr": 0.985
+  },
+  "marnie_grimmsnarl_ex": {
+   "wins": 146,
+   "games": 150,
+   "wr": 0.9733
+  },
+  "dragapult_ex": {
+   "wins": 138,
+   "games": 150,
+   "wr": 0.92
+  },
+  "mega_lucario_ex": {
+   "wins": 96,
+   "games": 150,
+   "wr": 0.64
+  },
+  "ogerpon_teal_ex": {
+   "wins": 58,
+   "games": 100,
+   "wr": 0.58
+  },
+  "archaludon_ex": {
+   "wins": 73,
+   "games": 100,
+   "wr": 0.73
+  },
+  "crustle": {
+   "wins": 16,
+   "games": 100,
+   "wr": 0.16
+  },
+  "shirona_garchomp_ex": {
+   "wins": 98,
+   "games": 100,
+   "wr": 0.98
+  },
+  "omatsuri_ondo": {
+   "wins": 85,
+   "games": 100,
+   "wr": 0.85
+  },
+  "rocket_mewtwo_ex": {
+   "wins": 95,
+   "games": 100,
+   "wr": 0.95
+  }
+ }
+}

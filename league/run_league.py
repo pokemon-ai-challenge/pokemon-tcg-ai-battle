@@ -54,11 +54,28 @@ AGENT_REGISTRY: dict[str, str] = {
     # 外部ベースライン(対戦相手)。ドラパルトex ルールベース(opponents/ 配下)。
     # config も重みも取らない素の agent(obs) なので PLAIN_AGENTS 側で扱う。
     "dragapult_rule": "opponents.dragapult_rule_agent",
+    # マリィのオーロンゲex ルールベース対戦相手(opponents/ 配下、5デッキ)。
+    # 設計: sample_submission/docs/plans/opponent-training/grimmsnarl-rule-implementation-design.md
+    "grimmsnarl_rule_01": "opponents.grimmsnarl_rule_01",
+    "grimmsnarl_rule_02": "opponents.grimmsnarl_rule_02",
+    "grimmsnarl_rule_03": "opponents.grimmsnarl_rule_03",
+    "grimmsnarl_rule_04": "opponents.grimmsnarl_rule_04",
+    "grimmsnarl_rule_05": "opponents.grimmsnarl_rule_05",
 }
 
 # config/重みを注入しない「素の agent(obs)」を提供するエージェント名。ml_policy 以外は
 # build_agent で config を渡さずそのまま module.agent を使う(rule_based と同じ扱い)。
-PLAIN_AGENTS: frozenset[str] = frozenset({"rule_based", "dragapult_rule"})
+PLAIN_AGENTS: frozenset[str] = frozenset(
+    {
+        "rule_based",
+        "dragapult_rule",
+        "grimmsnarl_rule_01",
+        "grimmsnarl_rule_02",
+        "grimmsnarl_rule_03",
+        "grimmsnarl_rule_04",
+        "grimmsnarl_rule_05",
+    }
+)
 
 
 def load_agent(name: str) -> AgentFn:

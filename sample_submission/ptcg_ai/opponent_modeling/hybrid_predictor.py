@@ -54,6 +54,35 @@ validation データ上で evidence バケットごとに最適化し、``deck_p
 
 現在どのモードで動作しているかは ``mode`` 属性(``"hybrid"`` / ``"lr_only"`` / ``"nb_only"`` /
 ``"unready"``)で判定できる。
+
+## rough_predictor による未学習クラスのオーバーライド(``predict(..., rough_prediction=...)``)
+
+LR(``ml_predictor.py``)・NB(``nb_predictor.py``)は ``kaggle_replays/deck_predictor`` が
+学習した固定クラスリスト(現状21クラス + ``"other"``)しか出力できない。新しいアーキタイプを
+``rough_predictor.json`` に追加しても、**再学習しない限り**この2つは新クラスを一切返せない
+(ML再学習はこのモジュールのスコープ外)。
+
+そこで ``predict()`` はキーワード専用引数 ``rough_prediction``(``rough_predictor.predict()`` の
+戻り値、または ``None``)を受け取れるようにしてある。既定は ``None`` で、**渡さない限り従来の
+動作と完全に同一**(挙動を変えたくない既存呼び出し元に影響しない)。
+
+``rough_prediction`` を渡した場合の合成規則:
+
+1. ``rough_prediction["status"] != "confident"`` なら何もしない(LR/NB側の分布をそのまま返す)。
+2. ``rough_prediction["deck_type"]`` が LR/NB の学習済みクラス(``self._classes``)に**既に
+   含まれる**場合も何もしない(例: ``yadoking`` は21クラスに含まれるため、rough が
+   ``yadoking`` を確信していても LR/NB 側の確率分布をそのまま使う。学習済みクラスの
+   確信度は LR/NB のキャリブレーション済み値の方が信頼できるため、rough で上書きしない)。
+3. 上記いずれでもない、つまり **rough が学習済みクラスに無い新アーキタイプを confident で
+   返した場合だけ**、そのクラスに確率質量 ``min(rough_prediction["match_rate"],
+   _ROUGH_OVERRIDE_MAX_PROB)`` を割り当て、残りの確率を既存分布の比率を保ったまま
+   縮小して合計1.0に正規化する(``_ROUGH_OVERRIDE_MAX_PROB`` で頭打ちにするのは、
+   rough 側のスコアリングは LR/NB ほど較正されていないため、断定しすぎない側に倒すため。
+   `feedback_conservative_confidence` の方針と同じ)。
+
+この設計により、学習済み21クラスの出力は ``rough_prediction`` を渡しても渡さなくても
+一切変化しない(条件2で必ず素通しする)。影響が出るのは「rough が新アーキタイプを
+確信した」ときの、そのクラス相当の確率質量のみ。
 """
 
 from __future__ import annotations
@@ -61,11 +90,17 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from typing import Any
 
 from .ml_predictor import MLDeckPredictor
 from .nb_predictor import NBDeckPredictor
 
 _DEFAULT_HYBRID_FILENAME = "deck_predictor_hybrid.json"
+
+# rough_predictor 由来のオーバーライドで新クラスに割り当てる確率の上限。
+# rough 側のスコアリングは LR/NB ほど較正されていないため、1.0に張り付かせず
+# 慎重側に倒す(確信度は生の見積もりより強気にしない、という既存方針と同じ)。
+_ROUGH_OVERRIDE_MAX_PROB = 0.9
 
 
 class HybridDeckPredictor:
@@ -133,12 +168,29 @@ class HybridDeckPredictor:
         self._classes = lr_classes
         return "hybrid"
 
-    def predict(self, observed_cards: dict[str, int], turn: int) -> dict[str, float]:
+    def predict(
+        self,
+        observed_cards: dict[str, int],
+        turn: int,
+        *,
+        rough_prediction: dict[str, Any] | None = None,
+    ) -> dict[str, float]:
         """観測済みカード枚数とターン数から、全クラスの確率分布(合計1.0)を返す。
 
         ``mode`` に応じて LR単体 / NB単体 / 両者のブレンドのいずれかを行う(詳細はモジュール
         docstring のフォールバック規則を参照)。
+
+        ``rough_prediction``(``rough_predictor.predict()`` の戻り値、省略時 ``None``)を渡すと、
+        rough が LR/NB の学習済みクラスに無い新アーキタイプを confident で返している場合だけ、
+        そのクラスの確率質量を最終分布に反映する(詳細はモジュール docstring
+        「rough_predictor による未学習クラスのオーバーライド」節を参照)。``None``(既定)の
+        ときは従来と完全に同じ分布を返す。
         """
+        probs = self._predict_base(observed_cards, turn)
+        return _apply_rough_override(probs, rough_prediction, self._classes)
+
+    def _predict_base(self, observed_cards: dict[str, int], turn: int) -> dict[str, float]:
+        """LR/NB(のブレンド)だけから確率分布を計算する(rough によるオーバーライド前)。"""
         if self.mode == "unready":
             return {"other": 1.0}
         if self.mode == "lr_only":
@@ -239,3 +291,44 @@ def _log_normalize(log_values: list[float]) -> list[float]:
     exps = [math.exp(v - m) for v in log_values]
     total = sum(exps)
     return [v / total for v in exps]
+
+
+def _apply_rough_override(
+    probs: dict[str, float],
+    rough_prediction: dict[str, Any] | None,
+    classes: list[str],
+) -> dict[str, float]:
+    """rough_predictor が LR/NB の学習済みクラスに無い新アーキタイプを confident で返した
+    場合だけ、そのクラスの確率質量を ``probs`` に合成する。合成規則の詳細はモジュール
+    docstring「rough_predictor による未学習クラスのオーバーライド」節を参照。
+
+    ``rough_prediction`` が ``None``、confident でない、またはクラスが ``classes`` に
+    既に含まれる場合は ``probs`` をそのまま返す(既存クラスの出力に一切影響しない)。
+    """
+    if not rough_prediction:
+        return probs
+    if rough_prediction.get("status") != "confident":
+        return probs
+
+    deck_type = rough_prediction.get("deck_type")
+    if not deck_type or deck_type == "unknown" or deck_type in classes:
+        return probs
+
+    try:
+        match_rate = float(rough_prediction.get("match_rate", 0.0))
+    except (TypeError, ValueError):
+        return probs
+    if match_rate <= 0.0:
+        return probs
+
+    override_prob = min(match_rate, _ROUGH_OVERRIDE_MAX_PROB)
+    remaining = max(1.0 - override_prob, 0.0)
+    total = sum(probs.values())
+
+    if total <= 0.0:
+        # 既存分布が空/全0(通常は起きないが安全側)の場合は新クラスに全質量を割り当てる。
+        scaled = {cls: 0.0 for cls in probs}
+    else:
+        scaled = {cls: (value / total) * remaining for cls, value in probs.items()}
+    scaled[deck_type] = scaled.get(deck_type, 0.0) + override_prob
+    return scaled

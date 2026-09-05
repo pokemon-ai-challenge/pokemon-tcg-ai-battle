@@ -51,7 +51,79 @@ DEFAULTS: dict = {
     "extra_candidate_types": [],
     # extra で追加する候補の上限(policy top-k と合わせた総数はこれで頭打ち)。
     "max_candidates": 8,
+    # anytime 決定化スケジューリング(dict, 既定 None=OFF)。truthy かつ enabled のときだけ
+    # Step3+4 のループを「ラウンド方式」に置き換える(_ANYTIME_DEFAULTS 参照)。キーが無ければ
+    # 従来の固定 N 決定化ループを一行も変えずに使う。
+    "anytime": None,
 }
+
+# anytime ラウンド方式の既定値(config["anytime"] で上書き)。
+#
+# 従来ループ(world 外側 × 候補 内側)は deadline 打切り時に「先頭候補ほど多くの world で
+# 評価される」偏りを持つ(実測でも 8 決定化設定に対し 1.7 本しか完了していない)。ラウンド方式は
+#   * 1 ラウンド = 決定化 world 1 本 × **全候補**
+#   * 途中で予算切れ/シミュ失敗したラウンドは「不完全」として集計から丸ごと捨てる
+#   * ラウンドごとに候補順を回転(rotate_candidates)して残る偏りも消す
+# ことで、いつ打ち切られても「全候補が同じ world 数で比較されている」状態を保つ(anytime 性)。
+_ANYTIME_DEFAULTS: dict = {
+    "enabled": True,
+    "max_rounds": 16,                 # ラウンド上限(従来の num_determinizations の代替)
+    "min_rounds_for_early_stop": 3,   # これ未満の完全ラウンド数では早期打切りしない
+    "early_stop_margin": 0.04,        # 1位-2位の平均差がこれ超なら(1位不変を条件に)打切り
+    "rotate_candidates": True,        # ラウンド r では候補順を r だけ回転して順序偏りを除去
+}
+
+# anytime パスの計装(モジュールレベルの純カウンタ)。**意思決定には一切使わない**。
+# 「1決定あたり何ラウンド完走できたか」「どれだけ捨てているか」を後段のランナー
+# (`kaggle_replays/challengers/anytime_h2h.py` 等)が読むための観測点。anytime が
+# 無効な経路(従来ループ)では一度も触らないので本番挙動・コストは不変。
+#   decisions             : anytime ラウンドを回した意思決定点の数
+#   complete_rounds_total : 完全ラウンド(全候補が揃った world)の総数
+#   rounds_per_decision   : 決定ごとの完全ラウンド数(上限 _ROUNDS_PER_DECISION_CAP 件で頭打ち)
+#   deadline_discard      : 予算切れで捨てた不完全ラウンド数
+#   simulation_discard    : 決定化失敗/違法手など予算以外の理由で捨てたラウンド数
+#   zero_complete_fallback: 完全ラウンド0本で終わった決定(=呼び出し側が Policy top1 へ落ちる)
+#   early_stops           : 早期打切りが発火した決定
+ANYTIME_STATS: dict = {
+    "decisions": 0,
+    "complete_rounds_total": 0,
+    "rounds_per_decision": [],
+    "deadline_discard": 0,
+    "simulation_discard": 0,
+    "zero_complete_fallback": 0,
+    "early_stops": 0,
+}
+
+# rounds_per_decision の保持上限(長時間ランでメモリが際限なく増えないための頭打ち)。
+_ROUNDS_PER_DECISION_CAP = 100_000
+
+
+def reset_anytime_stats() -> None:
+    """``ANYTIME_STATS`` を初期状態へ戻す(試合単位の計測はこれを起点にする)。"""
+    ANYTIME_STATS["decisions"] = 0
+    ANYTIME_STATS["complete_rounds_total"] = 0
+    ANYTIME_STATS["rounds_per_decision"] = []
+    ANYTIME_STATS["deadline_discard"] = 0
+    ANYTIME_STATS["simulation_discard"] = 0
+    ANYTIME_STATS["zero_complete_fallback"] = 0
+    ANYTIME_STATS["early_stops"] = 0
+
+
+def _notify_expensive_root(context: dict) -> None:
+    """``context["on_expensive_root"]`` があれば1回だけ呼ぶ(無ければ何もしない)。
+
+    呼び出し側(`ml_policy_agent`)の時間予算v2は「**重い探索が実際に走った回数**」で残り時間を
+    割る。適用外 select や top1 shortcut で即 return する安い呼び出しまで数えると分母が
+    水増しされ1手予算が過小になるため、「決定化評価(Step3)へ本当に入った」この位置から
+    コールバックで通知する。コールバックの例外は握り潰す(計測が意思決定を止めてはならない)。
+    """
+    callback = context.get("on_expensive_root")
+    if callback is None:
+        return
+    try:
+        callback()
+    except Exception:  # noqa: BLE001 - 計測の失敗が探索を止めてはならない
+        pass
 
 
 def _softmax(scores: list[float]) -> list[float]:
@@ -108,14 +180,98 @@ def _hidden_state_factory(context: dict) -> Callable[[], dict | None] | None:
     return None
 
 
-def _select_candidate_indices(select: SelectData, ranked: list[int], config: dict) -> list[int]:
+# dynamic_top_k の既定しきい値(選択肢数 -> 候補数)。`_diag_topk_miss.py`(n=46, 2026-08-06)
+# で測った「探索最良手が top-4 外に出る率」の帯別内訳に対応させてある:
+#   選択肢 5-7: 12.5% / 8-11: 37.5% / 12+: 50.0%
+# 見落としが多い帯だけ候補を広げ、少ない帯は従来どおり 4 のままにする。
+_DEFAULT_NOPTIONS_THRESHOLDS: list[dict] = [
+    {"max_options": 7, "top_k": 4},
+    {"max_options": 11, "top_k": 8},
+    {"max_options": None, "top_k": 12},   # max_options=None = 上限なし(最後に置く)
+]
+
+# NOTE (2026-08-06 diagnostics):
+# Current diagnostics found no useful miss-prediction signal from policy
+# confidence/entropy. High-confidence states still had substantial top-4
+# miss rates. Do not enable confidence-gated dynamic top-k without new evidence.
+
+
+def _resolve_top_k(config: dict, probs: list[float] | None, ranked: list[int]) -> int:
+    """この局面で使う候補数 k を返す。``1 <= k <= n_options`` を必ず満たす。
+
+    既定(``dynamic_top_k`` キー無し / ``enabled`` が偽)は固定 ``top_k`` = 従来挙動そのまま。
+
+    ``mode``:
+      - ``"n_options"``(推奨): **選択肢数**でしきい値表を引く。実測で見落とし率が
+        選択肢数に対して単調(5-7:12.5% / 8-11:37.5% / 12+:50.0%)だったため、
+        候補を広げるべき局面をこれで特定する。しきい値は config から変更可能。
+      - ``"confidence"``(**非推奨**): Policy の確信度で k を変える旧実装。
+        実測では確信度に見落とし予測力が無く(>=0.6 でも 26.9% 見落とし)、
+        このゲートは「見落としている局面をむしろ狭める」方向に働く。
+        履歴保持のため残すが、**新しい根拠なしに有効化しないこと**。
+
+    ``n_options`` は ``len(ranked)`` から取る(呼び出し側が全選択肢の降順ランクを渡す)。
+    """
+    n_options = len(ranked) if ranked else 0
+    base_k = max(1, int(config.get("top_k", 4)))
+    if n_options <= 0:
+        return base_k                      # 通常起きない。呼び出し側が空集合を扱う。
+
+    cfg = config.get("dynamic_top_k") or {}
+    if not cfg.get("enabled", False):
+        return max(1, min(base_k, n_options))
+
+    mode = cfg.get("mode", "n_options")
+    max_permitted = int(cfg.get("max_top_k", 0) or 0)
+
+    if mode == "n_options":
+        thresholds = cfg.get("thresholds") or _DEFAULT_NOPTIONS_THRESHOLDS
+        k = base_k
+        for row in thresholds:
+            limit = row.get("max_options")
+            if limit is None or n_options <= int(limit):
+                k = int(row.get("top_k", base_k))
+                break
+        else:
+            # どの帯にも当たらない(上限なし行が無い)設定は、最後の行の top_k を使う。
+            if thresholds:
+                k = int(thresholds[-1].get("top_k", base_k))
+    elif mode == "confidence":
+        # 非推奨経路(上の NOTE 参照)。互換のため残す。
+        if not probs:
+            return max(1, min(base_k, n_options))
+        min_k = max(1, int(cfg.get("min_k", 3)))
+        max_k = max(min_k, int(cfg.get("max_k", 12)))
+        hi = float(cfg.get("confident_prob", 0.6))
+        lo = float(cfg.get("uncertain_prob", 0.3))
+        p = probs[ranked[0]]
+        if hi <= lo:
+            k = base_k
+        elif p >= hi:
+            k = min_k
+        elif p <= lo:
+            k = max_k
+        else:
+            t = (hi - p) / (hi - lo)
+            k = int(round(min_k + t * (max_k - min_k)))
+    else:
+        k = base_k                          # 未知 mode は安全側(従来固定)へ倒す
+
+    if max_permitted > 0:
+        k = min(k, max_permitted)
+    return max(1, min(int(k), n_options))
+
+
+def _select_candidate_indices(select: SelectData, ranked: list[int], config: dict,
+                              probs: list[float] | None = None) -> list[int]:
     """探索する first-move 候補のインデックス集合を返す。
 
-    Policy スコア上位 ``top_k`` に加え、``extra_candidate_types``(OptionType 名)に該当する
+    Policy スコア上位 ``k`` 件(``_resolve_top_k``: 既定は固定 ``top_k``、``dynamic_top_k``
+    有効時は確信度依存)に加え、``extra_candidate_types``(OptionType 名)に該当する
     合法手を Policy ランクに関係なく含める(模倣が低評価する特性使用・エネ付与などを探索から
     外さないため)。総数は ``max_candidates`` で頭打ち。``ranked`` はスコア降順の全インデックス。
     """
-    k = max(1, int(config.get("top_k", 4)))
+    k = _resolve_top_k(config, probs, ranked)
     indices = list(ranked[:k])
     extra_types = config.get("extra_candidate_types") or []
     if extra_types:
@@ -213,8 +369,142 @@ def _evaluate_candidate(root, candidate: list[int], me: int, config: dict, deadl
             pass
 
 
+def _round_means(rounds: list[dict[int, float]], candidate_indices: list[int]) -> dict[int, float]:
+    """完全ラウンド群の候補別平均。``rounds`` は全候補のスコアが揃ったラウンドのみ。"""
+    n = len(rounds)
+    if n <= 0:
+        return {}
+    return {i: sum(r[i] for r in rounds) / n for i in candidate_indices}
+
+
+def _should_early_stop(n_complete: int, leaders: list[int], means: dict[int, float],
+                       min_rounds: int, margin: float) -> bool:
+    """anytime の早期打切り判定。
+
+    条件(すべて満たすとき打切り):
+      - 完全ラウンド数が ``min_rounds_for_early_stop`` 以上
+      - **直近2完全ラウンド**の(その時点までの平均での)1位候補が同一
+      - 1位平均 - 2位平均 > ``early_stop_margin``
+    """
+    if n_complete < max(1, int(min_rounds)):
+        return False
+    if len(leaders) < 2 or leaders[-1] != leaders[-2]:
+        return False
+    ordered = sorted(means.values(), reverse=True)
+    if len(ordered) < 2:
+        return True                     # 候補が1つなら比較相手が無い=これ以上回す意味が無い
+    return (ordered[0] - ordered[1]) > float(margin)
+
+
+def _run_anytime_rounds(obs: Observation, me: int, candidate_indices: list[int], config: dict,
+                        anytime_config: dict, deadline: float, evaluator, policy_model,
+                        factory: Callable[[], dict | None]) -> dict[int, float]:
+    """Step3+4 の anytime ラウンド版。候補別平均(完全ラウンドのみ)を返す。
+
+    1 ラウンド = 決定化 world を 1 本作り、その world で **全候補** を評価する。
+      - ラウンド開始前に予算超過していれば開始しない。
+      - ラウンド内で予算超過して未評価の候補が残ったら、そのラウンドは不完全として捨て、
+        ループを終える(打切りは常に「候補間で公平な集計」を残す)。
+      - ``_evaluate_candidate`` が None(この world で違法/シミュ失敗)の場合は、予算超過が
+        原因でなければそのラウンドだけ捨てて **次のラウンドへ続行** する。
+      - 完全ラウンドが 0 本なら空 dict を返す(呼び出し側は None → Policy top1 へフォールバック)。
+
+    副作用として ``ANYTIME_STATS`` にラウンド統計を積む(カウンタ加算のみ。返り値=意思決定には
+    一切影響しない)。
+    """
+    ac = {**_ANYTIME_DEFAULTS, **(anytime_config or {})}
+    n_cand = len(candidate_indices)
+    if n_cand <= 0:
+        return {}
+    max_rounds = max(1, int(ac.get("max_rounds", 16)))
+    min_rounds_es = int(ac.get("min_rounds_for_early_stop", 3))
+    margin = float(ac.get("early_stop_margin", 0.04))
+    rotate = bool(ac.get("rotate_candidates", True))
+
+    ANYTIME_STATS["decisions"] += 1
+    complete: list[dict[int, float]] = []
+    leaders: list[int] = []
+    means: dict[int, float] = {}
+    try:
+        for r in range(max_rounds):
+            if time.perf_counter() > deadline:
+                break                   # ラウンド未開始 = 破棄ではない(集計しない)。
+            hidden_state = factory()
+            if hidden_state is None:
+                ANYTIME_STATS["simulation_discard"] += 1
+                continue                # world が作れない = 不完全ラウンド。次へ。
+            try:
+                root = _begin(obs, hidden_state)
+            except Exception:
+                ANYTIME_STATS["simulation_discard"] += 1
+                continue
+            order = candidate_indices
+            if rotate and n_cand > 1:
+                offset = r % n_cand
+                order = candidate_indices[offset:] + candidate_indices[:offset]
+            round_scores: dict[int, float] = {}
+            stop = False                # 予算切れ由来の打切り(ループ自体を終える)
+            try:
+                for idx in order:
+                    if time.perf_counter() > deadline:
+                        stop = True
+                        break
+                    s = _evaluate_candidate(root, [idx], me, config, deadline, evaluator, policy_model)
+                    if s is None:
+                        # 予算切れならループ終了、そうでなければこのラウンドを捨てて次へ。
+                        stop = time.perf_counter() > deadline
+                        break
+                    round_scores[idx] = s
+            finally:
+                try:
+                    cg_api.search_release(root.searchId)
+                except Exception:
+                    pass
+            if len(round_scores) == n_cand:
+                complete.append(round_scores)
+                means = _round_means(complete, candidate_indices)
+                # 平均1位(同点は candidate_indices の順=Policy 上位優先で決定的)。
+                leaders.append(max(candidate_indices, key=lambda i: means[i]))
+                if _should_early_stop(len(complete), leaders, means, min_rounds_es, margin):
+                    ANYTIME_STATS["early_stops"] += 1
+                    break
+            else:
+                # 不完全ラウンド(捨てる)。予算切れ由来かシミュ失敗由来かを分けて数える。
+                if stop:
+                    ANYTIME_STATS["deadline_discard"] += 1
+                else:
+                    ANYTIME_STATS["simulation_discard"] += 1
+            if stop:
+                break
+    finally:
+        try:
+            cg_api.search_end()
+        except Exception:
+            pass
+        # 計測(意思決定に不影響)。例外で抜けた場合も必ず記録する。
+        n_complete = len(complete)
+        ANYTIME_STATS["complete_rounds_total"] += n_complete
+        if len(ANYTIME_STATS["rounds_per_decision"]) < _ROUNDS_PER_DECISION_CAP:
+            ANYTIME_STATS["rounds_per_decision"].append(n_complete)
+        if n_complete == 0:
+            ANYTIME_STATS["zero_complete_fallback"] += 1
+    return means
+
+
+def _pick_best_index(scored: dict[int, float], probs: list[float], tie_eps: float) -> int:
+    """Step5: 平均最大を採用。差が ``tie_eps`` 以内の候補は Policy 確率上位で決める。"""
+    best_mean = max(scored.values())
+    contenders = [i for i, m in scored.items() if best_mean - m <= tie_eps]
+    return max(contenders, key=lambda i: probs[i])
+
+
 def search(state: State, legal_actions: list, context: dict) -> list[int] | None:
-    """パイプライン本体。適用外/失敗/予算切れ前に評価不能なら None(呼び出し側が top1 へ)。"""
+    """パイプライン本体。適用外/失敗/予算切れ前に評価不能なら None(呼び出し側が top1 へ)。
+
+    ``context`` の任意キー ``on_expensive_root``(callable, 既定なし)を渡すと、**決定化評価
+    (Step3)へ実際に入るときだけ1回**呼ぶ。呼び出し側の時間予算v2が「重い探索の回数」で
+    残り時間を割るための通知点(``_notify_expensive_root``)。渡さなければ従来どおり何もしない。
+    """
     try:
         config = {**DEFAULTS, **(context.get("config") or {})}
         if not config["enabled"]:
@@ -255,13 +545,28 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
             top1 = [ranked[0]]
             return top1 if _is_legal_selection(top1, select) else None
 
-        candidate_indices = _select_candidate_indices(select, ranked, config)
+        candidate_indices = _select_candidate_indices(select, ranked, config, probs)
         candidates = [[i] for i in candidate_indices]
 
         evaluator = context.get("leaf_evaluator") or leaf_eval_module.build_evaluator(config.get("leaf_eval"))
         factory = _hidden_state_factory(context)
         if factory is None:
             return None
+
+        # ここから先が「重い探索」(Step3 決定化評価)。適用外 select / top1 shortcut /
+        # factory 無しはすべて上で return 済みなので、この1回だけ呼び出し側へ通知する。
+        _notify_expensive_root(context)
+
+        # anytime ラウンド方式(config["anytime"] があり enabled のときだけ)。キーが無い/falsy /
+        # enabled=false なら以降の従来ループ(固定 N 決定化)に落ちるので本番挙動は不変。
+        anytime_config = config.get("anytime")
+        if anytime_config and anytime_config.get("enabled", True):
+            scored = _run_anytime_rounds(obs, me, candidate_indices, config, anytime_config,
+                                         deadline, evaluator, policy_model, factory)
+            if not scored:
+                return None
+            best = [_pick_best_index(scored, probs, float(config["tie_eps"]))]
+            return best if _is_legal_selection(best, select) else None
 
         # Step3+4: N 決定化 × 各候補を先読み評価。
         aggregate: dict[int, list[float]] = {i: [] for i in candidate_indices}
@@ -300,12 +605,7 @@ def search(state: State, legal_actions: list, context: dict) -> list[int] | None
             return None
 
         # Step5: 平均最大を採用。tie_eps 以内は Policy 確率上位で決める。
-        best_mean = max(scored.values())
-        tie_eps = float(config["tie_eps"])
-        contenders = [i for i, m in scored.items() if best_mean - m <= tie_eps]
-        best_idx = max(contenders, key=lambda i: probs[i])
-
-        best = [best_idx]
+        best = [_pick_best_index(scored, probs, float(config["tie_eps"]))]
         return best if _is_legal_selection(best, select) else None
     except Exception:
         return None

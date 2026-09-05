@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+import os
 import random
 import sys
 import time
@@ -42,6 +43,66 @@ from cg.api import Observation, to_observation_class  # noqa: E402
 from cg.game import battle_finish, battle_select, battle_start  # noqa: E402
 
 AgentFn = Callable[[Observation], list[int]]
+
+# ローカル評価専用の「自分の60枚」宣言のうち **dummy 経路**(`ml_policy_agent`)だけを
+# 無効化する脱出口(`_begin_match_state` の3を参照。match_context 側=estimated 経路の宣言は
+# 常に有効で、この環境変数の影響を受けない)。
+# 既定は有効(宣言する)。`PTCG_HARNESS_DECK_INJECT=0` にすると宣言を行わず、修正前の
+# 壊れたハーネス(deck.csv 以外を持つ側の dummy 探索が黙って死ぬ)を再現できる。
+# 修正の効果を before/after で計測するために用意している(worker プロセスにも環境変数として
+# 伝播するので `--workers` 並列でも同じアームを再現できる)。通常の計測では触らないこと。
+_DECK_INJECT_ENV = "PTCG_HARNESS_DECK_INJECT"
+
+
+def _deck_injection_enabled() -> bool:
+    return os.environ.get(_DECK_INJECT_ENV, "1").strip() not in ("0", "false", "False")
+
+
+def _begin_match_state(deck0: list[int], deck1: list[int]) -> None:
+    """1試合の開始時に、非公開情報推定レイヤーの状態を初期化する(ローカル評価専用)。
+
+    本番(Kaggle)は ``obs.select is None``(デッキ選択ターン)を受けて `match_context.update` が
+    自分で reset し、自分のデッキは常に `deck.csv` なので、この関数に相当する処理は要らない。
+    ローカルの `battle_start(deck0, deck1)` はその経路を通らないため、以下2点を明示的に行う:
+
+    1. `reset()` — worker プロセスは試合をまたいで再利用されるため、前の試合の
+       山札/サイド推定・相手モデルが残留する(残すと次の試合の推定が汚染される)。
+    2. `set_own_deck_override()` — 両陣営が1プロセスで動くのにデッキはエンジンへ直接渡されるため、
+       エージェントは両方とも `deck.csv` を自分の山札だと誤認する。deck.csv 以外を持つ側は
+       `OwnHiddenState` のサイド枚数が実盤面と食い違い `search_begin` が必ず例外になり、
+       **その陣営だけ PIMC 探索が黙って無効化**される(実測 begin失敗率≒100%)。
+       正しい60枚を宣言して、両陣営を同じ条件で探索させる。
+    3. `ml_policy_agent.set_own_deck_override()` — 上記2は `hidden_state_source="estimated"`
+       の経路しか救わない。既定は **dummy** 経路(`build_dummy_search_state(obs, _get_deck())`)で、
+       `_get_deck()` は CWD の `deck.csv` を返すため、それ以外のデッキを渡した側は
+       「観測に見えるカードがデッキに無い」で hidden_state が **必ず None** になる。
+       すると `lethal_search`(既定 dummy)と `_model_hidden_state_factory` 経由の `ko_search`
+       系ガード(briar_gate / low_deck_draw_brake / boss_lethal_gate / ability_draw_brake /
+       terastal_rotation / hammer_veto)が**ローカルでは一度も発火しない**
+       (本番は 1プロセス1エージェントで deck.csv = 提出デッキなので起きない、ハーネス側の欠陥)。
+       dummy 経路にも同じ60枚を宣言する。
+
+    推定レイヤーの初期化失敗で対戦を止めない(production と同じ例外安全方針)。
+    """
+    try:
+        from ptcg_ai.hidden_information import match_context
+
+        match_context.reset()
+        match_context.set_own_deck_override(0, deck0)
+        match_context.set_own_deck_override(1, deck1)
+    except Exception:  # noqa: BLE001 - 推定レイヤーの都合で対戦を落とさない
+        pass
+
+    try:
+        from ptcg_ai.ml_policy import ml_policy_agent
+
+        if _deck_injection_enabled():
+            ml_policy_agent.set_own_deck_override(0, deck0)
+            ml_policy_agent.set_own_deck_override(1, deck1)
+        else:
+            ml_policy_agent.clear_own_deck_override()
+    except Exception:  # noqa: BLE001 - 宣言の失敗で対戦を落とさない(未宣言=従来挙動)
+        pass
 
 # 異常終了(エージェントの無限ループ相当・エンジン側の想定外挙動)を検知する安全弁。
 # 通常の対戦は数十~数百手で終わる(rule_based vs rule_based の実測で100~200手程度)。
@@ -89,6 +150,8 @@ def play_match(
     """
     if seed is not None:
         random.seed(seed)
+
+    _begin_match_state(deck0, deck1)
 
     agents: dict[int, AgentFn] = {0: agent0, 1: agent1}
     t0 = time.time()
