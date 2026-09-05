@@ -539,7 +539,7 @@
           "card_id": [
             96
           ],
-          "role": "shared_anchor",
+          "role": "core",
           "reason": "オーガポンバレット/カミツオロチ/オリーヴァ系に絞れる強い共有主軸候補"
         }
       ],
@@ -797,6 +797,18 @@
             "card_id": [
               1205
             ]
+          },
+          {
+            "name": "テラスタルオーブ",
+            "role": "core"
+          },
+          {
+            "name": "エネルギー回収",
+            "role": "core"
+          },
+          {
+            "name": "ブライア",
+            "role": "core"
           }
         ],
         "flex": [
@@ -910,10 +922,6 @@
             ]
           },
           {
-            "name": "テラスタルオーブ",
-            "role": "flex"
-          },
-          {
             "name": "ヒーローマント",
             "role": "flex"
           }
@@ -989,7 +997,7 @@
       ],
       "variants": {},
       "min_score": 6,
-      "confident_score": 14
+      "confident_score": 10
     },
     "n_zoroark_ex": {
       "display_name": "Nのゾロアークex",
@@ -2535,6 +2543,43 @@
       "variants": {},
       "min_score": 6,
       "confident_score": 12
+    },
+    "lopunny_megafroslass": {
+      "display_name": "ミミロップ+メガユキメノコex",
+      "cards": [
+        {
+          "name": "メガミミロップex",
+          "card_id": [
+            849
+          ],
+          "role": "signature",
+          "reason": "メガユキメノコexとの併用が特徴の主軸カード。単体では中程度の根拠に留め、両方見えたときだけ強い根拠にする。進化元のミミロル/ミミロップ(758/848/759)や基本エネルギーは他デッキとの共有度が高く、単体シグネチャと組み合わさると誤判定(実測: 849のみ+基本【水】エネルギーだけで confident に達してしまう事故)を招くため、採点対象に含めない"
+        },
+        {
+          "name": "メガユキメノコex",
+          "card_id": [
+            861
+          ],
+          "role": "signature",
+          "reason": "メガミミロップexとの併用が特徴の主軸カード。単体では中程度の根拠に留め、両方見えたときだけ強い根拠にする。メガユキメノコex単独デッキ(mega_froslass_ex)とスコアリング対象がほぼ重複するため、進化元のユキワラシ/ユキメノコ(103/860/104)や水エネルギーは採点対象に含めず mega_froslass_ex 側に譲る"
+        }
+      ],
+      "role_cards": {},
+      "energy_types": [],
+      "combo_rules": [
+        {
+          "names": [
+            "メガミミロップex",
+            "メガユキメノコex"
+          ],
+          "bonus": 6,
+          "role": "combo",
+          "reason": "メガミミロップex + メガユキメノコex: 両方採用される特徴的な組み合わせ"
+        }
+      ],
+      "variants": {},
+      "min_score": 6,
+      "confident_score": 9
     }
   },
   "generic_cards": [
@@ -2560,11 +2605,7 @@
   },
   "_g2_patch_note": "kaggle_replays/deck_predictor/build_rough_predictor_g2.py が生成。gen2ラベリング専用で、本番 rough_predictor.json は不変。",
   "_g2_patch_changes": [
-    "kamitsuorochi_ex: オーガポン みどりのめんex を shared_anchor -> core(カミツオロチex無しでカミツオロチ判定される問題を修正)",
-    "ogerpon_teal_ex: グロウ【草】エネルギー を energy として追加",
-    "ogerpon_teal_ex: テラスタルオーブ を flex として追加",
-    "ogerpon_teal_ex: ヒーローマント を flex として追加",
-    "ogerpon_teal_ex: ナゲツケサル を flex から除外(takeruraiko_ex の看板のため)",
-    "ogerpon_teal_ex: タケルライコex を flex から除外(takeruraiko_ex の看板のため)"
+    "ogerpon_teal_ex: オーガポン みどりのめんex を anchor -> shared_anchor(フルデッキ判定はゲート+固定しきい値のため実行時より弱い役割にする)",
+    "ogerpon_teal_ex: ヒーローマント を flex として追加"
   ]
 }

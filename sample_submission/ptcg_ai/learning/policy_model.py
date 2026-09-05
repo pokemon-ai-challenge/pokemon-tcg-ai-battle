@@ -82,10 +82,14 @@ _UNKNOWN_CARD_EMBEDDING_INDEX = 0
 class PolicyModel:
     """学習済みの選択肢スコア関数を読み込み、Observation から選ぶべき選択肢を推論する。"""
 
-    def __init__(self, weights_path: str | Path | None = None):
+    def __init__(self, weights_path: str | Path | None = None, deck_card_ids: list[int] | None = None):
         if weights_path is None:
             weights_path = Path(__file__).parent / _DEFAULT_WEIGHTS_FILENAME
         self._weights_path = Path(weights_path)
+        # 入力拡張(extra_features)。meta["extra_features"] が設定された重みのみ有効。
+        # 既定(production)重みには無いので None=従来どおり(state 166次元)。
+        self._extra_features: str | None = None
+        self._deck_card_ids: list[int] | None = list(deck_card_ids) if deck_card_ids else None
 
         self._state_mean: list[float] | None = None
         self._state_std: list[float] | None = None
@@ -126,6 +130,7 @@ class PolicyModel:
         ]
 
         self._consequence_fields = list(payload.get("meta", {}).get("consequence_fields") or [])
+        self._extra_features = payload.get("meta", {}).get("extra_features") or None
 
         self._layers = [
             (
@@ -134,6 +139,26 @@ class PolicyModel:
             )
             for layer in payload["layers"]
         ]
+
+    def _compute_extra(self, state) -> list[float] | None:
+        """入力拡張(extra_features)を計算。meta フラグが無い重みでは None(従来どおり)。
+
+        parity: 学習側(collect_field)と **同一の compute_extra_features** を同じデッキ・同じ
+        predictor で通す。"own_resource" / "opp_belief" / "own_resource+opp_belief" を部分文字列で判定。
+        "opp_belief" を含むときだけ相手デッキ予測器(match_context._get_predictor)をロードする。
+        """
+        ef = self._extra_features
+        if not ef:
+            return None
+        from ptcg_ai.learning.extra_features import compute_extra_features
+        predictor = None
+        if "opp_belief" in ef:
+            try:
+                from ptcg_ai.hidden_information import match_context
+                predictor = match_context._get_predictor()
+            except Exception:  # noqa: BLE001 - 予測器のロード失敗で意思決定を止めない
+                predictor = None
+        return compute_extra_features(state, ef, self._deck_card_ids, predictor)
 
     # ------------------------------------------------------------------
     # 公開 API
@@ -159,7 +184,7 @@ class PolicyModel:
         """
         if not self.is_ready or obs.current is None or obs.select is None or not obs.select.option:
             return []
-        state_features = encoder.encode_state_from_state(obs.current)
+        state_features = encoder.encode_state_from_state(obs.current, extra_features=self._compute_extra(obs.current))
         option_rows = encoder.encode_options_from_state(obs.current, obs.select)
         card_ids = encoder.encode_option_card_ids(obs.current, obs.select)
         if self._consequence_fields:
@@ -186,7 +211,7 @@ class PolicyModel:
             )
         if not self.is_ready or state is None or select is None or not select.option:
             return []
-        state_features = encoder.encode_state_from_state(state)
+        state_features = encoder.encode_state_from_state(state, extra_features=self._compute_extra(state))
         option_rows = encoder.encode_options_from_state(state, select)
         card_ids = encoder.encode_option_card_ids(state, select)
         return [

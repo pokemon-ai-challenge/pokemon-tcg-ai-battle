@@ -8,9 +8,22 @@
 | 名前(registry) | ファイル | デッキ | 出典 |
 |---|---|---|---|
 | `dragapult_rule` | `dragapult_rule_agent.py` | `dragapult_ex_deck.csv` | Kaggle "A Sample Rule-Based Agent Dragapult ex Deck"(著者: kiyotah) |
-
+| `grimmsnarl_rule_01` | `grimmsnarl_rule_01.py`(本体: `grimmsnarl_core.py`) | `grimmsnarl_ex_deck_01.csv` | マリィのオーロンゲex 標準ユキメノコ型(Luca, LB 1242.3)。設計: [grimmsnarl-rule-implementation-design.md](../sample_submission/docs/plans/opponent-training/grimmsnarl-rule-implementation-design.md) |
+| `grimmsnarl_rule_02` | `grimmsnarl_rule_02.py`(本体: `grimmsnarl_core.py`) | `grimmsnarl_ex_deck_02.csv` | マリィのオーロンゲex 非メノコ純ビート型(bono, LB 1150.8)。設計: 同上 |
+| `grimmsnarl_rule_03` | `grimmsnarl_rule_03.py`(本体: `grimmsnarl_core.py`) | `grimmsnarl_ex_deck_03.csv` | マリィのオーロンゲex 標準+ハンディサーキュレーター妨害型(bono, LB 1150.8)。設計: 同上 |
+| `grimmsnarl_rule_04` | `grimmsnarl_rule_04.py`(本体: `grimmsnarl_core.py`) | `grimmsnarl_ex_deck_04.csv` | マリィのオーロンゲex 標準+クセロシキ妨害型(jiatu.l, LB 1116.5)。設計: 同上 |
+| `grimmsnarl_rule_05` | `grimmsnarl_rule_05.py`(本体: `grimmsnarl_core.py`) | `grimmsnarl_ex_deck_05.csv` | マリィのオーロンゲex テンポ型(monnosuke, LB 1102.6)。設計: 同上 |
+| `lucario_rule_01` ... `lucario_rule_05` | `lucario_rule_01.py` ... `_05.py` (shared `lucario_core.py`) | `lucario_ex_deck_01.csv` ... `_05.csv` | Mega Lucario ex replay-derived sparring partners; implementation notes: [lucario-rule-implementation-design.md](../sample_submission/docs/plans/opponent-training/lucario-rule-implementation-design.md) |
+| `lucario_rule_official` | `lucario_rule_official.py` (shared `lucario_core.py`) | `lucario_ex_deck_official.csv` | Mega Lucario ex official 60-card deck; uses per-attack KO scoring and official-deck card profile. |
 `dragapult_rule` は原典のロジックを改変せず取り込んだもの。対戦基盤に載せるための差分は
 `dragapult_rule_agent.py` 冒頭 docstring の2点のみ(デッキ読み込み元と入力の dict/Observation 両対応)。
+
+`grimmsnarl_rule_01`〜`_05` は新規実装(python-engineer 作成、rule-engine-expert の実装契約
+[grimmsnarl-rule-implementation-design.md](../sample_submission/docs/plans/opponent-training/grimmsnarl-rule-implementation-design.md)
+に準拠)。5つは同一ロジック(`grimmsnarl_core.py`)を、上位デッキ5種
+(`kaggle_replays/meta_analysis/archetype_decks/marnie_grimmsnarl_ex/{01..05}.csv` からコピー)
+それぞれの `build_profile()` 結果で動かす薄いラッパ。dragapult 同様、`opponents/` の
+対戦相手でありこちらの提出物・production の rule_based とは無関係。
 
 ## 使い方(league)
 

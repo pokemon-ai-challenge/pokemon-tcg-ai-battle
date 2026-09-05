@@ -347,3 +347,42 @@ def test_update_keeps_player_states_independent_when_interleaved(monkeypatch):
     assert len(deck1) == 49
     assert len(hand1) == 5
     assert len(prize1) == 6
+
+
+# --- 自山札の player_index 別上書き(ローカル評価harness用) ---
+#
+# 本番(1プロセス1エージェント)では set_own_deck_override を呼ばないので deck.csv のまま=不変。
+# ローカルの field eval は1プロセスで両陣営を動かすため、両者が deck.csv を自分の山札だと
+# 誤認して片側の search_begin が必ず失敗していた。その回帰防止。
+
+
+def test_deck_override_is_per_player():
+    match_context.reset()
+    deck_a = [11] * 60
+    deck_b = [22] * 60
+    match_context.set_own_deck_override(0, deck_a)
+    match_context.set_own_deck_override(1, deck_b)
+    assert match_context._own_deck_ids_for(0) == deck_a
+    assert match_context._own_deck_ids_for(1) == deck_b
+    # 片側だけ解除すると、その player だけ従来経路(deck.csv)へ戻る。
+    match_context.set_own_deck_override(0, None)
+    assert match_context._own_deck_ids_for(1) == deck_b
+    match_context.reset()
+
+
+def test_deck_override_cleared_by_reset():
+    """game 単位で宣言し直す契約。前の試合のデッキが次の試合へ漏れない。"""
+    match_context.reset()
+    match_context.set_own_deck_override(0, [33] * 60)
+    assert match_context._own_deck_ids_for(0) == [33] * 60
+    match_context.reset()
+    assert 0 not in match_context._own_deck_override
+
+
+def test_no_override_keeps_legacy_deck_csv_path(monkeypatch):
+    """上書きが無ければ従来どおり read_deck_csv() を読む(=本番挙動が変わらない)。"""
+    match_context.reset()
+    sentinel = [99] * 60
+    monkeypatch.setattr(match_context, "_load_own_deck_ids", lambda: sentinel)
+    assert match_context._own_deck_ids_for(0) == sentinel
+    assert match_context._own_deck_ids_for(None) == sentinel
