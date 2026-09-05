@@ -87,12 +87,13 @@ AI の構成はブランチではなく config で切り替える、常に提出
 |---|---|
 | 提出した AI の実装 | [提出エージェントの構成](sample_submission/README.md) · [`agent()` のコード](sample_submission/main.py) |
 | 対戦ビュアー | [battle_review_viewer/](battle_review_viewer/README.md) |
+| 学習・評価環境 | [リプレイ収集と学習データ生成](kaggle_replays/README.md) · [総当たり対戦のリーグ](league/README.md) |
 | 検証コード | [テストとローカル対戦の構成](sample_submission/tests/README.md) |
 | カード参照・印刷ツール | [cardlist_referenced/](cardlist_referenced/README.md) |
 
 動かすのに必要な環境（Python 3.12 以上と [Kaggle 配布のコンペデータ](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle/data)）と手順は、各ディレクトリの README にまとめています。カード画像は配布 PDF から各自の環境で生成する方式のため、リポジトリには含めていません。
 
-**公開状況：** master に入っているのは、ドキュメントと初期実装までです。最終提出版の AI 本体（`ptcg_ai/` の探索・方策・推論と学習済みモデル、テスト一式）、リプレイを収集・学習データ化する `kaggle_replays/`、大量の対戦を回す `league/`・`opponents/` は作業ブランチにあり、master への統合を進めています。上の表のリンク先も、統合が済むまでは初期段階のコードです。
+提出したモデルは、使用デッキ・設定・重みのハッシュと、採用を決めた評価の根拠をあわせて [`sample_submission/models/`](sample_submission/models/) に凍結してあります。
 
 ## 開発記録を読む
 
