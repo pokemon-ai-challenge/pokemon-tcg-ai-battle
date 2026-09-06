@@ -1,4 +1,4 @@
-learner=marnie_grimmsnarl_ex weights=C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_scale_f0.125_s2.json
+learner=marnie_grimmsnarl_ex weights=C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_scale_f0.125_s2.json
 opponents=['alakazam', 'crustle', 'marnie_grimmsnarl_ex', 'rocket_mewtwo_ex', 'omatsuri_ondo', 'shirona_garchomp_ex', 'ogerpon_teal_ex', 'dragapult_ex'] games=1600
 
 有効試合 1600/1600

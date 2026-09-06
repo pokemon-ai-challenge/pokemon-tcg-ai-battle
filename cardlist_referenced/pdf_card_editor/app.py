@@ -2692,7 +2692,7 @@ def _render_kaggle_replay_import(
         )
         replay_path_text = st.text_input(
             "ローカルJSONパス",
-            placeholder=r"C:\Users\syoug\Downloads\82760003.json",
+            placeholder=r"C:\Users\USER\Downloads\82760003.json",
             key="kaggle_replay_json_path",
         )
         raw_payload: bytes | str | None = None

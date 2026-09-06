@@ -32,5 +32,5 @@
     "mean_weighted_nll": 0.16633847410644043
   },
   "self_check_max_abs_err": 3.552713678800501e-15,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_crustle_v715_s42.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_crustle_v715_s42.json"
 }

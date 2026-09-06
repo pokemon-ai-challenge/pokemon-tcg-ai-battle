@@ -5,7 +5,7 @@
 # 実行後、成否をアーカイブ全体で見るには archetype_runs/<ARCH>_v715_s42_metrics.json を見る。
 set -uo pipefail
 
-REPO="C:/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle"
+REPO="C:/Users/USER/Documents/pokemon/pokemon-tcg-ai-battle"
 ARCHES="marnie_grimmsnarl_ex rocket_mewtwo_ex omatsuri_ondo shirona_garchomp_ex alakazam"
 
 for ARCH in $ARCHES; do

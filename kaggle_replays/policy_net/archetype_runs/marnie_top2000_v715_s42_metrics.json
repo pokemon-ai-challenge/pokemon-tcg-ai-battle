@@ -32,5 +32,5 @@
     "mean_weighted_nll": 0.08405517079477764
   },
   "self_check_max_abs_err": 6.217248937900877e-15,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_marnie_top2000_v715_s42.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_marnie_top2000_v715_s42.json"
 }

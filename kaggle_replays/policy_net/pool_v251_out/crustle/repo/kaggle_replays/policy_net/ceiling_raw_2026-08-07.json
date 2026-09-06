@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-08-07T19:06:49",
-  "input": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\training_data\\policy_positions_marnie_grimmsnarl_ex.jsonl.gz",
+  "input": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\training_data\\policy_positions_marnie_grimmsnarl_ex.jsonl.gz",
   "n_rows": 818350,
   "n_resolve_error": 0,
   "resolve_error_examples": [],

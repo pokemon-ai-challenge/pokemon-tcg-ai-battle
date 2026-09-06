@@ -73,7 +73,7 @@
 プローブは全てスクラッチパッドに置いてある（本実装側へは移していない）。
 
 ```
-C:\Users\honoc\AppData\Local\Temp\claude\C--Users-honoc-lab----PTCG-AI-short-search-pokemon-tcg-ai-battle\883291fb-44d0-471c-9115-2930d50a8bd3\scratchpad\
+C:\Users\USER\AppData\Local\Temp\claude\C--Users-USER-lab----PTCG-AI-short-search-pokemon-tcg-ai-battle\883291fb-44d0-471c-9115-2930d50a8bd3\scratchpad\
 ```
 
 実行は必ず `sample_submission/` をカレントディレクトリにする（`deck.csv` / `configs/` の解決のため）。

@@ -1,4 +1,4 @@
-features.npz を読み込み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_dragapult_ex.npz
+features.npz を読み込み: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_dragapult_ex.npz
 card_id_max=1267  embedding table size=1268 x 8
 train=29721 val=4676 test=4079 (全38476件)
 option特徴の標準化元行列 shape=(193909, 65)
@@ -43,7 +43,7 @@ option特徴の標準化元行列 shape=(193909, 65)
   select_type= 8  n=    91  top1=0.9231  nll=0.2552
   select_type= 9  n=    36  top1=1.0000  nll=0.0057
 
-重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_dragapult_ex.json (389.5 KB)
+重みを書き出しました: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_dragapult_ex.json (389.5 KB)
 
 === 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
   検証件数=50  最大誤差=1.77635684e-15  許容=1e-06
@@ -55,4 +55,4 @@ option特徴の標準化元行列 shape=(193909, 65)
   ベースライン(option only)      test: top1=0.5036 nll=1.3118
   本命(state ++ option ++ embed) test: top1=0.5818 nll=1.0829
   自己検証: 最大誤差=1.77635684e-15 -> PASS
-  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_dragapult_ex.json
+  出力: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_dragapult_ex.json

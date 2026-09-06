@@ -1,4 +1,4 @@
-pass1: episode_id を収集中: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions_marnie_grimmsnarl_ex.jsonl.gz
+pass1: episode_id を収集中: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions_marnie_grimmsnarl_ex.jsonl.gz
   pass1: 100000 行 (経過 5.7s)
   pass1: 200000 行 (経過 11.4s)
   pass1: 300000 行 (経過 17.1s)

@@ -59,7 +59,7 @@ pokemon-tcg-ai-battle/
 **数値を引用するときは、それがどの時点のモデルのものかを必ず確認する。**
 BC 再学習の前後で勝率が 10pt 以上動いており、取り違え事故が実際に起きている。
 
-進捗報告は**リポジトリ外**の `C:\Users\rinnz\Documents\pokemon\進捗報告\` に置く
+進捗報告は**リポジトリ外**の `C:\Users\USER\Documents\pokemon\進捗報告\` に置く
 （`YYYY-MM-DD_タイトル.md`、日付は作業開始日）。
 
 ---

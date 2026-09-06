@@ -32,5 +32,5 @@
     "mean_weighted_nll": 0.17643240798392612
   },
   "self_check_max_abs_err": 2.4424906541753444e-15,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_alakazam_t1_deck06_s42.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_alakazam_t1_deck06_s42.json"
 }

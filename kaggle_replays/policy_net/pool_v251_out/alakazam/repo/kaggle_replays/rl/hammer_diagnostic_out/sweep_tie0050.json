@@ -4179,7 +4179,7 @@
       "avg_diff": 0.04981438411245223
     }
   },
-  "value_weights_used": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\value_net\\value_weights_wired_2026-08-07.json",
+  "value_weights_used": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\kaggle_replays\\value_net\\value_weights_wired_2026-08-07.json",
   "hammer_plays_by_game": [
     {
       "opponent": "crustle",

@@ -7,21 +7,21 @@ control_extra_args: ['--ablate-features', 'self_board_card_slot,self_discard_car
 シード: [42, 1, 2]
 games: 3500
 
-コードバンドル: 2755 ファイル, 展開後 70.6 MB -> zip 18.7 MB (C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\code_data\ptcg_bc_ab_bundle.zip)
-code dataset-metadata: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\code_data\dataset-metadata.json
+コードバンドル: 2755 ファイル, 展開後 70.6 MB -> zip 18.7 MB (C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\code_data\ptcg_bc_ab_bundle.zip)
+code dataset-metadata: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\code_data\dataset-metadata.json
 
 特徴量:
   OK  features_marnie_grimmsnarl_ex_t1.npz  (118.3 MB)
-features dataset-metadata: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\features_data\dataset-metadata.json
+features dataset-metadata: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\features_data\dataset-metadata.json
 
 seed=42  kernel=koshin953/ptcg-bc-ab-t1-s42
-  notebook: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s42\ptcg-bc-ab-t1-s42.ipynb
+  notebook: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s42\ptcg-bc-ab-t1-s42.ipynb
 
 seed=1  kernel=koshin953/ptcg-bc-ab-t1-s1
-  notebook: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s1\ptcg-bc-ab-t1-s1.ipynb
+  notebook: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s1\ptcg-bc-ab-t1-s1.ipynb
 
 seed=2  kernel=koshin953/ptcg-bc-ab-t1-s2
-  notebook: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s2\ptcg-bc-ab-t1-s2.ipynb
+  notebook: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\distributed\.stage_bc_ab_t1\kernel_s2\ptcg-bc-ab-t1-s2.ipynb
 
 コード Dataset を push: koshin953/ptcg-bc-ab-eval
   [ptcg-bc-ab-eval] 更新前の Dataset バージョン: 1

@@ -41,5 +41,5 @@
     "mean_weighted_nll": 0.024322049109434474
   },
   "self_check_max_abs_err": 7.993605777301127e-15,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_marnie_grimmsnarl_ex_v715_s42.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_marnie_grimmsnarl_ex_v715_s42.json"
 }

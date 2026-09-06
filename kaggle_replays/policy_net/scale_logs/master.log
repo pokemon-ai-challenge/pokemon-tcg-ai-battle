@@ -57,11 +57,11 @@
 [2026-08-06 12:31:48] train start: frac=0.5 seed=2 feat=scale_features/features_scale_f0.5_s2.npz
 [2026-08-06 13:37:34] train done: frac=0.5 seed=2
 [2026-08-06 13:37:34] removed intermediate npz: frac=0.5 seed=2
-[2026-08-06 13:37:34] train start: frac=1.0 seed=42 feat=/c/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
+[2026-08-06 13:37:34] train start: frac=1.0 seed=42 feat=/c/Users/USER/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
 [2026-08-06 16:11:45] train done: frac=1.0 seed=42
-[2026-08-06 16:11:45] train start: frac=1.0 seed=1 feat=/c/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
+[2026-08-06 16:11:45] train start: frac=1.0 seed=1 feat=/c/Users/USER/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
 [2026-08-06 18:45:15] train done: frac=1.0 seed=1
-[2026-08-06 18:45:15] train start: frac=1.0 seed=2 feat=/c/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
+[2026-08-06 18:45:15] train start: frac=1.0 seed=2 feat=/c/Users/USER/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net/features_marnie_grimmsnarl_ex.npz
 [2026-08-06 20:16:52] train done: frac=1.0 seed=2
 [2026-08-06 20:16:52] === ALL TRAINING DONE ===
 [2026-08-06 20:16:52] === Stage D: eval_diagnostics.py (POOL8, 1600 games each) ===

@@ -1,4 +1,4 @@
-features.npz を読み込み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_marnie_grimmsnarl_ex.npz
+features.npz を読み込み: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_marnie_grimmsnarl_ex.npz
 card_id_max=1267  embedding table size=1268 x 8
 train=649343 val=83789 test=85218 (全818350件)
 option特徴の標準化元行列 shape=(3507301, 65)
@@ -53,7 +53,7 @@ option特徴の標準化元行列 shape=(3507301, 65)
   select_type= 8  n=  5278  top1=0.9898  nll=0.0663
   select_type= 9  n=  2516  top1=0.9829  nll=0.0712
 
-重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_marnie_grimmsnarl_ex.json (383.6 KB)
+重みを書き出しました: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_marnie_grimmsnarl_ex.json (383.6 KB)
 
 === 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
   検証件数=50  最大誤差=1.42108547e-14  許容=1e-06
@@ -65,4 +65,4 @@ option特徴の標準化元行列 shape=(3507301, 65)
   ベースライン(option only)      test: top1=0.6036 nll=1.0570
   本命(state ++ option ++ embed) test: top1=0.7388 nll=0.7255
   自己検証: 最大誤差=1.42108547e-14 -> PASS
-  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_marnie_grimmsnarl_ex.json
+  出力: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_marnie_grimmsnarl_ex.json

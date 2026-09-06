@@ -1064,13 +1064,13 @@ crustle 以外（alakazam・dragapult_ex 等）も個別RLをやれば同じ仕�
 
 ## 8. 手順（コマンド）
 
-`<REPO>` = `C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle`
+`<REPO>` = `C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle`
 
 ### 8-1. 新しい日次ダンプを取り込む（追加分が手に入ったとき）
 
 ```powershell
 # ハードリンク（同一ドライブなのでディスク消費ゼロ）。命名規則が違う点に注意
-$src = "C:\Users\rinnz\Downloads\<新しいダンプ>"
+$src = "C:\Users\USER\Downloads\<新しいダンプ>"
 $dst = "<REPO>\kaggle_replays\replays"
 Get-ChildItem $src -Filter *.json | ForEach-Object {
   $t = Join-Path $dst ("episode-" + $_.BaseName + "-replay.json")

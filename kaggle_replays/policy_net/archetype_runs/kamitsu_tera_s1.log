@@ -54,7 +54,7 @@ option特徴の標準化元行列 shape=(179218, 65)
   select_type= 8  n=    10  top1=1.0000  nll=0.0229
   select_type= 9  n=    87  top1=0.9425  nll=0.1165
 
-重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_tera_s1.json (790.1 KB)
+重みを書き出しました: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_tera_s1.json (790.1 KB)
 
 === 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
   検証件数=50  最大誤差=2.66453526e-15  許容=1e-06
@@ -66,5 +66,5 @@ option特徴の標準化元行列 shape=(179218, 65)
   ベースライン(option only)      test: top1=0.5608 nll=1.2201
   本命(state ++ option ++ embed) test: top1=0.6557 nll=0.9877
   自己検証: 最大誤差=2.66453526e-15 -> PASS
-  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_tera_s1.json
+  出力: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_tera_s1.json
   offline指標を書き出しました: archetype_runs\kamitsu_tera_s1_metrics.json

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-cd "C:/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net"
+cd "C:/Users/USER/Documents/pokemon/pokemon-tcg-ai-battle/kaggle_replays/policy_net"
 export PYTHONIOENCODING=utf-8
 for arch in rocket_mewtwo_ex omatsuri_ondo shirona_garchomp_ex ogerpon_teal_ex dragapult_ex; do
   echo "==================== START $arch $(date) ===================="

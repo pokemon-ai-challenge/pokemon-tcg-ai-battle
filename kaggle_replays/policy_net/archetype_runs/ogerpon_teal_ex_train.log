@@ -1,4 +1,4 @@
-features.npz を読み込み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_ogerpon_teal_ex.npz
+features.npz を読み込み: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_ogerpon_teal_ex.npz
 card_id_max=1267  embedding table size=1268 x 8
 train=21926 val=2579 test=3190 (全27695件)
 option特徴の標準化元行列 shape=(186377, 65)
@@ -44,7 +44,7 @@ option特徴の標準化元行列 shape=(186377, 65)
   select_type= 8  n=    13  top1=1.0000  nll=0.0000
   select_type= 9  n=   116  top1=1.0000  nll=0.0000
 
-重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_ogerpon_teal_ex.json (388.9 KB)
+重みを書き出しました: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_ogerpon_teal_ex.json (388.9 KB)
 
 === 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
   検証件数=50  最大誤差=5.32907052e-15  許容=1e-06
@@ -56,4 +56,4 @@ option特徴の標準化元行列 shape=(186377, 65)
   ベースライン(option only)      test: top1=0.5329 nll=1.3461
   本命(state ++ option ++ embed) test: top1=0.6655 nll=0.9769
   自己検証: 最大誤差=5.32907052e-15 -> PASS
-  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_ogerpon_teal_ex.json
+  出力: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_ogerpon_teal_ex.json

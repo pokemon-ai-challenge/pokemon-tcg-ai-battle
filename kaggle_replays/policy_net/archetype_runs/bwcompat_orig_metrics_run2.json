@@ -41,5 +41,5 @@
     "mean_weighted_nll": 0.13566584875946253
   },
   "self_check_max_abs_err": 1.7763568394002505e-15,
-  "out_weights": "C:\\Users\\rinnz\\AppData\\Local\\Temp\\claude\\C--Users-rinnz-Documents-pokemon\\d4776136-323b-4ef2-8d96-015e7d0e8f7d\\scratchpad\\policy_weights_bwcompat_orig_run2.json"
+  "out_weights": "C:\\Users\\USER\\AppData\\Local\\Temp\\claude\\C--Users-USER-Documents-pokemon\\d4776136-323b-4ef2-8d96-015e7d0e8f7d\\scratchpad\\policy_weights_bwcompat_orig_run2.json"
 }

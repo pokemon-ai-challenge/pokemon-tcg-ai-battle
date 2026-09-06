@@ -41,5 +41,5 @@
     "mean_weighted_nll": 0.11022182456417418
   },
   "self_check_max_abs_err": 1.3322676295501878e-15,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_shirona_garchomp_ex_v715_s42.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_shirona_garchomp_ex_v715_s42.json"
 }

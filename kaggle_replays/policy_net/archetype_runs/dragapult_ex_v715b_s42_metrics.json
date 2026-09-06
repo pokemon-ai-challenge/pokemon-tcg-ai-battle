@@ -32,5 +32,5 @@
     "mean_weighted_nll": 0.08639783083138508
   },
   "self_check_max_abs_err": 1.7763568394002505e-15,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_dragapult_ex_v715b_s42.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_dragapult_ex_v715b_s42.json"
 }

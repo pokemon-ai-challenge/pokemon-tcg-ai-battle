@@ -6,7 +6,7 @@
 set -e
 set -o pipefail
 
-REPO="/c/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle"
+REPO="/c/Users/USER/Documents/pokemon/pokemon-tcg-ai-battle"
 PN="$REPO/kaggle_replays/policy_net"
 RL="$REPO/kaggle_replays/rl"
 WDIR="$REPO/sample_submission/ptcg_ai/learning"

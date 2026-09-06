@@ -201,7 +201,7 @@
   #200 Haumea (teamId=16404960, score=956.5)
 [2/5] 各チームの提出IDを取得(チームごと最新1件)
 [3/5] エピソード一覧を取得(200件の提出から)
-[4/5] リプレイ4000件をダウンロード -> C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\replays
+[4/5] リプレイ4000件をダウンロード -> C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\replays
   (1/4000) episode 88909065 -> episode-88909065-replay.json
   (2/4000) episode 88909191 -> episode-88909191-replay.json
   (3/4000) episode 88909205 -> episode-88909205-replay.json

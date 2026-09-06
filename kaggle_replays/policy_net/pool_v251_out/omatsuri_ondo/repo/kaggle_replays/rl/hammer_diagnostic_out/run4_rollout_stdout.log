@@ -42,4 +42,4 @@ qualifying = 81 件  used_hammer = 32 件  missed_hammer = 49 件  (rollout観�
       EVOLVE          8 件（25.8%）
 
 
-result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\rl\hammer_diagnostic_out\run4_rollout.json
+result written to: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\rl\hammer_diagnostic_out\run4_rollout.json

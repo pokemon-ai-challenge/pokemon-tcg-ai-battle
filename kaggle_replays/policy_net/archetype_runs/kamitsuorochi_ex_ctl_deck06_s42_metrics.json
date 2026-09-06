@@ -32,5 +32,5 @@
     "mean_weighted_nll": 0.08136981993425285
   },
   "self_check_max_abs_err": 8.881784197001252e-16,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_kamitsuorochi_ex_ctl_deck06_s42.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_kamitsuorochi_ex_ctl_deck06_s42.json"
 }

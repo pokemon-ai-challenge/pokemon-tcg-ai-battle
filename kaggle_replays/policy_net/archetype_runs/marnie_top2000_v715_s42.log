@@ -49,7 +49,7 @@ option特徴の標準化元行列 shape=(797274, 65)
   select_type= 8  n=  1265  top1=0.9794  nll=0.1245
   select_type= 9  n=   572  top1=0.9738  nll=0.1091
 
-重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_marnie_top2000_v715_s42.json (786.1 KB)
+重みを書き出しました: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_marnie_top2000_v715_s42.json (786.1 KB)
 
 === 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
   検証件数=50  最大誤差=6.21724894e-15  許容=1e-06
@@ -61,5 +61,5 @@ option特徴の標準化元行列 shape=(797274, 65)
   ベースライン(option only)      test: top1=0.5928 nll=1.0896
   本命(state ++ option ++ embed) test: top1=0.6901 nll=0.8283
   自己検証: 最大誤差=6.21724894e-15 -> PASS
-  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_marnie_top2000_v715_s42.json
+  出力: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_marnie_top2000_v715_s42.json
   offline指標を書き出しました: archetype_runs\marnie_top2000_v715_s42_metrics.json

@@ -32,5 +32,5 @@
     "mean_weighted_nll": 0.18785270857931868
   },
   "self_check_max_abs_err": 3.552713678800501e-15,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_mega_froslass_ex_v715b_s42.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_mega_froslass_ex_v715b_s42.json"
 }

@@ -1,5 +1,5 @@
 card_id_max = 1267(all_card_data() から動的に計算)
-読み込み開始: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions_shirona_garchomp_ex.jsonl.gz
+読み込み開始: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions_shirona_garchomp_ex.jsonl.gz
 weight スキーム: concentrated
   5000 件処理済み(経過 2.2s、2291.7 rows/sec)
   10000 件処理済み(経過 4.4s、2273.4 rows/sec)
@@ -9,5 +9,5 @@ weight スキーム: concentrated
 完了: 採用 29742 件(経過 13.4s)
 state_features shape=(29742, 166) dtype=float32
 split 内訳: train=24545 val=2641 test=2556
-書き出し完了: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_shirona_garchomp_ex.npz (4.0 MB)
+書き出し完了: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\policy_net\features_shirona_garchomp_ex.npz (4.0 MB)
 注意: option_features/option_card_ids は object 配列(ragged)。読み込みは np.load(path, allow_pickle=True) を使うこと。card_id_max はスカラー(data['card_id_max'].item() で取り出す)。

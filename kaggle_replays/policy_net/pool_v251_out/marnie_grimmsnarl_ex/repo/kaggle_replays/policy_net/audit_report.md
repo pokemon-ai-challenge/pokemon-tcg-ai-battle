@@ -2,7 +2,7 @@
 
 - 対象リプレイディレクトリ集計対象件数: 7444
 - JSON パース成功件数: 7444
-- データセット出力: `C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions.jsonl.gz`
+- データセット出力: `C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions.jsonl.gz`
 
 ## フーディン(alakazam)該当 episode-player 数
 
@@ -78,4 +78,4 @@
 
 ## 出力ファイルサイズ
 
-- `C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions.jsonl.gz`: 27.93 MB
+- `C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\training_data\policy_positions.jsonl.gz`: 27.93 MB

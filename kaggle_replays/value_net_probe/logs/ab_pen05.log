@@ -1,4 +1,4 @@
-device=cpu learner=alakazam weights=C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights.json train_opponents=['alakazam'] eval_opponents=['alakazam', 'crustle', 'marnie_grimmsnarl_ex', 'archaludon_ex'] eval_fixed=['alakazam'] workers=4 -> policy_weights_alakazam_pool_ab_pen05.json
+device=cpu learner=alakazam weights=C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights.json train_opponents=['alakazam'] eval_opponents=['alakazam', 'crustle', 'marnie_grimmsnarl_ex', 'archaludon_ex'] eval_fixed=['alakazam'] workers=4 -> policy_weights_alakazam_pool_ab_pen05.json
 [iter 0] baseline greedy 83/200 = 0.415 (CI_lo 0.349)
     [eval_fixed] 103/200 = 0.515
 [iter 1] train_wr 0.285 (146/512 err0) steps 42297 pol -0.0075 val 0.0504 ent 1.066 deckout 150/366=0.410 575s

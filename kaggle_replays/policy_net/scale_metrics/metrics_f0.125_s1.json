@@ -32,5 +32,5 @@
     "mean_weighted_nll": 0.07250970011011448
   },
   "self_check_max_abs_err": 7.105427357601002e-15,
-  "out_weights": "C:\\Users\\rinnz\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_scale_f0.125_s1.json"
+  "out_weights": "C:\\Users\\USER\\Documents\\pokemon\\pokemon-tcg-ai-battle\\sample_submission\\ptcg_ai\\learning\\policy_weights_scale_f0.125_s1.json"
 }

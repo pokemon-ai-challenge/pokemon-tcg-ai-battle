@@ -126,9 +126,9 @@ games: 120/120 valid (0 errors), elapsed 322.0s, workers=7
   デッキのハンマーは4枚。使い切っていた試合            0 件（0.0%）
 
 === 問い2: 葉評価を値ネットに替えたら直りそうか ===
-value 評価器に使った重み: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\value_net\value_weights_wired_2026-08-07.json
+value 評価器に使った重み: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\value_net\value_weights_wired_2026-08-07.json
 逃した局面 48 件中、比較可能  45 件
   handcrafted  ハンマー後 > 選択手後 だった件数     33 (73.3%)   平均差 +0.016
   値ネット         ハンマー後 > 選択手後 だった件数     34 (75.6%)   平均差 +0.057
 
-result written to: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\rl\hammer_diagnostic_out\run3.json
+result written to: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\kaggle_replays\rl\hammer_diagnostic_out\run3.json

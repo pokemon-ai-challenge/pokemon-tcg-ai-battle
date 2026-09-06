@@ -1,5 +1,5 @@
---init-weights: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_ctl_deck06_s42.json (md5=fa19b32c2896b76246f7d4b430950e9a) をウォームスタートの初期値として使用
---row-mask: C:\Users\rinnz\AppData\Local\Temp\claude\C--Users-rinnz-Documents-pokemon\d4776136-323b-4ef2-8d96-015e7d0e8f7d\scratchpad\mask_B_exrace.npy (True=17094/35347)
+--init-weights: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_ctl_deck06_s42.json (md5=fa19b32c2896b76246f7d4b430950e9a) をウォームスタートの初期値として使用
+--row-mask: C:\Users\USER\AppData\Local\Temp\claude\C--Users-USER-Documents-pokemon\d4776136-323b-4ef2-8d96-015e7d0e8f7d\scratchpad\mask_B_exrace.npy (True=17094/35347)
 features.npz を読み込み: features_kamitsuorochi_ex_deck06.npz
 hand_card_vocab: 43種 [1, 92, 93, 96, 140, 149, 150, 172, 173, 346, 650, 651, 652, 655, 708, 709, 710, 917, 918, 919, 920, 1071, 1079, 1080, 1081, 1094, 1097, 1110, 1121, 1127, 1152, 1174, 1182, 1184, 1188, 1201, 1213, 1221, 1225, 1227, 1229, 1231, 1261]
 opponent_card_vocab: 157種 [1, 2, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 18, 19, 20, 31, 42, 44, 58, 63, 65, 66, 73, 74, 89, 90, 92, 93, 96, 100, 104, 108, 112, 117, 119, 120, 121, 131, 132, 133, 140, 149, 184, 230, 235, 240, 272, 305, 306, 318, 341, 342, 343, 344, 345, 379, 380, 381, 387, 400, 401, 414, 431, 432, 434, 463, 607, 646, 647, 648, 649, 687, 741, 742, 743, 756, 791, 860, 978, 1071, 1079, 1080, 1081, 1086, 1087, 1092, 1094, 1097, 1116, 1118, 1119, 1120, 1121, 1122, 1123, 1127, 1129, 1134, 1137, 1139, 1141, 1142, 1147, 1152, 1153, 1158, 1159, 1161, 1169, 1172, 1173, 1174, 1175, 1182, 1184, 1185, 1186, 1188, 1190, 1191, 1192, 1193, 1194, 1197, 1198, 1199, 1203, 1204, 1205, 1206, 1208, 1210, 1211, 1212, 1213, 1216, 1217, 1218, 1219, 1220, 1221, 1225, 1227, 1231, 1240, 1245, 1246, 1247, 1250, 1256, 1257, 1259, 1260, 1261, 1264, 1266, 1267]
@@ -7,7 +7,7 @@ opponent_card_vocab: 157種 [1, 2, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 18, 19, 2
 card_id_max=1267  embedding table size=1268 x 8
 --row-mask 適用後: train 27347->13022  val 3544->1684  test 4456->2388
 train=13022 val=1684 test=2388 (全35347件)
---init-weights: 標準化パラメータ(state/option の mean/std)は部分集合から再計算せず、C:/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/sample_submission/ptcg_ai/learning/policy_weights_kamitsuorochi_ex_ctl_deck06_s42.json の値をそのまま使用します
+--init-weights: 標準化パラメータ(state/option の mean/std)は部分集合から再計算せず、C:/Users/USER/Documents/pokemon/pokemon-tcg-ai-battle/sample_submission/ptcg_ai/learning/policy_weights_kamitsuorochi_ex_ctl_deck06_s42.json の値をそのまま使用します
 
 === ベースライン: 線形モデル(選択肢特徴のみ、状態特徴・card embeddingなし) ===
     [baseline] epoch   1  train_loss=1.6115  val_nll=1.4906 (best=1.4906, no_improve=0)  val_top1=0.4365
@@ -36,7 +36,7 @@ train=13022 val=1684 test=2388 (全35347件)
   test: top1=0.5775  nll=1.1982
 
 === 本命: MLP(PolicyScorer(T1), embedding(card_id) ++ Linear(in,32) -> ReLU -> Linear(32,1)) ===
---init-weights: fc1/fc2/embedding を C:/Users/rinnz/Documents/pokemon/pokemon-tcg-ai-battle/sample_submission/ptcg_ai/learning/policy_weights_kamitsuorochi_ex_ctl_deck06_s42.json からウォームスタートの初期値としてロードしました
+--init-weights: fc1/fc2/embedding を C:/Users/USER/Documents/pokemon/pokemon-tcg-ai-battle/sample_submission/ptcg_ai/learning/policy_weights_kamitsuorochi_ex_ctl_deck06_s42.json からウォームスタートの初期値としてロードしました
     [main] epoch   1  train_loss=0.8292  val_nll=0.8932 (best=0.8932, no_improve=0)  val_top1=0.6770
     [main] epoch   5  train_loss=0.8001  val_nll=0.8928 (best=0.8909, no_improve=3)  val_top1=0.6758
     [main] epoch  10  train_loss=0.7802  val_nll=0.8954 (best=0.8909, no_improve=8)  val_top1=0.6746
@@ -59,7 +59,7 @@ train=13022 val=1684 test=2388 (全35347件)
   select_type= 8  n=     7  top1=1.0000  nll=0.0047
   select_type= 9  n=    46  top1=0.9130  nll=0.1854
 
-重みを書き出しました: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_ft_B_exrace_s42.json (791.2 KB)
+重みを書き出しました: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_ft_B_exrace_s42.json (791.2 KB)
 
 === 自己検証: pure_python_forward(JSON再読込) vs PyTorchモデル出力(val split 50件, float64) ===
   検証件数=50  最大誤差=1.77635684e-15  許容=1e-06
@@ -71,5 +71,5 @@ train=13022 val=1684 test=2388 (全35347件)
   ベースライン(option only)      test: top1=0.5775 nll=1.1982
   本命(state ++ option ++ embed) test: top1=0.6763 nll=0.9584
   自己検証: 最大誤差=1.77635684e-15 -> PASS
-  出力: C:\Users\rinnz\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_ft_B_exrace_s42.json
+  出力: C:\Users\USER\Documents\pokemon\pokemon-tcg-ai-battle\sample_submission\ptcg_ai\learning\policy_weights_kamitsuorochi_ex_ft_B_exrace_s42.json
   offline指標を書き出しました: archetype_runs\kamitsu_ft_B_exrace_s42_metrics.json
